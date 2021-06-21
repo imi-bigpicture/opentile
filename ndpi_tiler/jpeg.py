@@ -4,7 +4,7 @@ import struct
 from dataclasses import dataclass
 from pathlib import Path
 from struct import unpack
-from typing import Dict, List, Optional, OrderedDict, Set, Tuple, Union
+from typing import Callable, Dict, List, Optional, OrderedDict, Set, Tuple, Union
 
 from bitstring import BitArray, Bits, BitStream, ConstBitStream
 
@@ -59,54 +59,79 @@ class HuffmanNode:
         self._depth: int = depth
         self._nodes: List[Optional[Union['HuffmanNode', HuffmanLeaf]]] = []
 
+    def __len__(self) -> int:
+        return len(self._nodes)
+
     @property
     def full(self) -> bool:
         """Return True if node is full."""
         return len(self._nodes) > 1
 
-    def _insert_into_self(self, leaf: HuffmanLeaf, depth: int) -> bool:
-        """Return True if leaf could be inserted as child to this node."""
+    def _insert_into_self(
+        self,
+        leaf: HuffmanLeaf,
+        depth: int
+    ) -> Optional[int]:
+        """Return Huffman code for leaf if leaf could be inserted as child to
+        this node. Returns None if not inserted."""
         if depth == self._depth and not self.full:
             self._nodes.append(leaf)
-            return True
-        return False
+            return len(self) - 1
+        return None
 
-    def _insert_into_child(self, leaf, depth) -> bool:
-        """Return True if leaf could be inserted in a child (or a child of a
-        child, recursively) to this node."""
-        for node in self._nodes:
+    def _insert_into_child(
+        self,
+        leaf: HuffmanLeaf,
+        depth: int
+    ) -> Optional[int]:
+        """Return Huffman code for leaf if leaf could be inserted in a child
+        (or a child of a child, recursively) to this node. Returns None if
+        not inserted."""
+        for index, node in enumerate(self._nodes):
             if isinstance(node, HuffmanNode):
                 # Try to insert leaf into child node
-                if node.insert(leaf, depth):
-                    return True
-        return False
+                code = node.insert(leaf, depth)
+                if code is not None:
+                    return code*2 + index
+        return None
 
-    def _insert_into_new_child(self, leaf, depth) -> bool:
-        """Return True if leaf could be inserted as a new child to this node"""
+    def _insert_into_new_child(
+        self,
+        leaf: HuffmanLeaf,
+        depth: int
+    ) -> Optional[int]:
+        """Return Huffman code for leaf if leaf could be inserted as a new
+        child to this node. Returns None if not inserted."""
         if self.full:
-            return False
+            return None
         node = HuffmanNode(self._depth+1)
         node.insert(leaf, depth)
         self._nodes.append(node)
-        return True
+        return len(self) - 1
 
-    def insert(self, leaf: HuffmanLeaf, depth: int) -> bool:
-        """Returns True if leaf could be fit inside this node or this node's
-        children, recursivley)."""
-        # Try to insert leaf directly into this node
-        if self._insert_into_self(leaf, depth):
-            return True
-
-        # If there is a child node, try to insert into that
-        if self._insert_into_child(leaf, depth):
-            return True
-
-        # Otherwise try to create a new child node
-        if self._insert_into_new_child(leaf, depth):
-            return True
+    def insert(
+        self,
+        leaf: HuffmanLeaf,
+        depth: int
+    ) -> Optional[int]:
+        """Returns Huffman code for leaf if leaf could be fit inside this node
+        or this node's children, recursivley). Returns None if not inserted."""
+        # Insertion order:
+        # 1. Try to insert leaf directly into this node
+        # 2. If there is a child node, try to insert into that
+        # 3. Otherwise try to create a new child node
+        insertion_order: List[Callable([HuffmanLeaf, int], Optional[int])] = [
+            self._insert_into_self,
+            self._insert_into_child,
+            self._insert_into_new_child
+        ]
+        for insertion_function in insertion_order:
+            code = insertion_function(leaf, depth)
+            if code is not None:
+                return  code
 
         # No space for a new child node, insert leaf somewhere else
-        return False
+        return None
 
     def get(self, key: int) -> Union[None, HuffmanLeaf, 'HuffmanNode']:
         """Return node child from this node"""
@@ -206,7 +231,8 @@ class HuffmanTable:
             for symbol in level:
                 leaf = HuffmanLeaf(symbol)
                 # Return true if leaf inserted
-                if not self._root.insert(leaf, depth):
+                if self._root.insert(leaf, depth) is None:
+                # if not self._root.insert(leaf, depth):
                     raise ValueError(
                         "Huffman table not correct "
                         f"header {header} symbol {symbol} at depth {depth}"
