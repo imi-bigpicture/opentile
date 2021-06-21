@@ -5,10 +5,12 @@ from struct import unpack
 
 import pytest
 from bitstring import ConstBitStream
-from ndpi_tiler.jpeg import (HuffmanLeaf, HuffmanNode, HuffmanTable,
-                             HuffmanTableIdentifier, HuffmanTableSelection,
-                             JpegHeader, JpegScan, Mcu, Stream, marker_mapping)
+from ndpi_tiler.huffman import (HuffmanLeaf, HuffmanNode, HuffmanTable,
+                                HuffmanTableIdentifier, HuffmanTableSelection)
+from ndpi_tiler.jpeg import JpegHeader, JpegScan, Mcu, Stream
+from ndpi_tiler.jpeg_tags import MARER_MAPPINGS
 from tifffile import TiffFile, TiffPage
+from ndpi_tiler.stream import Stream
 
 tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
 tif_test_file_name = "test.ndpi"
@@ -299,7 +301,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         )
 
     def test_read_marker(self):
-        for marker in marker_mapping.keys():
+        for marker in MARER_MAPPINGS.keys():
             self.assertEqual(
                 marker,
                 JpegHeader.read_marker(io.BytesIO(

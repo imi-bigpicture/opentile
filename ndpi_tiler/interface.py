@@ -5,7 +5,6 @@ import struct
 
 from PIL import Image
 from tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
-from .jpeg import JpegHeader, JpegScan
 
 
 class NdpiPage:
