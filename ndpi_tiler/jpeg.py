@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 from ndpi_tiler.huffman import (HuffmanTable, HuffmanTableIdentifier,
                       HuffmanTableSelection)
 from ndpi_tiler.utils import split_byte_into_nibbles
-from ndpi_tiler.stream import Stream, StreamPosition, Mcu, McuBlock
+from ndpi_tiler.stream import Stream, Mcu, McuBlock
 from ndpi_tiler.jpeg_tags import TAGS
 
 MCU_SIZE = 8
@@ -254,8 +254,8 @@ class JpegSegment:
 @dataclass
 class SegmentStub:
     first_mcu: Mcu
-    scan_start: StreamPosition
-    scan_end: StreamPosition
+    scan_start: int
+    scan_end: int
     dc: int
 
 class JpegScan:

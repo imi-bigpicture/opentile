@@ -18,7 +18,9 @@ TAGS = {
     'huffman table': 0xFFC4,
     'start of scan': 0xFFDA,
     'end of image': 0xFFD9,
-    'restart interval': 0xFFDD
+    'restart interval': 0xFFDD,
+    'tag': 0xFF,
+    'stuffing': 0x00
 }
 
 BYTE_TAG = bytes([0xFF])

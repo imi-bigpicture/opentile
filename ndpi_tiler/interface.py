@@ -1,10 +1,12 @@
 import io
-from pathlib import Path
-from typing import Tuple
 import struct
+from pathlib import Path
+from typing import List, Tuple
 
 from PIL import Image
 from tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
+
+from ndpi_tiler.jpeg import JpegHeader, JpegScan
 
 
 class NdpiPage:
@@ -195,8 +197,31 @@ class NdpiPage:
                     strip_index = (strip_index + 1) % 8
             stripe = self.wrap_scan(strip_buffer.getvalue(), image_size)
 
-        # print(f"tile bytes {tile_bytes.hex()}")
         return Image.open(io.BytesIO(stripe))
+
+
+class NdpiStrip:
+    def __init__(self):
+        pass
+
+
+class NdpiStripCache:
+    def __init__(
+        self,
+        page: NdpiPage,
+        strip_width: int,
+        strip_height: int,
+        tile_width: int,
+        tile_height: int
+    ):
+        self.page = page
+        self.strip_width = strip_width
+        self.strip_height = strip_height
+        self.tile_width = tile_width
+        self.tile_height = tile_height
+
+        self.strips: List[NdpiStrip] = []
+
 
 
 class NdpiTiler:

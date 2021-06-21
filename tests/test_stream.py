@@ -2,7 +2,7 @@ import unittest
 from struct import unpack
 
 import pytest
-from ndpi_tiler.stream import Stream, StreamPosition
+from ndpi_tiler.stream import Stream
 from .create_jpeg_data import create_small_scan_data
 
 @pytest.mark.unittest
@@ -40,41 +40,41 @@ class NdpiTilerStreamTest(unittest.TestCase):
         self.assertEqual(self.stream.read_bits(12), 0b001010101111)
 
     def test_seek(self):
-        self.stream.seek(StreamPosition(2, 2))
-        self.assertEqual(self.stream.pos, StreamPosition(3, 2))
+        self.stream.seek(18)
+        self.assertEqual(self.stream.pos, 18+8)
 
-        self.stream.seek(StreamPosition(0, 7))
-        self.assertEqual(self.stream.pos, StreamPosition(0, 7))
+        self.stream.seek(7)
+        self.assertEqual(self.stream.pos, 7)
 
-        self.stream.seek(StreamPosition(3, 1))
-        self.assertEqual(self.stream.pos, StreamPosition(3, 1))
+        self.stream.seek(25)
+        self.assertEqual(self.stream.pos, 25)
 
-        self.stream.seek(StreamPosition(4, 0))
-        self.assertEqual(self.stream.pos, StreamPosition(4, 0))
+        self.stream.seek(32)
+        self.assertEqual(self.stream.pos, 32)
 
-        self.stream.seek(StreamPosition(3, 7))
-        self.assertEqual(self.stream.pos, StreamPosition(3, 7))
+        self.stream.seek(31)
+        self.assertEqual(self.stream.pos, 31)
 
     def test_seek_read(self):
         self.stream.read_bits(4)
-        self.stream.seek(StreamPosition(0, 0))
+        self.stream.seek(0)
         self.assertEqual(self.stream.read_bits(4), 0b1111)
 
-        self.stream.seek(StreamPosition(2, 0))
+        self.stream.seek(16)
         self.assertEqual(self.stream.read_bits(6), 0b111000)
 
-        self.stream.seek(StreamPosition(2, 2))
+        self.stream.seek(18)
         self.assertEqual(self.stream.read_bits(5), 0b10001)
 
-        self.stream.seek(StreamPosition(1, 6))
+        self.stream.seek(14)
         self.assertEqual(self.stream.read_bits(2), 0b11)
 
     def test_skip_pos(self):
         self.stream.skip(2)
-        self.assertEqual(self.stream.pos, StreamPosition(0, 2))
+        self.assertEqual(self.stream.pos, 2)
 
         self.stream.skip(6)
-        self.assertEqual(self.stream.pos, StreamPosition(1, 0))
+        self.assertEqual(self.stream.pos, 8)
 
 
     def test_skip_read(self):
