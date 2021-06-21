@@ -6,7 +6,8 @@ from struct import unpack
 import pytest
 from bitstring import ConstBitStream
 from ndpi_tiler.jpeg import (HuffmanLeaf, HuffmanNode, HuffmanTable,
-                             JpegHeader, JpegScan, Stream, marker_mapping, Mcu)
+                             HuffmanTableIdentifier, HuffmanTableSelection,
+                             JpegHeader, JpegScan, Mcu, Stream, marker_mapping)
 from tifffile import TiffFile, TiffPage
 
 tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
@@ -16,7 +17,7 @@ tif_test_file_path = tif_test_data_dir + '/' + tif_test_file_name
 
 def create_small_header() -> JpegHeader:
     table_0 = HuffmanTable(
-        0,
+        HuffmanTableIdentifier('DC', 0),
         [
             [],
             [],
@@ -28,7 +29,7 @@ def create_small_header() -> JpegHeader:
             [0x0B]
         ])
     table_1 = HuffmanTable(
-        1,
+        HuffmanTableIdentifier('DC', 1),
         [
             [],
             [0x01, 0x00],
@@ -41,7 +42,7 @@ def create_small_header() -> JpegHeader:
             [0x0B]
         ])
     table_16 = HuffmanTable(
-        16,
+        HuffmanTableIdentifier('AC', 0),
         [
             [],
             [0x01, 0x02],
@@ -74,7 +75,7 @@ def create_small_header() -> JpegHeader:
             ]
         ])
     table_17 = HuffmanTable(
-        17,
+        HuffmanTableIdentifier('AC', 1),
         [
             [],
             [0x01, 0x00],
@@ -110,7 +111,11 @@ def create_small_header() -> JpegHeader:
         huffman_tables=[table_0, table_1, table_16, table_17],
         width=16,
         height=8,
-        table_selections={0: (0, 0), 1: (1, 1), 2: (1, 1)}
+        table_selections={
+            0: HuffmanTableSelection(dc=0, ac=0),
+            1: HuffmanTableSelection(dc=1, ac=1),
+            2: HuffmanTableSelection(dc=1, ac=1)
+        }
     )
 
 
@@ -204,7 +209,9 @@ class NdpiTilerJpegTest(unittest.TestCase):
         self.assertEqual(root._insert_into_new_child(HuffmanLeaf(3), 1), None)
 
     def test_huffman(self):
-        table_0 = self.large_header.huffman_tables[0]
+        DC_0 = self.large_header.huffman_tables[
+            HuffmanTableIdentifier('DC', 0)
+        ]
         codes = {
             0x00: ConstBitStream('0b00'),
             0x01: ConstBitStream('0b010'),
@@ -221,10 +228,12 @@ class NdpiTilerJpegTest(unittest.TestCase):
         }
 
         for truth, code in codes.items():
-            decoded = table_0.decode_from_bits(code)
+            decoded = DC_0.decode_from_bits(code)
             self.assertEqual(truth, decoded)
         print(self.large_header.huffman_tables.keys())
-        table_16 = self.large_header.huffman_tables[16]
+        AC_0 = self.large_header.huffman_tables[
+            HuffmanTableIdentifier('AC', 0)
+        ]
         codes = {
             0x01: ConstBitStream('0b00'),
             0x02: ConstBitStream('0b01'),
@@ -247,7 +256,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
             0x72: ConstBitStream('0b111111110111')
         }
         for truth, code in codes.items():
-            decoded = table_16.decode_from_bits(code)
+            decoded = AC_0.decode_from_bits(code)
 
             self.assertEqual(truth, decoded)
 
@@ -300,10 +309,10 @@ class NdpiTilerJpegTest(unittest.TestCase):
 
     def test_small_scan_huffman_table(self):
         data = {
-            0: bytes([254]),
-            1: bytes([254]),
-            16: bytes([248]),
-            17: bytes([248])
+            HuffmanTableIdentifier('DC', 0): bytes([254]),
+            HuffmanTableIdentifier('DC', 1): bytes([254]),
+            HuffmanTableIdentifier('AC', 0): bytes([248]),
+            HuffmanTableIdentifier('AC', 1): bytes([248])
         }
         decoded_values = [
             table.decode(Stream(data[index]))
@@ -320,8 +329,13 @@ class NdpiTilerJpegTest(unittest.TestCase):
         self.assertEqual(actual_mcus, self.small_scan.mcus)
 
     def test_table_selection(self):
+        actual_selection = {
+                0: HuffmanTableSelection(dc=0, ac=0),
+                1: HuffmanTableSelection(dc=1, ac=1),
+                2: HuffmanTableSelection(dc=1, ac=1)
+            }
         selection = self.small_header.table_selections
-        self.assertEqual({0: (0, 0), 1: (1, 1), 2: (1, 1)}, selection)
+        self.assertEqual(actual_selection, selection)
 
         selection = self.large_header.table_selections
-        self.assertEqual({0: (0, 0), 1: (1, 1), 2: (1, 1)}, selection)
+        self.assertEqual(actual_selection, selection)
