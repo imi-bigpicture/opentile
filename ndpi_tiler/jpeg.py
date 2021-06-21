@@ -155,9 +155,7 @@ class Stream:
 
         """
         self._buffer = io.BytesIO(data)
-
         self._byte = ConstBitStream()
-
         self._total_read_bits: int = 0
 
     # @property
@@ -199,9 +197,13 @@ class Stream:
         self._total_read_bits += 1
         return bit
 
-    def read_bits(self, count: int) -> List[int]:
+    def read_bits(self, count: int) -> int:
         """Read multiple bits from the buffer."""
-        return [self.read_bit() for i in range(count)]
+        bits = [self.read_bit() for i in range(count)]
+        value = 0
+        for bit in bits:
+            value += 2*value + bit
+        return value
 
 
 class HuffmanTable:
@@ -524,26 +526,21 @@ class JpegScan:
         self.mcu += 1
         position = stream.pos
         huffmant_table_indices = [0, 1, 1]
-        for index in huffmant_table_indices:
+        dc_amplitudes = [
             self.read_component(stream, index)
+            for index in huffmant_table_indices
+        ]
         return position
 
-    def read_component(self, stream: Stream, index: int) -> None:
-        """Read single component of a MCU
-
-        Parameters
-        ----------
-        stream: Stream
-            Stream of jpeg scan data
-        index: int
-            Index of Huffman table to use
-        """
+    def read_dc_amplitude(self, stream: Stream, index: int) -> int:
         dc_table = self.huffman_tables[index]
-        ac_table = self.huffman_tables[16+index]
         dc_amplitude_length = dc_table.decode(stream)
-        dc_amplitude = stream.read_bits(dc_amplitude_length)
-        mcu_length = 1
+        return stream.read_bits(dc_amplitude_length)
 
+    def read_ac_amplitudes(self, stream: Stream, index: int) -> List[int]:
+        ac_table = self.huffman_tables[16+index]
+        mcu_length = 1
+        ac_amplitudes: List[int] = []
         while mcu_length < 64:
             code = ac_table.decode(stream)
             if code == 0:
@@ -554,5 +551,22 @@ class JpegScan:
                 mcu_length += zeros
                 # Second 4 bits are ac amplitude length
                 ac_amplitude_length = code & 0x0F
-                ac_amplitude = stream.read_bits(ac_amplitude_length)
+                ac_amplitudes.append(stream.read_bits(ac_amplitude_length))
                 mcu_length += 1
+
+        return ac_amplitudes
+
+
+    def read_component(self, stream: Stream, index: int) -> int:
+        """Read single component of a MCU
+
+        Parameters
+        ----------
+        stream: Stream
+            Stream of jpeg scan data
+        index: int
+            Index of Huffman table to use
+        """
+        dc_amplitude = self.read_dc_amplitude(stream, index)
+        ac_amplitudes = self.read_ac_amplitudes(stream, index)
+        return dc_amplitude
