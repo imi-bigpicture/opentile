@@ -317,12 +317,6 @@ class NdpiTilerJpegTest(unittest.TestCase):
             Mcu(position=(0, 0), dc_amplitudes=[9841, 0, 0]),
             Mcu(position=(3, 5), dc_amplitudes=[29520, 0, 0])
         ]
-        # for index, mcu in enumerate(self.small_scan.mcu_positions):
-        #     print(f"mcu {mcu}")
-        #     self.assertEqual(
-        #         actual_mcus[index],
-        #         mcu
-        #     )
         self.assertEqual(actual_mcus, self.small_scan.mcus)
 
     def test_table_selection(self):
