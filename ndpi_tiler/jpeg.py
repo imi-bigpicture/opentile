@@ -1,5 +1,4 @@
 import io
-from posixpath import commonpath
 import struct
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +27,7 @@ START_OF_FRAME = 0xFFC0
 HUFFMAN_TABLE = 0xFFC4
 START_OF_SCAN = 0xFFDA
 END_OF_IMAGE = 0xFFD9
+RESTART_INTERVAL = 0xFFDD
 
 BYTE_TAG = bytes([0xFF])
 BYTE_STUFFING = bytes([0x00])
@@ -291,6 +291,7 @@ class HuffmanTable:
         ----------
         Tuple[HuffmanTable, int]
             Created Huffman table and length read from data
+
         """
         with io.BytesIO(data) as buffer:
             header: int = unpack('B', buffer.read(1))[0]
@@ -316,6 +317,12 @@ class HuffmanTable:
         ----------
         stream: Stream
             Byte stream to decode.
+
+        Returns
+        ----------
+        int
+            Decoded value from stream.
+
         """
         node = self._root
         # Search table until leaf is found
@@ -337,6 +344,11 @@ class HuffmanTable:
         ----------
         bits: ConstBitStream
             Bits to decode.
+
+        Returns
+        ----------
+        int
+            Decoded value from bits.
         """
         node = self._root
         # Search table until leaf is found
@@ -365,17 +377,39 @@ class JpegHeader:
         huffman_tables: List[HuffmanTable],
         width: int,
         height: int,
-        table_selections: Dict[int, HuffmanTableSelection]
+        table_selections: Dict[int, HuffmanTableSelection],
+        restart_interval: int = None
     ) -> None:
 
-        self.huffman_tables = {
+        self._huffman_tables = {
             table.identifier: table for table in huffman_tables
         }
-        print(self.huffman_tables)
-        self.width = width
-        self.height = height
-        self.table_selections = table_selections
+        self._width = width
+        self._height = height
+        self._table_selections = table_selections
+        self._restart_interval = restart_interval
 
+    @property
+    def huffman_tables(self) -> List[HuffmanTable]:
+        return self._huffman_tables
+
+    @property
+    def width(self) ->int:
+        return self._width
+
+    @property
+    def height(self) ->int:
+        return self._height
+
+    @property
+    def table_selections(self) -> Dict[int, HuffmanTableSelection]:
+        return self._table_selections
+
+    @property
+    def restart_interval(self) -> int:
+        if self._restart_interval is not None:
+            return self._restart_interval
+        return self.width * self.height // (8*8)
 
     @classmethod
     def from_bytes(cls, data: bytes) -> 'JpegHeader':
@@ -386,6 +420,12 @@ class JpegHeader:
         ----------
         data: bytes
             Jpeg header in bytes.
+
+        Returns
+        ----------
+        JpegHeader
+            JpegHeader created from data.
+
         """
         huffman_tables: List[HuffmanTable] = []
         width: int
@@ -411,6 +451,8 @@ class JpegHeader:
                     (width, height) = cls.parse_start_of_frame(payload)
                 elif marker == START_OF_SCAN:
                     table_selections = cls.parse_start_of_scan(payload)
+                elif marker == RESTART_INTERVAL:
+                    restart_interval = cls.parse_restart_interval(payload)
                 else:
                     pass
 
@@ -421,7 +463,30 @@ class JpegHeader:
             table_selections == {}
         ):
             raise ValueError("missing tags")
-        return cls(huffman_tables, width, height, table_selections)
+        return cls(
+            huffman_tables,
+            width,
+            height,
+            table_selections,
+            restart_interval
+        )
+
+    @staticmethod
+    def parse_restart_interval(payload: bytes) -> int:
+        """Parse restart interval payload.
+
+        Parameters
+        ----------
+        payload: bytes
+            Huffman table in bytes.
+
+        Returns
+        ----------
+        int
+            Restart interval
+        """
+        return unpack('>H', payload)[0]
+
 
     @staticmethod
     def parse_start_of_scan(
@@ -434,6 +499,11 @@ class JpegHeader:
         ----------
         payload: bytes
             Start of scan in bytes.
+
+        Returns
+        ----------
+        Dict[int, HuffmanTableSelection]
+            Huffman table selection with component identifier as key.
 
         """
         with io.BytesIO(payload) as buffer:
@@ -459,6 +529,10 @@ class JpegHeader:
         payload: bytes
             Huffman table in bytes.
 
+        Returns
+        ----------
+        List[HuffmanTable]
+            List of Huffman tables.
         """
         tables: List[HuffmanTable] = []
         table_start = 0
@@ -479,6 +553,10 @@ class JpegHeader:
         payload: bytes
             Start of frame in bytes.
 
+        Returns
+        ----------
+        Tuple[int, int]
+            Height and width of frame.
         """
         hdr, height, width, components = unpack('>BHHB', payload[0:6])
         return (width, height)
@@ -491,6 +569,11 @@ class JpegHeader:
         ----------
         buffer: io.BytesIO
             Buffer to read marker from.
+
+        Returns
+        ----------
+        Optional[int]
+            Int representatin of marker.
 
         """
         try:
@@ -507,6 +590,11 @@ class JpegHeader:
         ----------
         buffer: io.BytesIO
             Buffer to read payload from.
+
+        Returns
+        ----------
+        bytes
+            Read payload.
 
         """
         payload_length = unpack('>H', buffer.read(2))[0]
@@ -538,23 +626,26 @@ class JpegScan:
             Jpeg scan data, excluding start of scan tag
 
         """
-        self._huffman_tables = header.huffman_tables
+        self._header = header
         self._mcu_count = header.height * header.width // (MCU_SIZE * MCU_SIZE)
-        self._table_selections = header.table_selections
 
         self.mcus = self._get_mcus(data)
 
     @property
     def table_selections(self) -> Dict[int, HuffmanTableSelection]:
-        return self._table_selections
+        return self._header.table_selections
 
     @property
     def huffman_tables(self) -> List[HuffmanTable]:
-        return self._huffman_tables
+        return self._header.huffman_tables
 
     @property
     def mcu_count(self) -> int:
         return self._mcu_count
+
+    @property
+    def restart_interval(self) -> int:
+        return self._header.restart_interval
 
     def _get_mcus(
         self,
