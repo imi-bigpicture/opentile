@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 from ndpi_tiler.huffman import (HuffmanTable, HuffmanTableIdentifier,
                       HuffmanTableSelection)
 from ndpi_tiler.utils import split_byte_into_nibbles
-from ndpi_tiler.stream import Stream
+from ndpi_tiler.stream import Stream, StreamPosition, Mcu, McuBlock
 from ndpi_tiler.jpeg_tags import TAGS
 
 MCU_SIZE = 8
@@ -182,7 +182,6 @@ class JpegHeader:
         while(table_start < len(payload)):
             (table, byte_read) = HuffmanTable.from_data(payload[table_start:])
             tables.append(table)
-            print(f"got huffman with identifier {table.identifier}")
             table_start += byte_read
         return tables
 
@@ -245,11 +244,19 @@ class JpegHeader:
         return buffer.read(payload_length-2)
 
 
+
+
 @dataclass
-class Mcu:
-    """Class for storing mcu position and dc amplitudes"""
-    position: Tuple[int, int]
-    dc_amplitudes: List[int]
+class JpegSegment:
+    data: bytes
+    length: int
+
+@dataclass
+class SegmentStub:
+    first_mcu: Mcu
+    scan_start: StreamPosition
+    scan_end: StreamPosition
+    dc: int
 
 class JpegScan:
     """Class for minimal decoding of jpeg scan data"""
@@ -257,7 +264,8 @@ class JpegScan:
     def __init__(
         self,
         header: JpegHeader,
-        data: bytes
+        data: bytes,
+        scan_width: int = None
     ):
         """Parse jpeg scan using info in header.
 
@@ -271,8 +279,11 @@ class JpegScan:
         """
         self._header = header
         self._mcu_count = header.height * header.width // (MCU_SIZE * MCU_SIZE)
-
-        self.mcus = self._get_mcus(data)
+        if scan_width is not None:
+            self._scan_width = scan_width
+        else:
+            self._scan_width = self._mcu_count // MCU_SIZE
+        self.segments = self._get_segments(data)
 
     @property
     def table_selections(self) -> Dict[int, HuffmanTableSelection]:
@@ -290,31 +301,58 @@ class JpegScan:
     def restart_interval(self) -> int:
         return self._header.restart_interval
 
-    def _get_mcus(
+    def _get_segments(
         self,
         data: bytes
-    ) -> List[Mcu]:
-        """Return list of mcu positions in scan (relative to scan start).
-
-        Parameters
-        ----------
-        data: bytes
-            Jpeg scan data.
-
-        Returns
-        ----------
-        List[Mcu]:
-            List of Mcu (positions (byte and bit) and dc amplitudes)
-        """
+    ) -> List[JpegSegment]:
+        # Result should be a list with jpeg segments, each segments has
+        # byte data and a mcu length
+        # From the avaiable mcus we need to scan mcu_to_scan until all mcus are
+        # scanned
+        # For each segment, we need the bits for the first mcu blocks separete,
+        # the start and end of the rest of the scan and the cumulative DC
+        # component
+        # For the first mcu, we need to modifiy the DC component of each block
+        # We then joing together the first mcus modified blocks and the rest of
+        # the scan
         stream = Stream(data)
-
-        mcus = [
-            self._read_mcu_position_and_amplitude(stream)
-            for mcu in range(self.mcu_count)
+        segment_stubs: List[SegmentStub] = []
+        mcus_left = self.mcu_count
+        while mcus_left > 0:
+            mcu_to_scan = max(mcus_left, self._scan_width // MCU_SIZE)
+            segment_stub = self._extract_segment(
+                stream,
+                mcu_to_scan
+            )
+            segment_stubs.append(segment_stub)
+            mcus_left -= mcu_to_scan
+        segments = [
+            stream.create_segment_bytes(
+                segment_stub.first_mcu,
+                segment_stub.scan_start,
+                segment_stub.scan_end
+            )
+            for segment_stub in segment_stubs
         ]
-        return mcus
 
-    def _read_mcu_position_and_amplitude(
+    def _extract_segment(
+        self,
+        stream: Stream,
+        count: int
+    ) -> SegmentStub:
+        mcu_positions_and_amplitudes = [
+            self._read_mcu(stream)
+            for mcu in range(count)
+        ]
+        # need to calculate cumulative dc amplitude per component before pop
+        first_mcu = mcu_positions_and_amplitudes.pop(0)
+        scan_start = mcu_positions_and_amplitudes[0].start
+        scan_end = stream.pos
+
+
+        return SegmentStub(first_mcu, scan_start, scan_end, 0)
+
+    def _read_mcu(
         self,
         stream
     ) -> Mcu:
@@ -330,15 +368,10 @@ class JpegScan:
         Mcu
             Mcu containing position and ac amplitudes.
         """
-        position = stream.pos
-        dc_amplitudes = [
+        return Mcu([
             self._read_mcu_block(stream, table_selection)
             for table_selection in self.table_selections.values()
-        ]
-        return Mcu(
-            position = position,
-            dc_amplitudes = dc_amplitudes
-        )
+        ])
 
     def _read_dc_amplitude(
         self,
@@ -359,7 +392,7 @@ class JpegScan:
         Int
             DC amplitude for read mcu block.
         """
-        dc_table = self.huffman_tables[table_identifier]
+        dc_table: HuffmanTable = self.huffman_tables[table_identifier]
         dc_amplitude_length = dc_table.decode(stream)
         return stream.read_bits(dc_amplitude_length)
 
@@ -382,7 +415,7 @@ class JpegScan:
         List[Int]
             AC amplitudes for read mcu block.
         """
-        ac_table = self.huffman_tables[table_identifier]
+        ac_table: HuffmanTable = self.huffman_tables[table_identifier]
         ac_amplitudes: List[int] = []
         mcu_length = 1  # DC amplitude is first value
         while mcu_length < 64:
@@ -392,6 +425,7 @@ class JpegScan:
             else:
                 zeros, ac_amplitude_length = split_byte_into_nibbles(code)
                 ac_amplitudes.append(stream.read_bits(ac_amplitude_length))
+                #stream.skip(ac_amplitude_length)
                 mcu_length += 1 + zeros
         return ac_amplitudes
 
@@ -400,7 +434,7 @@ class JpegScan:
         self,
         stream: Stream,
         table_selection: Tuple[int, int]
-    ) -> int:
+    ) -> McuBlock:
         """Read single block (component) of a MCU.
 
         Parameters
@@ -410,6 +444,7 @@ class JpegScan:
         table_selection: Tuple[int, int]
             Huffman table selection for DC and AC
         """
+        position = stream.pos
         dc_amplitude = self._read_dc_amplitude(
             stream,
             HuffmanTableIdentifier('DC', table_selection.dc)
@@ -418,4 +453,4 @@ class JpegScan:
             stream,
             HuffmanTableIdentifier('AC', table_selection.ac)
         )
-        return dc_amplitude
+        return McuBlock(position, dc_amplitude)

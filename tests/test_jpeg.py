@@ -37,30 +37,30 @@ class NdpiTilerJpegTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.tif.close()
 
-    def test_mcu_positions(self):
-        header_offset = 0x294
-        mcu_positions = {
-            0: (0x294, 0),
-            1: (0x297, 2),
-            2: (0x299, 5),
-            3: (0x29C, 2),
-            22: (0x2C1, 6),
-            64: (0x319, 0)
-        }
-        mcu_positions_without_offset = {
-            index: (mcu_position[0]-header_offset, mcu_position[1])
-            for index, mcu_position in mcu_positions.items()
-        }
-        selected_mcu_positions = {
-            index: mcu.position
-            for index, mcu in enumerate(self.large_scan.mcus)
-            if (index in mcu_positions_without_offset.keys())
-        }
+    # def test_mcu_positions(self):
+    #     header_offset = 0x294
+    #     mcu_positions = {
+    #         0: (0x294, 0),
+    #         1: (0x297, 2),
+    #         2: (0x299, 5),
+    #         3: (0x29C, 2),
+    #         22: (0x2C1, 6),
+    #         64: (0x319, 0)
+    #     }
+    #     mcu_positions_without_offset = {
+    #         index: (mcu_position[0]-header_offset, mcu_position[1])
+    #         for index, mcu_position in mcu_positions.items()
+    #     }
+    #     selected_mcu_positions = {
+    #         index: mcu.position
+    #         for index, mcu in enumerate(self.large_scan.mcus)
+    #         if (index in mcu_positions_without_offset.keys())
+    #     }
 
-        self.assertEqual(
-            mcu_positions_without_offset,
-            selected_mcu_positions
-        )
+    #     self.assertEqual(
+    #         mcu_positions_without_offset,
+    #         selected_mcu_positions
+    #    )
 
     def test_image_size(self):
         self.assertEqual(16, self.small_header.width)
@@ -84,9 +84,9 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 ))
             )
 
-    def test_small_scan_mcus(self):
-        actual_mcus = [
-            Mcu(position=(0, 0), dc_amplitudes=[9841, 0, 0]),
-            Mcu(position=(3, 5), dc_amplitudes=[29520, 0, 0])
-        ]
-        self.assertEqual(actual_mcus, self.small_scan.mcus)
+    # def test_small_scan_mcus(self):
+    #     actual_mcus = [
+    #         Mcu(position=(0, 0), dc_amplitudes=[9841, 0, 0]),
+    #         Mcu(position=(3, 5), dc_amplitudes=[29520, 0, 0])
+    #     ]
+    #     self.assertEqual(actual_mcus, self.small_scan.mcus)

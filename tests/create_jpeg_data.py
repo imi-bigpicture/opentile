@@ -1,6 +1,5 @@
 import os
 
-import pytest
 from ndpi_tiler.huffman import (HuffmanTable, HuffmanTableIdentifier,
                                 HuffmanTableSelection)
 from ndpi_tiler.jpeg import JpegHeader, JpegScan
@@ -111,12 +110,14 @@ def create_small_header() -> JpegHeader:
         }
     )
 
-
-def create_small_scan(header: JpegHeader) -> JpegScan:
+def create_small_scan_data() -> bytes:
     jpeg_bytes = bytes(
         [0xFC, 0xFF, 0x00, 0xE2, 0xAF, 0xEF, 0xF3, 0x15, 0x7F, 0xFF, 0xD9]
     )
-    return JpegScan(header, jpeg_bytes)
+    return jpeg_bytes
+
+def create_small_scan(header: JpegHeader) -> JpegScan:
+    return JpegScan(header, create_small_scan_data(), 2)
 
 
 def create_large_header(page: TiffPage) -> JpegHeader:
@@ -132,7 +133,7 @@ def create_large_scan(
     stripe_length = page.databytecounts[0]
     file_handle.seek(stripe_offset)
     stripe: bytes = file_handle.read(stripe_length)
-    return JpegScan(header, stripe)
+    return JpegScan(header, stripe, 512)
 
 
 tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
