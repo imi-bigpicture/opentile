@@ -107,10 +107,10 @@ def create_small_header() -> JpegHeader:
         ])
 
     return JpegHeader(
-        [table_0, table_1, table_16, table_17],
-        16,
-        8,
-        [(0, 0), (1, 16), (2, 16)]
+        huffman_tables=[table_0, table_1, table_16, table_17],
+        width=16,
+        height=8,
+        table_selections={0: (0, 0), 1: (1, 1), 2: (1, 1)}
     )
 
 
@@ -320,8 +320,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
         self.assertEqual(actual_mcus, self.small_scan.mcus)
 
     def test_table_selection(self):
-        selection = self.small_header.table_selection
-        self.assertEqual([(0, 0), (1, 16), (2, 16)], selection)
+        selection = self.small_header.table_selections
+        self.assertEqual({0: (0, 0), 1: (1, 1), 2: (1, 1)}, selection)
 
-        selection = self.large_header.table_selection
-        self.assertEqual([(0, 0), (1, 17), (2, 17)], selection)
+        selection = self.large_header.table_selections
+        self.assertEqual({0: (0, 0), 1: (1, 1), 2: (1, 1)}, selection)

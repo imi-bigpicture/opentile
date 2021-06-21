@@ -1,6 +1,6 @@
 import io
 from pathlib import Path
-from typing import Dict, List, Optional, OrderedDict, Set, Tuple, Union
+from typing import Tuple
 import struct
 
 from PIL import Image
@@ -9,43 +9,117 @@ from .jpeg import JpegHeader, JpegScan
 
 
 class NdpiPage:
-    def __init__(self, page: TiffPage, fh: FileHandle):
+    """Class for working with ndpi page (typically a level)"""
+    def __init__(self, page: TiffPage, fh: FileHandle) -> None:
+        """Initialize a NdpiPage from a TiffPage and Filehandle.
+
+        Parameters
+        ----------
+        page: TiffPage
+            Page to use.
+        fh: FileHandle
+            FileHandle to use
+
+        """
         self._page = page
         self._fh = fh
 
-    def get_stripe_byte_range(self, x, y) -> Tuple[int, int]:
+    def get_stripe_byte_range(self, x: int, y: int) -> Tuple[int, int]:
+        """Return stripe offset and length from stripe position.
+
+        Parameters
+        ----------
+        x: int
+            X position of stripe.
+        y: int
+            Y position of stripe.
+
+        Returns
+        ----------
+        Tuple[int, int]:
+            Stripe offset and length
+        """
         cols = self._page.chunked[1]
         stripe = x + y * cols
         offset = self._page.dataoffsets[stripe]
         count = self._page.databytecounts[stripe]
         return (offset, count)
 
-    def read_stripe(self, offset, count) -> bytes:
+    def read_stripe(self, offset: int, length: int) -> bytes:
+        """Read stripe scan data from page at offset.
+
+        Parameters
+        ----------
+        offset: int
+            Offset to stripe to read.
+        length: int
+            Length of stripe to read.
+
+        Returns
+        ----------
+        bytes:
+            Read stripe.
+        """
         self._fh.seek(offset)
-        stripe = self._fh.read(count)
+        stripe = self._fh.read(length)
         return stripe
 
-    def wrap_scan(self, stripe: bytes, size: Tuple[int, int]) -> bytes:
+    def wrap_scan(self, scan: bytes, size: Tuple[int, int]) -> bytes:
+        """Wrap scan data with manipulated header and end of image tag.
+
+        Parameters
+        ----------
+        scan: bytes
+            Scan data to wrap.
+        size: Tuple[int, int]
+            Pixel size of scan.
+
+        Returns
+        ----------
+        bytes:
+            Scan wrapped in header as bytes.
+        """
         if self._page.jpegheader is None:
-            return stripe
-        # header = JpegHeader(self.manupulate_header(size))
-        # print(self._page.jpegheader.hex())
-        # JpegScan(header, stripe)
+            return scan
         with io.BytesIO() as buffer:
             buffer.write(self.manupulate_header(size))
-            buffer.write(stripe)
-            buffer.write(bytes([0xFF, 0xD9]))  # End of Image
+            buffer.write(scan)
+            buffer.write(bytes([0xFF, 0xD9]))  # End of Image Tag
             return buffer.getvalue()
 
-    def get_encoded_strip(self, x, y) -> bytes:
+    def get_encoded_strip(self, x: int, y: int) -> bytes:
+        """Return stripe at position as bytes.
+
+        Parameters
+        ----------
+        x: int
+            X position of stripe.
+        y: int
+            Y position of stripe.
+
+        Returns
+        ----------
+        bytes:
+            Stripe as bytes.
+        """
         offset, count = self.get_stripe_byte_range(x, y)
         stripe = self.read_stripe(offset, count)
-        # print(stripe.hex())
-        # stripe = self.wrap_scan(stripe)
         return stripe
 
     @staticmethod
     def find_start_of_frame(header: bytes) -> int:
+        """Return offset for start of frame tag in header.
+
+        Parameters
+        ----------
+        header: bytes
+            Header bytes.
+
+        Returns
+        ----------
+        int:
+            Offset to start of frame tag.
+        """
         index = 0
         length = 1
         found_tag = False
@@ -59,16 +133,25 @@ class NdpiPage:
             index += length
 
     def manupulate_header(self, size: Tuple[int, int]) -> bytes:
-        index = self.find_start_of_frame(self._page.jpegheader)
-        # print(f"orginal header {self._page.jpegheader.hex()}")
+        """Manipulate pixel size (width, height) of page header.
 
+        Parameters
+        ----------
+        size: Tuple[int, int]
+            Pixel size to insert into header.
+
+        Returns
+        ----------
+        bytes:
+            Manupulated header.
+        """
+        index = self.find_start_of_frame(self._page.jpegheader)
         with io.BytesIO() as buffer:
             buffer.write(self._page.jpegheader)
             buffer.seek(index+4)
             buffer.write(struct.pack(">H", size[1]))
             buffer.write(struct.pack(">H", size[0]))
             manupulated_header = buffer.getvalue()
-        # print(f"manupulated header {manupulated_header.hex()}")
         return manupulated_header
 
     def stitch_tiles(
@@ -76,6 +159,21 @@ class NdpiPage:
         pos: Tuple[int, int],
         size: Tuple[int, int]
     ) -> Image:
+        """Stitch tiles (stripes) together to form image.
+
+        Parameters
+        ----------
+        pos: Tuple[int, int]
+            Position of stripe to start stitching from.
+        size: Tuple[int, int]
+            Number of stripe to stitch together.
+
+        Returns
+        ----------
+        Image:
+            Stitched image.
+        """
+
         tile_width = self._page.tilewidth
         tile_height = self._page.tilelength
 
@@ -103,15 +201,25 @@ class NdpiPage:
 
 
 class NdpiTiler:
+    """Class to convert stripes in a ndpi file, opened with TiffFile,
+    into square tiles."""
     def __init__(self, path: Path) -> None:
+        """Initialize by opening provided ndpi file in path as TiffFile.
+
+        Parameters
+        ----------
+        path: Path
+            Path to ndpi file to open
+
+        """
         self.tif = TiffFile(path)
         self.__enter__()
 
     def __enter__(self):
         return self
 
-    def __exit__(self) -> None:
-        self.tif.close()
+    def __exit__(self, type, value, traceback) -> None:
+        self.close()
 
     def stitch_tiles(
         self,
@@ -120,6 +228,25 @@ class NdpiTiler:
         pos: Tuple[int, int],
         size: Tuple[int, int]
     ) -> Image:
+        """Stitch tiles (stripes) together to form image.
+
+        Parameters
+        ----------
+        series: int
+            Series to stitch from.
+        level: int
+            Level to stitch from.
+        pos: Tuple[int, int]
+            Position of stripe to start stitching from.
+        size: Tuple[int, int]
+            Number of stripe to stitch together.
+
+        Returns
+        ----------
+        Image:
+            Stitched image.
+        """
+
         tiff_series: TiffPageSeries = self.tif.series[series]
         tiff_level: TiffPageSeries = tiff_series.levels[level]
         page = NdpiPage(tiff_level.pages[0], self.tif.filehandle)
