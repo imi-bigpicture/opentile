@@ -475,6 +475,12 @@ class JpegHeader:
         return buffer.read(payload_length-2)
 
 
+@dataclass
+class Mcu:
+    position: Tuple[int, int]
+    dc_amplitudes: List[int]
+
+
 class JpegScan:
     """Class for minimal decoding of jpeg scan data"""
 
@@ -497,10 +503,13 @@ class JpegScan:
         # print(f"jpeg scan data {data.hex()}")
         self.huffman_tables = header.huffman_tables
         self.mcu_count = header.height * header.width // (MCU_SIZE * MCU_SIZE)
-        self.mcu_positions = self.get_mcu_positions(data)
+        self.mcus = self.get_mcus(data)
         self.table_selection = header.table_selection
 
-    def get_mcu_positions(self, data: bytes) -> List[Tuple[int, int]]:
+    def get_mcus(
+        self,
+        data: bytes
+    ) -> List[Mcu]:
         """Return list of mcu positions in scan (relative to scan start).
 
         Parameters
@@ -510,19 +519,22 @@ class JpegScan:
 
         Returns
         ----------
-        List[int]
-            List of mcu positions.
+        List[Tuple[int, int], List[int]]:
+            List of mcu positions (byte and bit) and dc amplitudes
         """
         stream = Stream(data)
         self.mcu = 0
 
-        positions = [
-            self.read_mcu_position(stream)
+        mcus = [
+            self.read_mcu_position_and_amplitude(stream)
             for mcu in range(self.mcu_count)
         ]
-        return positions
+        return mcus
 
-    def read_mcu_position(self, stream) -> Tuple[int, int]:
+    def read_mcu_position_and_amplitude(
+        self,
+        stream
+    ) -> Mcu:
         self.mcu += 1
         position = stream.pos
         huffmant_table_indices = [0, 1, 1]
@@ -530,7 +542,10 @@ class JpegScan:
             self.read_component(stream, index)
             for index in huffmant_table_indices
         ]
-        return position
+        return Mcu(
+            position = position,
+            dc_amplitudes = dc_amplitudes
+        )
 
     def read_dc_amplitude(self, stream: Stream, index: int) -> int:
         dc_table = self.huffman_tables[index]

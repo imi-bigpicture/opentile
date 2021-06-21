@@ -6,7 +6,7 @@ from struct import unpack
 import pytest
 from bitstring import ConstBitStream
 from ndpi_tiler.jpeg import (HuffmanLeaf, HuffmanNode, HuffmanTable,
-                             JpegHeader, JpegScan, Stream, marker_mapping)
+                             JpegHeader, JpegScan, Stream, marker_mapping, Mcu)
 from tifffile import TiffFile, TiffPage
 
 tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
@@ -266,8 +266,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
             for index, mcu_position in mcu_positions.items()
         }
         selected_mcu_positions = {
-            index: mcu_position
-            for index, mcu_position in enumerate(self.large_scan.mcu_positions)
+            index: mcu.position
+            for index, mcu in enumerate(self.large_scan.mcus)
             if (index in mcu_positions_without_offset.keys())
         }
 
@@ -312,9 +312,18 @@ class NdpiTilerJpegTest(unittest.TestCase):
         actual_values = [0x0B, 0x0A, 0x22, 0x81]
         self.assertEqual(actual_values, decoded_values)
 
-    def test_small_scan_positions(self):
-        actual_positions = [(0, 0), (3, 5)]
-        self.assertEqual(actual_positions, self.small_scan.mcu_positions)
+    def test_small_scan_mcus(self):
+        actual_mcus = [
+            Mcu(position=(0, 0), dc_amplitudes=[9841, 0, 0]),
+            Mcu(position=(3, 5), dc_amplitudes=[29520, 0, 0])
+        ]
+        # for index, mcu in enumerate(self.small_scan.mcu_positions):
+        #     print(f"mcu {mcu}")
+        #     self.assertEqual(
+        #         actual_mcus[index],
+        #         mcu
+        #     )
+        self.assertEqual(actual_mcus, self.small_scan.mcus)
 
     def test_table_selection(self):
         selection = self.small_header.table_selection
