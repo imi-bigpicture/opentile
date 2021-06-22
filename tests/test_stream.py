@@ -74,7 +74,7 @@ class NdpiTilerStreamTest(unittest.TestCase):
 
     def test_skip_pos(self):
         self.stream.skip(2)
-        self.asvsertEqual(self.stream.pos, 2)
+        self.assertEqual(self.stream.pos, 2)
 
         self.stream.skip(6)
         self.assertEqual(self.stream.pos, 8)
