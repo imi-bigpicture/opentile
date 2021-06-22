@@ -22,9 +22,8 @@ class Mcu:
 class Stream:
     """Convenience class for reading bits from byte stuffed bytes."""
     def __init__(self, data: bytes) -> None:
-        """Create a Stream from data. Reads byte by byte from buffer to check
-        for tags and byte stuffing. Offers read function for single or multiple
-        bits.
+        """Create a Stream from data. Offers read function for single,
+        multiple or range of bits.
 
         Parameters
         ----------
@@ -33,17 +32,12 @@ class Stream:
 
         """
         self._buffer = ConstBitStream(data)
-        self._total_read_bits: int = 0
         self._next_byte_is_stuffed = False
 
     @property
     def pos(self) -> int:
         """The current bit position."""
         return self._buffer.pos
-
-    # @property
-    # def pos(self) -> StreamPosition:
-    #     return StreamPosition.from_bits(self._total_read_bits)
 
     def _check_for_tag(self):
         position = self._buffer.pos
@@ -57,8 +51,9 @@ class Stream:
 
 
     def read_bit(self) -> int:
-        """Return a bit from the buffer. If the stored byte has been read, read
-        a new one."""
+        """Return a bit from the buffer. If passing a byte, and the next byte
+        stuffed, skip it. Also check if the next byte is a tag and deal with
+        the stuffing."""
         if self._buffer.pos % 8 == 0:
             if self._next_byte_is_stuffed:
                 self._buffer.pos += 8
@@ -76,6 +71,7 @@ class Stream:
         return value
 
     def seek(self, position: int) -> None:
+        # Likely doesnt handle tag in first byte correct
         byte_pos = max(8 * (position // 8), 8)
         bit_pos = position - byte_pos
         self._buffer.pos = byte_pos - 8
@@ -105,13 +101,6 @@ class Stream:
         segment_bits = BitArray(self._buffer.read(end-start))
         self._buffer.pos = buffer_pos
         return segment_bits
-
-    def mcu_to_bits(
-        self,
-        mcu: Mcu,
-        mcu_end: int
-    ):
-        pass
 
 
     def create_segment_bytes(

@@ -9,8 +9,8 @@ from ndpi_tiler.stream import Stream
 from tifffile import TiffFile
 
 from .create_jpeg_data import (create_large_header, create_large_scan,
-                               create_small_header, create_small_scan,
-                               get_page, open_tif)
+                               create_large_scan_data, create_small_header,
+                               create_small_scan, get_page, open_tif)
 
 
 @pytest.mark.unittest
@@ -27,10 +27,11 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tif = open_tif()
         cls.large_header = create_large_header(get_page(cls.tif))
+        cls.large_scan_data = create_large_scan_data(cls.tif)
         cls.large_scan = create_large_scan(
             cls.large_header,
-            get_page(cls.tif),
-            cls.tif.filehandle)
+            cls.large_scan_data
+        )
         cls.small_header = create_small_header()
         cls.small_scan = create_small_scan(cls.small_header)
 

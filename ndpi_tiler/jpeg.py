@@ -320,6 +320,8 @@ class JpegScan:
         mcus_left = self.mcu_count
         while mcus_left > 0:
             mcu_to_scan = max(mcus_left, self._scan_width // MCU_SIZE)
+            print(f"mcus to scan {mcu_to_scan}")
+
             segment_stub = self._extract_segment(
                 stream,
                 mcu_to_scan
@@ -348,7 +350,6 @@ class JpegScan:
         first_mcu = mcu_positions_and_amplitudes.pop(0)
         scan_start = mcu_positions_and_amplitudes[0].start
         scan_end = stream.pos
-
 
         return SegmentStub(first_mcu, scan_start, scan_end, 0)
 
@@ -392,6 +393,8 @@ class JpegScan:
         Int
             DC amplitude for read mcu block.
         """
+        print(f"dc read at {stream.pos} {stream._buffer.peek(16).bin}")
+
         dc_table: HuffmanTable = self.huffman_tables[table_identifier]
         dc_amplitude_length = dc_table.decode(stream)
         return stream.read_bits(dc_amplitude_length)
@@ -415,6 +418,8 @@ class JpegScan:
         List[Int]
             AC amplitudes for read mcu block.
         """
+        print(f"ac read at {stream.pos} {stream._buffer.peek(16).bin}")
+
         ac_table: HuffmanTable = self.huffman_tables[table_identifier]
         ac_amplitudes: List[int] = []
         mcu_length = 1  # DC amplitude is first value
@@ -427,6 +432,7 @@ class JpegScan:
                 ac_amplitudes.append(stream.read_bits(ac_amplitude_length))
                 #stream.skip(ac_amplitude_length)
                 mcu_length += 1 + zeros
+
         return ac_amplitudes
 
 
@@ -445,6 +451,7 @@ class JpegScan:
             Huffman table selection for DC and AC
         """
         position = stream.pos
+        print(f"buffer position {position}")
         dc_amplitude = self._read_dc_amplitude(
             stream,
             HuffmanTableIdentifier('DC', table_selection.dc)

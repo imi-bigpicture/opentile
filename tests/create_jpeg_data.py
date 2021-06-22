@@ -6,6 +6,9 @@ from ndpi_tiler.jpeg import JpegHeader, JpegScan
 from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TiffFile
 
+tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
+tif_test_file_name = "test.ndpi"
+tif_test_file_path = tif_test_data_dir + '/' + tif_test_file_name
 
 def create_small_header() -> JpegHeader:
     table_0 = HuffmanTable(
@@ -124,22 +127,28 @@ def create_large_header(page: TiffPage) -> JpegHeader:
     return JpegHeader.from_bytes(page.jpegheader)
 
 
-def create_large_scan(
-    header: JpegHeader,
-    page: TiffPage,
-    file_handle: FileHandle
-) -> JpegScan:
+def create_large_scan_data(tif: TiffFile) -> bytes:
+    page = get_page(tif)
+    file_handle = tif.filehandle
     stripe_offset = page.dataoffsets[0]
     stripe_length = page.databytecounts[0]
     file_handle.seek(stripe_offset)
     stripe: bytes = file_handle.read(stripe_length)
-    return JpegScan(header, stripe, 512)
+    return stripe
 
+def create_large_scan(
+    header: JpegHeader,
+    data: bytes
+) -> JpegScan:
 
-tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
-tif_test_file_name = "test.ndpi"
-tif_test_file_path = tif_test_data_dir + '/' + tif_test_file_name
+    return JpegScan(header, data, 512)
 
+def save_scan_as_jpeg(jpeg_header: bytes, scan: bytes):
+    f = open("scan.jpeg", "wb")
+    f.write(jpeg_header)
+    f.write(scan)
+    f.write(bytes([0xFF, 0xD9]))  # End of Image Tag
+    f.close()
 
 def open_tif() -> TiffFile:
     return TiffFile(tif_test_file_path)

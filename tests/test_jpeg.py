@@ -3,13 +3,15 @@ import unittest
 from struct import unpack
 
 import pytest
-from ndpi_tiler.jpeg import JpegHeader, JpegScan, Mcu
+from ndpi_tiler.jpeg import JpegHeader, JpegScan, Mcu, McuBlock, SegmentStub
 from ndpi_tiler.jpeg_tags import MARER_MAPPINGS
+from ndpi_tiler.stream import Stream
 from tifffile import TiffFile
 
 from .create_jpeg_data import (create_large_header, create_large_scan,
-                               create_small_header, create_small_scan,
-                               get_page, open_tif)
+                               create_large_scan_data, create_small_header,
+                               create_small_scan, create_small_scan_data,
+                               get_page, open_tif, save_scan_as_jpeg)
 
 
 @pytest.mark.unittest
@@ -26,41 +28,18 @@ class NdpiTilerJpegTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tif = open_tif()
         cls.large_header = create_large_header(get_page(cls.tif))
+        cls.large_scan_data = create_large_scan_data(cls.tif)
         cls.large_scan = create_large_scan(
             cls.large_header,
-            get_page(cls.tif),
-            cls.tif.filehandle)
+            cls.large_scan_data
+        )
         cls.small_header = create_small_header()
         cls.small_scan = create_small_scan(cls.small_header)
+        save_scan_as_jpeg(get_page(cls.tif).jpegheader, cls.large_scan_data)
 
     @classmethod
     def tearDownClass(cls):
         cls.tif.close()
-
-    # def test_mcu_positions(self):
-    #     header_offset = 0x294
-    #     mcu_positions = {
-    #         0: (0x294, 0),
-    #         1: (0x297, 2),
-    #         2: (0x299, 5),
-    #         3: (0x29C, 2),
-    #         22: (0x2C1, 6),
-    #         64: (0x319, 0)
-    #     }
-    #     mcu_positions_without_offset = {
-    #         index: (mcu_position[0]-header_offset, mcu_position[1])
-    #         for index, mcu_position in mcu_positions.items()
-    #     }
-    #     selected_mcu_positions = {
-    #         index: mcu.position
-    #         for index, mcu in enumerate(self.large_scan.mcus)
-    #         if (index in mcu_positions_without_offset.keys())
-    #     }
-
-    #     self.assertEqual(
-    #         mcu_positions_without_offset,
-    #         selected_mcu_positions
-    #    )
 
     def test_image_size(self):
         self.assertEqual(16, self.small_header.width)
@@ -84,9 +63,80 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 ))
             )
 
-    # def test_small_scan_mcus(self):
-    #     actual_mcus = [
-    #         Mcu(position=(0, 0), dc_amplitudes=[9841, 0, 0]),
-    #         Mcu(position=(3, 5), dc_amplitudes=[29520, 0, 0])
-    #     ]
-    #     self.assertEqual(actual_mcus, self.small_scan.mcus)
+    def test_small_scan_extract_segments(self):
+        actual_segment = SegmentStub (
+            first_mcu=Mcu(
+                [
+                    McuBlock(0, 511),
+                    McuBlock(29, 0),
+                    McuBlock(33, 0)
+                ]
+            ),
+            scan_start=37,
+            scan_end=66,
+            dc=0
+        )
+        data = create_small_scan_data()
+        stream = Stream(data)
+        segments = self.small_scan._extract_segment(stream, 2)
+        self.assertEqual(actual_segment, segments)
+
+    # def test_large_scan_extract_segments(self):
+    #     header_offset = 0x294
+
+    #     actual_segment = SegmentStub (
+    #         first_mcu=Mcu(
+    #             [
+    #                 McuBlock(0x294+0-header_offset, 140),
+    #                 McuBlock(0x295+7-header_offset, 0),
+    #                 McuBlock(0x298+1-header_offset, 0)
+    #             ]
+    #         ),
+    #         scan_start=0x298+6-header_offset,
+    #         scan_end=0x86E+7+2-header_offset,
+    #         dc=0
+    #     )
+    #     data = create_large_scan_data(self.tif)
+    #     stream = Stream(data)
+    #     print(data.hex())
+    #     segments = self.small_scan._extract_segment(stream, 512)
+
+    #     self.assertEqual(
+    #         actual_segment,
+    #         segments
+    #    )
+
+    def test_large_scan_read_mcus(self):
+        header_offset = 8*0x294
+
+        actual_smus = {
+            0: Mcu(
+                [
+                    McuBlock(8*0x294+0-header_offset, 80),
+                    McuBlock(8*0x296+0-header_offset, 2),
+                    McuBlock(8*0x296+6-header_offset, 0)
+                ]
+            ),
+            1: Mcu(
+                [
+                    McuBlock(8*0x297+2-header_offset, 1),
+                    McuBlock(8*0x298+2-header_offset, 0 ),
+                    McuBlock(8*0x298+6-header_offset, 0)
+                ]
+            )
+        }
+        data = create_large_scan_data(self.tif)
+        stream = Stream(data)
+        mcus = {
+            index: self.large_scan._read_mcu(stream)
+            for index in range(4)
+        }
+
+        for index in actual_smus.keys():
+            print(index)
+            print(actual_smus[index])
+            print(mcus[index])
+            self.assertEqual(
+                actual_smus[index],
+                mcus[index]
+            )
