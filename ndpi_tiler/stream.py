@@ -1,8 +1,7 @@
 from dataclasses import dataclass
-from struct import unpack
-from typing import List, Tuple
+from typing import List
 
-from bitstring import BitArray, BitString, Bits, ConstBitStream
+from bitstring import BitArray, Bits, ConstBitStream
 
 from ndpi_tiler.jpeg_tags import TAGS
 
@@ -75,10 +74,7 @@ class Stream:
         """Read count bits and return the unsigned integer interpretation"""
         if count == 0:
             return 0
-        print(self.pos)
         bits = BitArray([self._read_bit() for i in range(count)])
-        print(self.pos)
-
         return bits.uint
 
     def seek(self, position: int) -> None:
