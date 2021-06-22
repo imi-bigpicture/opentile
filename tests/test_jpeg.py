@@ -120,8 +120,36 @@ class NdpiTilerJpegTest(unittest.TestCase):
             1: Mcu(
                 [
                     McuBlock(8*0x297+2-header_offset, 1),
-                    McuBlock(8*0x298+2-header_offset, 0 ),
+                    McuBlock(8*0x298+2-header_offset, 0),
                     McuBlock(8*0x298+6-header_offset, 0)
+                ]
+            ),
+            150: Mcu(
+                [
+                    McuBlock(8*0x3D4+5-header_offset, 0),
+                    McuBlock(8*0x3D5+3-header_offset, 0),
+                    McuBlock(8*0x3D5+7-header_offset, 0)
+                ]
+            ),
+            151: Mcu(
+                [
+                    McuBlock(8*0x3D6+3-header_offset, 0),
+                    McuBlock(8*0x3D7+1-header_offset, 1),
+                    McuBlock(8*0x3D7+6-header_offset, 0)
+                ]
+            ),
+            510: Mcu(
+                [
+                    McuBlock(8*0x700+0-header_offset, -1),
+                    McuBlock(8*0x701+0-header_offset, 0),
+                    McuBlock(8*0x701+4-header_offset, 0)
+                ]
+            ),
+            511: Mcu(
+                [
+                    McuBlock(8*0x702+0-header_offset, 0),
+                    McuBlock(8*0x702+6-header_offset, 0),
+                    McuBlock(8*0x703+2-header_offset, 0)
                 ]
             )
         }
@@ -129,7 +157,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         stream = Stream(data)
         mcus = {
             index: self.large_scan._read_mcu(stream)
-            for index in range(4)
+            for index in range(self.large_scan._mcu_count)
         }
 
         for index in actual_smus.keys():
