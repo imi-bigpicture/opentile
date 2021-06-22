@@ -318,8 +318,6 @@ class JpegScan:
         mcus_left = self.mcu_count
         while mcus_left > 0:
             mcu_to_scan = max(mcus_left, self._scan_width // MCU_SIZE)
-            print(f"mcus to scan {mcu_to_scan}")
-
             segment_stub = self._extract_segment(
                 stream,
                 mcu_to_scan
@@ -372,7 +370,14 @@ class JpegScan:
             for table_selection in self.table_selections.values()
         ])
 
-    def _read_dc_amplitude(
+    @staticmethod
+    def _decode_value(length: int, value: int) -> int:
+        magic = 2 ** (length - 1)
+        if value < magic:
+            value -= (2 * magic - 1)
+        return value
+
+    def _read_dc(
         self,
         stream: Stream,
         table_identifier: HuffmanTableIdentifier
@@ -391,17 +396,16 @@ class JpegScan:
         Int
             DC amplitude for read mcu block.
         """
-        print(f"dc read at {stream.pos} {stream._buffer.peek(16).bin}")
+        table: HuffmanTable = self.huffman_tables[table_identifier]
+        length = table.decode(stream)
+        value = stream.read(length)
+        return self._decode_value(length, value)
 
-        dc_table: HuffmanTable = self.huffman_tables[table_identifier]
-        dc_amplitude_length = dc_table.decode(stream)
-        return stream.read_bits(dc_amplitude_length)
-
-    def _read_ac_amplitudes(
+    def _skip_ac(
         self,
         stream: Stream,
         table_identifier: HuffmanTableIdentifier
-    ) -> List[int]:
+    ) -> None:
         """Return AC amplitudes for mcu block read from stream.
 
         Parameters
@@ -411,27 +415,18 @@ class JpegScan:
         table_identifier: HuffmanTableIdentifier
             Identifier for Huffman table to use.
 
-        Returns
-        ----------
-        List[Int]
-            AC amplitudes for read mcu block.
         """
-        print(f"ac read at {stream.pos} {stream._buffer.peek(16).bin}")
 
-        ac_table: HuffmanTable = self.huffman_tables[table_identifier]
-        ac_amplitudes: List[int] = []
+        table: HuffmanTable = self.huffman_tables[table_identifier]
         mcu_length = 1  # DC amplitude is first value
         while mcu_length < 64:
-            code = ac_table.decode(stream)
+            code = table.decode(stream)
             if code == 0:  # End of block
                 break
             else:
                 zeros, ac_amplitude_length = split_byte_into_nibbles(code)
-                # ac_amplitudes.append(stream.read_bits(ac_amplitude_length))
                 stream.skip(ac_amplitude_length)
                 mcu_length += 1 + zeros
-
-        return ac_amplitudes
 
     def _read_mcu_block(
         self,
@@ -448,12 +443,11 @@ class JpegScan:
             Huffman table selection for DC and AC
         """
         position = stream.pos
-        print(f"buffer position {position}")
-        dc_amplitude = self._read_dc_amplitude(
+        dc_amplitude = self._read_dc(
             stream,
             HuffmanTableIdentifier('DC', table_selection.dc)
         )
-        ac_amplitudes = self._read_ac_amplitudes(
+        self._skip_ac(
             stream,
             HuffmanTableIdentifier('AC', table_selection.ac)
         )

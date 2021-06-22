@@ -67,7 +67,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         actual_segment = SegmentStub(
             first_mcu=Mcu(
                 [
-                    McuBlock(0, 511),
+                    McuBlock(0, -512),
                     McuBlock(29, 0),
                     McuBlock(33, 0)
                 ]
@@ -78,8 +78,10 @@ class NdpiTilerJpegTest(unittest.TestCase):
         )
         data = create_small_scan_data()
         stream = Stream(data)
-        segments = self.small_scan._extract_segment(stream, 2)
-        self.assertEqual(actual_segment, segments)
+        segment = self.small_scan._extract_segment(stream, 2)
+        print(segment)
+        print(actual_segment)
+        self.assertEqual(actual_segment, segment)
 
     # def test_large_scan_extract_segments(self):
     #     header_offset = 0x294

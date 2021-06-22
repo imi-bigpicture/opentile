@@ -240,7 +240,7 @@ class HuffmanTable:
         node = self._root
         # Search table until leaf is found
         while not isinstance(node, HuffmanLeaf):
-            bit = stream.read_bit()
+            bit = stream.read()
             try:
                 node = node.get(bit)
             except IndexError:
