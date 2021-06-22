@@ -64,7 +64,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
             )
 
     def test_small_scan_extract_segments(self):
-        actual_segment = SegmentStub (
+        actual_segment = SegmentStub(
             first_mcu=Mcu(
                 [
                     McuBlock(0, 511),

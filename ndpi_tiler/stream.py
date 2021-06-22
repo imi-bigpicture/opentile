@@ -15,9 +15,11 @@ class McuBlock:
 @dataclass
 class Mcu:
     blocks: List[McuBlock]
+
     @property
     def start(self) -> int:
         return self.blocks[0].position
+
 
 class Stream:
     """Convenience class for reading bits from byte stuffed bytes."""
@@ -48,7 +50,6 @@ class Stream:
                 raise ValueError(f"tag at position {self.pos}")
             self._next_byte_is_stuffed = True
         self._buffer.pos = position
-
 
     def read_bit(self) -> int:
         """Return a bit from the buffer. If passing a byte, and the next byte
@@ -85,11 +86,9 @@ class Stream:
         else:
             self._buffer.pos = position
 
-
     def skip(self, skip_length: int) -> None:
         skip_to = self.pos + skip_length
         self.seek(skip_to)
-
 
     def _read_segment(
         self,
@@ -101,7 +100,6 @@ class Stream:
         segment_bits = BitArray(self._buffer.read(end-start))
         self._buffer.pos = buffer_pos
         return segment_bits
-
 
     def create_segment_bytes(
         self,

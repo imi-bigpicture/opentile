@@ -10,6 +10,7 @@ tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
 tif_test_file_name = "test.ndpi"
 tif_test_file_path = tif_test_data_dir + '/' + tif_test_file_name
 
+
 def create_small_header() -> JpegHeader:
     table_0 = HuffmanTable(
         HuffmanTableIdentifier('DC', 0),
@@ -113,11 +114,13 @@ def create_small_header() -> JpegHeader:
         }
     )
 
+
 def create_small_scan_data() -> bytes:
     jpeg_bytes = bytes(
         [0xFC, 0xFF, 0x00, 0xE2, 0xAF, 0xEF, 0xF3, 0x15, 0x7F, 0xFF, 0xD9]
     )
     return jpeg_bytes
+
 
 def create_small_scan(header: JpegHeader) -> JpegScan:
     return JpegScan(header, create_small_scan_data(), 2)
@@ -136,12 +139,14 @@ def create_large_scan_data(tif: TiffFile) -> bytes:
     stripe: bytes = file_handle.read(stripe_length)
     return stripe
 
+
 def create_large_scan(
     header: JpegHeader,
     data: bytes
 ) -> JpegScan:
 
     return JpegScan(header, data, 512)
+
 
 def save_scan_as_jpeg(jpeg_header: bytes, scan: bytes):
     f = open("scan.jpeg", "wb")
@@ -150,8 +155,10 @@ def save_scan_as_jpeg(jpeg_header: bytes, scan: bytes):
     f.write(bytes([0xFF, 0xD9]))  # End of Image Tag
     f.close()
 
+
 def open_tif() -> TiffFile:
     return TiffFile(tif_test_file_path)
+
 
 def get_page(tif: TiffFile) -> TiffPage:
     return tif.series[0].levels[0].pages[0]

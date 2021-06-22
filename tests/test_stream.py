@@ -1,15 +1,15 @@
 import unittest
-from struct import unpack
 
 import pytest
 from ndpi_tiler.stream import Stream
 from .create_jpeg_data import create_small_scan_data
 
+
 @pytest.mark.unittest
 class NdpiTilerStreamTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-         super().__init__(*args, **kwargs)
-         self.stream: Stream
+        super().__init__(*args, **kwargs)
+        self.stream: Stream
 
     @classmethod
     def setUp(cls):
@@ -75,7 +75,6 @@ class NdpiTilerStreamTest(unittest.TestCase):
 
         self.stream.skip(6)
         self.assertEqual(self.stream.pos, 8)
-
 
     def test_skip_read(self):
         self.stream.skip(8)

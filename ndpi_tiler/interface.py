@@ -197,7 +197,6 @@ class NdpiPage:
                     strip_index = (strip_index + 1) % 8
             stripe = self.wrap_scan(strip_buffer.getvalue(), image_size)
 
-
         return Image.open(io.BytesIO(stripe))
 
 
@@ -222,7 +221,6 @@ class NdpiStripCache:
         self.tile_height = tile_height
 
         self.strips: List[NdpiStrip] = []
-
 
 
 class NdpiTiler:

@@ -8,16 +8,19 @@ from bitstring import ConstBitStream
 from ndpi_tiler.utils import split_byte_into_nibbles
 from ndpi_tiler.stream import Stream
 
+
 @dataclass
 class HuffmanLeaf:
     """Huffman leaf, only contains a value"""
     value: int
+
 
 @dataclass
 class HuffmanTableSelection:
     """Identifies dc and ac table selection for component."""
     dc: int
     ac: int
+
 
 @dataclass
 class HuffmanTableIdentifier:
@@ -37,6 +40,7 @@ class HuffmanTableIdentifier:
 
     def __hash__(self) -> int:
         return hash((self.mode, self.selection))
+
 
 @dataclass
 class HuffmanNode:
@@ -125,7 +129,7 @@ class HuffmanNode:
         for insertion_function in insertion_order:
             code = insertion_function(leaf, depth)
             if code is not None:
-                return  code
+                return code
 
         # No space for a new child node, insert leaf somewhere else
         return None

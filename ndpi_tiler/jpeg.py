@@ -5,10 +5,10 @@ from struct import unpack
 from typing import Dict, List, Optional, Tuple
 
 from ndpi_tiler.huffman import (HuffmanTable, HuffmanTableIdentifier,
-                      HuffmanTableSelection)
-from ndpi_tiler.utils import split_byte_into_nibbles
-from ndpi_tiler.stream import Stream, Mcu, McuBlock
+                                HuffmanTableSelection)
 from ndpi_tiler.jpeg_tags import TAGS
+from ndpi_tiler.stream import Mcu, McuBlock, Stream
+from ndpi_tiler.utils import split_byte_into_nibbles
 
 MCU_SIZE = 8
 
@@ -38,11 +38,11 @@ class JpegHeader:
         return self._huffman_tables
 
     @property
-    def width(self) ->int:
+    def width(self) -> int:
         return self._width
 
     @property
-    def height(self) ->int:
+    def height(self) -> int:
         return self._height
 
     @property
@@ -130,7 +130,6 @@ class JpegHeader:
         """
         return unpack('>H', payload)[0]
 
-
     @staticmethod
     def parse_start_of_scan(
         payload: bytes
@@ -160,7 +159,6 @@ class JpegHeader:
                     ac=ac_table
                 )
         return table_selections
-
 
     @staticmethod
     def parse_huffman(payload: bytes) -> List[HuffmanTable]:
@@ -244,12 +242,11 @@ class JpegHeader:
         return buffer.read(payload_length-2)
 
 
-
-
 @dataclass
 class JpegSegment:
     data: bytes
     length: int
+
 
 @dataclass
 class SegmentStub:
@@ -257,6 +254,7 @@ class SegmentStub:
     scan_start: int
     scan_end: int
     dc: int
+
 
 class JpegScan:
     """Class for minimal decoding of jpeg scan data"""
@@ -429,12 +427,11 @@ class JpegScan:
                 break
             else:
                 zeros, ac_amplitude_length = split_byte_into_nibbles(code)
-                ac_amplitudes.append(stream.read_bits(ac_amplitude_length))
-                #stream.skip(ac_amplitude_length)
+                # ac_amplitudes.append(stream.read_bits(ac_amplitude_length))
+                stream.skip(ac_amplitude_length)
                 mcu_length += 1 + zeros
 
         return ac_amplitudes
-
 
     def _read_mcu_block(
         self,
