@@ -253,7 +253,7 @@ class SegmentStub:
     first_mcu: Mcu
     scan_start: int
     scan_end: int
-    dc: int
+    dc: List[int]
 
 
 class JpegScan:
@@ -299,6 +299,10 @@ class JpegScan:
     def restart_interval(self) -> int:
         return self._header.restart_interval
 
+    @property
+    def number_of_components(self) -> int:
+        return len(self.table_selections)
+
     def _get_segments(
         self,
         data: bytes
@@ -338,16 +342,19 @@ class JpegScan:
         stream: Stream,
         count: int
     ) -> SegmentStub:
-        mcu_positions_and_amplitudes = [
+        mcus = [
             self._read_mcu(stream)
             for mcu in range(count)
         ]
-        # need to calculate cumulative dc amplitude per component before pop
-        first_mcu = mcu_positions_and_amplitudes.pop(0)
-        scan_start = mcu_positions_and_amplitudes[0].start
+        cumulative_dc: List[int] = [0] * self.number_of_components
+        for mcu in mcus:
+            for index, component in enumerate(mcu.blocks):
+                cumulative_dc[index] += component.amplitude
+        first_mcu = mcus.pop(0)
+        scan_start = mcus[0].start
         scan_end = stream.pos
 
-        return SegmentStub(first_mcu, scan_start, scan_end, 0)
+        return SegmentStub(first_mcu, scan_start, scan_end, cumulative_dc)
 
     def _read_mcu(
         self,
@@ -372,6 +379,7 @@ class JpegScan:
 
     @staticmethod
     def _decode_value(length: int, value: int) -> int:
+        """Decode value by magic. Need to check how this works."""
         magic = 2 ** (length - 1)
         if value < magic:
             value -= (2 * magic - 1)

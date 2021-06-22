@@ -74,7 +74,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
             ),
             scan_start=37,
             scan_end=66,
-            dc=0
+            dc=[508, 0, 0]
         )
         data = create_small_scan_data()
         stream = Stream(data)
