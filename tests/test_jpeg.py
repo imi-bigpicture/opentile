@@ -1,9 +1,11 @@
+import dataclasses
 import io
 import unittest
 from struct import unpack
 
 import pytest
-from ndpi_tiler.jpeg import JpegHeader, JpegScan, JpegSegment, Mcu, McuBlock
+from bitstring import BitArray
+from ndpi_tiler.jpeg import JpegHeader, JpegScan, JpegSegment, Mcu
 from ndpi_tiler.jpeg_tags import MARER_MAPPINGS
 from ndpi_tiler.stream import Stream
 from tifffile import TiffFile
@@ -65,97 +67,76 @@ class NdpiTilerJpegTest(unittest.TestCase):
 
     def test_small_scan_extract_segments(self):
         data = create_small_scan_data()
-        actual_segment = (data, [508, 0, 0])
+        actual_segment = JpegSegment(
+            BitArray(data)[0:-(6+16)],  # Remove padding and end of image tag
+            2,
+            [508, 0, 0]
+        )
         stream = Stream(data)
         segment = self.small_scan._extract_segment(stream, 2)
         print(segment)
         print(actual_segment)
         self.assertEqual(actual_segment, segment)
 
-    # def test_large_scan_extract_segments(self):
-    #     header_offset = 0x294
-
-    #     actual_segment = SegmentStub (
-    #         first_mcu=Mcu(
-    #             [
-    #                 McuBlock(0x294+0-header_offset, 140),
-    #                 McuBlock(0x295+7-header_offset, 0),
-    #                 McuBlock(0x298+1-header_offset, 0)
-    #             ]
-    #         ),
-    #         scan_start=0x298+6-header_offset,
-    #         scan_end=0x86E+7+2-header_offset,
-    #         dc=0
-    #     )
-    #     data = create_large_scan_data(self.tif)
-    #     stream = Stream(data)
-    #     print(data.hex())
-    #     segments = self.small_scan._extract_segment(stream, 512)
-
-    #     self.assertEqual(
-    #         actual_segment,
-    #         segments
-    #    )
+    def test_large_scan_extract_segments(self):
+        data = self.large_scan_data
+        # Need to check the actual padding and dc sum
+        actual_segment = JpegSegment(
+            data=BitArray(data)[0:-(2+16)],
+            length=512,
+            dc_sum=[81, 2, 0]
+        )
+        stream = Stream(data)
+        segment = self.large_scan._extract_segment(stream, 512)
+        self.assertEqual(
+            actual_segment,
+            segment
+        )
 
     def test_large_scan_read_mcus(self):
         header_offset = 8*0x294
-
-        actual_smus = {
-            0: Mcu(
-                [
-                    McuBlock(8*0x294+0-header_offset, 80),
-                    McuBlock(8*0x296+0-header_offset, 2),
-                    McuBlock(8*0x296+6-header_offset, 0)
-                ]
+        McuWithPosition = dataclasses.make_dataclass(
+            'mcu_with_position',
+            [('position', int), ('mcu', Mcu)]
+        )
+        actual_mcus = {
+            0: McuWithPosition(
+                position=8*0x294+0-header_offset,
+                mcu=Mcu([80, 2, 0])
             ),
-            1: Mcu(
-                [
-                    McuBlock(8*0x297+2-header_offset, 1),
-                    McuBlock(8*0x298+2-header_offset, 0),
-                    McuBlock(8*0x298+6-header_offset, 0)
-                ]
+            1: McuWithPosition(
+                position=8*0x297+2-header_offset,
+                mcu=Mcu([1, 0, 0])
             ),
-            150: Mcu(
-                [
-                    McuBlock(8*0x3D4+5-header_offset, 0),
-                    McuBlock(8*0x3D5+3-header_offset, 0),
-                    McuBlock(8*0x3D5+7-header_offset, 0)
-                ]
+            150: McuWithPosition(
+                position=8*0x3D4+5-header_offset,
+                mcu=Mcu([0, 0, 0])
             ),
-            151: Mcu(
-                [
-                    McuBlock(8*0x3D6+3-header_offset, 0),
-                    McuBlock(8*0x3D7+1-header_offset, 1),
-                    McuBlock(8*0x3D7+6-header_offset, 0)
-                ]
+            151: McuWithPosition(
+                position=8*0x3D6+3-header_offset,
+                mcu=Mcu([0, 1, 0])
             ),
-            510: Mcu(
-                [
-                    McuBlock(8*0x700+0-header_offset, -1),
-                    McuBlock(8*0x701+0-header_offset, 0),
-                    McuBlock(8*0x701+4-header_offset, 0)
-                ]
+            510: McuWithPosition(
+                position=8*0x700+0-header_offset,
+                mcu=Mcu([-1, 0, 0])
             ),
-            511: Mcu(
-                [
-                    McuBlock(8*0x702+0-header_offset, 0),
-                    McuBlock(8*0x702+6-header_offset, 0),
-                    McuBlock(8*0x703+2-header_offset, 0)
-                ]
+            511: McuWithPosition(
+                position=8*0x702+0-header_offset,
+                mcu=Mcu([0, 0, 0])
             )
         }
-        data = create_large_scan_data(self.tif)
+        data = self.large_scan_data
         stream = Stream(data)
-        mcus = {
-            index: self.large_scan._read_mcu(stream)
+        read_mcus = {
+            index: McuWithPosition(
+                stream.pos,
+                self.large_scan._read_mcu(stream)
+            )
             for index in range(self.large_scan._mcu_count)
         }
 
-        for index in actual_smus.keys():
+        for index, value in actual_mcus.items():
             print(index)
-            print(actual_smus[index])
-            print(mcus[index])
-            self.assertEqual(
-                actual_smus[index],
-                mcus[index]
-            )
+            print(actual_mcus[index])
+            print(read_mcus[index])
+            self.assertEqual(value, read_mcus[index])

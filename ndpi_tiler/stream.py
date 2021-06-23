@@ -1,26 +1,6 @@
-from dataclasses import dataclass
-from typing import List
-
 from bitstring import BitArray, Bits, ConstBitStream
 
 from ndpi_tiler.jpeg_tags import TAGS
-
-
-@dataclass
-class McuBlock:
-    """A component block of a Mcu, with bit position and dc amplitude"""
-    position: int
-    amplitude: int
-
-
-@dataclass
-class Mcu:
-    """A Mcu, consisting of one or more blocks (components)"""
-    blocks: List[McuBlock]
-
-    @property
-    def start(self) -> int:
-        return self.blocks[0].position
 
 
 class Stream:
@@ -53,7 +33,7 @@ class Stream:
         if next_byte == TAGS['tag']:
             tag = self._buffer.read('uint:8')
             if tag != TAGS['stuffing']:
-                raise ValueError(f"tag at position {self.pos}")
+                raise ValueError(f"tag {hex(tag)} at position {self.pos}")
             next_byte_is_stuffed = True
         self._buffer.pos = restore_position
         return next_byte_is_stuffed
@@ -110,15 +90,10 @@ class Stream:
         self._buffer.pos = buffer_pos
         return segment_bits
 
-    def create_segment_bytes(
-        self,
-        first_mcu: Mcu,
-        start: int,
-        end: int
+    @classmethod
+    def to_bytes(
+        bit_data: BitArray
     ) -> bytes:
-        segment_bits = self._read_segment(first_mcu.start, end)
-        rest_of_scan_bits = self._read_segment(start, end)
-        segment_bits.append(rest_of_scan_bits)
-        padding_bits = 8 - len(segment_bits) % 8
-        segment_bits.append(Bits(f'{padding_bits}*0b1'))
-        return segment_bits.bytes
+        padding_bits = 8 - len(bit_data) % 8
+        return bit_data.append(Bits(f'{padding_bits}*0b1'))
+

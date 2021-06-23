@@ -1,7 +1,6 @@
 import unittest
 
 import pytest
-from bitstring import Bits
 from ndpi_tiler.stream import Stream
 
 from .create_jpeg_data import create_small_scan_data
