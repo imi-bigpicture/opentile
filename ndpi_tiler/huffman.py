@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from struct import unpack
 from typing import Callable, List, Optional, Tuple, Union
 
-from bitstring import ConstBitStream
+from bitstring import ConstBitStream, BitArray, Bits
 
 from ndpi_tiler.utils import split_byte_into_nibbles
 from ndpi_tiler.stream import Stream
@@ -72,19 +72,19 @@ class HuffmanNode:
         self,
         leaf: HuffmanLeaf,
         depth: int
-    ) -> Optional[int]:
+    ) -> Optional[BitArray]:
         """Return Huffman code for leaf if leaf could be inserted as child to
         this node. Returns None if not inserted."""
         if depth == self._depth and not self.full:
             self._nodes.append(leaf)
-            return len(self) - 1
+            return BitArray([len(self) != 1])
         return None
 
     def _insert_into_child(
         self,
         leaf: HuffmanLeaf,
         depth: int
-    ) -> Optional[int]:
+    ) -> Optional[BitArray]:
         """Return Huffman code for leaf if leaf could be inserted in a child
         (or a child of a child, recursively) to this node. Returns None if
         not inserted."""
@@ -93,28 +93,31 @@ class HuffmanNode:
                 # Try to insert leaf into child node
                 code = node.insert(leaf, depth)
                 if code is not None:
-                    return code*2 + index
+                    code.prepend(BitArray([index != 0]))
+                    return code
         return None
 
     def _insert_into_new_child(
         self,
         leaf: HuffmanLeaf,
         depth: int
-    ) -> Optional[int]:
+    ) -> Optional[BitArray]:
         """Return Huffman code for leaf if leaf could be inserted as a new
         child to this node. Returns None if not inserted."""
         if self.full:
             return None
         node = HuffmanNode(self._depth+1)
-        node.insert(leaf, depth)
         self._nodes.append(node)
-        return len(self) - 1
+        code = node.insert(leaf, depth)
+        code.prepend(BitArray([len(self) - 1 != 0]))
+
+        return code
 
     def insert(
         self,
         leaf: HuffmanLeaf,
         depth: int
-    ) -> Optional[int]:
+    ) -> Optional[BitArray]:
         """Returns Huffman code for leaf if leaf could be fit inside this node
         or this node's children, recursivley). Returns None if not inserted.
         Note that the returned code is reversed."""
@@ -157,10 +160,8 @@ class HuffmanTable:
 
         Parameters
         ----------
-        mode: int
-            DC (0) or AC (1)
-        identifer: int
-            Identifier, either 0 or 1
+        identifer: HuffmanTableIdentifier
+            Identifies the use of the table (DC or AC, selection)
         symbols_in_levels: List[List[int]]
             Symbols in the table, listed per level
 
@@ -171,8 +172,9 @@ class HuffmanTable:
         for depth, level in enumerate(symbols_in_levels):
             for symbol in level:
                 leaf = HuffmanLeaf(symbol)
-                # Return true if leaf inserted
-                if self._root.insert(leaf, depth) is None:
+                # Return value if leaf inserted
+                value = self._root.insert(leaf, depth)
+                if value is None:
                     raise ValueError(
                         f"Huffman table not correct "
                         f"identifier {identifer}, symbol {symbol}, "

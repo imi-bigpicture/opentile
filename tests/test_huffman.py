@@ -1,7 +1,7 @@
 import unittest
 
 import pytest
-from bitstring import ConstBitStream
+from bitstring import ConstBitStream, BitArray
 from ndpi_tiler.huffman import (HuffmanLeaf, HuffmanNode,
                                 HuffmanTableIdentifier, HuffmanTableSelection)
 from ndpi_tiler.jpeg import JpegHeader, JpegScan
@@ -41,22 +41,24 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
 
     def test_huffman_node(self):
         root = HuffmanNode(0)
-        self.assertEqual(root.insert(HuffmanLeaf(1), 0), 0b0)
-        self.assertEqual(root.insert(HuffmanLeaf(2), 0), 0b1)
+        self.assertEqual(root.insert(HuffmanLeaf(1), 0), BitArray('0b0'))
+        self.assertEqual(root.insert(HuffmanLeaf(2), 0), BitArray('0b1'))
         self.assertEqual(root.insert(HuffmanLeaf(3), 0), None)
         self.assertEqual(root.insert(HuffmanLeaf(4), 1), None)
 
+        print("-------")
         root = HuffmanNode(0)
-        self.assertEqual(root.insert(HuffmanLeaf(1), 0), 0b0)
-        self.assertEqual(root.insert(HuffmanLeaf(2), 1), 0b01)
-        self.assertEqual(root.insert(HuffmanLeaf(3), 1), 0b11)
+        self.assertEqual(root.insert(HuffmanLeaf(1), 0), BitArray('0b0'))
+        print("-------")
+        self.assertEqual(root.insert(HuffmanLeaf(2), 1), BitArray('0b10'))
+        self.assertEqual(root.insert(HuffmanLeaf(3), 1), BitArray('0b11'))
         self.assertEqual(root.insert(HuffmanLeaf(4), 1), None)
 
         root = HuffmanNode(0)
-        self.assertEqual(root.insert(HuffmanLeaf(1), 0), 0b0)
-        self.assertEqual(root.insert(HuffmanLeaf(2), 1), 0b01)
-        self.assertEqual(root.insert(HuffmanLeaf(3), 2), 0b011)
-        self.assertEqual(root.insert(HuffmanLeaf(4), 2), 0b111)
+        self.assertEqual(root.insert(HuffmanLeaf(1), 0), BitArray('0b0'))
+        self.assertEqual(root.insert(HuffmanLeaf(2), 1), BitArray('0b10'))
+        self.assertEqual(root.insert(HuffmanLeaf(3), 2), BitArray('0b110'))
+        self.assertEqual(root.insert(HuffmanLeaf(4), 2), BitArray('0b111'))
         self.assertEqual(root.insert(HuffmanLeaf(5), 2), None)
 
     def test_huffman_node_full(self):
@@ -69,25 +71,55 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
 
     def test_huffman_node_insert_into_self(self):
         root = HuffmanNode(0)
-        self.assertEqual(root._insert_into_self(HuffmanLeaf(1), 0), 0b0)
-        self.assertEqual(root._insert_into_self(HuffmanLeaf(2), 1), None)
-        self.assertEqual(root._insert_into_self(HuffmanLeaf(3), 0), 0b1)
-        self.assertEqual(root._insert_into_self(HuffmanLeaf(4), 0), None)
+        self.assertEqual(
+            root._insert_into_self(HuffmanLeaf(1), 0),
+            BitArray('0b0')
+        )
+        self.assertEqual(
+            root._insert_into_self(HuffmanLeaf(2), 1),
+            None)
+        self.assertEqual(
+            root._insert_into_self(HuffmanLeaf(3), 0),
+            BitArray('0b1')
+        )
+        self.assertEqual(
+            root._insert_into_self(HuffmanLeaf(4), 0),
+            None
+        )
 
     def test_huffman_node_insert_into_child(self):
         root = HuffmanNode(0)
         root._nodes = [HuffmanNode(1), HuffmanNode(1)]
-        self.assertEqual(root._insert_into_child(HuffmanLeaf(1), 1), 0b00)
-        self.assertEqual(root._insert_into_child(HuffmanLeaf(2), 1), 0b10)
-        self.assertEqual(root._insert_into_child(HuffmanLeaf(3), 1), 0b01)
-        self.assertEqual(root._insert_into_child(HuffmanLeaf(4), 1), 0b11)
+        self.assertEqual(
+            root._insert_into_child(HuffmanLeaf(1), 1),
+            BitArray('0b00')
+        )
+        self.assertEqual(
+            root._insert_into_child(HuffmanLeaf(2), 1),
+            BitArray('0b01')
+            )
+        self.assertEqual(
+            root._insert_into_child(HuffmanLeaf(3), 1),
+            BitArray('0b10')
+        )
+        self.assertEqual(
+            root._insert_into_child(HuffmanLeaf(4), 1),
+            BitArray('0b11')
+        )
         self.assertEqual(root._insert_into_child(HuffmanLeaf(5), 1), None)
 
     def test_huffman_node_insert_into_new_child(self):
         root = HuffmanNode(0)
-        self.assertEqual(root._insert_into_new_child(HuffmanLeaf(1), 1), 0b0)
-        self.assertEqual(root._insert_into_new_child(HuffmanLeaf(2), 1), 0b1)
-        self.assertEqual(root._insert_into_new_child(HuffmanLeaf(3), 1), None)
+        self.assertEqual(
+            root._insert_into_new_child(HuffmanLeaf(1), 1),
+            BitArray('0b00')
+        )
+        self.assertEqual(
+            root._insert_into_new_child(HuffmanLeaf(2), 1),
+            BitArray('0b10')
+        )
+        self.assertEqual(
+            root._insert_into_new_child(HuffmanLeaf(3), 1), None)
 
     def test_huffman(self):
         DC_0 = self.large_header.huffman_tables[
