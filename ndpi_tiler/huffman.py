@@ -116,7 +116,8 @@ class HuffmanNode:
         depth: int
     ) -> Optional[int]:
         """Returns Huffman code for leaf if leaf could be fit inside this node
-        or this node's children, recursivley). Returns None if not inserted."""
+        or this node's children, recursivley). Returns None if not inserted.
+        Note that the returned code is reversed."""
         # Insertion order:
         # 1. Try to insert leaf directly into this node
         # 2. If there is a child node, try to insert into that

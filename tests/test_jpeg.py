@@ -3,7 +3,7 @@ import unittest
 from struct import unpack
 
 import pytest
-from ndpi_tiler.jpeg import JpegHeader, JpegScan, Mcu, McuBlock, SegmentStub
+from ndpi_tiler.jpeg import JpegHeader, JpegScan, JpegSegment, Mcu, McuBlock
 from ndpi_tiler.jpeg_tags import MARER_MAPPINGS
 from ndpi_tiler.stream import Stream
 from tifffile import TiffFile
@@ -64,19 +64,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
             )
 
     def test_small_scan_extract_segments(self):
-        actual_segment = SegmentStub(
-            first_mcu=Mcu(
-                [
-                    McuBlock(0, -512),
-                    McuBlock(29, 0),
-                    McuBlock(33, 0)
-                ]
-            ),
-            scan_start=37,
-            scan_end=66,
-            dc=[508, 0, 0]
-        )
         data = create_small_scan_data()
+        actual_segment = (data, [508, 0, 0])
         stream = Stream(data)
         segment = self.small_scan._extract_segment(stream, 2)
         print(segment)
