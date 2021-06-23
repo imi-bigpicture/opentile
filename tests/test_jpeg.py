@@ -140,3 +140,9 @@ class NdpiTilerJpegTest(unittest.TestCase):
             print(actual_mcus[index])
             print(read_mcus[index])
             self.assertEqual(value, read_mcus[index])
+
+    def test_code_decode(self):
+        for value in range(-2047, 2047):
+            length, code = JpegScan._code_value(value)
+            decode = JpegScan._decode_value(length, code)
+            self.assertEqual(value, decode)

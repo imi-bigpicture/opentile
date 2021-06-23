@@ -180,11 +180,6 @@ class HuffmanTable:
                     )
 
     @property
-    def byte_length(self) -> int:
-        """Byte length of the Huffman table in provide data."""
-        return self._byte_length
-
-    @property
     def identifier(self) -> HuffmanTableIdentifier:
         """Header of the Huffman table"""
         return self._identifier

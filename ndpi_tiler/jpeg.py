@@ -3,6 +3,7 @@ import struct
 from dataclasses import dataclass
 from struct import unpack
 from typing import Dict, List, Optional, Tuple
+import math
 
 from bitstring import BitArray
 
@@ -466,10 +467,26 @@ class JpegScan:
                 mcu_length += 1 + zeros
 
     @staticmethod
-    def _decode_value(length: int, value: int) -> int:
-        """Decode value by magic. Need to check how this works."""
-        magic = 2 ** (length - 1)
-        if value < magic:
-            value -= (2 * magic - 1)
-        return int(value)
+    def _decode_value(length: int, code: int) -> int:
+        # Smallest positive value for this length
+        smallest_value = 2 ** (length - 1)
+        # If code is larger, value is positive
+        if code >= smallest_value:
+            return code
+        # Negative value starts at negative largest value for this level
+        largest_value = 2 * smallest_value - 1
+        return code - largest_value
 
+    @staticmethod
+    def _code_value(value: int) -> Tuple[int, int]:
+        # Zero is coded as 0 length, no value
+        if value == 0:
+            return 0, 0
+        # Length needed to code the value
+        length = int(math.log2(abs(value))) + 1
+        # If value is negative, subtract 1
+        if value < 0:
+            value -= 1
+        # Take out the lower bits according to length
+        code = value & (pow(2, length) - 1)
+        return length, code
