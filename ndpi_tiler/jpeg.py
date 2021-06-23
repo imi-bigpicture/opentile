@@ -56,7 +56,7 @@ class JpegHeader:
     def restart_interval(self) -> int:
         if self._restart_interval is not None:
             return self._restart_interval
-        return self.width * self.height // (8*8)
+        return self.width * self.height // (MCU_SIZE*MCU_SIZE)
 
     @classmethod
     def from_bytes(cls, data: bytes) -> 'JpegHeader':
@@ -483,10 +483,10 @@ class JpegScan:
         if value == 0:
             return 0, 0
         # Length needed to code the value
-        length = int(math.log2(abs(value))) + 1
+        length = value.bit_length()
         # If value is negative, subtract 1
         if value < 0:
             value -= 1
         # Take out the lower bits according to length
-        code = value & (pow(2, length) - 1)
+        code = value & (2**length - 1)
         return length, code
