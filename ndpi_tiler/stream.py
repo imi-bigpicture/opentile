@@ -99,12 +99,12 @@ class Stream:
                 self._next_byte_is_stuffed = self._is_stuffed(skip_to)
         self.seek(skip_to)
 
-    def _read_segment(
+    def read_segment(
         self,
         start: int,
         end: int
     ) -> BitArray:
-        buffer_pos = self._buffer.pos
+        buffer_pos = self.pos
         self.seek(start)
         segment_bits = BitArray(self._buffer.read(end-start))
         self._buffer.pos = buffer_pos
