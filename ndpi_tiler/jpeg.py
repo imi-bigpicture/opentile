@@ -23,7 +23,7 @@ class JpegHeader:
         huffman_tables: List[HuffmanTable],
         width: int,
         height: int,
-        table_selections: Dict[int, HuffmanTableSelection],
+        components: Dict[str, HuffmanTableSelection],
         restart_interval: int = None
     ) -> None:
 
@@ -32,7 +32,7 @@ class JpegHeader:
         }
         self._width = width
         self._height = height
-        self._table_selections = table_selections
+        self._components = components
         self._restart_interval = restart_interval
 
     @property
@@ -48,8 +48,8 @@ class JpegHeader:
         return self._height
 
     @property
-    def table_selections(self) -> Dict[int, HuffmanTableSelection]:
-        return self._table_selections
+    def components(self) -> Dict[str, HuffmanTableSelection]:
+        return self._components
 
     @property
     def restart_interval(self) -> int:
@@ -76,7 +76,7 @@ class JpegHeader:
         huffman_tables: List[HuffmanTable] = []
         width: int
         height: int
-        table_selections: Dict[int, HuffmanTableSelection] = {}
+        components: Dict[str, HuffmanTableSelection] = {}
 
         with io.BytesIO(data) as buffer:
             marker = cls.read_marker(buffer)
@@ -95,7 +95,7 @@ class JpegHeader:
                 elif marker == TAGS['start of frame']:
                     (width, height) = cls.parse_start_of_frame(payload)
                 elif marker == TAGS['start of scan']:
-                    table_selections = cls.parse_start_of_scan(payload)
+                    components = cls.parse_start_of_scan(payload)
                 elif marker == TAGS['restart interval']:
                     restart_interval = cls.parse_restart_interval(payload)
                 else:
@@ -105,14 +105,14 @@ class JpegHeader:
         if (
             huffman_tables == [] or
             width is None or height is None or
-            table_selections == {}
+            components == {}
         ):
             raise ValueError("missing tags")
         return cls(
             huffman_tables,
             width,
             height,
-            table_selections,
+            components,
             restart_interval
         )
 
@@ -135,7 +135,7 @@ class JpegHeader:
     @staticmethod
     def parse_start_of_scan(
         payload: bytes
-    ) -> Dict[int, HuffmanTableSelection]:
+    ) -> Dict[str, HuffmanTableSelection]:
         """Parse start of scan paylaod. Only Huffman table selections are
         extracted.
 
@@ -146,21 +146,29 @@ class JpegHeader:
 
         Returns
         ----------
-        Dict[int, HuffmanTableSelection]
-            Huffman table selection with component identifier as key.
+        Dict[str, HuffmanTableSelection]
+            Huffman table selection with component name as key.
 
         """
         with io.BytesIO(payload) as buffer:
-            components: int = unpack('B', buffer.read(1))[0]
-            table_selections: Dict[int, Tuple[int, int]] = {}
-            for component in range(components):
+            number_of_components: int = unpack('B', buffer.read(1))[0]
+            components: Dict[int, Tuple[int, int]] = {}
+            for component in range(number_of_components):
                 identifier, table_selection = unpack('BB', buffer.read(2))
                 dc_table, ac_table = split_byte_into_nibbles(table_selection)
-                table_selections[identifier] = HuffmanTableSelection(
+                if identifier == 0:
+                    name = 'Y'
+                elif identifier == 1:
+                    name = 'Cb'
+                elif identifier == 2:
+                    name = 'Cr'
+                else:
+                    raise ValueError("Incorrect component identifier")
+                components[name] = HuffmanTableSelection(
                     dc=dc_table,
                     ac=ac_table
                 )
-        return table_selections
+        return components
 
     @staticmethod
     def parse_huffman(payload: bytes) -> List[HuffmanTable]:
@@ -245,12 +253,6 @@ class JpegHeader:
 
 
 @dataclass
-class Mcu:
-    """A Mcu, consisting of one or more blocks (components)"""
-    dc_amplitudes: List[int]
-
-
-@dataclass
 class JpegSegment:
     data: BitArray
     length: int
@@ -274,6 +276,8 @@ class JpegScan:
             Header containing
         data: bytes
             Jpeg scan data, excluding start of scan tag
+        scan_width: int
+            Maximum widht of produced segments.
 
         """
         self._header = header
@@ -282,11 +286,12 @@ class JpegScan:
             self._scan_width = scan_width
         else:
             self._scan_width = self._mcu_count // MCU_SIZE
-        self.segments = self._get_segments(data)
+        self._stream = Stream(data)
+        self.segments = self._get_segments(self._scan_width)
 
     @property
-    def table_selections(self) -> Dict[int, HuffmanTableSelection]:
-        return self._header.table_selections
+    def components(self) -> Dict[str, HuffmanTableSelection]:
+        return self._header.components
 
     @property
     def huffman_tables(self) -> List[HuffmanTable]:
@@ -302,83 +307,163 @@ class JpegScan:
 
     @property
     def number_of_components(self) -> int:
-        return len(self.table_selections)
+        return len(self.components)
 
-    def _get_segments(
-        self,
-        data: bytes,
-    ) -> List[JpegSegment]:
-        # Result should be a list with jpeg segments, each segments has
-        # byte data and a mcu length
-        # From the avaiable mcus we need to scan mcu_to_scan until all mcus are
-        # scanned
-        # For each segment, we need the bits for the first mcu blocks separete,
-        # the start and end of the rest of the scan and the cumulative DC
-        # component
-        # For the first mcu, we need to modifiy the DC component of each block
-        # We then joing together the first mcus modified blocks and the rest of
-        # the scan
-        stream = Stream(data)
+    def _get_segments(self, scan_width: int) -> List[JpegSegment]:
+        """Parse MCUs in jpeg scan data produce segments. Each segment
+        contains max scan width (in pixels) number of MCUs and the cumulative
+        DC amplitude (per component).
+
+        Parameters
+        ----------
+        scan_width: int
+            Maximum number of pixels per segment.
+
+        Returns
+        ----------
+        List[JpegSegment]
+            Segments of MCUs.
+        """
+        mcu_scan_width = scan_width // MCU_SIZE
         segments: List[JpegSegment] = []
         mcus_left = self.mcu_count
         while mcus_left > 0:
-            mcu_to_scan = max(mcus_left, self._scan_width // MCU_SIZE)
-            segment = self._extract_segment(stream, mcu_to_scan)
+            mcu_to_scan = max(mcus_left, mcu_scan_width)
+            segment = self._extract_segment(mcu_to_scan)
             segments.append(segment)
             mcus_left -= mcu_to_scan
 
         return segments
 
-    def _extract_segment(
-        self,
-        stream: Stream,
-        count: int,
-    ) -> JpegSegment:
-        scan_start = stream.pos
-        # mcus = [
-        #     self._read_mcu(stream)
-        #     for mcu in range(count)
-        # ]
-        mcus = []
-        for mcu in range(count):
-            print(f"mcu {mcu} position {stream.pos}")
-            mcus.append(self._read_mcu(stream))
-        cumulative_dc: List[int] = [0] * self.number_of_components
-        for mcu in mcus:
-            for index, amplitude in enumerate(mcu.dc_amplitudes):
-                cumulative_dc[index] += amplitude
-        scan_end = stream.pos
-
-        return JpegSegment(
-            data=stream.read_segment(scan_start, scan_end),
-            length=count,
-            dc_sum=cumulative_dc
-        )
-
-        # padding_bits = 8 - len(segment_bits) % 8
-        # segment_bits.append(Bits(f'{padding_bits}*0b1'))
-        # segment_bits.append('0xFFD9')
-
-    def _read_mcu(
-        self,
-        stream
-    ) -> Mcu:
-        """Return mcu (position and ac amplitudes) read from stream.
+    def _extract_segment(self, count: int) -> JpegSegment:
+        """Extract a segment of count number of Mcus from stream
 
         Parameters
         ----------
-        stream: Stream
-            Stream of jpeg scan data
+        count: int
+            Number of MCUs to extract.
 
         Returns
         ----------
-        Mcu
-            Mcu containing position and ac amplitudes.
+        JpegSegment
+            Segment of MCUs read.
         """
-        return Mcu([
-            self._read_mcu_block(stream, table_selection)
-            for table_selection in self.table_selections.values()
-        ])
+        scan_start = self._stream.pos
+        dc_sum = self._read_multiple_mcus(count)
+        # cumulative_dc = self._calculate_cumulative_dc(mcus)
+        scan_end = self._stream.pos
+        return JpegSegment(
+            data=self._stream.read_segment(scan_start, scan_end),
+            length=count,
+            dc_sum=dc_sum
+        )
+
+    def _read_multiple_mcus(self, count: int) -> List[int]:
+        """Read count number of Mcus from stream. Only DC amplitudes are
+        decoded. Accumulate the DC values of each component.
+
+        Parameters
+        ----------
+        count: int
+            Number of MCUs to read.
+
+        Returns
+        ----------
+        List[int]
+            Cumulative sums DC in MCUs per component.
+        """
+        dc_sums: List[int] = [0] * self.number_of_components
+        for index in range(count):
+            dc_sums = self._read_mcu(dc_sums)
+        return dc_sums
+
+    def _read_mcu(self, dc_sums: List[int]) -> List[int]:
+        """Parse MCU and return cumulative DC per component.
+
+        Parameters
+        ----------
+        dc_sums: int
+            Cumulative sums of previous MCUs DC per component.
+
+        Returns
+        ----------
+        List[int]
+            Cumulative sums of previous MCUs DC, including this MCU, per
+            component
+
+        """
+        return [
+            self._read_mcu_component(table_selection, dc_sums[component])
+            for component, table_selection
+            in enumerate(self.components.values())
+        ]
+
+    def _read_mcu_component(
+        self,
+        table_selection: HuffmanTableSelection,
+        dc_sum: int
+    ) -> int:
+        """Read single component of a MCU.
+
+        Parameters
+        ----------
+        table_selection: HuffmanTableSelection
+            Huffman table selection.
+        dc_sum: int
+            Cumulative sum of previous MCUs DC for this component
+
+        Returns
+        ----------
+        int
+            Cumulative DC sum for this component including this MCU.
+
+        """
+        dc_amplitude = self._read_dc(
+            HuffmanTableIdentifier('DC', table_selection.dc)
+        )
+        self._skip_ac(
+            HuffmanTableIdentifier('AC', table_selection.ac)
+        )
+        return dc_sum + dc_amplitude
+
+    def _read_dc(self, table_identifier: HuffmanTableIdentifier) -> int:
+        """Return DC amplitude for MCU block read from stream.
+
+        Parameters
+        ----------
+        table_identifier: HuffmanTableIdentifier
+            Identifier for Huffman table to use.
+
+        Returns
+        ----------
+        Int
+            DC amplitude for read MCU block.
+        """
+        table: HuffmanTable = self.huffman_tables[table_identifier]
+        length = table.decode(self._stream)
+        value = self._stream.read(length)
+        return self._decode_value(length, value)
+
+    def _skip_ac(self, table_identifier: HuffmanTableIdentifier) -> None:
+        """Skip the ac part of MCU block read from stream.
+
+        Parameters
+        ----------
+        table_identifier: HuffmanTableIdentifier
+            Identifier for Huffman table to use.
+
+        """
+        table: HuffmanTable = self.huffman_tables[table_identifier]
+        mcu_length = 1  # DC amplitude is first value
+        while mcu_length < 64:
+            code = table.decode(self._stream)
+            if code == 0:  # End of block
+                break
+            else:
+                zeros, length = split_byte_into_nibbles(code)
+                # value = stream.read(length)
+                self._stream.skip(length)
+                mcu_length += 1 + zeros
 
     @staticmethod
     def _decode_value(length: int, value: int) -> int:
@@ -388,78 +473,3 @@ class JpegScan:
             value -= (2 * magic - 1)
         return int(value)
 
-    def _read_dc(
-        self,
-        stream: Stream,
-        table_identifier: HuffmanTableIdentifier
-    ) -> int:
-        """Return DC amplitude for mcu block read from stream.
-
-        Parameters
-        ----------
-        stream: Stream
-            Stream of jpeg scan data
-        table_identifier: HuffmanTableIdentifier
-            Identifier for Huffman table to use.
-
-        Returns
-        ----------
-        Int
-            DC amplitude for read mcu block.
-        """
-        table: HuffmanTable = self.huffman_tables[table_identifier]
-        length = table.decode(stream)
-        value = stream.read(length)
-        return self._decode_value(length, value)
-
-    def _skip_ac(
-        self,
-        stream: Stream,
-        table_identifier: HuffmanTableIdentifier
-    ) -> None:
-        """Skip the ac part of mcu block read from stream.
-
-        Parameters
-        ----------
-        stream: Stream
-            Stream of jpeg scan data
-        table_identifier: HuffmanTableIdentifier
-            Identifier for Huffman table to use.
-
-        """
-
-        table: HuffmanTable = self.huffman_tables[table_identifier]
-        mcu_length = 1  # DC amplitude is first value
-        while mcu_length < 64:
-            code = table.decode(stream)
-            if code == 0:  # End of block
-                break
-            else:
-                zeros, length = split_byte_into_nibbles(code)
-                # value = stream.read(length)
-                stream.skip(length)
-                mcu_length += 1 + zeros
-
-    def _read_mcu_block(
-        self,
-        stream: Stream,
-        table_selection: Tuple[int, int]
-    ) -> int:
-        """Read single block (component) of a MCU.
-
-        Parameters
-        ----------
-        stream: Stream
-            Stream of jpeg scan data
-        table_selection: Tuple[int, int]
-            Huffman table selection for DC and AC
-        """
-        dc_amplitude = self._read_dc(
-            stream,
-            HuffmanTableIdentifier('DC', table_selection.dc)
-        )
-        self._skip_ac(
-            stream,
-            HuffmanTableIdentifier('AC', table_selection.ac)
-        )
-        return dc_amplitude

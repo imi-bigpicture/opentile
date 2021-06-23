@@ -39,7 +39,6 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.tif.close()
 
-
     def test_huffman_node(self):
         root = HuffmanNode(0)
         self.assertEqual(root.insert(HuffmanLeaf(1), 0), 0b0)
@@ -143,7 +142,6 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
 
             self.assertEqual(truth, decoded)
 
-
     def test_small_scan_huffman_table(self):
         data = {
             HuffmanTableIdentifier('DC', 0): bytes([254]),
@@ -158,14 +156,14 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
         actual_values = [0x0B, 0x0A, 0x22, 0x81]
         self.assertEqual(actual_values, decoded_values)
 
-    def test_table_selection(self):
-        actual_selection = {
-                0: HuffmanTableSelection(dc=0, ac=0),
-                1: HuffmanTableSelection(dc=1, ac=1),
-                2: HuffmanTableSelection(dc=1, ac=1)
+    def test_components(self):
+        actual_components = {
+                'Y': HuffmanTableSelection(dc=0, ac=0),
+                'Cb': HuffmanTableSelection(dc=1, ac=1),
+                'Cr': HuffmanTableSelection(dc=1, ac=1)
             }
-        selection = self.small_header.table_selections
-        self.assertEqual(actual_selection, selection)
+        components = self.small_header.components
+        self.assertEqual(actual_components, components)
 
-        selection = self.large_header.table_selections
-        self.assertEqual(actual_selection, selection)
+        components = self.large_header.components
+        self.assertEqual(actual_components, components)
