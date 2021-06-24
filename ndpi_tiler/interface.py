@@ -1,12 +1,13 @@
 import io
 import struct
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 from PIL import Image
+from bitstring import BitArray
 from tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 
-from ndpi_tiler.jpeg import JpegHeader, JpegScan
+from ndpi_tiler.jpeg import JpegHeader, JpegScan, JpegSegment
 
 
 class NdpiPage:
@@ -24,6 +25,17 @@ class NdpiPage:
         """
         self._page = page
         self._fh = fh
+        self._header = JpegHeader.from_bytes(self._page.jpegheader)
+
+    def get_segments(
+        self,
+        x: int,
+        y: int,
+        scan_width: int
+    ) -> List[JpegSegment]:
+        stripe = self.get_encoded_strip(x, y)
+        scan = JpegScan(self._header, stripe, scan_width)
+        return scan.segments
 
     def get_stripe_byte_range(self, x: int, y: int) -> Tuple[int, int]:
         """Return stripe offset and length from stripe position.
@@ -200,11 +212,6 @@ class NdpiPage:
         return Image.open(io.BytesIO(stripe))
 
 
-class NdpiStrip:
-    def __init__(self):
-        pass
-
-
 class NdpiStripCache:
     def __init__(
         self,
@@ -220,7 +227,53 @@ class NdpiStripCache:
         self.tile_width = tile_width
         self.tile_height = tile_height
 
-        self.strips: List[NdpiStrip] = []
+        self.segments: Dict[(int, int), JpegSegment] = {}
+
+    def get_tile(self, x: int, y: int) -> bytes:
+        strip_x_start = x * self.tile_width / self.strip_width
+        strip_x_end = (x+1) * self.tile_width / self.strip_width
+        strip_y_start = y * self.tile_height / self.strip_height
+        strip_y_end = (y+1) * self.tile_height / self.strip_height
+        print(strip_x_start)
+        print(strip_x_end)
+        test_strip_position = (strip_x_start, strip_y_start)
+
+        if test_strip_position not in self.segments.keys():
+            self.segments = {}
+            for strip_x in range(int(strip_x_start), int(strip_x_end)+1):
+                print(strip_x)
+                for strip_y in range(int(strip_y_start), int(strip_y_end)+1):
+                    print(strip_y)
+                    segments = self.page.get_segments(x, y, self.tile_width)
+                    for index, segment in enumerate(segments):
+                        segment_x = (
+                            strip_x * self.strip_width + index*self.tile_width
+                        )
+                        segment_y = strip_y * self.strip_height
+                        self.segments[(segment_x, segment_y)] = segment
+
+        scan = BitArray()
+        for segment_x in range(
+            x*self.tile_width,
+            (x+1)*self.tile_width,
+            min(self.strip_width, self.tile_width)
+        ):
+            for segment_y in range(
+                y*self.tile_height,
+                (y+1)*self.tile_height,
+                min(self.strip_height, self.tile_width)
+            ):
+                scan.append(self.segments[(segment_x, segment_y)].data)
+
+        padding_bits = 8 - len(scan) % 8
+        scan.append(BitArray(f'{padding_bits}*0b1'))
+        scan_bytes = self.page.wrap_scan(scan.bytes, (512, 512))
+
+        f = open("scan.jpeg", "wb")
+        f.write(scan_bytes)
+        f.close()
+
+
 
 
 class NdpiTiler:
@@ -277,3 +330,4 @@ class NdpiTiler:
 
     def close(self) -> None:
         self.tif.close()
+
