@@ -379,36 +379,36 @@ class JpegScan:
 
         Returns
         ----------
-        List[int]
+        Dict[str, int]
             Cumulative sums DC in MCUs per component.
         """
-        dc_sums: List[int] = [0] * self.number_of_components
+        dc_sums: Dict[str, int] = {
+            name: 0 for name in self.components.keys()
+        }
         for index in range(count):
             dc_sums = self._read_mcu(dc_sums)
         return dc_sums
 
-    def _read_mcu(self, dc_sums: List[int]) -> List[int]:
+    def _read_mcu(self, dc_sums: Dict[str, int]) -> Dict[str, int]:
         """Parse MCU and return cumulative DC per component.
 
         Parameters
         ----------
-        dc_sums: int
+        dc_sums: Dict[str, int]
             Cumulative sums of previous MCUs DC per component.
 
         Returns
         ----------
-        List[int]
+        Dict[str, int]
             Cumulative sums of previous MCUs DC, including this MCU, per
             component
 
         """
-        return [
-            self._read_mcu_component(component, dc_sums[index])
-            for index, component
-            in enumerate(self.components.values())
-        ]
+        return {
+            name: self._read_mcu_component(component, dc_sums[name])
+            for name, component in self.components.items()
+        }
 
-    # The table objects to use should be parameters, instead of the identifiers
     def _read_mcu_component(
         self,
         component: Component,

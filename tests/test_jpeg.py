@@ -70,7 +70,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         actual_segment = JpegSegment(
             BitArray(data)[0:-(6+16)],  # Remove padding and end of image tag
             2,
-            [508, 0, 0]
+            {'Y': 508, 'Cb': 0, 'Cr': 0}
         )
         self.small_scan._stream.seek(0)
         segment = self.small_scan._extract_segment(2)
@@ -85,7 +85,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         actual_segment = JpegSegment(
             data=BitArray(data)[0:-(2+16)],
             length=512,
-            dc_sum=[81, 2, 0]
+            dc_sum={'Y': 81, 'Cb': 2, 'Cr': 0}
         )
         stream = Stream(data)
         segment = self.large_scan._extract_segment(512)
@@ -103,34 +103,34 @@ class NdpiTilerJpegTest(unittest.TestCase):
         actual_mcus = {
             0: Mcu(
                 position=8*0x294+0-header_offset,
-                dc_sum=[80, 2, 0]
+                dc_sum={'Y': 80, 'Cb': 2, 'Cr': 0}
             ),
             1: Mcu(
                 position=8*0x297+2-header_offset,
-                dc_sum=[1, 0, 0]
+                dc_sum={'Y': 1, 'Cb': 0, 'Cr': 0}
             ),
             150: Mcu(
                 position=8*0x3D4+5-header_offset,
-                dc_sum=[0, 0, 0]
+                dc_sum={'Y': 0, 'Cb': 0, 'Cr': 0}
             ),
             151: Mcu(
                 position=8*0x3D6+3-header_offset,
-                dc_sum=[0, 1, 0]
+                dc_sum={'Y': 0, 'Cb': 1, 'Cr': 0}
             ),
             510: Mcu(
                 position=8*0x700+0-header_offset,
-                dc_sum=[-1, 0, 0]
+                dc_sum={'Y': -1, 'Cb': 0, 'Cr': 0}
             ),
             511: Mcu(
                 position=8*0x702+0-header_offset,
-                dc_sum=[0, 0, 0]
+                dc_sum={'Y': 0, 'Cb': 0, 'Cr': 0}
             )
         }
         self.large_scan._stream.seek(0)
         read_mcus = {
             index: Mcu(
                 position=self.large_scan._stream.pos,
-                dc_sum=self.large_scan._read_mcu([0, 0, 0])
+                dc_sum=self.large_scan._read_mcu({'Y': 0, 'Cb': 0, 'Cr': 0})
             )
             for index in range(self.large_scan._mcu_count)
         }

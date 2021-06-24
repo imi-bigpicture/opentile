@@ -28,6 +28,7 @@ class HuffmanTableIdentifier:
     def __hash__(self) -> int:
         return hash((self.mode, self.selection))
 
+
 @dataclass
 class HuffmanLeaf:
     """Huffman leaf, only contains a value"""
