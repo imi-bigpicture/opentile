@@ -70,10 +70,14 @@ class NdpiTilerJpegTest(unittest.TestCase):
         actual_segment = JpegSegment(
             BitArray(data)[0:-(6+16)],  # Remove padding and end of image tag
             2,
+            {'Y': 0, 'Cb': 0, 'Cr': 0},
             {'Y': 508, 'Cb': 0, 'Cr': 0}
         )
         self.small_scan._stream.seek(0)
-        segment = self.small_scan._extract_segment(2)
+        segment = self.small_scan._extract_segment(
+            2,
+            {'Y': 0, 'Cb': 0, 'Cr': 0}
+        )
         print(segment)
         print(actual_segment)
         self.assertEqual(actual_segment, segment)
@@ -85,10 +89,14 @@ class NdpiTilerJpegTest(unittest.TestCase):
         actual_segment = JpegSegment(
             data=BitArray(data)[0:-(2+16)],
             length=512,
+            dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
             dc_sum={'Y': 81, 'Cb': 2, 'Cr': 0}
         )
         stream = Stream(data)
-        segment = self.large_scan._extract_segment(512)
+        segment = self.large_scan._extract_segment(
+            512,
+            {'Y': 0, 'Cb': 0, 'Cr': 0}
+        )
         self.assertEqual(
             actual_segment,
             segment

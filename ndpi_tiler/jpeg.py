@@ -267,7 +267,8 @@ class JpegHeader:
 class JpegSegment:
     data: BitArray
     length: int
-    dc_sum: int
+    dc_offset: Dict[str, int]
+    dc_sum: Dict[str, int]
     modified: bool = False
 
 
@@ -338,21 +339,29 @@ class JpegScan:
         mcu_scan_width = scan_width // MCU_SIZE
         segments: List[JpegSegment] = []
         mcus_left = self.mcu_count
+        dc_offset = {name: 0 for name in self.components.keys()}
         while mcus_left > 0:
             mcu_to_scan = max(mcus_left, mcu_scan_width)
-            segment = self._extract_segment(mcu_to_scan)
+            segment = self._extract_segment(mcu_to_scan, dc_offset)
             segments.append(segment)
             mcus_left -= mcu_to_scan
+            dc_offset = segment.dc_sum
 
         return segments
 
-    def _extract_segment(self, count: int) -> JpegSegment:
+    def _extract_segment(
+        self,
+        count: int,
+        dc_offset: Dict[str, int]
+    ) -> JpegSegment:
         """Extract a segment of count number of Mcus from stream
 
         Parameters
         ----------
         count: int
             Number of MCUs to extract.
+        dc_offset: Dict[str, int]
+            DC of previous segment.
 
         Returns
         ----------
@@ -365,6 +374,7 @@ class JpegScan:
         return JpegSegment(
             data=self._stream.read_segment(scan_start, scan_end),
             length=count,
+            dc_offset=dc_offset,
             dc_sum=dc_sum
         )
 
@@ -382,9 +392,7 @@ class JpegScan:
         Dict[str, int]
             Cumulative sums DC in MCUs per component.
         """
-        dc_sums: Dict[str, int] = {
-            name: 0 for name in self.components.keys()
-        }
+        dc_sums = {name: 0 for name in self.components.keys()}
         for index in range(count):
             dc_sums = self._read_mcu(dc_sums)
         return dc_sums
