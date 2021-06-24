@@ -1,12 +1,12 @@
 import io
 from dataclasses import dataclass
 from struct import unpack
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from bitstring import ConstBitStream
+from bitstring import ConstBitStream, Bits
 
-from ndpi_tiler.utils import split_byte_into_nibbles
 from ndpi_tiler.stream import Stream
+from ndpi_tiler.utils import split_byte_into_nibbles
 
 
 @dataclass
@@ -47,17 +47,17 @@ class HuffmanNode:
     """Huffman node, contains up to two nodes, that are either other
     Huffman nodes or leaves."""
 
-    def __init__(self, depth: int) -> None:
-        """Create a Huffman node at tree depth (code length).
+    def __init__(self, length: int) -> None:
+        """Create a Huffman node at tree depth (symbol length).
 
         Parameters
         ----------
-        depth: int
-            The tree depth of the node.
+        length: int
+            The symbol length at this node.
 
         """
 
-        self._depth: int = depth
+        self._length: int = length
         self._nodes: List[Optional[Union['HuffmanNode', HuffmanLeaf]]] = []
 
     def __len__(self) -> int:
@@ -68,58 +68,66 @@ class HuffmanNode:
         """Return True if node is full."""
         return len(self._nodes) > 1
 
+    def shift(self, length) -> int:
+        """Shift the symbol 'bit' from this node to the correct bit position.
+        """
+        return 2**(length - self._length)
+
+    def _append(self, item: Union['HuffmanNode', HuffmanLeaf]) -> int:
+        """Append a node or leaf to this node and return the insertion index.
+        """
+        self._nodes.append(item)
+        return len(self._nodes) - 1
+
     def _insert_into_self(
         self,
         leaf: HuffmanLeaf,
-        depth: int
+        length: int
     ) -> Optional[int]:
-        """Return Huffman code for leaf if leaf could be inserted as child to
-        this node. Returns None if not inserted."""
-        if depth == self._depth and not self.full:
-            self._nodes.append(leaf)
-            return len(self) - 1
+        """Return (partial) symbol for leaf if leaf could be inserted as child
+        to this node. Returns None if not inserted."""
+        if length == self._length and not self.full:
+            return self._append(leaf)
         return None
 
     def _insert_into_child(
         self,
         leaf: HuffmanLeaf,
-        depth: int
+        length: int
     ) -> Optional[int]:
-        """Return Huffman code for leaf if leaf could be inserted in a child
-        (or a child of a child, recursively) to this node. Returns None if
-        not inserted."""
+        """Return (partial) symbol for leaf if leaf could be inserted in a
+        child (or a child of a child, recursively) to this node. Returns None
+        if not inserted."""
         for index, node in enumerate(self._nodes):
             if isinstance(node, HuffmanNode):
                 # Try to insert leaf into child node
-                code = node.insert(leaf, depth)
-                if code is not None:
-                    length = max(1, code.bit_length())
-                    return code + 2**length * index
+                symbol = node.insert(leaf, length)
+                if symbol is not None:
+                    return symbol + self.shift(length) * index
         return None
 
     def _insert_into_new_child(
         self,
         leaf: HuffmanLeaf,
-        depth: int
+        length: int
     ) -> Optional[int]:
-        """Return Huffman code for leaf if leaf could be inserted as a new
+        """Return (partial) symbol for leaf if leaf could be inserted as a new
         child to this node. Returns None if not inserted."""
         if self.full:
             return None
-        node = HuffmanNode(self._depth+1)
-        self._nodes.append(node)
-        code = node.insert(leaf, depth)
-        length = max(1, code.bit_length())
-        return code + 2**(length) * (len(self) - 1)
+        node = HuffmanNode(self._length + 1)
+        index = self._append(node)
+        symbol = node.insert(leaf, length)
+        return symbol + self.shift(length) * index
 
     def insert(
         self,
         leaf: HuffmanLeaf,
-        depth: int
+        length: int
     ) -> Optional[int]:
-        """Returns Huffman code for leaf if leaf could be fit inside this node
+        """Returns symbol for leaf if leaf could be fit inside this node
         or this node's children, recursivley). Returns None if not inserted.
-        Note that the returned code is reversed."""
+        """
         # Insertion order:
         # 1. Try to insert leaf directly into this node
         # 2. If there is a child node, try to insert into that
@@ -130,9 +138,9 @@ class HuffmanNode:
             self._insert_into_new_child
         ]
         for insertion_function in insertion_order:
-            code = insertion_function(leaf, depth)
-            if code is not None:
-                return code
+            symbol = insertion_function(leaf, length)
+            if symbol is not None:
+                return symbol
 
         # No space for a new child node, insert leaf somewhere else
         return None
@@ -150,7 +158,7 @@ class HuffmanTable:
     def __init__(
         self,
         identifer: HuffmanTableIdentifier,
-        symbols_in_levels: List[List[int]]
+        values_in_levels: List[List[int]]
     ) -> None:
         """Create a Huffman table from specifed table with symbols per level.
         Only the first Huffman table in the data is parsed. The number of bytes
@@ -167,18 +175,26 @@ class HuffmanTable:
         """
         self._root = HuffmanNode(0)
         self._identifier = identifer
+        self.encode_dict: Dict[int, Bits] = {}
 
-        for depth, level in enumerate(symbols_in_levels):
-            for symbol in level:
-                leaf = HuffmanLeaf(symbol)
-                # Return value if leaf inserted
-                value = self._root.insert(leaf, depth)
-                if value is None:
+        for length, level in enumerate(values_in_levels):
+            for value in level:
+                leaf = HuffmanLeaf(value)
+                # Return symbol if leaf inserted
+                symbol = self._root.insert(leaf, length)
+                if symbol is None:
                     raise ValueError(
                         f"Huffman table not correct "
                         f"identifier {identifer}, symbol {symbol}, "
-                        f"depth {depth}"
+                        f"depth {length}"
                     )
+                if value in self.encode_dict.keys():
+                    raise ValueError(
+                        f"Duplicate value/symbol in Huffman table "
+                        f"identifier {identifer}, symbol {symbol}, "
+                        f"value {value}"
+                    )
+                self.encode_dict[value] = Bits(uint=symbol, length=length+1)
 
     @property
     def identifier(self) -> HuffmanTableIdentifier:
@@ -220,6 +236,9 @@ class HuffmanTable:
                 buffer.tell()
             )
 
+    def encode(self, value) -> int:
+        return self.encode_dict[value]
+
     def decode(self, stream: Stream) -> int:
         """Decode stream using Huffman table.
 
@@ -260,6 +279,7 @@ class HuffmanTable:
         int
             Decoded value from bits.
         """
+        print(bits)
         node = self._root
         # Search table until leaf is found
         while not isinstance(node, HuffmanLeaf):

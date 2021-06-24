@@ -167,3 +167,12 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
 
         components = self.large_header.components
         self.assertEqual(actual_components, components)
+
+    def test_code_decode(self):
+        for table in self.small_header.huffman_tables.values():
+            for value in table.encode_dict.keys():
+                symbol = table.encode(value)
+                decoded = table.decode_from_bits(
+                    ConstBitStream(symbol)
+                )
+                self.assertEqual(value, decoded)
