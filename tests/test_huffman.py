@@ -1,11 +1,9 @@
 import unittest
 
 import pytest
-from bitstring import ConstBitStream
-from ndpi_tiler.huffman import (HuffmanLeaf, HuffmanNode,
-                                HuffmanTableIdentifier, HuffmanTableSelection)
+from bitstring import Bits
+from ndpi_tiler.huffman import HuffmanLeaf, HuffmanNode
 from ndpi_tiler.jpeg import JpegHeader, JpegScan
-from ndpi_tiler.stream import Stream
 from tifffile import TiffFile
 
 from .create_jpeg_data import (create_large_header, create_large_scan,
@@ -90,89 +88,73 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
         self.assertEqual(root._insert_into_new_child(HuffmanLeaf(3), 1), None)
 
     def test_huffman(self):
-        DC_0 = self.large_header.huffman_tables[
-            HuffmanTableIdentifier('DC', 0)
-        ]
+        DC_0 = self.large_header.components['Y'].dc_table
         codes = {
-            0x00: ConstBitStream('0b00'),
-            0x01: ConstBitStream('0b010'),
-            0x02: ConstBitStream('0b011'),
-            0x03: ConstBitStream('0b100'),
-            0x04: ConstBitStream('0b101'),
-            0x05: ConstBitStream('0b110'),
-            0x06: ConstBitStream('0b1110'),
-            0x07: ConstBitStream('0b11110'),
-            0x08: ConstBitStream('0b111110'),
-            0x09: ConstBitStream('0b1111110'),
-            0x0A: ConstBitStream('0b11111110'),
-            0x0B: ConstBitStream('0b111111110')
+            0x00: Bits('0b00'),
+            0x01: Bits('0b010'),
+            0x02: Bits('0b011'),
+            0x03: Bits('0b100'),
+            0x04: Bits('0b101'),
+            0x05: Bits('0b110'),
+            0x06: Bits('0b1110'),
+            0x07: Bits('0b11110'),
+            0x08: Bits('0b111110'),
+            0x09: Bits('0b1111110'),
+            0x0A: Bits('0b11111110'),
+            0x0B: Bits('0b111111110')
         }
 
         for truth, code in codes.items():
             decoded = DC_0.decode_from_bits(code)
             self.assertEqual(truth, decoded)
 
-        print(self.large_header.huffman_tables.keys())
-        AC_0 = self.large_header.huffman_tables[
-            HuffmanTableIdentifier('AC', 0)
-        ]
+        AC_0 = self.large_header.components['Y'].ac_table
+
         codes = {
-            0x01: ConstBitStream('0b00'),
-            0x02: ConstBitStream('0b01'),
-            0x03: ConstBitStream('0b100'),
-            0x00: ConstBitStream('0b1010'),
-            0x04: ConstBitStream('0b1011'),
-            0x11: ConstBitStream('0b1100'),
-            0x05: ConstBitStream('0b11010'),
-            0x12: ConstBitStream('0b11011'),
-            0x21: ConstBitStream('0b11100'),
-            0x31: ConstBitStream('0b111010'),
-            0x41: ConstBitStream('0b111011'),
-            0x06: ConstBitStream('0b1111000'),
-            0x13: ConstBitStream('0b1111001'),
-            0x51: ConstBitStream('0b1111010'),
-            0x61: ConstBitStream('0b1111011'),
-            0x24: ConstBitStream('0b111111110100'),
-            0x33: ConstBitStream('0b111111110101'),
-            0x62: ConstBitStream('0b111111110110'),
-            0x72: ConstBitStream('0b111111110111')
+            0x01: Bits('0b00'),
+            0x02: Bits('0b01'),
+            0x03: Bits('0b100'),
+            0x00: Bits('0b1010'),
+            0x04: Bits('0b1011'),
+            0x11: Bits('0b1100'),
+            0x05: Bits('0b11010'),
+            0x12: Bits('0b11011'),
+            0x21: Bits('0b11100'),
+            0x31: Bits('0b111010'),
+            0x41: Bits('0b111011'),
+            0x06: Bits('0b1111000'),
+            0x13: Bits('0b1111001'),
+            0x51: Bits('0b1111010'),
+            0x61: Bits('0b1111011'),
+            0x24: Bits('0b111111110100'),
+            0x33: Bits('0b111111110101'),
+            0x62: Bits('0b111111110110'),
+            0x72: Bits('0b111111110111')
         }
         for truth, code in codes.items():
             decoded = AC_0.decode_from_bits(code)
 
             self.assertEqual(truth, decoded)
 
-    def test_small_scan_huffman_table(self):
-        data = {
-            HuffmanTableIdentifier('DC', 0): bytes([254]),
-            HuffmanTableIdentifier('DC', 1): bytes([254]),
-            HuffmanTableIdentifier('AC', 0): bytes([248]),
-            HuffmanTableIdentifier('AC', 1): bytes([248])
-        }
-        decoded_values = [
-            table.decode(Stream(data[index]))
-            for index, table in self.small_header.huffman_tables.items()
-        ]
-        actual_values = [0x0B, 0x0A, 0x22, 0x81]
-        self.assertEqual(actual_values, decoded_values)
-
-    def test_components(self):
-        actual_components = {
-                'Y': HuffmanTableSelection(dc=0, ac=0),
-                'Cb': HuffmanTableSelection(dc=1, ac=1),
-                'Cr': HuffmanTableSelection(dc=1, ac=1)
-            }
-        components = self.small_header.components
-        self.assertEqual(actual_components, components)
-
-        components = self.large_header.components
-        self.assertEqual(actual_components, components)
+    # def test_small_scan_huffman_table(self):
+    #     data = {
+    #         HuffmanTableIdentifier('DC', 0): bytes([254]),
+    #         HuffmanTableIdentifier('DC', 1): bytes([254]),
+    #         HuffmanTableIdentifier('AC', 0): bytes([248]),
+    #         HuffmanTableIdentifier('AC', 1): bytes([248])
+    #     }
+    #     decoded_values = [
+    #         table.decode(Stream(data[index]))
+    #         for index, table in self.small_header.huffman_tables.items()
+    #     ]
+    #     actual_values = [0x0B, 0x0A, 0x22, 0x81]
+    #     self.assertEqual(actual_values, decoded_values)
 
     def test_code_decode(self):
-        for table in self.small_header.huffman_tables.values():
-            for value in table.encode_dict.keys():
-                symbol = table.encode(value)
-                decoded = table.decode_from_bits(
-                    ConstBitStream(symbol)
-                )
-                self.assertEqual(value, decoded)
+        for header in [self.small_header, self.large_header]:
+            for component in header.components.values():
+                for table in [component.dc_table, component.ac_table]:
+                    for value in table.encode_dict.keys():
+                        symbol = table.encode(value)
+                        decoded = table.decode_from_bits(symbol)
+                        self.assertEqual(value, decoded)

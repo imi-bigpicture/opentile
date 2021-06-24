@@ -10,19 +10,6 @@ from ndpi_tiler.utils import split_byte_into_nibbles
 
 
 @dataclass
-class HuffmanLeaf:
-    """Huffman leaf, only contains a value"""
-    value: int
-
-
-@dataclass
-class HuffmanTableSelection:
-    """Identifies dc and ac table selection for component."""
-    dc: int
-    ac: int
-
-
-@dataclass
 class HuffmanTableIdentifier:
     """Identifies for Huffman table. Mode is either 'DC' or 'AC', selection
     either 0 or 1."""
@@ -40,6 +27,11 @@ class HuffmanTableIdentifier:
 
     def __hash__(self) -> int:
         return hash((self.mode, self.selection))
+
+@dataclass
+class HuffmanLeaf:
+    """Huffman leaf, only contains a value"""
+    value: int
 
 
 @dataclass
@@ -237,6 +229,7 @@ class HuffmanTable:
             )
 
     def encode(self, value) -> int:
+        """Encode value into symbol."""
         return self.encode_dict[value]
 
     def decode(self, stream: Stream) -> int:
@@ -266,12 +259,12 @@ class HuffmanTable:
                 )
         return node.value
 
-    def decode_from_bits(self, bits: ConstBitStream) -> int:
+    def decode_from_bits(self, bits: Bits) -> int:
         """Decode bits using Huffman table.
 
         Parameters
         ----------
-        bits: ConstBitStream
+        bits: Bits
             Bits to decode.
 
         Returns
@@ -279,16 +272,16 @@ class HuffmanTable:
         int
             Decoded value from bits.
         """
-        print(bits)
         node = self._root
+        stream = ConstBitStream(bits)
         # Search table until leaf is found
         while not isinstance(node, HuffmanLeaf):
-            bit = bits.read('uint:1')
+            bit = stream.read('uint:1')
             try:
                 node = node._nodes[bit]
             except IndexError:
                 raise ValueError(
                     f"error when reading bit {bit} at"
-                    f"position{bits.pos}"
+                    f"position{stream.pos}"
                 )
         return node.value

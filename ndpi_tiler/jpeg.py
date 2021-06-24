@@ -2,13 +2,11 @@ import io
 import struct
 from dataclasses import dataclass
 from struct import unpack
-from typing import Dict, List, Optional, Tuple
-import math
+from typing import Dict, List, Optional, Tuple, Set
 
 from bitstring import BitArray
 
-from ndpi_tiler.huffman import (HuffmanTable, HuffmanTableIdentifier,
-                                HuffmanTableSelection)
+from ndpi_tiler.huffman import (HuffmanTable, HuffmanTableIdentifier)
 from ndpi_tiler.jpeg_tags import TAGS
 from ndpi_tiler.stream import Stream
 from ndpi_tiler.utils import split_byte_into_nibbles
@@ -16,29 +14,32 @@ from ndpi_tiler.utils import split_byte_into_nibbles
 MCU_SIZE = 8
 
 
+@dataclass
+class Component:
+    name: str
+    dc_table_id: HuffmanTableIdentifier
+    ac_table_id: HuffmanTableIdentifier
+    dc_table: HuffmanTable = None
+    ac_table: HuffmanTable = None
+
+
 class JpegHeader:
     """Class for minimal parsing of jpeg header"""
 
     def __init__(
         self,
-        huffman_tables: List[HuffmanTable],
         width: int,
         height: int,
-        components: Dict[str, HuffmanTableSelection],
+        components: List[Component],
         restart_interval: int = None
     ) -> None:
 
-        self._huffman_tables = {
-            table.identifier: table for table in huffman_tables
+        self._components = {
+            component.name: component for component in components
         }
         self._width = width
         self._height = height
-        self._components = components
         self._restart_interval = restart_interval
-
-    @property
-    def huffman_tables(self) -> List[HuffmanTable]:
-        return self._huffman_tables
 
     @property
     def width(self) -> int:
@@ -49,7 +50,7 @@ class JpegHeader:
         return self._height
 
     @property
-    def components(self) -> Dict[str, HuffmanTableSelection]:
+    def components(self) -> Dict[str, Component]:
         return self._components
 
     @property
@@ -74,10 +75,10 @@ class JpegHeader:
             JpegHeader created from data.
 
         """
-        huffman_tables: List[HuffmanTable] = []
         width: int
         height: int
-        components: Dict[str, HuffmanTableSelection] = {}
+        components: List[Component] = []
+        huffman_tables: Dict[HuffmanTableIdentifier, HuffmanTable] = {}
 
         with io.BytesIO(data) as buffer:
             marker = cls.read_marker(buffer)
@@ -92,7 +93,7 @@ class JpegHeader:
                     raise ValueError("Unexpected marker")
                 payload = cls.read_payload(buffer)
                 if marker == TAGS['huffman table']:
-                    huffman_tables += cls.parse_huffman(payload)
+                    huffman_tables = cls.parse_huffman(payload, huffman_tables)
                 elif marker == TAGS['start of frame']:
                     (width, height) = cls.parse_start_of_frame(payload)
                 elif marker == TAGS['start of scan']:
@@ -104,13 +105,17 @@ class JpegHeader:
 
                 marker = cls.read_marker(buffer)
         if (
-            huffman_tables == [] or
+            huffman_tables == {} or
             width is None or height is None or
-            components == {}
+            components == []
         ):
             raise ValueError("missing tags")
+
+        for component in components:
+            component.dc_table = huffman_tables[component.dc_table_id]
+            component.ac_table = huffman_tables[component.ac_table_id]
+
         return cls(
-            huffman_tables,
             width,
             height,
             components,
@@ -136,7 +141,7 @@ class JpegHeader:
     @staticmethod
     def parse_start_of_scan(
         payload: bytes
-    ) -> Dict[str, HuffmanTableSelection]:
+    ) -> List[Component]:
         """Parse start of scan paylaod. Only Huffman table selections are
         extracted.
 
@@ -147,13 +152,13 @@ class JpegHeader:
 
         Returns
         ----------
-        Dict[str, HuffmanTableSelection]
+        List[Component]
             Huffman table selection with component name as key.
 
         """
         with io.BytesIO(payload) as buffer:
             number_of_components: int = unpack('B', buffer.read(1))[0]
-            components: Dict[int, Tuple[int, int]] = {}
+            components: List[Component] = []
             for component in range(number_of_components):
                 identifier, table_selection = unpack('BB', buffer.read(2))
                 dc_table, ac_table = split_byte_into_nibbles(table_selection)
@@ -165,14 +170,18 @@ class JpegHeader:
                     name = 'Cr'
                 else:
                     raise ValueError("Incorrect component identifier")
-                components[name] = HuffmanTableSelection(
-                    dc=dc_table,
-                    ac=ac_table
-                )
+                components.append(Component(
+                    name=name,
+                    dc_table_id=HuffmanTableIdentifier('DC', dc_table),
+                    ac_table_id=HuffmanTableIdentifier('AC', ac_table)
+                ))
         return components
 
     @staticmethod
-    def parse_huffman(payload: bytes) -> List[HuffmanTable]:
+    def parse_huffman(
+        payload: bytes,
+        tables: Dict[HuffmanTableIdentifier, HuffmanTable]
+    ) -> Dict[HuffmanTableIdentifier, HuffmanTable]:
         """Parse huffman table(s) in payload. Multiple tables can be defined in
         the same tag. Each table is stored in a dict with header as key.
 
@@ -180,17 +189,18 @@ class JpegHeader:
         ----------
         payload: bytes
             Huffman table in bytes.
+        tables: Dict[HuffmanTableIdentifier, HuffmanTable]
+            Dict of revious tables to append read tables to.
 
         Returns
         ----------
-        List[HuffmanTable]
-            List of Huffman tables.
+        Dict[HuffmanTableIdentifier, HuffmanTable]
+            Dict of Huffman tables.
         """
-        tables: List[HuffmanTable] = []
         table_start = 0
         while(table_start < len(payload)):
             (table, byte_read) = HuffmanTable.from_data(payload[table_start:])
-            tables.append(table)
+            tables[table.identifier] = table
             table_start += byte_read
         return tables
 
@@ -291,7 +301,7 @@ class JpegScan:
         self.segments = self._get_segments(self._scan_width)
 
     @property
-    def components(self) -> Dict[str, HuffmanTableSelection]:
+    def components(self) -> Dict[str, Component]:
         return self._header.components
 
     @property
@@ -351,7 +361,6 @@ class JpegScan:
         """
         scan_start = self._stream.pos
         dc_sum = self._read_multiple_mcus(count)
-        # cumulative_dc = self._calculate_cumulative_dc(mcus)
         scan_end = self._stream.pos
         return JpegSegment(
             data=self._stream.read_segment(scan_start, scan_end),
@@ -394,21 +403,22 @@ class JpegScan:
 
         """
         return [
-            self._read_mcu_component(table_selection, dc_sums[component])
-            for component, table_selection
+            self._read_mcu_component(component, dc_sums[index])
+            for index, component
             in enumerate(self.components.values())
         ]
 
+    # The table objects to use should be parameters, instead of the identifiers
     def _read_mcu_component(
         self,
-        table_selection: HuffmanTableSelection,
+        component: Component,
         dc_sum: int
     ) -> int:
         """Read single component of a MCU.
 
         Parameters
         ----------
-        table_selection: HuffmanTableSelection
+        component: Component
             Huffman table selection.
         dc_sum: int
             Cumulative sum of previous MCUs DC for this component
@@ -419,42 +429,36 @@ class JpegScan:
             Cumulative DC sum for this component including this MCU.
 
         """
-        dc_amplitude = self._read_dc(
-            HuffmanTableIdentifier('DC', table_selection.dc)
-        )
-        self._skip_ac(
-            HuffmanTableIdentifier('AC', table_selection.ac)
-        )
+        dc_amplitude = self._read_dc(component.dc_table)
+        self._skip_ac(component.ac_table)
         return dc_sum + dc_amplitude
 
-    def _read_dc(self, table_identifier: HuffmanTableIdentifier) -> int:
+    def _read_dc(self, table: HuffmanTable) -> int:
         """Return DC amplitude for MCU block read from stream.
 
         Parameters
         ----------
-        table_identifier: HuffmanTableIdentifier
-            Identifier for Huffman table to use.
+        table: HuffmanTable
+            Huffman table to use.
 
         Returns
         ----------
         Int
             DC amplitude for read MCU block.
         """
-        table: HuffmanTable = self.huffman_tables[table_identifier]
         length = table.decode(self._stream)
         value = self._stream.read(length)
         return self._decode_value(length, value)
 
-    def _skip_ac(self, table_identifier: HuffmanTableIdentifier) -> None:
+    def _skip_ac(self, table: HuffmanTable) -> None:
         """Skip the ac part of MCU block read from stream.
 
         Parameters
         ----------
-        table_identifier: HuffmanTableIdentifier
-            Identifier for Huffman table to use.
+        table: HuffmanTable
+            Huffman table to use.
 
         """
-        table: HuffmanTable = self.huffman_tables[table_identifier]
         mcu_length = 1  # DC amplitude is first value
         while mcu_length < 64:
             code = table.decode(self._stream)

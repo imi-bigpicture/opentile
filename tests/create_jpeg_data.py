@@ -1,9 +1,8 @@
 import os
 
-from ndpi_tiler.huffman import (HuffmanTable, HuffmanTableIdentifier,
-                                HuffmanTableSelection)
-from ndpi_tiler.jpeg import JpegHeader, JpegScan
-from tifffile import FileHandle, TiffPage
+from ndpi_tiler.huffman import HuffmanTable, HuffmanTableIdentifier
+from ndpi_tiler.jpeg import Component, JpegHeader, JpegScan
+from tifffile import TiffPage
 from tifffile.tifffile import TiffFile
 
 tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
@@ -104,14 +103,31 @@ def create_small_header() -> JpegHeader:
         ])
 
     return JpegHeader(
-        huffman_tables=[table_0, table_1, table_16, table_17],
         width=16,
         height=8,
-        components={
-            'Y': HuffmanTableSelection(dc=0, ac=0),
-            'Cb': HuffmanTableSelection(dc=1, ac=1),
-            'Cr': HuffmanTableSelection(dc=1, ac=1)
-        }
+        components=[
+            Component(
+                'Y',
+                table_0.identifier,
+                table_16.identifier,
+                table_0,
+                table_16
+            ),
+            Component(
+                'Cb',
+                table_1.identifier,
+                table_17.identifier,
+                table_1,
+                table_17
+            ),
+            Component(
+                'Cr',
+                table_1.identifier,
+                table_17.identifier,
+                table_1,
+                table_17
+            )
+        ]
     )
 
 
