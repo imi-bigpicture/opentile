@@ -138,13 +138,6 @@ class HuffmanNode:
         # No space for a new child node, insert leaf somewhere else
         return None
 
-    def get(self, key: int) -> Union[None, HuffmanLeaf, 'HuffmanNode']:
-        """Return node child from this node"""
-        try:
-            return self._nodes[key]
-        except IndexError:
-            return None
-
 
 class HuffmanTable:
     """Huffman table that can be used to decode bytes"""
@@ -166,16 +159,16 @@ class HuffmanTable:
             Symbols in the table, listed per level
 
         """
-        self._root = HuffmanNode(0)
         self._identifier = identifer
         self.encode_dict: Dict[int, Tuple[int, int]] = {}
         self.decode_dict: Dict[Tuple[int, int], int] = {}
 
+        root = HuffmanNode(0)
         for length, level in enumerate(values_in_levels):
             for value in level:
                 leaf = HuffmanLeaf(value)
                 # Return symbol if leaf inserted
-                symbol = self._root.insert(leaf, length)
+                symbol = root.insert(leaf, length)
                 if symbol is None:
                     raise ValueError(
                         f"Huffman table not correct "
@@ -259,20 +252,7 @@ class HuffmanTable:
         while (symbol, length) not in self.decode_dict.keys():
             symbol = 2*symbol + stream.read()
             length += 1
-        print(f"found {symbol} {self.decode_dict[(symbol, length)]}")
         return self.decode_dict[(symbol, length)]
-        node = self._root
-        # Search table until leaf is found
-        while not isinstance(node, HuffmanLeaf):
-            bit = stream.read()
-            try:
-                node = node.get(bit)
-            except IndexError:
-                raise ValueError(
-                    f"error when reading bit {bit} at"
-                    f"position{stream.pos}"
-                )
-        return node.value
 
     def decode_from_bits(self, bits: Bits) -> int:
         """Decode bits using Huffman table.
@@ -287,16 +267,10 @@ class HuffmanTable:
         int
             Decoded value from bits.
         """
-        node = self._root
         stream = ConstBitStream(bits)
-        # Search table until leaf is found
-        while not isinstance(node, HuffmanLeaf):
-            bit = stream.read('uint:1')
-            try:
-                node = node._nodes[bit]
-            except IndexError:
-                raise ValueError(
-                    f"error when reading bit {bit} at"
-                    f"position{stream.pos}"
-                )
-        return node.value
+        symbol = stream.read('uint:1')
+        length = 1
+        while (symbol, length) not in self.decode_dict.keys():
+            symbol = 2*symbol + stream.read('uint:1')
+            length += 1
+        return self.decode_dict[(symbol, length)]
