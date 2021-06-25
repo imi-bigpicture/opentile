@@ -168,7 +168,8 @@ class HuffmanTable:
         """
         self._root = HuffmanNode(0)
         self._identifier = identifer
-        self.encode_dict: Dict[int, Bits] = {}
+        self.encode_dict: Dict[int, Tuple[int, int]] = {}
+        self.decode_dict: Dict[Tuple[int, int], int] = {}
 
         for length, level in enumerate(values_in_levels):
             for value in level:
@@ -187,7 +188,9 @@ class HuffmanTable:
                         f"identifier {identifer}, symbol {symbol}, "
                         f"value {value}"
                     )
-                self.encode_dict[value] = Bits(uint=symbol, length=length+1)
+                self.encode_dict[value] = (symbol, length+1)
+                self.decode_dict[(symbol, length+1)] = value
+        print(self.decode_dict)
 
     @property
     def identifier(self) -> HuffmanTableIdentifier:
@@ -229,9 +232,13 @@ class HuffmanTable:
                 buffer.tell()
             )
 
-    def encode(self, value) -> int:
+    def encode(self, value) -> Tuple[int, int]:
         """Encode value into symbol."""
         return self.encode_dict[value]
+
+    def encode_into_bits(self, value) -> Bits:
+        symobl, length = self.encode(value)
+        return Bits(uint=symobl, length=length)
 
     def decode(self, stream: Stream) -> int:
         """Decode stream using Huffman table.
@@ -247,6 +254,13 @@ class HuffmanTable:
             Decoded value from stream.
 
         """
+        symbol = stream.read()
+        length = 1
+        while (symbol, length) not in self.decode_dict.keys():
+            symbol = 2*symbol + stream.read()
+            length += 1
+        print(f"found {symbol} {self.decode_dict[(symbol, length)]}")
+        return self.decode_dict[(symbol, length)]
         node = self._root
         # Search table until leaf is found
         while not isinstance(node, HuffmanLeaf):

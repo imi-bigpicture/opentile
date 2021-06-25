@@ -12,6 +12,7 @@ from .create_jpeg_data import (create_large_header, create_large_scan,
 
 
 @pytest.mark.unittest
+@pytest.mark.huffman
 class NdpiTilerHuffmanTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -155,6 +156,6 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
             for component in header.components.values():
                 for table in [component.dc_table, component.ac_table]:
                     for value in table.encode_dict.keys():
-                        symbol = table.encode(value)
+                        symbol = table.encode_into_bits(value)
                         decoded = table.decode_from_bits(symbol)
                         self.assertEqual(value, decoded)
