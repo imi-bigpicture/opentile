@@ -7,6 +7,7 @@ from .create_jpeg_data import create_small_scan_data
 
 
 @pytest.mark.unittest
+@pytest.mark.stream
 class NdpiTilerStreamTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -28,7 +29,11 @@ class NdpiTilerStreamTest(unittest.TestCase):
             1, 1, 1, 1, 1, 1, 1, 1,
             # 0, 0, 0, 0, 0, 0, 0, 0 # bit stuffing
             1, 1, 1, 0, 0, 0, 1, 0,
-            1, 0, 1, 0, 1, 1, 1, 1
+            1, 0, 1, 0, 1, 1, 1, 1,
+            1, 1, 1, 0, 1, 1, 1, 1,
+            1, 1, 1, 1, 0, 0, 1, 1,
+            0, 0, 0, 1, 0, 1, 0, 1,
+            0, 1, 1, 1, 1, 1, 1, 1
         ]
         for index, expected_result in enumerate(expected_results):
             print(index)
