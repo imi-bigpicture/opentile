@@ -49,7 +49,7 @@ class Stream:
             self._next_byte_is_stuffed = False
         return byte
 
-    def _read_bit(self) -> Bits:
+    def _read_bit(self) -> int:
         """Return a bit from the buffer. If passing a byte, and the next byte
         stuffed, skip it. Also check if the next byte is a tag and flag for
         skip."""
