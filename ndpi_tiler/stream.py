@@ -1,13 +1,14 @@
-import io
 from struct import unpack
-from bitstring import BitArray, Bits, ConstBitStream
+
+from bitstring import Bits
+from tifffile.tifffile import FileHandle
 
 from ndpi_tiler.jpeg_tags import TAGS
 
 
 class Stream:
     """Convenience class for reading bits from byte stuffed bytes."""
-    def __init__(self, data: bytes) -> None:
+    def __init__(self, fh: FileHandle, offset: int) -> None:
         """Create a Stream from data. Offers read function for single,
         multiple or range of bits.
 
@@ -17,10 +18,13 @@ class Stream:
             Bytes to stream.
 
         """
-        self._buffer = io.BytesIO(data)
+        print(f"offset is {offset}")
+        self._buffer = fh
+        self._offset = offset
         self._bit_pos = 0
         self._next_byte_is_stuffed = False
-        self._byte = self._read_byte()
+        self.seek(offset*8)
+        print(f"pos is {self.pos} byte is {hex(self._byte)}")
 
     @property
     def byte_pos(self) -> int:
@@ -67,6 +71,7 @@ class Stream:
 
     def seek(self, position: int) -> None:
         """Seek to bit posiion in stream. Does handle byte stuffing?."""
+        # position += 8 * self._offset
         if position // 8 != self.byte_pos:
             self._buffer.seek(position // 8)
             self._byte = self._read_byte()

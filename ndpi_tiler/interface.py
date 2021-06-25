@@ -263,7 +263,8 @@ class NdpiStripCache:
                 (y+1)*self.tile_height,
                 min(self.strip_height, self.tile_width)
             ):
-                scan.append(self.segments[(segment_x, segment_y)].data)
+                #  scan.append(self.segments[(segment_x, segment_y)].data)
+                pass
 
         padding_bits = 8 - len(scan) % 8
         scan.append(BitArray(f'{padding_bits}*0b1'))
@@ -272,8 +273,6 @@ class NdpiStripCache:
         f = open("scan.jpeg", "wb")
         f.write(scan_bytes)
         f.close()
-
-
 
 
 class NdpiTiler:
@@ -330,4 +329,3 @@ class NdpiTiler:
 
     def close(self) -> None:
         self.tif.close()
-

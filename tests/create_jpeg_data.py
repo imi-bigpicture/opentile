@@ -1,9 +1,10 @@
+import io
 import os
+from typing import Tuple
 
 from ndpi_tiler.huffman import HuffmanTable, HuffmanTableIdentifier
 from ndpi_tiler.jpeg import Component, JpegHeader, JpegScan
-from tifffile import TiffPage
-from tifffile.tifffile import TiffFile
+from tifffile import FileHandle, TiffFile, TiffPage
 
 tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
 tif_test_file_name = "test.ndpi"
@@ -131,25 +132,34 @@ def create_small_header() -> JpegHeader:
     )
 
 
-def create_small_scan_data() -> bytes:
+def create_small_scan_data() -> Tuple[FileHandle, int]:
     jpeg_bytes = bytes(
         [0xFC, 0xFF, 0x00, 0xE2, 0xAF, 0xEF, 0xF3, 0x15, 0x7F, 0xFF, 0xD9]
     )
-    return jpeg_bytes
+    return FileHandle(io.BytesIO(jpeg_bytes)), 0
 
 
 def create_small_scan(header: JpegHeader) -> JpegScan:
-    return JpegScan(header, create_small_scan_data(), 2)
+    fh, offset = create_small_scan_data()
+    return JpegScan(header, fh, offset, 2)
 
 
 def create_large_header(page: TiffPage) -> JpegHeader:
     return JpegHeader.from_bytes(page.jpegheader)
 
 
-def create_large_scan_data(tif: TiffFile) -> bytes:
+def create_large_scan_data(tif: TiffFile) -> Tuple[FileHandle, int]:
     page = get_page(tif)
     file_handle = tif.filehandle
     stripe_offset = page.dataoffsets[0]
+
+    stripe_length = page.databytecounts[0]
+    file_handle.seek(stripe_offset)
+    stripe: bytes = file_handle.read(stripe_length)
+    print(stripe.hex())
+
+    print(f"strip offset is {stripe_offset}")
+    return file_handle, stripe_offset
     stripe_length = page.databytecounts[0]
     file_handle.seek(stripe_offset)
     stripe: bytes = file_handle.read(stripe_length)
@@ -158,10 +168,10 @@ def create_large_scan_data(tif: TiffFile) -> bytes:
 
 def create_large_scan(
     header: JpegHeader,
-    data: bytes
+    fh: FileHandle,
+    offset: int
 ) -> JpegScan:
-
-    return JpegScan(header, data, 512)
+    return JpegScan(header, fh, offset, 512)
 
 
 def save_scan_as_jpeg(jpeg_header: bytes, scan: bytes):

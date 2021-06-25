@@ -2,9 +2,7 @@ import io
 import struct
 from dataclasses import dataclass
 from struct import unpack
-from typing import Dict, List, Optional, Tuple, Set
-
-from bitstring import BitArray
+from typing import Dict, List, Optional, Tuple
 
 from ndpi_tiler.huffman import (HuffmanTable, HuffmanTableIdentifier)
 from ndpi_tiler.jpeg_tags import TAGS
@@ -278,7 +276,8 @@ class JpegScan:
     def __init__(
         self,
         header: JpegHeader,
-        data: bytes,
+        buffer: io.BytesIO,
+        buffer_offset: int,
         scan_width: int = None
     ):
         """Parse jpeg scan using info in header.
@@ -286,9 +285,11 @@ class JpegScan:
         Parameters
         ----------
         header: JpegHeader
-            Header containing
-        data: bytes
-            Jpeg scan data, excluding start of scan tag
+            Header.
+        buffer: io.BytesIO
+            Buffer with jpeg scan data, excluding start of scan tag.
+        buffer_offset: int
+            Offset in buffer to jpeg scan data.
         scan_width: int
             Maximum widht of produced segments.
 
@@ -299,7 +300,7 @@ class JpegScan:
             self._scan_width = scan_width
         else:
             self._scan_width = self._mcu_count // MCU_SIZE
-        self._stream = Stream(data)
+        self._stream = Stream(buffer, buffer_offset)
         self.segments = self._get_segments(self._scan_width)
 
     @property
@@ -396,6 +397,7 @@ class JpegScan:
         """
         dc_sums = {name: 0 for name in self.components.keys()}
         for index in range(count):
+            # print(f"mcu index {index} buffer pos {self._stream.pos}")
             dc_sums = self._read_mcu(dc_sums)
         return dc_sums
 
@@ -458,6 +460,7 @@ class JpegScan:
         """
         length = table.decode(self._stream)
         value = self._stream.read(length)
+        # print(f"reading {length}")
         return self._decode_value(length, value)
 
     def _skip_ac(self, table: HuffmanTable) -> None:
@@ -476,7 +479,8 @@ class JpegScan:
                 break
             else:
                 zeros, length = split_byte_into_nibbles(code)
-                # value = stream.read(length)
+                # value = self._stream.read(length)
+                # print(f"skipping {length}")
                 self._stream.skip(length)
                 mcu_length += 1 + zeros
 

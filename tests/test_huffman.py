@@ -26,10 +26,11 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tif = open_tif()
         cls.large_header = create_large_header(get_page(cls.tif))
-        cls.large_scan_data = create_large_scan_data(cls.tif)
+        large_fh, large_offset = create_large_scan_data(cls.tif)
         cls.large_scan = create_large_scan(
             cls.large_header,
-            cls.large_scan_data
+            large_fh,
+            large_offset
         )
         cls.small_header = create_small_header()
         cls.small_scan = create_small_scan(cls.small_header)

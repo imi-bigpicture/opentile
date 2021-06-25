@@ -1,4 +1,6 @@
 import unittest
+import io
+
 
 import pytest
 from ndpi_tiler.stream import Stream
@@ -15,9 +17,8 @@ class NdpiTilerStreamTest(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
-        data = create_small_scan_data()
-        print(data.hex())
-        cls.stream = Stream(data)
+        fh, offset = create_small_scan_data()
+        cls.stream = Stream(fh, offset)
 
     @classmethod
     def tearDown(cls):

@@ -3,11 +3,10 @@ import io
 import unittest
 from struct import unpack
 from typing import List
+
 import pytest
-from bitstring import BitArray
 from ndpi_tiler.jpeg import JpegHeader, JpegScan, JpegSegment
 from ndpi_tiler.jpeg_tags import MARER_MAPPINGS
-from ndpi_tiler.stream import Stream
 from tifffile import TiffFile
 
 from .create_jpeg_data import (create_large_header, create_large_scan,
@@ -30,14 +29,11 @@ class NdpiTilerJpegTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tif = open_tif()
         cls.large_header = create_large_header(get_page(cls.tif))
-        cls.large_scan_data = create_large_scan_data(cls.tif)
-        cls.large_scan = create_large_scan(
-            cls.large_header,
-            cls.large_scan_data
-        )
+        fh, cls.offset = create_large_scan_data(cls.tif)
+        cls.large_scan = create_large_scan(cls.large_header, fh, cls.offset)
         cls.small_header = create_small_header()
         cls.small_scan = create_small_scan(cls.small_header)
-        save_scan_as_jpeg(get_page(cls.tif).jpegheader, cls.large_scan_data)
+        # save_scan_as_jpeg(get_page(cls.tif).jpegheader, cls.large_scan_data)
 
     @classmethod
     def tearDownClass(cls):
@@ -66,7 +62,6 @@ class NdpiTilerJpegTest(unittest.TestCase):
             )
 
     def test_small_scan_extract_segments(self):
-        data = create_small_scan_data()
         actual_segment = JpegSegment(
             0,
             66,
@@ -84,17 +79,16 @@ class NdpiTilerJpegTest(unittest.TestCase):
         self.assertEqual(actual_segment, segment)
 
     def test_large_scan_extract_segments(self):
-        self.large_scan._stream.seek(0)
-        data = self.large_scan_data
+        self.large_scan._stream.seek(8 * self.offset)
         # Need to check dc sum
         actual_segment = JpegSegment(
-            0,
+            8 * self.offset + 0,
             9086,
             length=512,
             dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
             dc_sum={'Y': 81, 'Cb': 2, 'Cr': 0}
         )
-        stream = Stream(data)
+
         segment = self.large_scan._extract_segment(
             512,
             {'Y': 0, 'Cb': 0, 'Cr': 0}
@@ -105,7 +99,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         )
 
     def test_large_scan_read_mcus(self):
-        header_offset = 8*0x294
+        header_offset = 8*0x294 - 8 * self.offset
         Mcu = dataclasses.make_dataclass(
             'mcu',
             [('position', int), ('dc_sum', List[int])]
@@ -136,7 +130,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 dc_sum={'Y': 0, 'Cb': 0, 'Cr': 0}
             )
         }
-        self.large_scan._stream.seek(0)
+        self.large_scan._stream.seek(8 * self.offset)
         read_mcus = {
             index: Mcu(
                 position=self.large_scan._stream.pos,
