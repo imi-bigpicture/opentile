@@ -1,12 +1,15 @@
 import io
 import struct
+from struct import unpack
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 
+from bitstring import BitArray
 from PIL import Image
 from tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 
 from ndpi_tiler.jpeg import JpegHeader, JpegScan, JpegSegment
+from ndpi_tiler.jpeg_tags import TAGS
 
 
 class NdpiPage:
@@ -93,11 +96,11 @@ class NdpiPage:
         """
         if self._page.jpegheader is None:
             return scan
-        with io.BytesIO() as buffer:
-            buffer.write(self.manupulate_header(size))
-            buffer.write(scan)
-            buffer.write(bytes([0xFF, 0xD9]))  # End of Image Tag
-            return buffer.getvalue()
+
+        image = self.manupulate_header(size)
+        image += scan
+        image += bytes([0xFF, 0xD9])
+        return image
 
     def get_encoded_strip(self, x: int, y: int) -> bytes:
         """Return stripe at position as bytes.
@@ -144,7 +147,19 @@ class NdpiPage:
                 found_tag = True
             index += length
 
-    def manupulate_header(self, size: Tuple[int, int]) -> bytes:
+    def find_tag(
+        self,
+        data: bytes,
+        tag: int
+    ) -> Tuple[Optional[int], Optional[int]]:
+        """Return first index and length of payload of tag in buffer."""
+        index = data.find(tag.to_bytes(2, 'big'))
+        if index != -1:
+            (length, ) = unpack('>H', data[index+2:index+4])
+            return index, length
+        return None, None
+
+    def manupulate_header(self, size: Tuple[int, int]) -> bytearray:
         """Manipulate pixel size (width, height) of page header.
 
         Parameters
@@ -157,14 +172,19 @@ class NdpiPage:
         bytes:
             Manupulated header.
         """
-        index = self.find_start_of_frame(self._page.jpegheader)
-        with io.BytesIO() as buffer:
-            buffer.write(self._page.jpegheader)
-            buffer.seek(index+4)
-            buffer.write(struct.pack(">H", size[1]))
-            buffer.write(struct.pack(">H", size[0]))
-            manupulated_header = buffer.getvalue()
-        return manupulated_header
+        header = bytearray(self._page.jpegheader)
+        start_of_scan_index, length = self.find_tag(header, TAGS['start of frame'])
+        if start_of_scan_index is None:
+            raise ValueError("Start of scan tag not found in header")
+        size_index = start_of_scan_index+5
+        header[size_index:size_index+2] = struct.pack(">H", size[1])
+        header[size_index+2:size_index+4] = struct.pack(">H", size[0])
+
+        (reset_interval_index, length) = self.find_tag(header, TAGS['restart interval'])
+        if reset_interval_index is not None:
+            del header[reset_interval_index:reset_interval_index+length+2]
+
+        return header
 
     def stitch_tiles(
         self,
@@ -261,7 +281,7 @@ class NdpiStripCache:
                         # print((segment_x, segment_y))
                         self.segments[(segment_x, segment_y)] = segment
 
-        scan = bytearray()
+        scan = BitArray()
         for segment_x in range(
             x*self.tile_width,
             (x+1)*self.tile_width,
@@ -273,11 +293,18 @@ class NdpiStripCache:
                 min(self.strip_height, self.tile_width)
             ):
                 segment = self.segments[(segment_x, segment_y)]
-                segment_bytes = self.page.read_stripe(
-                    segment.bit_offset // 8,
-                    segment.bit_length // 8
+                start_byte = segment.bit_offset // 8
+                byte_length = segment.bit_length // 8
+                segment_bits = BitArray(
+                    self.page.read_stripe(start_byte, byte_length)
                 )
-                scan += segment_bytes
+                start_bit = segment.bit_offset % 8
+                print(
+                    f"bit offset {segment.bit_offset} bit length {segment.bit_length} "
+                    f"start byte {start_byte} byte length {byte_length} "
+                    f"start bit {start_bit}")
+                scan.append(segment_bits[start_bit:start_bit+segment.bit_length])
+
                 # modify segment to correct dc values
                 # check bit length of current scan to determine how many bits
                 # of the new segment should be appended to last byte.
@@ -286,13 +313,12 @@ class NdpiStripCache:
                 # Keep track of on the actual bit length of the scan
 
         padding_bits = 8 - len(scan) % 8
-        # scan.append(BitArray(f'{padding_bits}*0b1'))
-        # scan_bytes = self.page.wrap_scan(scan.bytes, (512, 512))
+        scan.append(BitArray(f'{padding_bits}*0b1'))
+        scan_bytes = self.page.wrap_scan(scan.bytes, (512, 512))
 
-        # f = open("scan.jpeg", "wb")
-        # f.write(scan_bytes)
-        # f.close()
-        # print(scan.hex())
+        f = open("scan.jpeg", "wb")
+        f.write(scan_bytes)
+        f.close()
         print(len(scan))
 
 
