@@ -287,7 +287,7 @@ class NdpiStripCache:
 
         padding_bits = 8 - len(scan) % 8
         # scan.append(BitArray(f'{padding_bits}*0b1'))
-        #scan_bytes = self.page.wrap_scan(scan.bytes, (512, 512))
+        # scan_bytes = self.page.wrap_scan(scan.bytes, (512, 512))
 
         # f = open("scan.jpeg", "wb")
         # f.write(scan_bytes)

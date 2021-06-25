@@ -29,10 +29,19 @@ class NdpiTilerJpegTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tif = open_tif()
         cls.large_header = create_large_header(get_page(cls.tif))
-        fh, cls.offset = create_large_scan_data(cls.tif)
-        cls.large_scan = create_large_scan(cls.large_header, fh, cls.offset)
+        large_fh, cls.large_offset = create_large_scan_data(cls.tif)
+        cls.large_scan = create_large_scan(
+            cls.large_header,
+            large_fh,
+            cls.large_offset
+        )
         cls.small_header = create_small_header()
-        cls.small_scan = create_small_scan(cls.small_header)
+        small_fh, cls.small_offset = create_small_scan_data()
+        cls.small_scan = create_small_scan(
+            cls.small_header,
+            small_fh,
+            cls.small_offset
+        )
         # save_scan_as_jpeg(get_page(cls.tif).jpegheader, cls.large_scan_data)
 
     @classmethod
@@ -79,10 +88,10 @@ class NdpiTilerJpegTest(unittest.TestCase):
         self.assertEqual(actual_segment, segment)
 
     def test_large_scan_extract_segments(self):
-        self.large_scan._stream.seek(8 * self.offset)
+        self.large_scan._stream.seek(8 * self.large_offset)
         # Need to check dc sum
         actual_segment = JpegSegment(
-            8 * self.offset + 0,
+            8 * self.large_offset + 0,
             9086,
             length=512,
             dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
@@ -99,7 +108,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         )
 
     def test_large_scan_read_mcus(self):
-        header_offset = 8*0x294 - 8 * self.offset
+        header_offset = 8*0x294 - 8 * self.large_offset
         Mcu = dataclasses.make_dataclass(
             'mcu',
             [('position', int), ('dc_sum', List[int])]
@@ -130,7 +139,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 dc_sum={'Y': 0, 'Cb': 0, 'Cr': 0}
             )
         }
-        self.large_scan._stream.seek(8 * self.offset)
+        self.large_scan._stream.seek(8 * self.large_offset)
         read_mcus = {
             index: Mcu(
                 position=self.large_scan._stream.pos,

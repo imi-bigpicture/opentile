@@ -139,9 +139,12 @@ def create_small_scan_data() -> Tuple[FileHandle, int]:
     return FileHandle(io.BytesIO(jpeg_bytes)), 0
 
 
-def create_small_scan(header: JpegHeader) -> JpegScan:
-    fh, offset = create_small_scan_data()
-    return JpegScan(header, fh, offset, 2)
+def create_small_scan(
+    header: JpegHeader,
+    fh: FileHandle,
+    offset: int
+) -> JpegScan:
+    return JpegScan(header, fh, offset, 16)
 
 
 def create_large_header(page: TiffPage) -> JpegHeader:
@@ -153,17 +156,7 @@ def create_large_scan_data(tif: TiffFile) -> Tuple[FileHandle, int]:
     file_handle = tif.filehandle
     stripe_offset = page.dataoffsets[0]
 
-    stripe_length = page.databytecounts[0]
-    file_handle.seek(stripe_offset)
-    stripe: bytes = file_handle.read(stripe_length)
-    print(stripe.hex())
-
-    print(f"strip offset is {stripe_offset}")
     return file_handle, stripe_offset
-    stripe_length = page.databytecounts[0]
-    file_handle.seek(stripe_offset)
-    stripe: bytes = file_handle.read(stripe_length)
-    return stripe
 
 
 def create_large_scan(
