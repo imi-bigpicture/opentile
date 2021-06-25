@@ -1,6 +1,5 @@
 from struct import unpack
 
-from bitstring import Bits
 from tifffile.tifffile import FileHandle
 
 from ndpi_tiler.jpeg_tags import TAGS
