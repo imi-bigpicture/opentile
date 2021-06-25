@@ -32,8 +32,8 @@ class NdpiPage:
         y: int,
         scan_width: int
     ) -> List[JpegSegment]:
-        stripe = self.get_encoded_strip(x, y)
-        scan = JpegScan(self._header, stripe, scan_width)
+        offset, length = self.get_stripe_byte_range(x, y)
+        scan = JpegScan(self._header, self._fh, offset, scan_width)
         return scan.segments
 
     def get_stripe_byte_range(self, x: int, y: int) -> Tuple[int, int]:
@@ -230,28 +230,38 @@ class NdpiStripCache:
 
     def get_tile(self, x: int, y: int) -> bytes:
         strip_x_start = x * self.tile_width / self.strip_width
-        strip_x_end = (x+1) * self.tile_width / self.strip_width
+        strip_x_end = max(
+            strip_x_start + 1,
+            (x+1) * self.tile_width // self.strip_width
+        )
         strip_y_start = y * self.tile_height / self.strip_height
-        strip_y_end = (y+1) * self.tile_height / self.strip_height
-        print(strip_x_start)
-        print(strip_x_end)
+        strip_y_end = max(
+            strip_y_start + 1,
+            (y+1) * self.tile_height // self.strip_height
+        )
+
         test_strip_position = (strip_x_start, strip_y_start)
 
         if test_strip_position not in self.segments.keys():
             self.segments = {}
-            for strip_x in range(int(strip_x_start), int(strip_x_end)+1):
-                print(strip_x)
-                for strip_y in range(int(strip_y_start), int(strip_y_end)+1):
-                    print(strip_y)
-                    segments = self.page.get_segments(x, y, self.tile_width)
+            for strip_x in range(int(strip_x_start), int(strip_x_end)):
+                for strip_y in range(int(strip_y_start), int(strip_y_end)):
+                    # print((strip_x, strip_y))
+                    segments = self.page.get_segments(
+                        strip_x,
+                        strip_y,
+                        self.tile_width
+                    )
                     for index, segment in enumerate(segments):
+                        # print(index)
                         segment_x = (
                             strip_x * self.strip_width + index*self.tile_width
                         )
                         segment_y = strip_y * self.strip_height
+                        # print((segment_x, segment_y))
                         self.segments[(segment_x, segment_y)] = segment
 
-        scan = bytes()
+        scan = bytearray()
         for segment_x in range(
             x*self.tile_width,
             (x+1)*self.tile_width,
@@ -264,9 +274,10 @@ class NdpiStripCache:
             ):
                 segment = self.segments[(segment_x, segment_y)]
                 segment_bytes = self.page.read_stripe(
-                    segment.bit_offset,
-                    segment.bit_length
+                    segment.bit_offset // 8,
+                    segment.bit_length // 8
                 )
+                scan += segment_bytes
                 # modify segment to correct dc values
                 # check bit length of current scan to determine how many bits
                 # of the new segment should be appended to last byte.
@@ -281,6 +292,8 @@ class NdpiStripCache:
         # f = open("scan.jpeg", "wb")
         # f.write(scan_bytes)
         # f.close()
+        # print(scan.hex())
+        print(len(scan))
 
 
 class NdpiTiler:
