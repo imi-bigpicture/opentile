@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import List, Tuple, Dict
 
 from PIL import Image
-from bitstring import BitArray
 from tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 
 from ndpi_tiler.jpeg import JpegHeader, JpegScan, JpegSegment
@@ -252,7 +251,7 @@ class NdpiStripCache:
                         segment_y = strip_y * self.strip_height
                         self.segments[(segment_x, segment_y)] = segment
 
-        scan = BitArray()
+        scan = bytes()
         for segment_x in range(
             x*self.tile_width,
             (x+1)*self.tile_width,
@@ -263,16 +262,25 @@ class NdpiStripCache:
                 (y+1)*self.tile_height,
                 min(self.strip_height, self.tile_width)
             ):
-                #  scan.append(self.segments[(segment_x, segment_y)].data)
-                pass
+                segment = self.segments[(segment_x, segment_y)]
+                segment_bytes = self.page.read_stripe(
+                    segment.bit_offset,
+                    segment.bit_length
+                )
+                # modify segment to correct dc values
+                # check bit length of current scan to determine how many bits
+                # of the new segment should be appended to last byte.
+                # Remove those bits from the segment and append, and bit shift
+                # the rest of the scan. Append the rest of the scan.
+                # Keep track of on the actual bit length of the scan
 
         padding_bits = 8 - len(scan) % 8
-        scan.append(BitArray(f'{padding_bits}*0b1'))
-        scan_bytes = self.page.wrap_scan(scan.bytes, (512, 512))
+        # scan.append(BitArray(f'{padding_bits}*0b1'))
+        #scan_bytes = self.page.wrap_scan(scan.bytes, (512, 512))
 
-        f = open("scan.jpeg", "wb")
-        f.write(scan_bytes)
-        f.close()
+        # f = open("scan.jpeg", "wb")
+        # f.write(scan_bytes)
+        # f.close()
 
 
 class NdpiTiler:
