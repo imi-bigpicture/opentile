@@ -183,7 +183,6 @@ class HuffmanTable:
                     )
                 self.encode_dict[value] = (symbol, length+1)
                 self.decode_dict[(symbol, length+1)] = value
-        print(self.decode_dict)
 
     @property
     def identifier(self) -> HuffmanTableIdentifier:
@@ -230,6 +229,7 @@ class HuffmanTable:
         return self.encode_dict[value]
 
     def encode_into_bits(self, value) -> Bits:
+        """Encode value int Bits"""
         symobl, length = self.encode(value)
         return Bits(uint=symobl, length=length)
 
@@ -249,9 +249,12 @@ class HuffmanTable:
         """
         symbol = stream.read()
         length = 1
+        # We should check for length here, max is 16?
         while (symbol, length) not in self.decode_dict.keys():
             symbol = 2*symbol + stream.read()
             length += 1
+            if length > 16:  # Max bit length for symbol
+                raise ValueError("Could not decode stream")
         return self.decode_dict[(symbol, length)]
 
     def decode_from_bits(self, bits: Bits) -> int:
@@ -273,4 +276,6 @@ class HuffmanTable:
         while (symbol, length) not in self.decode_dict.keys():
             symbol = 2*symbol + stream.read('uint:1')
             length += 1
+            if length > 16:  # Max bit length for symbol
+                raise ValueError("Could not decode stream")
         return self.decode_dict[(symbol, length)]
