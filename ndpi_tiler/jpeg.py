@@ -341,13 +341,11 @@ class JpegScan:
         mcu_scan_width = scan_width // MCU_SIZE
         segments: List[JpegSegment] = []
         mcus_left = self.mcu_count
-        print(f"mcu count {self.mcu_count} mcu scan width {mcu_scan_width}")
+        # print(f"mcu count {self.mcu_count} mcu scan width {mcu_scan_width}")
         dc_offset = {name: 0 for name in self.components.keys()}
         while mcus_left > 0:
             # print(f"mcus left {mcus_left}")
             mcu_to_scan = min(mcus_left, mcu_scan_width)
-            print(mcu_to_scan)
-            # assert(False)
             segment = self._extract_segment(mcu_to_scan, dc_offset)
             segments.append(segment)
             mcus_left -= mcu_to_scan
