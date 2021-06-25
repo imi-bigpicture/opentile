@@ -343,7 +343,8 @@ class JpegScan:
         mcus_left = self.mcu_count
         dc_offset = {name: 0 for name in self.components.keys()}
         while mcus_left > 0:
-            mcu_to_scan = max(mcus_left, mcu_scan_width)
+            # print(f"mcus left {mcus_left}")
+            mcu_to_scan = min(mcus_left, mcu_scan_width)
             segment = self._extract_segment(mcu_to_scan, dc_offset)
             segments.append(segment)
             mcus_left -= mcu_to_scan
