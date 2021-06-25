@@ -265,7 +265,8 @@ class JpegHeader:
 
 @dataclass
 class JpegSegment:
-    data: BitArray
+    bit_offset: int
+    bit_length: int
     length: int
     dc_offset: Dict[str, int]
     dc_sum: Dict[str, int]
@@ -372,7 +373,8 @@ class JpegScan:
         dc_sum = self._read_multiple_mcus(count)
         scan_end = self._stream.pos
         return JpegSegment(
-            data=self._stream.read_segment(scan_start, scan_end),
+            bit_offset=scan_start,
+            bit_length=scan_end-scan_start,
             length=count,
             dc_offset=dc_offset,
             dc_sum=dc_sum

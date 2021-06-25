@@ -68,7 +68,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
     def test_small_scan_extract_segments(self):
         data = create_small_scan_data()
         actual_segment = JpegSegment(
-            BitArray(data)[0:-(6+16)],  # Remove padding and end of image tag
+            0,
+            66,
             2,
             {'Y': 0, 'Cb': 0, 'Cr': 0},
             {'Y': 508, 'Cb': 0, 'Cr': 0}
@@ -85,9 +86,10 @@ class NdpiTilerJpegTest(unittest.TestCase):
     def test_large_scan_extract_segments(self):
         self.large_scan._stream.seek(0)
         data = self.large_scan_data
-        # Need to check the actual padding and dc sum
+        # Need to check dc sum
         actual_segment = JpegSegment(
-            data=BitArray(data)[0:-(2+16)],
+            0,
+            9086,
             length=512,
             dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
             dc_sum={'Y': 81, 'Cb': 2, 'Cr': 0}

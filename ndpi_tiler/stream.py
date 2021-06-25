@@ -77,22 +77,3 @@ class Stream:
         skip_to = self.pos + skip_length
         # Are we skipping to another byte?
         self.seek(skip_to)
-
-    def read_segment(
-        self,
-        start: int,
-        end: int
-    ) -> BitArray:
-        buffer_pos = self.pos
-        self.seek(start)
-        segment_bits = BitArray([self._read_bit() for bit in range(end-start-8)])
-        self.seek(buffer_pos)
-        return segment_bits
-
-    @classmethod
-    def to_bytes(
-        bit_data: BitArray
-    ) -> bytes:
-        padding_bits = 8 - len(bit_data) % 8
-        return bit_data.append(Bits(f'{padding_bits}*0b1'))
-
