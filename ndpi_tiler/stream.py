@@ -17,13 +17,11 @@ class Stream:
             Bytes to stream.
 
         """
-        print(f"offset is {offset}")
         self._buffer = fh
         self._offset = offset
         self._bit_pos = 0
         self._next_byte_is_stuffed = False
         self.seek(offset*8)
-        print(f"pos is {self.pos} byte is {hex(self._byte)}")
 
     @property
     def byte_pos(self) -> int:
