@@ -175,14 +175,18 @@ class NdpiPage:
             Manupulated header.
         """
         header = bytearray(self._page.jpegheader)
-        start_of_scan_index, length = self.find_tag(header, TAGS['start of frame'])
+        start_of_scan_index, length = self.find_tag(
+            header, TAGS['start of frame']
+        )
         if start_of_scan_index is None:
             raise ValueError("Start of scan tag not found in header")
         size_index = start_of_scan_index+5
         header[size_index:size_index+2] = struct.pack(">H", size[1])
         header[size_index+2:size_index+4] = struct.pack(">H", size[0])
 
-        (reset_interval_index, length) = self.find_tag(header, TAGS['restart interval'])
+        reset_interval_index, length = self.find_tag(
+            header, TAGS['restart interval']
+        )
         if reset_interval_index is not None:
             del header[reset_interval_index:reset_interval_index+length+2]
 
@@ -324,7 +328,10 @@ class NdpiStripCache:
                 scan_bytes.insert(tag_index+1, 0x00)
                 start_search = tag_index+1
 
-        tile = self.page.wrap_scan(scan_bytes, (self.tile_width, self.tile_height))
+        tile = self.page.wrap_scan(
+            scan_bytes,
+            (self.tile_width, self.tile_height)
+        )
 
         f = open("scan.jpeg", "wb")
         f.write(tile)
