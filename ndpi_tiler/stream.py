@@ -18,26 +18,21 @@ class StreamPosition:
 
 
 class Stream:
-    """Convenience class for reading bits from byte stuffed bytes."""
+    """Convenience class for reading bits from bytes"""
     def __init__(
         self,
-        fh: FileHandle,
-        offset: int,
-        length: int
+        data: bytes
     ) -> None:
         """Create a Stream from data. Offers read function for single,
         multiple or range of bits.
 
         Parameters
         ----------
-        fh: FileHandle
-            Buffer with data to stream.
-        offset: int
-            Byte offset to data to stream.
+        data: bytes
+            Byte data to stream
 
         """
-        fh.seek(offset)
-        self.data = self.remove_stuffing(bytearray(fh.read(length)))
+        self.data = self.remove_stuffing(bytearray(data))
         self._buffer = io.BytesIO(self.data)
         self._byte = self._read_byte()
         self._bit_pos = 0

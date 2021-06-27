@@ -28,18 +28,8 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tif = open_tif()
-        (
-            cls.large_header,
-            cls.large_scan,
-            cls.large_offset,
-            cls.large_length
-        ) = create_large_set(cls.tif)
-        (
-            cls.small_header,
-            cls.small_scan,
-            cls.small_offset,
-            cls.small_length
-        ) = create_small_set()
+        cls.large_header, cls.large_scan, cls.large_data = create_large_set(cls.tif)
+        cls.small_header, cls.small_scan, cls.small_data = create_small_set()
 
     @classmethod
     def tearDownClass(cls):

@@ -278,9 +278,7 @@ class JpegScan:
     def __init__(
         self,
         header: JpegHeader,
-        buffer: io.BytesIO,
-        buffer_offset: int,
-        buffer_length: int,
+        data: bytes,
         scan_width: int = None
     ):
         """Parse jpeg scan using info in header.
@@ -289,12 +287,8 @@ class JpegScan:
         ----------
         header: JpegHeader
             Header.
-        buffer: io.BytesIO
-            Buffer with jpeg scan data, excluding start of scan tag.
-        buffer_offset: int
-            Offset in buffer to jpeg scan data.
-        buffer_length: int
-            Length in buffer to jpeg scan data
+        data: bytes
+            Jpeg scan data, excluding start of scan tag.
         scan_width: int
             Maximum widht of produced segments.
 
@@ -305,7 +299,7 @@ class JpegScan:
             self._scan_width = scan_width
         else:
             self._scan_width = self._mcu_count * MCU_SIZE
-        self._stream = Stream(buffer, buffer_offset, buffer_length)
+        self._stream = Stream(data)
         self.segments = self._get_segments(self._scan_width)
 
     @property

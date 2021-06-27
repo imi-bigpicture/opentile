@@ -146,13 +146,11 @@ def create_small_scan_data() -> bytes:
     )
 
 
-def create_small_set() -> Tuple[JpegHeader, JpegScan, int, int]:
+def create_small_set() -> Tuple[JpegHeader, JpegScan, bytes]:
     header = create_small_header()
-    fh = FileHandle(io.BytesIO(create_small_scan_data()))
-    offset = 0
-    length = 11
-    scan = JpegScan(header, fh, offset, length, 16)
-    return header, scan, offset, length
+    data = create_small_scan_data()
+    scan = JpegScan(header, data, 16)
+    return header, scan, data
 
 
 def create_large_scan_data(tif: TiffFile) -> bytes:
@@ -164,14 +162,13 @@ def create_large_scan_data(tif: TiffFile) -> bytes:
     return fh.read(length)
 
 
-def create_large_set(tif: TiffFile) -> Tuple[JpegHeader, JpegScan, int, int]:
+def create_large_set(tif: TiffFile) -> Tuple[JpegHeader, JpegScan, bytes]:
     page = get_page(tif)
     header = JpegHeader.from_bytes(page.jpegheader)
-    fh = tif.filehandle
-    offset = page.dataoffsets[0]
-    length = page.databytecounts[0]
-    scan = JpegScan(header, fh, offset, length, 512)
-    return header, scan, offset, length
+    data = create_large_scan_data(tif)
+    scan = JpegScan(header, data, 512)
+    return header, scan, data
+
 
 def save_scan_as_jpeg(jpeg_header: bytes, scan: bytes):
     f = open("scan.jpeg", "wb")

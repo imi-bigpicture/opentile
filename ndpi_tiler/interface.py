@@ -2,7 +2,7 @@ import io
 import struct
 from struct import unpack
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional
+from typing import Generator, List, Tuple, Dict, Optional
 
 from bitarray import bitarray
 from PIL import Image
@@ -266,23 +266,35 @@ class NdpiStripCache:
 
         if test_strip_position not in self.segments.keys():
             self.segments = {}
-            for strip_x in range(int(strip_x_start), int(strip_x_end)):
-                for strip_y in range(int(strip_y_start), int(strip_y_end)):
-                    # print((strip_x, strip_y))
-                    segments = self.page.get_segments(
-                        strip_x,
-                        strip_y,
-                        self.tile_width
-                    )
-                    for index, segment in enumerate(segments):
-                        # print(index)
-                        segment_x = (
-                            strip_x * self.strip_width + index*self.tile_width
-                        )
-                        segment_y = strip_y * self.strip_height
-                        # print((segment_x, segment_y))
-                        self.segments[(segment_x, segment_y)] = segment
+            cols = self.page._page.chunked[1]
+            strip_indices = [
+                x + y * cols
+                for y in range(int(strip_y_start), int(strip_y_end))
+                for x in range(int(strip_x_start), int(strip_x_end))
+            ]
+            strip_byte_range = [
+                self.page.get_stripe_byte_range(x, y)
+                for y in range(int(strip_y_start), int(strip_y_end))
+                for x in range(int(strip_x_start), int(strip_x_end))
+            ]
 
+            strips: Generator[bytes, int] = self.page._fh.read_segments(
+                offsets=self.page._page.dataoffsets,
+                bytecounts=self.page._page.databytecounts,
+                indices=strip_indices,
+                sort=False
+            )
+            for strip, strip_index in strips:
+                scan = JpegScan(self.page._header, strip)
+                segments = scan.segments
+                for segment_index, segment in enumerate(segments):
+                    segment_x = (
+                        (strip_index % cols) * self.strip_width
+                        + segment_index*self.tile_width
+                    )
+                    segment_y = (strip_index // cols) * self.strip_height
+                    self.segments[(segment_x, segment_y)] = segment
+        print(self.segments.keys())
         scan = bitarray()
         for segment_x in range(
             x*self.tile_width,
@@ -312,13 +324,14 @@ class NdpiStripCache:
                 scan_bytes.insert(tag_index+1, 0x00)
                 start_search = tag_index+1
 
-        image = self.page.wrap_scan(scan_bytes, (self.tile_width, self.tile_height))
+        tile = self.page.wrap_scan(scan_bytes, (self.tile_width, self.tile_height))
 
         f = open("scan.jpeg", "wb")
-        f.write(image)
+        f.write(tile)
         f.close()
         # print(len(image))
         # print(image.hex())
+        return tile
 
 
 class NdpiTiler:

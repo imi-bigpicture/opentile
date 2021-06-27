@@ -17,10 +17,7 @@ class NdpiTilerStreamTest(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
-        fh = FileHandle(io.BytesIO(create_small_scan_data()))
-        offset = 0
-        length = 11
-        cls.stream = Stream(fh, offset, length)
+        cls.stream = Stream(create_small_scan_data())
 
     @classmethod
     def tearDown(cls):
