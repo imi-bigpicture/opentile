@@ -6,10 +6,7 @@ from ndpi_tiler.huffman import HuffmanLeaf, HuffmanNode
 from ndpi_tiler.jpeg import JpegHeader, JpegScan
 from tifffile import TiffFile
 
-from .create_jpeg_data import (create_large_header, create_large_scan,
-                               create_large_scan_data, create_small_header,
-                               create_small_scan, create_small_scan_data,
-                               get_page, open_tif)
+from .create_jpeg_data import create_large_set, create_small_set, open_tif
 
 
 @pytest.mark.unittest
@@ -24,22 +21,25 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
         self.tif: TiffFile
 
     @classmethod
+    def setUp(cls):
+        cls.large_scan._stream.seek(0)
+        cls.small_scan._stream.seek(0)
+
+    @classmethod
     def setUpClass(cls):
         cls.tif = open_tif()
-        cls.large_header = create_large_header(get_page(cls.tif))
-        large_fh, cls.large_offset = create_large_scan_data(cls.tif)
-        cls.large_scan = create_large_scan(
+        (
             cls.large_header,
-            large_fh,
-            cls.large_offset
-        )
-        cls.small_header = create_small_header()
-        small_fh,  cls.small_offset = create_small_scan_data()
-        cls.small_scan = create_small_scan(
+            cls.large_scan,
+            cls.large_offset,
+            cls.large_length
+        ) = create_large_set(cls.tif)
+        (
             cls.small_header,
-            small_fh,
-            cls.small_offset
-        )
+            cls.small_scan,
+            cls.small_offset,
+            cls.small_length
+        ) = create_small_set()
 
     @classmethod
     def tearDownClass(cls):

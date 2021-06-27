@@ -4,9 +4,11 @@ from dataclasses import dataclass
 from struct import unpack
 from typing import Dict, List, Optional, Tuple
 
+from bitstring import BitArray
+
 from ndpi_tiler.huffman import (HuffmanTable, HuffmanTableIdentifier)
 from ndpi_tiler.jpeg_tags import TAGS
-from ndpi_tiler.stream import Stream
+from ndpi_tiler.stream import Stream, StreamPosition
 from ndpi_tiler.utils import split_byte_into_nibbles
 
 MCU_SIZE = 8
@@ -263,9 +265,9 @@ class JpegHeader:
 
 @dataclass
 class JpegSegment:
-    bit_offset: int
-    bit_length: int
-    length: int
+    data: bytearray
+    length: StreamPosition
+    count: int
     dc_offset: Dict[str, int]
     dc_sum: Dict[str, int]
     modified: bool = False
@@ -278,6 +280,7 @@ class JpegScan:
         header: JpegHeader,
         buffer: io.BytesIO,
         buffer_offset: int,
+        buffer_length: int,
         scan_width: int = None
     ):
         """Parse jpeg scan using info in header.
@@ -290,6 +293,8 @@ class JpegScan:
             Buffer with jpeg scan data, excluding start of scan tag.
         buffer_offset: int
             Offset in buffer to jpeg scan data.
+        buffer_length: int
+            Length in buffer to jpeg scan data
         scan_width: int
             Maximum widht of produced segments.
 
@@ -300,7 +305,7 @@ class JpegScan:
             self._scan_width = scan_width
         else:
             self._scan_width = self._mcu_count * MCU_SIZE
-        self._stream = Stream(buffer, buffer_offset)
+        self._stream = Stream(buffer, buffer_offset, buffer_length)
         self.segments = self._get_segments(self._scan_width)
 
     @property
@@ -372,13 +377,12 @@ class JpegScan:
         JpegSegment
             Segment of MCUs read.
         """
-        scan_start = self._stream.pos
         dc_sum = self._read_multiple_mcus(count)
         scan_end = self._stream.pos
         return JpegSegment(
-            bit_offset=scan_start,
-            bit_length=scan_end-scan_start,
-            length=count,
+            data=self._stream.data,
+            length=scan_end,
+            count=count,
             dc_offset=dc_offset,
             dc_sum=dc_sum
         )
@@ -510,3 +514,6 @@ class JpegScan:
         # Take out the lower bits according to length
         code = value & (2**length - 1)
         return length, code
+
+    def close(self) -> None:
+        self._stream.close()

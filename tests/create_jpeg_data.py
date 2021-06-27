@@ -11,6 +11,14 @@ tif_test_file_name = "test.ndpi"
 tif_test_file_path = tif_test_data_dir + '/' + tif_test_file_name
 
 
+def open_tif() -> TiffFile:
+    return TiffFile(tif_test_file_path)
+
+
+def get_page(tif: TiffFile) -> TiffPage:
+    return tif.series[0].levels[0].pages[0]
+
+
 def create_small_header() -> JpegHeader:
     table_0 = HuffmanTable(
         HuffmanTableIdentifier('DC', 0),
@@ -132,40 +140,38 @@ def create_small_header() -> JpegHeader:
     )
 
 
-def create_small_scan_data() -> Tuple[FileHandle, int]:
-    jpeg_bytes = bytes(
+def create_small_scan_data() -> bytes:
+    return bytes(
         [0xFC, 0xFF, 0x00, 0xE2, 0xAF, 0xEF, 0xF3, 0x15, 0x7F, 0xFF, 0xD9]
     )
-    return FileHandle(io.BytesIO(jpeg_bytes)), 0
 
 
-def create_small_scan(
-    header: JpegHeader,
-    fh: FileHandle,
-    offset: int
-) -> JpegScan:
-    return JpegScan(header, fh, offset, 16)
+def create_small_set() -> Tuple[JpegHeader, JpegScan, int, int]:
+    header = create_small_header()
+    fh = FileHandle(io.BytesIO(create_small_scan_data()))
+    offset = 0
+    length = 11
+    scan = JpegScan(header, fh, offset, length, 16)
+    return header, scan, offset, length
 
 
-def create_large_header(page: TiffPage) -> JpegHeader:
-    return JpegHeader.from_bytes(page.jpegheader)
-
-
-def create_large_scan_data(tif: TiffFile) -> Tuple[FileHandle, int]:
+def create_large_scan_data(tif: TiffFile) -> bytes:
     page = get_page(tif)
-    file_handle = tif.filehandle
-    stripe_offset = page.dataoffsets[0]
+    fh = tif.filehandle
+    offset = page.dataoffsets[0]
+    length = page.databytecounts[0]
+    fh.seek(offset)
+    return fh.read(length)
 
-    return file_handle, stripe_offset
 
-
-def create_large_scan(
-    header: JpegHeader,
-    fh: FileHandle,
-    offset: int
-) -> JpegScan:
-    return JpegScan(header, fh, offset, 512)
-
+def create_large_set(tif: TiffFile) -> Tuple[JpegHeader, JpegScan, int, int]:
+    page = get_page(tif)
+    header = JpegHeader.from_bytes(page.jpegheader)
+    fh = tif.filehandle
+    offset = page.dataoffsets[0]
+    length = page.databytecounts[0]
+    scan = JpegScan(header, fh, offset, length, 512)
+    return header, scan, offset, length
 
 def save_scan_as_jpeg(jpeg_header: bytes, scan: bytes):
     f = open("scan.jpeg", "wb")
@@ -173,11 +179,3 @@ def save_scan_as_jpeg(jpeg_header: bytes, scan: bytes):
     f.write(scan)
     f.write(bytes([0xFF, 0xD9]))  # End of Image Tag
     f.close()
-
-
-def open_tif() -> TiffFile:
-    return TiffFile(tif_test_file_path)
-
-
-def get_page(tif: TiffFile) -> TiffPage:
-    return tif.series[0].levels[0].pages[0]
