@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 from bitarray import bitarray
 
 from ndpi_tiler.huffman import HuffmanTable, HuffmanTableIdentifier
-from ndpi_tiler.jpeg_tags import BYTE_TAG_STUFFING, TAGS
+from ndpi_tiler.jpeg_tags import BYTE_TAG, BYTE_TAG_STUFFING, TAGS
 from ndpi_tiler.utils import split_byte_into_nibbles
 
 MCU_SIZE = 8
@@ -52,17 +52,7 @@ class JpegBuffer:
 
     @staticmethod
     def remove_stuffing(data: bytes) -> bytes:
-        data = bytearray(data)
-        stuffing_removed = False
-        search_start = 0
-        while not stuffing_removed:
-            tag_index = data.find(BYTE_TAG_STUFFING, search_start)
-            if tag_index != -1:
-                del data[tag_index+1]
-                search_start = tag_index+1
-            else:
-                stuffing_removed = True
-        return bytes(data)
+        return data.replace(BYTE_TAG_STUFFING, BYTE_TAG)
 
     @property
     def pos(self) -> int:
@@ -77,13 +67,19 @@ class JpegBuffer:
 
     def read(self, count: int = 1) -> int:
         """Read count bits and return the unsigned integer interpretation"""
-        value = 0
-        for i in range(count):
-            value = 2*value + self._read_bit()
-        return value
+        sum = 0
+        for value in self._data[self._bit_pos:self._bit_pos+count]:
+            sum = 2*sum + value
+        self._bit_pos += count
+
+        return sum
 
     def read_variable_length(self, table: HuffmanTable) -> int:
         """Read variable length using huffman table"""
+        # node = table.root
+        # while isinstance(node, HuffmanNode):
+        #     node = node._nodes[self.read()]
+        # return node.value
         symbol = self.read()
         length = 1
         code = table.decode(symbol, length)
@@ -384,7 +380,7 @@ class JpegHeader:
         Tuple[int, int]
             Height and width of frame.
         """
-        hdr, height, width, components = unpack('>BHHB', payload[0:6])
+        _, height, width, _ = unpack('>BHHB', payload[0:6])
         return (width, height)
 
     @staticmethod
@@ -607,7 +603,6 @@ class JpegScan:
         """
         length = self._buffer.read_variable_length(table)
         value = self._buffer.read(length)
-        # print(f"reading {length}")
         return self._decode_value(length, value)
 
     def _skip_ac(self, table: HuffmanTable) -> None:
