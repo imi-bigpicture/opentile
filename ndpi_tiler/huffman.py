@@ -1,7 +1,8 @@
 import io
 from dataclasses import dataclass
 from struct import unpack
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, DefaultDict
+from collections import defaultdict
 
 from bitarray import bitarray
 
@@ -160,7 +161,9 @@ class HuffmanTable:
         """
         self._identifier = identifer
         self.encode_dict: Dict[int, Tuple[int, int]] = {}
-        self.decode_dict: Dict[Tuple[int, int], int] = {}
+        self.decode_dict: DefaultDict[Tuple[int, int], int] = (
+            defaultdict(lambda: None)
+        )
 
         root = HuffmanNode(0)
         for length, level in enumerate(values_in_levels):
@@ -280,10 +283,7 @@ class HuffmanTable:
         """
         if length > 16:  # Max bit length for symbol
             raise ValueError("Max length exceeded, Could not decode symbol")
-        try:
-            return self.decode_dict[(symbol, length)]
-        except KeyError:
-            return None
+        return self.decode_dict[(symbol, length)]
 
     def decode_from_bits(self, bits: bitarray) -> int:
         """Decode bits using Huffman table.
