@@ -77,8 +77,6 @@ class NdpiTilerJpegTest(unittest.TestCase):
             2,
             {'Y': 0, 'Cb': 0, 'Cr': 0}
         )
-        print(true_segment)
-        print(read_segment)
         self.assertEqual(true_segment, read_segment)
 
     def test_large_scan_read_segments(self):
@@ -99,8 +97,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
             512,
             {'Y': 0, 'Cb': 0, 'Cr': 0}
         )
-        print(true_segment)
-        print(read_segment)
+
         self.assertEqual(true_segment, read_segment)
 
     def test_large_scan_read_mcus(self):
