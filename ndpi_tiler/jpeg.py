@@ -32,7 +32,8 @@ class BufferPosition:
 @dataclass
 class JpegSegment:
     data: bytearray
-    length: BufferPosition
+    start: BufferPosition
+    end: BufferPosition
     count: int
     dc_offset: Dict[str, int]
     dc_sum: Dict[str, int]
@@ -465,11 +466,13 @@ class JpegScan:
         JpegSegment
             Segment of MCUs read.
         """
+        scan_start = self._buffer.pos
         dc_sum = self._read_multiple_mcus(count)
         scan_end = self._buffer.pos
         return JpegSegment(
             data=self._buffer._data,
-            length=scan_end,
+            start=scan_start,
+            end=scan_end,
             count=count,
             dc_offset=dc_offset,
             dc_sum=dc_sum

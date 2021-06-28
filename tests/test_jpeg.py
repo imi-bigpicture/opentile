@@ -65,7 +65,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
     def test_small_scan_read_segments(self):
         true_segment = JpegSegment(
             data=JpegBuffer.remove_stuffing(bytearray(self.small_data)),
-            length=BufferPosition(7, 2),
+            start=BufferPosition(0,0),
+            end=BufferPosition(7, 2),
             count=2,
             dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
             dc_sum={'Y': 508, 'Cb': 0, 'Cr': 0}
@@ -80,7 +81,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
         # Need to check dc sum
         true_segment = JpegSegment(
             data=JpegBuffer.remove_stuffing(bytearray(self.large_data)),
-            length=BufferPosition(1135, 6),
+            start=BufferPosition(0,0),
+            end=BufferPosition(1135, 6),
             count=512,
             dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
             dc_sum={'Y': 81, 'Cb': 2, 'Cr': 0}
