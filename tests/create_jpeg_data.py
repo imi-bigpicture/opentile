@@ -1,10 +1,9 @@
-import io
 import os
 from typing import Tuple
 
 from ndpi_tiler.huffman import HuffmanTable, HuffmanTableIdentifier
 from ndpi_tiler.jpeg import Component, JpegHeader, JpegScan
-from tifffile import FileHandle, TiffFile, TiffPage
+from tifffile import TiffFile, TiffPage
 
 tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
 tif_test_file_name = "test.ndpi"
@@ -149,7 +148,7 @@ def create_small_scan_data() -> bytes:
 def create_small_set() -> Tuple[JpegHeader, JpegScan, bytes]:
     header = create_small_header()
     data = create_small_scan_data()
-    scan = JpegScan(header, data, 16)
+    scan = JpegScan(data, header.components)
     return header, scan, data
 
 
@@ -166,7 +165,7 @@ def create_large_set(tif: TiffFile) -> Tuple[JpegHeader, JpegScan, bytes]:
     page = get_page(tif)
     header = JpegHeader.from_bytes(page.jpegheader)
     data = create_large_scan_data(tif)
-    scan = JpegScan(header, data, 512)
+    scan = JpegScan(data, header.components)
     return header, scan, data
 
 

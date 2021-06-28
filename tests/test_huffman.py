@@ -22,8 +22,8 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
-        cls.large_scan._stream.seek(0)
-        cls.small_scan._stream.seek(0)
+        cls.large_scan._buffer.seek(0)
+        cls.small_scan._buffer.seek(0)
 
     @classmethod
     def setUpClass(cls):

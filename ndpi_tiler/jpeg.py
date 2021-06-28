@@ -4,11 +4,9 @@ from dataclasses import dataclass
 from struct import unpack
 from typing import Dict, List, Optional, Tuple
 
-from bitstring import BitArray
-
 from ndpi_tiler.huffman import (HuffmanTable, HuffmanTableIdentifier)
 from ndpi_tiler.jpeg_tags import TAGS
-from ndpi_tiler.stream import Stream, StreamPosition
+from ndpi_tiler.stream import JpegBuffer, BufferPosition
 from ndpi_tiler.utils import split_byte_into_nibbles
 
 MCU_SIZE = 8
@@ -23,9 +21,18 @@ class Component:
     ac_table: HuffmanTable = None
 
 
+@dataclass
+class JpegSegment:
+    data: bytearray
+    length: BufferPosition
+    count: int
+    dc_offset: Dict[str, int]
+    dc_sum: Dict[str, int]
+    modified: bool = False
+
+
 class JpegHeader:
     """Class for minimal parsing of jpeg header"""
-
     def __init__(
         self,
         width: int,
@@ -40,6 +47,7 @@ class JpegHeader:
         self._width = width
         self._height = height
         self._restart_interval = restart_interval
+        self._mcu_count = height * width // (MCU_SIZE * MCU_SIZE)
 
     @property
     def width(self) -> int:
@@ -52,6 +60,10 @@ class JpegHeader:
     @property
     def components(self) -> Dict[str, Component]:
         return self._components
+
+    @property
+    def mcu_count(self) -> int:
+        return self._mcu_count
 
     @property
     def restart_interval(self) -> int:
@@ -262,24 +274,50 @@ class JpegHeader:
         # Payload length includes length bytes
         return buffer.read(payload_length-2)
 
+    def get_segments(
+         self,
+         data: bytes,
+         scan_width: int
+    ) -> List[JpegSegment]:
+        """Parse MCUs in jpeg scan data produce segments. Each segment
+        contains max scan width (in pixels) number of MCUs and the cumulative
+        DC amplitude (per component).
 
-@dataclass
-class JpegSegment:
-    data: bytearray
-    length: StreamPosition
-    count: int
-    dc_offset: Dict[str, int]
-    dc_sum: Dict[str, int]
-    modified: bool = False
+        Parameters
+        ----------
+        data: bytes
+            Jpeg scan data to parse.
+        scan_width: int
+            Maximum number of pixels per segment.
+
+        Returns
+        ----------
+        List[JpegSegment]
+            Segments of MCUs.
+        """
+        mcu_scan_width = scan_width // MCU_SIZE
+        segments: List[JpegSegment] = []
+        mcus_left = self.mcu_count
+        scan = JpegScan(data, self.components)
+        # print(f"mcu count {self.mcu_count} mcu scan width {mcu_scan_width}")
+        dc_offset = {name: 0 for name in self.components.keys()}
+        while mcus_left > 0:
+            # print(f"mcus left {mcus_left}")
+            mcu_to_scan = min(mcus_left, mcu_scan_width)
+            segment = scan.extract_segment(mcu_to_scan, dc_offset)
+            segments.append(segment)
+            mcus_left -= mcu_to_scan
+            dc_offset = segment.dc_sum
+
+        return segments
 
 
 class JpegScan:
     """Class for minimal decoding of jpeg scan data"""
     def __init__(
         self,
-        header: JpegHeader,
         data: bytes,
-        scan_width: int = None
+        components: List[Component],
     ):
         """Parse jpeg scan using info in header.
 
@@ -293,71 +331,24 @@ class JpegScan:
             Maximum widht of produced segments.
 
         """
-        self._header = header
-        self._mcu_count = header.height * header.width // (MCU_SIZE * MCU_SIZE)
-        if scan_width is not None:
-            self._scan_width = scan_width
-        else:
-            self._scan_width = self._mcu_count * MCU_SIZE
-        self._stream = Stream(data)
-        self.segments = self._get_segments(self._scan_width)
+
+        self._components = components
+        self._buffer = JpegBuffer(data)
 
     @property
     def components(self) -> Dict[str, Component]:
-        return self._header.components
-
-    @property
-    def huffman_tables(self) -> List[HuffmanTable]:
-        return self._header.huffman_tables
-
-    @property
-    def mcu_count(self) -> int:
-        return self._mcu_count
-
-    @property
-    def restart_interval(self) -> int:
-        return self._header.restart_interval
+        return self._components
 
     @property
     def number_of_components(self) -> int:
         return len(self.components)
 
-    def _get_segments(self, scan_width: int) -> List[JpegSegment]:
-        """Parse MCUs in jpeg scan data produce segments. Each segment
-        contains max scan width (in pixels) number of MCUs and the cumulative
-        DC amplitude (per component).
-
-        Parameters
-        ----------
-        scan_width: int
-            Maximum number of pixels per segment.
-
-        Returns
-        ----------
-        List[JpegSegment]
-            Segments of MCUs.
-        """
-        mcu_scan_width = scan_width // MCU_SIZE
-        segments: List[JpegSegment] = []
-        mcus_left = self.mcu_count
-        # print(f"mcu count {self.mcu_count} mcu scan width {mcu_scan_width}")
-        dc_offset = {name: 0 for name in self.components.keys()}
-        while mcus_left > 0:
-            # print(f"mcus left {mcus_left}")
-            mcu_to_scan = min(mcus_left, mcu_scan_width)
-            segment = self._extract_segment(mcu_to_scan, dc_offset)
-            segments.append(segment)
-            mcus_left -= mcu_to_scan
-            dc_offset = segment.dc_sum
-
-        return segments
-
-    def _extract_segment(
+    def read_segment(
         self,
         count: int,
         dc_offset: Dict[str, int]
     ) -> JpegSegment:
-        """Extract a segment of count number of Mcus from stream
+        """Read a segment of count number of Mcus from stream
 
         Parameters
         ----------
@@ -372,9 +363,9 @@ class JpegScan:
             Segment of MCUs read.
         """
         dc_sum = self._read_multiple_mcus(count)
-        scan_end = self._stream.pos
+        scan_end = self._buffer.pos
         return JpegSegment(
-            data=self._stream.data,
+            data=self._buffer._data,
             length=scan_end,
             count=count,
             dc_offset=dc_offset,
@@ -397,7 +388,7 @@ class JpegScan:
         """
         dc_sums = {name: 0 for name in self.components.keys()}
         for index in range(count):
-            # print(f"mcu index {index} buffer pos {self._stream.pos}")
+            # print(f"mcu index {index} buffer pos {self._buffer.pos}")
             dc_sums = self._read_mcu(dc_sums)
         return dc_sums
 
@@ -458,8 +449,8 @@ class JpegScan:
         Int
             DC amplitude for read MCU block.
         """
-        length = table.decode(self._stream)
-        value = self._stream.read(length)
+        length = self._buffer.read_variable_length(table)
+        value = self._buffer.read(length)
         # print(f"reading {length}")
         return self._decode_value(length, value)
 
@@ -474,14 +465,15 @@ class JpegScan:
         """
         mcu_length = 1  # DC amplitude is first value
         while mcu_length < 64:
-            code = table.decode(self._stream)
+            code = self._buffer.read_variable_length(table)
+
             if code == 0:  # End of block
                 break
             else:
                 zeros, length = split_byte_into_nibbles(code)
-                # value = self._stream.read(length)
+                # value = self._buffer.read(length)
                 # print(f"skipping {length}")
-                self._stream.skip(length)
+                self._buffer.skip(length)
                 mcu_length += 1 + zeros
 
     @staticmethod
@@ -510,4 +502,4 @@ class JpegScan:
         return length, code
 
     def close(self) -> None:
-        self._stream.close()
+        self._buffer.close()

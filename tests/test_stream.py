@@ -1,23 +1,21 @@
-import io
 import unittest
 
 import pytest
-from ndpi_tiler.stream import Stream, StreamPosition
-from tifffile import FileHandle
+from ndpi_tiler.jpeg import JpegBuffer, BufferPosition
 
 from .create_jpeg_data import create_small_scan_data
 
 
 @pytest.mark.unittest
 @pytest.mark.stream
-class NdpiTilerStreamTest(unittest.TestCase):
+class NdpiTilerJpegBufferTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.stream: Stream
+        self.stream: JpegBuffer
 
     @classmethod
     def setUp(cls):
-        cls.stream = Stream(create_small_scan_data())
+        cls.stream = JpegBuffer(create_small_scan_data())
 
     @classmethod
     def tearDown(cls):
@@ -48,19 +46,19 @@ class NdpiTilerStreamTest(unittest.TestCase):
 
     def test_seek(self):
         self.stream.seek(18)
-        self.assertEqual(self.stream.pos, StreamPosition(2, 2))
+        self.assertEqual(self.stream.pos, BufferPosition(2, 2))
 
         self.stream.seek(7)
-        self.assertEqual(self.stream.pos, StreamPosition(0, 7))
+        self.assertEqual(self.stream.pos, BufferPosition(0, 7))
 
         self.stream.seek(25)
-        self.assertEqual(self.stream.pos, StreamPosition(3, 1))
+        self.assertEqual(self.stream.pos, BufferPosition(3, 1))
 
         self.stream.seek(32)
-        self.assertEqual(self.stream.pos, StreamPosition(4, 0))
+        self.assertEqual(self.stream.pos, BufferPosition(4, 0))
 
         self.stream.seek(31)
-        self.assertEqual(self.stream.pos, StreamPosition(3, 7))
+        self.assertEqual(self.stream.pos, BufferPosition(3, 7))
 
     def test_seek_read(self):
         self.stream.read(4)
@@ -79,10 +77,10 @@ class NdpiTilerStreamTest(unittest.TestCase):
 
     def test_skip_pos(self):
         self.stream.skip(2)
-        self.assertEqual(self.stream.pos, StreamPosition(0, 2))
+        self.assertEqual(self.stream.pos, BufferPosition(0, 2))
 
         self.stream.skip(6)
-        self.assertEqual(self.stream.pos, StreamPosition(1, 0))
+        self.assertEqual(self.stream.pos, BufferPosition(1, 0))
 
     def test_skip_read(self):
         self.stream.skip(8)

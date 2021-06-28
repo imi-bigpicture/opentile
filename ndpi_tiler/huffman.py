@@ -5,7 +5,6 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from bitstring import ConstBitStream, Bits
 
-from ndpi_tiler.stream import Stream
 from ndpi_tiler.utils import split_byte_into_nibbles
 
 
@@ -233,29 +232,13 @@ class HuffmanTable:
         symobl, length = self.encode(value)
         return Bits(uint=symobl, length=length)
 
-    def decode(self, stream: Stream) -> int:
-        """Decode stream using Huffman table.
-
-        Parameters
-        ----------
-        stream: Stream
-            Byte stream to decode.
-
-        Returns
-        ----------
-        int
-            Decoded value from stream.
-
-        """
-        symbol = stream.read()
-        length = 1
-        # We should check for length here, max is 16?
-        while (symbol, length) not in self.decode_dict.keys():
-            symbol = 2*symbol + stream.read()
-            length += 1
-            if length > 16:  # Max bit length for symbol
-                raise ValueError("Could not decode stream")
-        return self.decode_dict[(symbol, length)]
+    def decode(self, symbol: int, length: int) -> Optional[int]:
+        if length > 16:  # Max bit length for symbol
+            raise ValueError("Max length exceeded, Could not decode symbol")
+        try:
+            return self.decode_dict[(symbol, length)]
+        except KeyError:
+            return None
 
     def decode_from_bits(self, bits: Bits) -> int:
         """Decode bits using Huffman table.
@@ -277,5 +260,5 @@ class HuffmanTable:
             symbol = 2*symbol + stream.read('uint:1')
             length += 1
             if length > 16:  # Max bit length for symbol
-                raise ValueError("Could not decode stream")
+                raise ValueError("Could not decode bits")
         return self.decode_dict[(symbol, length)]

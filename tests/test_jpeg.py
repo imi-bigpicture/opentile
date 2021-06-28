@@ -5,14 +5,12 @@ from struct import unpack
 from typing import List
 
 import pytest
-from ndpi_tiler.jpeg import JpegHeader, JpegScan, JpegSegment
+from ndpi_tiler.jpeg import (BufferPosition, JpegBuffer, JpegHeader, JpegScan,
+                             JpegSegment)
 from ndpi_tiler.jpeg_tags import MARER_MAPPINGS
-from ndpi_tiler.stream import Stream, StreamPosition
 from tifffile import TiffFile
 
-from .create_jpeg_data import (create_large_scan_data, create_large_set,
-                               create_small_scan_data,
-                               create_small_set, open_tif)
+from .create_jpeg_data import create_large_set, create_small_set, open_tif
 
 
 @pytest.mark.unittest
@@ -27,8 +25,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
-        cls.large_scan._stream.seek(0)
-        cls.small_scan._stream.seek(0)
+        cls.large_scan._buffer.seek(0)
+        cls.small_scan._buffer.seek(0)
 
     @classmethod
     def setUpClass(cls):
@@ -64,31 +62,31 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 ))
             )
 
-    def test_small_scan_extract_segments(self):
+    def test_small_scan_read_segments(self):
         true_segment = JpegSegment(
-            data=Stream.remove_stuffing(bytearray(self.small_data)),
-            length=StreamPosition(7, 2),
+            data=JpegBuffer.remove_stuffing(bytearray(self.small_data)),
+            length=BufferPosition(7, 2),
             count=2,
             dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
             dc_sum={'Y': 508, 'Cb': 0, 'Cr': 0}
         )
-        read_segment = self.small_scan._extract_segment(
+        read_segment = self.small_scan.read_segment(
             2,
             {'Y': 0, 'Cb': 0, 'Cr': 0}
         )
         self.assertEqual(true_segment, read_segment)
 
-    def test_large_scan_extract_segments(self):
+    def test_large_scan_read_segments(self):
         # Need to check dc sum
         true_segment = JpegSegment(
-            data=Stream.remove_stuffing(bytearray(self.large_data)),
-            length=StreamPosition(1135, 6),
+            data=JpegBuffer.remove_stuffing(bytearray(self.large_data)),
+            length=BufferPosition(1135, 6),
             count=512,
             dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
             dc_sum={'Y': 81, 'Cb': 2, 'Cr': 0}
         )
 
-        read_segment = self.large_scan._extract_segment(
+        read_segment = self.large_scan.read_segment(
             512,
             {'Y': 0, 'Cb': 0, 'Cr': 0}
         )
@@ -96,45 +94,45 @@ class NdpiTilerJpegTest(unittest.TestCase):
         self.assertEqual(true_segment, read_segment)
 
     def test_large_scan_read_mcus(self):
-        # Header offset, as positions are extracted from jpeg
+        # Header offset, as positions are readed from jpeg
         header_offset = 0x294
         Mcu = dataclasses.make_dataclass(
             'mcu',
-            [('position', StreamPosition), ('dc_sum', List[int])]
+            [('position', BufferPosition), ('dc_sum', List[int])]
         )
         true_mcus = {
             0: Mcu(
-                position=StreamPosition(0x294-header_offset, 0),
+                position=BufferPosition(0x294-header_offset, 0),
                 dc_sum={'Y': 80, 'Cb': 2, 'Cr': 0}
             ),
             1: Mcu(
-                position=StreamPosition(0x297-header_offset, 2),
+                position=BufferPosition(0x297-header_offset, 2),
                 dc_sum={'Y': 1, 'Cb': 0, 'Cr': 0}
             ),
             150: Mcu(
-                position=StreamPosition(0x3D4-header_offset, 5),
+                position=BufferPosition(0x3D4-header_offset, 5),
                 dc_sum={'Y': 0, 'Cb': 0, 'Cr': 0}
             ),
             151: Mcu(
-                position=StreamPosition(0x3D6-header_offset, 3),
+                position=BufferPosition(0x3D6-header_offset, 3),
                 dc_sum={'Y': 0, 'Cb': 1, 'Cr': 0}
             ),
             510: Mcu(
-                position=StreamPosition(0x700-header_offset, 0),
+                position=BufferPosition(0x700-header_offset, 0),
                 dc_sum={'Y': -1, 'Cb': 0, 'Cr': 0}
             ),
             511: Mcu(
-                position=StreamPosition(0x702-header_offset, 0),
+                position=BufferPosition(0x702-header_offset, 0),
                 dc_sum={'Y': 0, 'Cb': 0, 'Cr': 0}
             )
         }
-        self.large_scan._stream.seek(0)
+        self.large_scan._buffer.seek(0)
         read_mcus = {
             index: Mcu(
-                position=self.large_scan._stream.pos,
+                position=self.large_scan._buffer.pos,
                 dc_sum=self.large_scan._read_mcu({'Y': 0, 'Cb': 0, 'Cr': 0})
             )
-            for index in range(self.large_scan._mcu_count)
+            for index in range(self.large_header.mcu_count)
         }
 
         for index, value in true_mcus.items():
