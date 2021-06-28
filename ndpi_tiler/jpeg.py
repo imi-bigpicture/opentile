@@ -38,6 +38,7 @@ class JpegSegment:
     dc_offset: Dict[str, int]
     dc_sum: Dict[str, int]
 
+
 class JpegBuffer:
     """Convenience class for reading bits from Jpeg data."""
     def __init__(
