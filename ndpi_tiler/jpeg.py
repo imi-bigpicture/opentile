@@ -24,8 +24,8 @@ class Component:
 
 @dataclass
 class JpegSegment:
-    first: bitarray
-    rest: bitarray
+    start: int
+    end: int
     count: int
     dc_offsets: Dict[str, int]
     dc_sums: Dict[str, int]
@@ -511,21 +511,18 @@ class JpegScan:
         JpegSegment
             Segment of MCUs read.
         """
-        dc_sums = {name: 0 for name in self.components.keys()}
-        first_mcu_start = self._buffer.pos
-        dc_sums = self._read_multiple_mcus(1, dc_sums)
-        scan_start = self._buffer.pos
-        dc_sums = self._read_multiple_mcus(count-1, dc_sums)
-        scan_end = self._buffer.pos
+        start = self._buffer.pos
+        dc_sums = self._read_multiple_mcus(count)
+        end = self._buffer.pos
         return JpegSegment(
-            first=self._buffer.read_to_bitarray(first_mcu_start, scan_start),
-            rest=self._buffer.read_to_bitarray(scan_start, scan_end),
+            start=start,
+            end=end,
             count=count,
             dc_offsets=dc_offsets,
             dc_sums=dc_sums
         )
 
-    def _read_multiple_mcus(self, count: int, dc_sums: List[int]) -> List[int]:
+    def _read_multiple_mcus(self, count: int) -> List[int]:
         """Read count number of Mcus from stream. Only DC amplitudes are
         decoded. Accumulate the DC values of each component.
 
@@ -539,8 +536,8 @@ class JpegScan:
         Dict[str, int]
             Cumulative sums DC in MCUs per component.
         """
+        dc_sums = {name: 0 for name in self.components.keys()}
         for index in range(count):
-            # print(f"mcu index {index} buffer pos {self._buffer.pos}")
             dc_sums = self._read_mcu(dc_sums)
         return dc_sums
 
@@ -651,3 +648,43 @@ class JpegScan:
         # Take out the lower bits according to length
         code = value & (2**length - 1)
         return length, code
+
+    @staticmethod
+    def _to_bits(value: int) -> bitarray:
+        bits = bitarray()
+        bit_length = max(1, value.bit_length())
+        for position in reversed(range(bit_length)):
+            bit = value >> position & 1
+            bits.append(bit)
+        return bits
+
+    def modify_mcu(
+        self,
+        start: int,
+        end: int,
+        dc_diffs: Dict[str, int]
+    ) -> bitarray:
+        self._buffer.seek(start)
+        modified_segment = bitarray()
+        for name, component in self.components.items():
+            current_dc = self._read_dc(component.dc_table)
+            new_dc = current_dc+dc_diffs[name]
+            lenght, code = self._code_value(new_dc)
+            modified_segment.append(self._to_bits(lenght))
+            modified_segment.append(self._to_bits(code))
+            ac_start = self._buffer.pos
+            self._skip_ac(component.ac_table)
+            ac_end = self._buffer.pos
+            modified_segment.append(self._buffer.read_to_bitarray(
+                ac_start,
+                ac_end
+            ))
+        rest_start = self._buffer.pos
+        modified_segment.append(self._buffer.read_to_bitarray(
+            rest_start,
+            end
+        ))
+
+
+
+
