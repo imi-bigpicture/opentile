@@ -238,6 +238,80 @@ class JpegHeader:
         )
 
     @staticmethod
+    def find_tag(
+        header: bytes,
+        tag: int
+    ) -> Tuple[Optional[int], Optional[int]]:
+        """Return first index and length of payload of tag in header."""
+        index = header.find(tag.to_bytes(2, 'big'))
+        if index != -1:
+            (length, ) = unpack('>H', header[index+2:index+4])
+            return index, length
+        return None, None
+
+    @classmethod
+    def manupulate_header(cls, header: bytes, size: Tuple[int, int]) -> bytes:
+        """Manipulate pixel size (width, height) of page header and
+        remove reset interval marker.
+
+        Parameters
+        ----------
+        size: Tuple[int, int]
+            Pixel size to insert into header.
+
+        Returns
+        ----------
+        bytes:
+            Manupulated header.
+        """
+        start_of_scan_index, length = cls.find_tag(
+            header, TAGS['start of frame']
+        )
+        if start_of_scan_index is None:
+            raise ValueError("Start of scan tag not found in header")
+        size_index = start_of_scan_index+5
+        header = bytearray(header)
+        header[size_index:size_index+2] = struct.pack(">H", size[1])
+        header[size_index+2:size_index+4] = struct.pack(">H", size[0])
+
+        reset_interval_index, length = cls.find_tag(
+            header, TAGS['restart interval']
+        )
+        if reset_interval_index is not None:
+            del header[reset_interval_index:reset_interval_index+length+2]
+
+        return bytes(header)
+
+    @classmethod
+    def wrap_scan(
+        cls,
+        header: bytes,
+        scan: bytes,
+        size: Tuple[int, int]
+    ) -> bytes:
+        """Wrap scan data with manipulated header and end of image tag.
+
+        Parameters
+        ----------
+        header: bytes
+            Header to use.
+        scan: bytes
+            Scan data to wrap.
+        size: Tuple[int, int]
+            Pixel size of scan.
+
+        Returns
+        ----------
+        bytes:
+            Scan wrapped in header as bytes.
+        """
+
+        image = cls.manupulate_header(header, size)
+        image += scan
+        image += bytes([0xFF, 0xD9])
+        return image
+
+    @staticmethod
     def parse_restart_interval(payload: bytes) -> int:
         """Parse restart interval payload.
 
