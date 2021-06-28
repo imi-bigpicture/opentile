@@ -35,10 +35,8 @@ class NdpiPage:
         y: int,
         scan_width: int
     ) -> List[JpegSegment]:
-        offset, length = self.get_stripe_byte_range(x, y)
-        scan = JpegScan(self._header, self._fh, offset, length, scan_width)
-        segments = scan.segments
-        scan.close()
+        stripe = self.get_encoded_stripe(x, y)
+        segments = self._header.get_segments(stripe, scan_width)
         return segments
 
     def get_stripe_byte_range(self, x: int, y: int) -> Tuple[int, int]:
@@ -54,7 +52,7 @@ class NdpiPage:
         Returns
         ----------
         Tuple[int, int]:
-            Stripe offset and length
+            stripe offset and length
         """
         cols = self._page.chunked[1]
         stripe = x + y * cols
@@ -104,7 +102,7 @@ class NdpiPage:
         image += bytes([0xFF, 0xD9])
         return image
 
-    def get_encoded_strip(self, x: int, y: int) -> bytes:
+    def get_encoded_stripe(self, x: int, y: int) -> bytes:
         """Return stripe at position as bytes.
 
         Parameters
@@ -117,7 +115,7 @@ class NdpiPage:
         Returns
         ----------
         bytes:
-            Stripe as bytes.
+            stripe as bytes.
         """
         offset, count = self.get_stripe_byte_range(x, y)
         stripe = self.read_stripe(offset, count)
@@ -221,123 +219,160 @@ class NdpiPage:
         height = size[1]
 
         image_size = (width*tile_width, height*tile_height)
-        strip_index = 0
-        with io.BytesIO() as strip_buffer:
+        stripe_index = 0
+        with io.BytesIO() as stripe_buffer:
             for x in range(x_pos, x_pos+width):
                 for y in range(y_pos, y_pos+height):
-                    stripe = self.get_encoded_strip(x, y)
-                    # Each strip has a RST marker (0xFF, 0xDn, n 0-7) at end.
+                    stripe = self.get_encoded_stripe(x, y)
+                    # Each stripe has a RST marker (0xFF, 0xDn, n 0-7) at end.
                     # Do not include last RST byte (0-7), use new from index
-                    strip_buffer.write(stripe[:-1])
-                    last_rst_byte = struct.pack(">B", 208+strip_index)
-                    strip_buffer.write(last_rst_byte)
-                    strip_index = (strip_index + 1) % 8
-            stripe = self.wrap_scan(strip_buffer.getvalue(), image_size)
+                    stripe_buffer.write(stripe[:-1])
+                    last_rst_byte = struct.pack(">B", 208+stripe_index)
+                    stripe_buffer.write(last_rst_byte)
+                    stripe_index = (stripe_index + 1) % 8
+            stripe = self.wrap_scan(stripe_buffer.getvalue(), image_size)
 
         return Image.open(io.BytesIO(stripe))
 
 
-class NdpiStripCache:
+class NdpistripeCache:
     def __init__(
         self,
         page: NdpiPage,
-        strip_width: int,
-        strip_height: int,
         tile_width: int,
         tile_height: int
     ):
+        """Cache for ndpi stripes, with functions to produce tiles of specified
+        with and height.
+
+        Parameters
+        ----------
+        page: NdpiPage
+            Page to cache and tile.
+        tile_width: int
+            Tile width to cache and produce.
+        tile_height: int
+            Tile heigh to cache and produce.
+
+        """
         self.page = page
-        self.strip_width = strip_width
-        self.strip_height = strip_height
+        self.stripe_width = page._header.width
+        self.stripe_height = page._header.height
+        self.stripe_cols = self.page._page.chunked[1]
         self.tile_width = tile_width
         self.tile_height = tile_height
 
         self.segments: Dict[(int, int), JpegSegment] = {}
 
     def get_tile(self, x: int, y: int) -> bytes:
-        strip_x_start = x * self.tile_width / self.strip_width
-        strip_x_end = max(
-            strip_x_start + 1,
-            (x+1) * self.tile_width // self.strip_width
+        """Produce a tile for tile position x and y. If stripes for the tile
+        is not cached, read them from disk and parse the jpeg data.
+
+        Parameters
+        ----------
+        x: int
+            X tile position to get.
+        y: int
+            Y tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at x, y, wrapped in header.
+        """
+        # The range of stripes we need
+        stripe_x_start = x * self.tile_width / self.stripe_width
+        stripe_x_end = max(
+            stripe_x_start + 1,
+            (x+1) * self.tile_width // self.stripe_width
         )
-        strip_y_start = y * self.tile_height / self.strip_height
-        strip_y_end = max(
-            strip_y_start + 1,
-            (y+1) * self.tile_height // self.strip_height
+        stripe_y_start = y * self.tile_height / self.stripe_height
+        stripe_y_end = max(
+            stripe_y_start + 1,
+            (y+1) * self.tile_height // self.stripe_height
         )
 
-        test_strip_position = (strip_x_start, strip_y_start)
-
-        if test_strip_position not in self.segments.keys():
+        # If first stripe is not in cached segments, get the stripes
+        if (stripe_x_start, stripe_y_start) not in self.segments.keys():
             self.segments = {}
-            cols = self.page._page.chunked[1]
-            strip_indices = [
-                x + y * cols
-                for y in range(int(strip_y_start), int(strip_y_end))
-                for x in range(int(strip_x_start), int(strip_x_end))
-            ]
-            strip_byte_range = [
-                self.page.get_stripe_byte_range(x, y)
-                for y in range(int(strip_y_start), int(strip_y_end))
-                for x in range(int(strip_x_start), int(strip_x_end))
+            stripe_indices = [
+                x + y * self.stripe_cols
+                for y in range(int(stripe_y_start), int(stripe_y_end))
+                for x in range(int(stripe_x_start), int(stripe_x_end))
             ]
 
-            strips: Generator[bytes, int] = self.page._fh.read_segments(
+            # Generator producing (stripe, stripe_index), requires patched
+            # tifffile
+            stripes: Generator[bytes, int] = self.page._fh.read_segments(
                 offsets=self.page._page.dataoffsets,
                 bytecounts=self.page._page.databytecounts,
-                indices=strip_indices,
-                sort=False
+                indices=stripe_indices,
             )
-            for strip, strip_index in strips:
-                scan = JpegScan(self.page._header, strip)
-                segments = scan.segments
+
+            # Loop over the stripes and get segments.
+            for stripe, stripe_index in stripes:
+                segments = self.page._header.get_segments(
+                    stripe,
+                    self.tile_width
+                )
+                # For each segment, insert into segment cache at pixel (x y)
+                # position
                 for segment_index, segment in enumerate(segments):
                     segment_x = (
-                        (strip_index % cols) * self.strip_width
+                        (stripe_index % self.stripe_cols) * self.stripe_width
                         + segment_index*self.tile_width
                     )
-                    segment_y = (strip_index // cols) * self.strip_height
+                    segment_y = (
+                        (stripe_index // self.stripe_cols) * self.stripe_height
+                    )
                     self.segments[(segment_x, segment_y)] = segment
-        print(self.segments.keys())
+
+        # bitarray for concatenating bit segments
         scan = bitarray()
-        for segment_x in range(
-            x*self.tile_width,
-            (x+1)*self.tile_width,
-            min(self.strip_width, self.tile_width)
+        # Loop through the needed segments
+        for segment_y in range(
+            y*self.tile_height,
+            (y+1)*self.tile_height,
+            min(self.stripe_height, self.tile_width)
         ):
-            for segment_y in range(
-                y*self.tile_height,
-                (y+1)*self.tile_height,
-                min(self.strip_height, self.tile_width)
+            for segment_x in range(
+                x*self.tile_width,
+                (x+1)*self.tile_width,
+                min(self.stripe_width, self.tile_width)
             ):
+
                 segment = self.segments[(segment_x, segment_y)]
                 segment_bits = bitarray()
                 segment_bits.frombytes(bytes(segment.data))
-                # Modify segment bits before appending
-                scan += segment_bits[0:segment.length.to_bits()]
+                # Here the segment first DC values should be modified
 
+                # Append segment to scan
+                scan += segment_bits[
+                    segment.start.to_bits():segment.end.to_bits()
+                ]
+
+        # Pad scan with ending 1
         padding_bits = 7 - (len(scan) - 1) % 8
         scan += bitarray(padding_bits*[1])
+
+        # Convert to bytes
         scan_bytes = bytearray(scan.tobytes())
 
+        # Add byte stuffing after 0xFF
         tag_index = None
         start_search = 0
         while tag_index != -1:
-            tag_index = scan_bytes.find(0xFF, start_search)
+            tag_index = scan_bytes.find(TAGS['tag'], start_search)
             if tag_index != -1:
-                scan_bytes.insert(tag_index+1, 0x00)
+                scan_bytes.insert(tag_index+1, (TAGS['stuffing']))
                 start_search = tag_index+1
 
+        # Wrap scan with modified header and end of image tag.
         tile = self.page.wrap_scan(
             scan_bytes,
             (self.tile_width, self.tile_height)
         )
 
-        f = open("scan.jpeg", "wb")
-        f.write(tile)
-        f.close()
-        # print(len(image))
-        # print(image.hex())
         return tile
 
 

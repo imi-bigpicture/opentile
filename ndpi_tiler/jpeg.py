@@ -407,7 +407,7 @@ class JpegHeader:
         while mcus_left > 0:
             # print(f"mcus left {mcus_left}")
             mcu_to_scan = min(mcus_left, mcu_scan_width)
-            segment = scan.extract_segment(mcu_to_scan, dc_offset)
+            segment = scan.read_segment(mcu_to_scan, dc_offset)
             segments.append(segment)
             mcus_left -= mcu_to_scan
             dc_offset = segment.dc_sum
