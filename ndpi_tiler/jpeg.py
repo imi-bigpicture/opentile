@@ -501,5 +501,3 @@ class JpegScan:
         code = value & (2**length - 1)
         return length, code
 
-    def close(self) -> None:
-        self._buffer.close()
