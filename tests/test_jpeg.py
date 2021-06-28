@@ -63,10 +63,13 @@ class NdpiTilerJpegTest(unittest.TestCase):
             )
 
     def test_small_scan_read_segments(self):
+        buffer = JpegBuffer(self.small_data)
+        first_mcu_start = BufferPosition(0, 0)
+        rest_start = BufferPosition(3, 5)
+        end = BufferPosition(7, 2)
         true_segment = JpegSegment(
-            data=JpegBuffer.remove_stuffing(bytearray(self.small_data)),
-            start=BufferPosition(0, 0),
-            end=BufferPosition(7, 2),
+            first=buffer.read_to_bitarray(first_mcu_start, rest_start),
+            rest=buffer.read_to_bitarray(rest_start, end),
             count=2,
             dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
             dc_sum={'Y': 508, 'Cb': 0, 'Cr': 0}
@@ -75,14 +78,19 @@ class NdpiTilerJpegTest(unittest.TestCase):
             2,
             {'Y': 0, 'Cb': 0, 'Cr': 0}
         )
+        print(true_segment)
+        print(read_segment)
         self.assertEqual(true_segment, read_segment)
 
     def test_large_scan_read_segments(self):
         # Need to check dc sum
+        buffer = JpegBuffer(self.large_data)
+        first_mcu_start = BufferPosition(0, 0)
+        rest_start = BufferPosition(3, 2)
+        end = BufferPosition(1135, 6)
         true_segment = JpegSegment(
-            data=JpegBuffer.remove_stuffing(bytearray(self.large_data)),
-            start=BufferPosition(0, 0),
-            end=BufferPosition(1135, 6),
+            first=buffer.read_to_bitarray(first_mcu_start, rest_start),
+            rest=buffer.read_to_bitarray(rest_start, end),
             count=512,
             dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
             dc_sum={'Y': 81, 'Cb': 2, 'Cr': 0}
@@ -92,7 +100,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
             512,
             {'Y': 0, 'Cb': 0, 'Cr': 0}
         )
-
+        print(true_segment)
+        print(read_segment)
         self.assertEqual(true_segment, read_segment)
 
     def test_large_scan_read_mcus(self):

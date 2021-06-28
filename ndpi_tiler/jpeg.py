@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from struct import unpack
 from typing import Dict, List, Optional, Tuple
 
+from bitarray import bitarray
+
 from ndpi_tiler.huffman import HuffmanTable, HuffmanTableIdentifier
 from ndpi_tiler.jpeg_tags import BYTE_TAG_STUFFING, TAGS
 from ndpi_tiler.utils import split_byte_into_nibbles
@@ -31,9 +33,8 @@ class BufferPosition:
 
 @dataclass
 class JpegSegment:
-    data: bytes
-    start: BufferPosition
-    end: BufferPosition
+    first: bitarray
+    rest: bitarray
     count: int
     dc_offset: Dict[str, int]
     dc_sum: Dict[str, int]
@@ -120,6 +121,16 @@ class JpegBuffer:
             length += 1
             code = table.decode(symbol, length)
         return code
+
+    def read_to_bitarray(
+        self,
+        start: BufferPosition,
+        end: BufferPosition
+    ) -> bitarray:
+        segment = bitarray()
+        segment.frombytes(self._data[start.byte:end.byte+1])
+        bit_end = (end.byte - start.byte) * 8 + end.bit
+        return segment[start.bit:bit_end]
 
     def seek(self, position: int) -> None:
         """Seek to bit posiion in stream."""
@@ -539,19 +550,21 @@ class JpegScan:
         JpegSegment
             Segment of MCUs read.
         """
+        dc_sums = {name: 0 for name in self.components.keys()}
+        first_mcu_start = self._buffer.pos
+        dc_sum = self._read_multiple_mcus(1, dc_sums)
         scan_start = self._buffer.pos
-        dc_sum = self._read_multiple_mcus(count)
+        dc_sum = self._read_multiple_mcus(count-1, dc_sum)
         scan_end = self._buffer.pos
         return JpegSegment(
-            data=self._buffer._data,
-            start=scan_start,
-            end=scan_end,
+            first=self._buffer.read_to_bitarray(first_mcu_start, scan_start),
+            rest=self._buffer.read_to_bitarray(scan_start, scan_end),
             count=count,
             dc_offset=dc_offset,
             dc_sum=dc_sum
         )
 
-    def _read_multiple_mcus(self, count: int) -> List[int]:
+    def _read_multiple_mcus(self, count: int, dc_sums: List[int]) -> List[int]:
         """Read count number of Mcus from stream. Only DC amplitudes are
         decoded. Accumulate the DC values of each component.
 
@@ -565,7 +578,6 @@ class JpegScan:
         Dict[str, int]
             Cumulative sums DC in MCUs per component.
         """
-        dc_sums = {name: 0 for name in self.components.keys()}
         for index in range(count):
             # print(f"mcu index {index} buffer pos {self._buffer.pos}")
             dc_sums = self._read_mcu(dc_sums)
