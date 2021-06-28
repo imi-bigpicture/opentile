@@ -31,7 +31,7 @@ class BufferPosition:
 
 @dataclass
 class JpegSegment:
-    data: bytearray
+    data: bytes
     start: BufferPosition
     end: BufferPosition
     count: int
