@@ -1,7 +1,7 @@
 import unittest
 
 import pytest
-from ndpi_tiler.jpeg import JpegBuffer, BufferPosition
+from ndpi_tiler.jpeg import JpegBuffer
 
 from .create_jpeg_data import create_small_scan_data
 
@@ -46,19 +46,19 @@ class NdpiTilerJpegBufferTest(unittest.TestCase):
 
     def test_seek(self):
         self.buffer.seek(18)
-        self.assertEqual(self.buffer.pos, BufferPosition(2, 2))
+        self.assertEqual(self.buffer.pos, 18)
 
         self.buffer.seek(7)
-        self.assertEqual(self.buffer.pos, BufferPosition(0, 7))
+        self.assertEqual(self.buffer.pos, 7)
 
         self.buffer.seek(25)
-        self.assertEqual(self.buffer.pos, BufferPosition(3, 1))
+        self.assertEqual(self.buffer.pos, 25)
 
         self.buffer.seek(32)
-        self.assertEqual(self.buffer.pos, BufferPosition(4, 0))
+        self.assertEqual(self.buffer.pos, 32)
 
         self.buffer.seek(31)
-        self.assertEqual(self.buffer.pos, BufferPosition(3, 7))
+        self.assertEqual(self.buffer.pos, 31)
 
     def test_seek_read(self):
         self.buffer.read(4)
@@ -66,7 +66,6 @@ class NdpiTilerJpegBufferTest(unittest.TestCase):
         self.assertEqual(self.buffer.read(4), 0b1111)
 
         self.buffer.seek(24)
-        print(hex(self.buffer._byte))
         self.assertEqual(self.buffer.read(6), 0b101011)
 
         self.buffer.seek(30)
@@ -77,10 +76,10 @@ class NdpiTilerJpegBufferTest(unittest.TestCase):
 
     def test_skip_pos(self):
         self.buffer.skip(2)
-        self.assertEqual(self.buffer.pos, BufferPosition(0, 2))
+        self.assertEqual(self.buffer.pos, 2)
 
         self.buffer.skip(6)
-        self.assertEqual(self.buffer.pos, BufferPosition(1, 0))
+        self.assertEqual(self.buffer.pos, 8)
 
     def test_skip_read(self):
         self.buffer.skip(8)

@@ -5,8 +5,7 @@ from struct import unpack
 from typing import List
 
 import pytest
-from ndpi_tiler.jpeg import (BufferPosition, JpegBuffer, JpegHeader, JpegScan,
-                             JpegSegment)
+from ndpi_tiler.jpeg import JpegBuffer, JpegHeader, JpegScan, JpegSegment
 from ndpi_tiler.jpeg_tags import MARER_MAPPINGS
 from tifffile import TiffFile
 
@@ -64,9 +63,9 @@ class NdpiTilerJpegTest(unittest.TestCase):
 
     def test_small_scan_read_segments(self):
         buffer = JpegBuffer(self.small_data)
-        first_mcu_start = BufferPosition(0, 0)
-        rest_start = BufferPosition(3, 5)
-        end = BufferPosition(7, 2)
+        first_mcu_start = 8*0+0
+        rest_start = 8*3+5
+        end = 8*7+2
         true_segment = JpegSegment(
             first=buffer.read_to_bitarray(first_mcu_start, rest_start),
             rest=buffer.read_to_bitarray(rest_start, end),
@@ -85,9 +84,9 @@ class NdpiTilerJpegTest(unittest.TestCase):
     def test_large_scan_read_segments(self):
         # Need to check dc sum
         buffer = JpegBuffer(self.large_data)
-        first_mcu_start = BufferPosition(0, 0)
-        rest_start = BufferPosition(3, 2)
-        end = BufferPosition(1135, 6)
+        first_mcu_start = 8*0+0
+        rest_start = 8*3+2
+        end = 8*1135+6
         true_segment = JpegSegment(
             first=buffer.read_to_bitarray(first_mcu_start, rest_start),
             rest=buffer.read_to_bitarray(rest_start, end),
@@ -109,31 +108,31 @@ class NdpiTilerJpegTest(unittest.TestCase):
         header_offset = 0x294
         Mcu = dataclasses.make_dataclass(
             'mcu',
-            [('position', BufferPosition), ('dc_sum', List[int])]
+            [('position', int), ('dc_sum', List[int])]
         )
         true_mcus = {
             0: Mcu(
-                position=BufferPosition(0x294-header_offset, 0),
+                position=8*(0x294-header_offset) + 0,
                 dc_sum={'Y': 80, 'Cb': 2, 'Cr': 0}
             ),
             1: Mcu(
-                position=BufferPosition(0x297-header_offset, 2),
+                position=8*(0x297-header_offset) + 2,
                 dc_sum={'Y': 1, 'Cb': 0, 'Cr': 0}
             ),
             150: Mcu(
-                position=BufferPosition(0x3D4-header_offset, 5),
+                position=8*(0x3D4-header_offset) + 5,
                 dc_sum={'Y': 0, 'Cb': 0, 'Cr': 0}
             ),
             151: Mcu(
-                position=BufferPosition(0x3D6-header_offset, 3),
+                position=8*(0x3D6-header_offset) + 3,
                 dc_sum={'Y': 0, 'Cb': 1, 'Cr': 0}
             ),
             510: Mcu(
-                position=BufferPosition(0x700-header_offset, 0),
+                position=8*(0x700-header_offset) + 0,
                 dc_sum={'Y': -1, 'Cb': 0, 'Cr': 0}
             ),
             511: Mcu(
-                position=BufferPosition(0x702-header_offset, 0),
+                position=8*(0x702-header_offset) + 0,
                 dc_sum={'Y': 0, 'Cb': 0, 'Cr': 0}
             )
         }

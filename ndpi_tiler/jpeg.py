@@ -23,15 +23,6 @@ class Component:
 
 
 @dataclass
-class BufferPosition:
-    byte: int
-    bit: int
-
-    def to_bits(self) -> int:
-        return 8 * self.byte + self.bit
-
-
-@dataclass
 class JpegSegment:
     first: bitarray
     rest: bitarray
@@ -55,10 +46,9 @@ class JpegBuffer:
             Byte data to buffer.
 
         """
-        self._data = self.remove_stuffing(data)
+        self._data = bitarray()
+        self._data.frombytes(self.remove_stuffing(data))
         self._bit_pos = 0
-        self._byte_pos = 0
-        self._byte = self._read_byte()
 
     @staticmethod
     def remove_stuffing(data: bytes) -> bytes:
@@ -75,33 +65,14 @@ class JpegBuffer:
         return bytes(data)
 
     @property
-    def pos(self) -> BufferPosition:
+    def pos(self) -> int:
         """The current buffer position."""
-        return BufferPosition(self.bit_pos // 8, self.bit_pos % 8)
-
-    @property
-    def byte_pos(self) -> int:
-        """The current byte position (buffer read is one byte ahead)"""
-        return self._byte_pos - 1
-
-    @property
-    def bit_pos(self) -> int:
-        """The current bit position."""
-        return 8 * self.byte_pos + self._bit_pos
-
-    def _read_byte(self) -> int:
-        """Read new byte into buffer"""
-        byte = self._data[self._byte_pos]
-        self._byte_pos += 1
-        return byte
+        return self._bit_pos
 
     def _read_bit(self) -> int:
         """Return a bit from the buffer."""
-        bit = (self._byte >> (7-self._bit_pos)) & 0b1
+        bit = self._data[self._bit_pos]
         self._bit_pos += 1
-        if self._bit_pos == 8:
-            self._bit_pos = 0
-            self._byte = self._read_byte()
         return bit
 
     def read(self, count: int = 1) -> int:
@@ -124,24 +95,18 @@ class JpegBuffer:
 
     def read_to_bitarray(
         self,
-        start: BufferPosition,
-        end: BufferPosition
+        start: int,
+        end: int
     ) -> bitarray:
-        segment = bitarray()
-        segment.frombytes(self._data[start.byte:end.byte+1])
-        bit_end = (end.byte - start.byte) * 8 + end.bit
-        return segment[start.bit:bit_end]
+        return self._data[start:start+end]
 
     def seek(self, position: int) -> None:
         """Seek to bit posiion in stream."""
-        if position // 8 != self.byte_pos:
-            self._byte_pos = position // 8
-            self._byte = self._read_byte()
-        self._bit_pos = position % 8
+        self._bit_pos = position
 
     def skip(self, skip_length: int) -> None:
         """Skip length of bits."""
-        skip_to = self.bit_pos + skip_length
+        skip_to = self.pos + skip_length
         self.seek(skip_to)
 
 
