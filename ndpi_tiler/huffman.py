@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from struct import unpack
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from bitstring import ConstBitStream, Bits
+from bitarray import bitarray
 
 from ndpi_tiler.utils import split_byte_into_nibbles
 
@@ -227,10 +227,15 @@ class HuffmanTable:
         """Encode value into symbol."""
         return self.encode_dict[value]
 
-    def encode_into_bits(self, value) -> Bits:
-        """Encode value int Bits"""
-        symobl, length = self.encode(value)
-        return Bits(uint=symobl, length=length)
+    def encode_into_bits(self, value) -> bitarray:
+        """Encode value into Bits"""
+        symbol, length = self.encode(value)
+        bits = bitarray()
+        for padding in range(length - symbol.bit_length()):
+            bits += '0'
+        for index in range(symbol.bit_length()):
+            bits.append(symbol >> (symbol.bit_length()-index - 1) & 1)
+        return bits
 
     def decode(self, symbol: int, length: int) -> Optional[int]:
         if length > 16:  # Max bit length for symbol
@@ -240,7 +245,7 @@ class HuffmanTable:
         except KeyError:
             return None
 
-    def decode_from_bits(self, bits: Bits) -> int:
+    def decode_from_bits(self, bits: bitarray) -> int:
         """Decode bits using Huffman table.
 
         Parameters
@@ -253,11 +258,12 @@ class HuffmanTable:
         int
             Decoded value from bits.
         """
-        stream = ConstBitStream(bits)
-        symbol = stream.read('uint:1')
+        bit_position = 0
+        symbol = bits[bit_position]
         length = 1
         while (symbol, length) not in self.decode_dict.keys():
-            symbol = 2*symbol + stream.read('uint:1')
+            bit_position += 1
+            symbol = 2*symbol + bits[bit_position]
             length += 1
             if length > 16:  # Max bit length for symbol
                 raise ValueError("Could not decode bits")
