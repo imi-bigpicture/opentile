@@ -8,7 +8,7 @@ from bitarray import bitarray
 from PIL import Image
 from tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 
-from ndpi_tiler.jpeg import JpegHeader, JpegScan, JpegSegment
+from ndpi_tiler.jpeg import JpegHeader, JpegSegment
 from ndpi_tiler.jpeg_tags import TAGS
 
 
@@ -235,7 +235,7 @@ class NdpiPage:
         return Image.open(io.BytesIO(stripe))
 
 
-class NdpistripeCache:
+class NdpiStripCache:
     def __init__(
         self,
         page: NdpiPage,
