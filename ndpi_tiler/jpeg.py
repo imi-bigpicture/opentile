@@ -37,8 +37,6 @@ class JpegSegment:
     count: int
     dc_offset: Dict[str, int]
     dc_sum: Dict[str, int]
-    modified: bool = False
-
 
 class JpegBuffer:
     """Convenience class for reading bits from Jpeg data."""
