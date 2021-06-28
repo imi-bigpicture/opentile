@@ -223,12 +223,36 @@ class HuffmanTable:
                 buffer.tell()
             )
 
-    def encode(self, value) -> Tuple[int, int]:
-        """Encode value into symbol."""
+    def encode(self, value: int) -> Tuple[int, int]:
+        """Encode value into symbol and length
+
+        Parameters
+        ----------
+        value: int
+            Value to encode.
+
+        Returns
+        ----------
+        Tuple[int, int]
+            Symbol and length of encoded value
+
+        """
         return self.encode_dict[value]
 
-    def encode_into_bits(self, value) -> bitarray:
-        """Encode value into Bits"""
+    def encode_into_bits(self, value: int) -> bitarray:
+        """Encode value into bits
+
+        Parameters
+        ----------
+        value: int
+            Value to encode.
+
+        Returns
+        ----------
+        bitarray
+            Bitarray of encoded value.
+
+        """
         symbol, length = self.encode(value)
         bits = bitarray()
         for padding in range(length - symbol.bit_length()):
@@ -238,6 +262,22 @@ class HuffmanTable:
         return bits
 
     def decode(self, symbol: int, length: int) -> Optional[int]:
+        """Return decoded value for symbol and length. If symbol and length
+        does not produce a decoded value, return None.
+
+        Parameters
+        ----------
+        symbol: int
+            Symbol to decode.
+        length: int
+            Length of symbol to decode.
+
+        Returns
+        ----------
+        Optional[int]
+            Decoded value from symbol and length.
+
+        """
         if length > 16:  # Max bit length for symbol
             raise ValueError("Max length exceeded, Could not decode symbol")
         try:
