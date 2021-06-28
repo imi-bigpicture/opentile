@@ -27,8 +27,8 @@ class JpegSegment:
     first: bitarray
     rest: bitarray
     count: int
-    dc_offset: Dict[str, int]
-    dc_sum: Dict[str, int]
+    dc_offsets: Dict[str, int]
+    dc_sums: Dict[str, int]
 
 
 class JpegBuffer:
@@ -449,14 +449,14 @@ class JpegHeader:
         mcus_left = self.mcu_count
         scan = JpegScan(data, self.components)
         # print(f"mcu count {self.mcu_count} mcu scan width {mcu_scan_width}")
-        dc_offset = {name: 0 for name in self.components.keys()}
+        dc_offsets = {name: 0 for name in self.components.keys()}
         while mcus_left > 0:
             # print(f"mcus left {mcus_left}")
             mcu_to_scan = min(mcus_left, mcu_scan_width)
-            segment = scan.read_segment(mcu_to_scan, dc_offset)
+            segment = scan.read_segment(mcu_to_scan, dc_offsets)
             segments.append(segment)
             mcus_left -= mcu_to_scan
-            dc_offset = segment.dc_sum
+            dc_offsets = segment.dc_sums
 
         return segments
 
@@ -495,7 +495,7 @@ class JpegScan:
     def read_segment(
         self,
         count: int,
-        dc_offset: Dict[str, int]
+        dc_offsets: Dict[str, int]
     ) -> JpegSegment:
         """Read a segment of count number of Mcus from stream
 
@@ -513,16 +513,16 @@ class JpegScan:
         """
         dc_sums = {name: 0 for name in self.components.keys()}
         first_mcu_start = self._buffer.pos
-        dc_sum = self._read_multiple_mcus(1, dc_sums)
+        dc_sums = self._read_multiple_mcus(1, dc_sums)
         scan_start = self._buffer.pos
-        dc_sum = self._read_multiple_mcus(count-1, dc_sum)
+        dc_sums = self._read_multiple_mcus(count-1, dc_sums)
         scan_end = self._buffer.pos
         return JpegSegment(
             first=self._buffer.read_to_bitarray(first_mcu_start, scan_start),
             rest=self._buffer.read_to_bitarray(scan_start, scan_end),
             count=count,
-            dc_offset=dc_offset,
-            dc_sum=dc_sum
+            dc_offsets=dc_offsets,
+            dc_sums=dc_sums
         )
 
     def _read_multiple_mcus(self, count: int, dc_sums: List[int]) -> List[int]:

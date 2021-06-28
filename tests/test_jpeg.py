@@ -70,8 +70,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
             first=buffer.read_to_bitarray(first_mcu_start, rest_start),
             rest=buffer.read_to_bitarray(rest_start, end),
             count=2,
-            dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
-            dc_sum={'Y': 508, 'Cb': 0, 'Cr': 0}
+            dc_offsets={'Y': 0, 'Cb': 0, 'Cr': 0},
+            dc_sums={'Y': 508, 'Cb': 0, 'Cr': 0}
         )
         read_segment = self.small_scan.read_segment(
             2,
@@ -89,8 +89,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
             first=buffer.read_to_bitarray(first_mcu_start, rest_start),
             rest=buffer.read_to_bitarray(rest_start, end),
             count=512,
-            dc_offset={'Y': 0, 'Cb': 0, 'Cr': 0},
-            dc_sum={'Y': 81, 'Cb': 2, 'Cr': 0}
+            dc_offsets={'Y': 0, 'Cb': 0, 'Cr': 0},
+            dc_sums={'Y': 81, 'Cb': 2, 'Cr': 0}
         )
 
         read_segment = self.large_scan.read_segment(
