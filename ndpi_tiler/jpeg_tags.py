@@ -26,4 +26,4 @@ TAGS = {
 BYTE_TAG = bytes([TAGS['tag']])
 BYTE_STUFFING = bytes(TAGS['stuffing'])
 
-BYTE_TAG_STUFFING = BYTE_TAG + BYTE_STUFFING
+BYTE_TAG_STUFFING = bytes([TAGS['tag'], TAGS['stuffing']])
