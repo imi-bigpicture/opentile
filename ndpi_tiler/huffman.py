@@ -166,6 +166,14 @@ class HuffmanTable:
             defaultdict(lambda: None)
         )
 
+        # Make a list of bits needed to be read at each length. E.g, there is
+        # almost never a symbol of length 1, so we can almost always start with
+        # reading two bits for the first symbol-length combination. Further,
+        # There is typically some gaps in the table that can be jumped.
+        # This could reduce the number of reads significantly as most
+        # symbols are short.
+        self.bits_to_read_at_length: List[int] = []
+
         root = HuffmanNode(0)
         for length, level in enumerate(values_in_levels):
             for value in level:
@@ -186,6 +194,7 @@ class HuffmanTable:
                     )
                 self.encode_dict[value] = (symbol, length+1)
                 self.decode_dict[(symbol, length+1)] = value
+
 
     @property
     def identifier(self) -> HuffmanTableIdentifier:

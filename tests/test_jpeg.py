@@ -288,9 +288,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 end=ends[0],
                 count=512,
                 segment=JpegSegment(
-                    data=data[0],
-                    segment_delta=Dc({'Y': 81, 'Cb': 2, 'Cr': 0}),
-                    tile_offset=Dc({'Y': 81, 'Cb': 2, 'Cr': 0})
+                    data=data[0]
                 )),
             Segment(
                 reset=True,
@@ -299,8 +297,6 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 count=128,
                 segment=JpegSegment(
                     data=data[1],
-                    segment_delta=Dc({'Y': 80, 'Cb': 2, 'Cr': 0}),
-                    tile_offset=Dc({'Y': 80, 'Cb': 2, 'Cr': 0})
                 )),
             Segment(
                 reset=False,
@@ -308,9 +304,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 end=ends[2],
                 count=128,
                 segment=JpegSegment(
-                    data=data[2],
-                    segment_delta=Dc({'Y': 0, 'Cb': 0, 'Cr': 0}),
-                    tile_offset=Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                    data=data[2]
                 )),
             Segment(
                 reset=False,
@@ -318,9 +312,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 end=ends[3],
                 count=128,
                 segment=JpegSegment(
-                    data=data[3],
-                    segment_delta=Dc({'Y': 1, 'Cb': 0, 'Cr': 0}),
-                    tile_offset=Dc({'Y': 1, 'Cb': 0, 'Cr': 0})
+                    data=data[3]
                 )),
             Segment(
                 reset=False,
@@ -328,9 +320,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 end=ends[4],
                 count=128,
                 segment=JpegSegment(
-                    data=data[4],
-                    segment_delta=Dc({'Y': 0, 'Cb': 0, 'Cr': 0}),
-                    tile_offset=Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                    data=data[4]
                 ))
         ]
         for test in tests:
