@@ -105,7 +105,7 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
         }
 
         for truth, code in codes.items():
-            decoded = DC_0.decode_from_bits(code)
+            decoded, _ = DC_0.decode_from_bits(code)
             self.assertEqual(truth, decoded)
 
         AC_0 = self.large_header.components['Y'].ac_table
@@ -132,7 +132,7 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
             0x72: Bits('0b111111110111')
         }
         for truth, code in codes.items():
-            decoded = AC_0.decode_from_bits(code)
+            decoded, _ = AC_0.decode_from_bits(code)
 
             self.assertEqual(truth, decoded)
 
@@ -156,5 +156,5 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
                 for table in [component.dc_table, component.ac_table]:
                     for value in table.encode_dict.keys():
                         symbol = table.encode_into_bits(value)
-                        decoded = table.decode_from_bits(symbol)
+                        decoded, _ = table.decode_from_bits(symbol)
                         self.assertEqual(value, decoded)
