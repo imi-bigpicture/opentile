@@ -227,7 +227,7 @@ class HuffmanTable:
                 buffer.tell()
             )
 
-    @lru_cache
+    @lru_cache(maxsize=None)
     def encode(self, value: int) -> Tuple[int, int]:
         """Encode value into symbol and length
 
@@ -244,7 +244,7 @@ class HuffmanTable:
         """
         return self.encode_dict[value]
 
-    @lru_cache
+    @lru_cache(maxsize=None)
     def encode_into_bits(self, value: int) -> bitarray:
         """Encode value into bits
 
@@ -267,7 +267,7 @@ class HuffmanTable:
             bits.append(symbol >> (symbol.bit_length()-index - 1) & 1)
         return bits
 
-    @lru_cache
+    @lru_cache(maxsize=None)
     def decode(self, symbol: int, length: int) -> Optional[int]:
         """Return decoded value for symbol and length. If symbol and length
         does not produce a decoded value, return None.

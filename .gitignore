@@ -9,3 +9,4 @@ poetry.lock
 *.dcm
 *.jpeg
 */__pycache__/
+*.jpg

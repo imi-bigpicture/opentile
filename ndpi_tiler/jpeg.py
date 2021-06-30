@@ -667,7 +667,7 @@ class JpegScan:
                 mcu_length += 1 + zeros
 
     @staticmethod
-    @lru_cache
+    @lru_cache(maxsize=None)
     def _decode_value(length: int, code: int) -> int:
         if length == 0:
             return 0
@@ -681,7 +681,7 @@ class JpegScan:
         return code - largest_value
 
     @staticmethod
-    @lru_cache
+    @lru_cache(maxsize=None)
     def _code_value(value: int) -> Tuple[int, int]:
         # Zero is coded as 0 length, no value
         if value == 0:
@@ -696,7 +696,7 @@ class JpegScan:
         return length, code
 
     @staticmethod
-    @lru_cache
+    @lru_cache(maxsize=None)
     def _to_bits(value: int, length: int) -> bitarray:
         if length == 0:
             return bitarray()
@@ -723,7 +723,7 @@ class JpegScan:
             # print(
             #     f"c {current_dc}, s {stripe_dc_offsets[name]} "
             #     f"t {tile_dc_offsets[name]}, new {new_dc}"
-            # )
+            # )l
 
             segment_dc_delta[name] += current_dc_non_diffed
             stripe_dc_offsets[name] += current_dc
