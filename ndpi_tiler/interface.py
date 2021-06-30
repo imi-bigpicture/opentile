@@ -1,12 +1,10 @@
+from collections import defaultdict
 from typing import DefaultDict, Generator, Dict, Tuple, List
 
-from collections import defaultdict
-
-from bitarray import bitarray
 from tifffile import FileHandle, TiffPage
-
-from ndpi_tiler.jpeg import JpegHeader, JpegSegment, MCU_SIZE
-from ndpi_tiler.jpeg_tags import TAGS
+from bitarray import bitarray
+from ndpi_tiler.jpeg import Component, JpegHeader, JpegSegment, Dc
+from ndpi_tiler.jpeg_tags import BYTE_TAG, BYTE_TAG_STUFFING
 
 
 class Tile:
@@ -15,53 +13,32 @@ class Tile:
         header: bytes,
         tile_width: int,
         tile_height: int,
-        segment_width: int,
-        segment_height: int,
-        components: int
+        components: Dict[str, Component]
     ):
         self.header = header
         self.tile_width = tile_width
         self.tile_height = tile_height
-        self.segment_width = segment_width
-        self.segment_height = segment_height
-        self.components = components
-        self.segments: Dict[(int, int), JpegSegment] = {}
+        self.bits = bitarray()
         self.tile: bytes = None
+        self.dc_offsets = Dc.zero(list(components.keys()))
 
-    def add_segment(self, segment: JpegSegment, x: int, y: int):
-        self.segments[(x, y)] = segment
+    def add_segment(self, segment: JpegSegment):
+        self.bits += segment.data
+        # self.dc_offsets = segment.tile_offset
 
     def get_tile(self) -> bytes:
         if self.tile is not None:
             return self.tile
 
-        scan = bitarray()
-        dc_offsets = [0] * self.components
-        for y in range(self.tile_height//self.segment_width):
-            for x in range(self.tile_width//self.segment_width):
-                segment = self.segments[(x, y)]
-                segment_previous_offset = segment.dc_offset
-                first_mcu = segment.first
-                # modify first_mcu according to dc_offset and previous offset
-                # update dc_offsets for next segment
-                rest = segment.rest
-                scan += first_mcu + rest
-
         # Pad scan with ending 1
-        padding_bits = 7 - (len(scan) - 1) % 8
-        scan += bitarray(padding_bits*[1])
+        padding_bits = 7 - (len(self.bits) - 1) % 8
+        self.bits += bitarray(padding_bits*[1])
 
         # Convert to bytes
-        scan_bytes = bytearray(scan.tobytes())
+        scan_bytes = bytearray(self.bits.tobytes())
 
         # Add byte stuffing after 0xFF
-        tag_index = None
-        start_search = 0
-        while tag_index != -1:
-            tag_index = scan_bytes.find(TAGS['tag'], start_search)
-            if tag_index != -1:
-                scan_bytes.insert(tag_index+1, (TAGS['stuffing']))
-                start_search = tag_index+1
+        scan_bytes = scan_bytes.replace(BYTE_TAG, BYTE_TAG_STUFFING)
 
         # Wrap scan with modified header and end of image tag.
         self.tile = JpegHeader.wrap_scan(
@@ -121,12 +98,36 @@ class NdpiPageTiler:
         stripe_size: int,
         tile_size: int
     ) -> range:
+        """Return stripe coordinate range given a tile coordinate,
+        stripe size and tile size.
+
+        Parameters
+        ----------
+        tile: int
+            Tile coordinate (x or y).
+        stripe_size: int
+            Stripe width or height.
+        tile_size: int
+            Tile width or height.
+
+        Returns
+        ----------
+        range
+            Range of stripes needed to cover tile.
+        """
         start = (tile * tile_size) // stripe_size
         end = max(
             start + 1,
             ((tile+1) * tile_size) // stripe_size
         )
         return range(start, end)
+
+    def get_stripe(self, coordinate: Tuple[int, int]) -> bytes:
+        index = coordinate[0] + coordinate[1] * self.stripe_cols
+        offset = self._page.dataoffsets[index]
+        bytecount = self._page.databytecounts[index]
+        self._fh.seek(offset)
+        return self._fh.read(bytecount)
 
     def get_tile(
         self,
@@ -150,59 +151,71 @@ class NdpiPageTiler:
         """
         # Check if tile not is cached
         if (x, y) not in self.tiles.keys():
-            x_range = self.stripe_range(x, self._stripe_width, self._tile_width)
-            y_range = self.stripe_range(y, self._stripe_height, self._tile_height)
-            # If first stripe is not in cached segments, get the stripes
-            stripe_indices = [
-                stripe_x + stripe_y * self.stripe_cols
-                for stripe_y in y_range
-                for stripe_x in x_range
-            ]
-            # Generator producing (stripe, stripe_index), requires patched
-            # tifffile
-            stripes: Generator[bytes, int] = self._fh.read_segments(
-                offsets=self._page.dataoffsets,
-                bytecounts=self._page.databytecounts,
-                indices=stripe_indices,
-            )
+
+            stripes = {
+                (stripe_x, stripe_y): self.get_stripe((stripe_x, stripe_y))
+                for stripe_y in self.stripe_range(
+                    y,
+                    self._stripe_height,
+                    self._tile_height
+                )
+                for stripe_x in self.stripe_range(
+                    x,
+                    self._stripe_width,
+                    self._tile_width
+                )
+            }
             # Loop over the stripes and get segments.
-            for stripe, stripe_index in stripes:
+            for stripe_coordinate, stripe in stripes.items():
+                # Calculate the tiles the segments in this stripe will span.
+                tile_x_start = (
+                    stripe_coordinate[0] *
+                    self._stripe_width // self._tile_width
+                )
+                tile_y_start = (
+                    stripe_coordinate[1] *
+                    self._stripe_height // self._tile_height
+                )
+                tile_x_end = (
+                    (stripe_coordinate[0] + 1)
+                    * self._stripe_width // self._tile_width
+
+                )
+                tile_y_end = (
+                    (stripe_coordinate[1] + 1)
+                    * self._stripe_height // self._tile_height
+                )
+
+                tiles: List[Tile] = []
+                for tile_y in range(tile_y_start, tile_y_end+1):
+                    for tile_x in range(tile_x_start, tile_x_end):
+                        try:
+                            tiles.append(self.tiles[tile_x, tile_y])
+                        except KeyError:
+                            tile = Tile(
+                                self._page.jpegheader,
+                                self._tile_width,
+                                self._tile_height,
+                                self._header.components
+                            )
+                            self.tiles[tile_x, tile_y] = tile
+                            tiles.append(tile)
+                dc_offsets = [
+                    tile.dc_offsets for tile in tiles
+                ]
+                print(tiles)
+                # print(dc_offsets)
+                # Send the tiles
+                # as a list. get_segments can then insert the segment directly
+                # into the tiles. The tile will give the current dc offset and
+                # get_segments can update the tile dc_offset after insertion.
+
                 segments = self._header.get_segments(
                     stripe,
                     self._tile_width,
+                    dc_offsets
                 )
-                # For each segment, insert into segment cache at pixel (x y)
-                # position
-                for segment_index, segment in enumerate(segments):
-                    segment_x = (
-                        (stripe_index % self.stripe_cols) * self._stripe_width
-                        + segment_index*self._tile_width
-                    )
-                    segment_y = (
-                        (stripe_index // self.stripe_cols)
-                        * self._stripe_height
-                    )
-                    tile_x = segment_x // self._tile_width
-                    tile_y = segment_y // self._tile_height
-                    # print(f"tile {tile_x, tile_y}")
-                    if (tile_x, tile_y) not in self.tiles.keys():
-                        tile = Tile(
-                            self._page.jpegheader,
-                            self._tile_width,
-                            self._tile_height,
-                            segment.count*MCU_SIZE, # should be a better way
-                            MCU_SIZE,
-                            3
-                        )
-                        self.tiles[(tile_x, tile_y)] = tile
-                    else:
-                        tile = self.tiles[(x, y)]
-
-                    # print(f"segment x,y {segment_x, segment_y}")
-                    tile.add_segment(
-                        segment,
-                        segment_x % self._tile_width,
-                        segment_y % self._tile_height
-                    )
+                for tile_index, segment in enumerate(segments):
+                    tiles[tile_index].add_segment(segment)
 
         return self.tiles[x, y].get_tile()

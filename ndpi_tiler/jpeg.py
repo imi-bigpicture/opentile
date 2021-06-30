@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from struct import unpack
 from typing import Dict, List, Optional, Tuple
 
-from bitarray import bitarray
+from bitarray import bitarray, util
+from numpy import take_along_axis
 
 from ndpi_tiler.huffman import HuffmanTable, HuffmanTableIdentifier
 from ndpi_tiler.jpeg_tags import BYTE_TAG, BYTE_TAG_STUFFING, TAGS
@@ -22,13 +23,57 @@ class Component:
     ac_table: HuffmanTable = None
 
 
+class Dc:
+    def __init__(self, values: Dict[str, int]):
+        self.offsets = values
+
+    def __add__(self, other) -> 'Dc':
+        if isinstance(other, Dc):
+            for name in self.offsets.keys():
+                self.offsets[name] += other[name]
+            return self
+        return NotImplemented
+
+    def __sub__(self, other) -> 'Dc':
+        if isinstance(other, Dc):
+            for name in self.offsets.keys():
+                self.offsets[name] -= other[name]
+            return self
+        return NotImplemented
+
+    def __getitem__(self, name: str) -> int:
+        return self.offsets[name]
+
+    def __setitem__(self, name: str, value: int) -> None:
+        self.offsets[name] = value
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Dc):
+            for key in self.offsets:
+                if not (key in other.offsets and self[key] == other[key]):
+                    return False
+            return True
+        return NotImplemented
+
+    def __str__(self) -> str:
+        return str(self.offsets)
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    @classmethod
+    def zero(cls, names: List[str]) -> 'Dc':
+        return cls({name: 0 for name in names})
+
+    @property
+    def names(self) -> List[str]:
+        return self.offsets.keys()
+
 @dataclass
 class JpegSegment:
-    start: int
-    end: int
-    count: int
-    dc_offsets: Dict[str, int]
-    dc_sums: Dict[str, int]
+    data: bitarray
+    segment_delta: Dc
+    tile_offset: Dc = None
 
 
 class JpegBuffer:
@@ -67,6 +112,10 @@ class JpegBuffer:
 
     def read(self, count: int = 1) -> int:
         """Read count bits and return the unsigned integer interpretation"""
+        # return util.ba2int(
+        #     self._data[self._bit_pos:self._bit_pos+count],
+        #     signed=False
+        # )
         sum = 0
         for value in self._data[self._bit_pos:self._bit_pos+count]:
             sum = 2*sum + value
@@ -94,7 +143,7 @@ class JpegBuffer:
         start: int,
         end: int
     ) -> bitarray:
-        return self._data[start:start+end]
+        return self._data[start:end]
 
     def seek(self, position: int) -> None:
         """Seek to bit posiion in stream."""
@@ -426,11 +475,11 @@ class JpegHeader:
     def get_segments(
          self,
          data: bytes,
-         scan_width: int
+         scan_width: int,
+         tiles_dc_offsets: List[Dc]
     ) -> List[JpegSegment]:
-        """Parse MCUs in jpeg scan data produce segments. Each segment
-        contains max scan width (in pixels) number of MCUs and the cumulative
-        DC amplitude (per component).
+        """Parse MCUs in jpeg scan data into segments of max scan width size.
+        Insert the segments into the supplied tile(s).
 
         Parameters
         ----------
@@ -438,25 +487,31 @@ class JpegHeader:
             Jpeg scan data to parse.
         scan_width: int
             Maximum number of pixels per segment.
+        tiles: List[Tile]:
+            Tiles to insert the segments into.
 
-        Returns
-        ----------
-        List[JpegSegment]
-            Segments of MCUs.
         """
-        mcu_scan_width = scan_width // MCU_SIZE
         segments: List[JpegSegment] = []
+        mcu_scan_width = scan_width // MCU_SIZE
         mcus_left = self.mcu_count
         scan = JpegScan(data, self.components)
-        # print(f"mcu count {self.mcu_count} mcu scan width {mcu_scan_width}")
-        dc_offsets = {name: 0 for name in self.components.keys()}
+        segment_dc_offset = Dc.zero(list(self.components.keys()))
+        tile_index = 0
         while mcus_left > 0:
-            # print(f"mcus left {mcus_left}")
             mcu_to_scan = min(mcus_left, mcu_scan_width)
-            segment = scan.read_segment(mcu_to_scan, dc_offsets)
+            # segment = scan.read_and_modify_segment(
+            #     mcu_to_scan,
+            #     segment_dc_offset,
+            #     tiles_dc_offsets[tile_index]
+            # )
+            segment = scan.read_segment(
+                mcu_to_scan,
+                segment_dc_offset,
+            )
+
             segments.append(segment)
             mcus_left -= mcu_to_scan
-            dc_offsets = segment.dc_sums
+            tile_index += 1
 
         return segments
 
@@ -495,8 +550,8 @@ class JpegScan:
     def read_segment(
         self,
         count: int,
-        dc_offsets: Dict[str, int]
-    ) -> JpegSegment:
+        dc_offsets: Dict[str, int],
+    ) -> List[int]:
         """Read a segment of count number of Mcus from stream
 
         Parameters
@@ -504,25 +559,30 @@ class JpegScan:
         count: int
             Number of MCUs to extract.
         dc_offset: Dict[str, int]
-            DC of previous segment.
+            Native DC of previous segment.
+
 
         Returns
         ----------
-        JpegSegment
-            Segment of MCUs read.
+        int:
+            Native DC offsets for segment
         """
         start = self._buffer.pos
-        dc_sums = self._read_multiple_mcus(count)
+        dc_offsets = self._read_multiple_mcus(
+            count,
+            dc_offsets,
+        )
         end = self._buffer.pos
         return JpegSegment(
-            start=start,
-            end=end,
-            count=count,
-            dc_offsets=dc_offsets,
-            dc_sums=dc_sums
+            data=self._buffer.read_to_bitarray(start, end),
+            segment_delta=dc_offsets
         )
 
-    def _read_multiple_mcus(self, count: int) -> List[int]:
+    def _read_multiple_mcus(
+        self,
+        count: int,
+        dc_offsets: Dc
+    ) -> Dc:
         """Read count number of Mcus from stream. Only DC amplitudes are
         decoded. Accumulate the DC values of each component.
 
@@ -536,12 +596,11 @@ class JpegScan:
         Dict[str, int]
             Cumulative sums DC in MCUs per component.
         """
-        dc_sums = {name: 0 for name in self.components.keys()}
         for index in range(count):
-            dc_sums = self._read_mcu(dc_sums)
-        return dc_sums
+            dc_offsets = self._read_mcu(dc_offsets)
+        return dc_offsets
 
-    def _read_mcu(self, dc_sums: Dict[str, int]) -> Dict[str, int]:
+    def _read_mcu(self, dc_sums: Dc) -> Dc:
         """Parse MCU and return cumulative DC per component.
 
         Parameters
@@ -556,15 +615,14 @@ class JpegScan:
             component
 
         """
-        return {
-            name: self._read_mcu_component(component, dc_sums[name])
+        return dc_sums + Dc({
+            name: self._read_mcu_component(component)
             for name, component in self.components.items()
-        }
+        })
 
     def _read_mcu_component(
         self,
         component: Component,
-        dc_sum: int
     ) -> int:
         """Read single component of a MCU.
 
@@ -583,7 +641,7 @@ class JpegScan:
         """
         dc_amplitude = self._read_dc(component.dc_table)
         self._skip_ac(component.ac_table)
-        return dc_sum + dc_amplitude
+        return dc_amplitude
 
     def _read_dc(self, table: HuffmanTable) -> int:
         """Return DC amplitude for MCU block read from stream.
@@ -600,6 +658,7 @@ class JpegScan:
         """
         length = self._buffer.read_variable_length(table)
         value = self._buffer.read(length)
+        print(f"read dc l {length}, v {value}")
         return self._decode_value(length, value)
 
     def _skip_ac(self, table: HuffmanTable) -> None:
@@ -630,14 +689,15 @@ class JpegScan:
         smallest_value = 2 ** (length - 1)
         # If code is larger, value is positive
         if code >= smallest_value:
-            return code
+            return int(code)
         # Negative value starts at negative largest value for this level
         largest_value = 2 * smallest_value - 1
-        return code - largest_value
+        return int(code - largest_value)
 
     @staticmethod
     def _code_value(value: int) -> Tuple[int, int]:
         # Zero is coded as 0 length, no value
+        value = int(value)
         if value == 0:
             return 0, 0
         # Length needed to code the value
@@ -646,44 +706,73 @@ class JpegScan:
         if value < 0:
             value -= 1
         # Take out the lower bits according to length
-        code = value & (2**length - 1)
-        return length, code
+        code = value & ((1 << length) - 1)
+        return int(length), int(code)
 
     @staticmethod
     def _to_bits(value: int) -> bitarray:
-        bits = bitarray()
-        bit_length = max(1, value.bit_length())
-        for position in reversed(range(bit_length)):
-            bit = value >> position & 1
-            bits.append(bit)
-        return bits
+        return util.int2ba(value)
 
-    def modify_mcu(
+    def read_and_modify_segment(
         self,
-        start: int,
-        end: int,
-        dc_diffs: Dict[str, int]
-    ) -> bitarray:
-        self._buffer.seek(start)
-        modified_segment = bitarray()
+        count: int,
+        stripe_dc_offsets: Dc,
+        tile_dc_offsets: Dc
+    ) -> JpegSegment:
+        # Parse the first mcu. For each block, take the DC value, calculate
+        # a new dc value and write the new DC value and the unmodified AC part
+        # to the modified_segment.
+        # The new dc value should be calculated as:
+        # true_value = current_value + dc_offset <- The value without delta 'encoding'
+        # true_value - tile.dc_offset <- The value with correct delta 'encoding'
+        # The next mcu is encoded as a delta to this mcu, so does not need to be changed.
+        # The dc_values return should be the unmodifed delta over the segment
+        # The dc_value in tile should be updated to the dc_value at the end of the segment
+        output_segment = bitarray()
+        segment_dc_delta = Dc.zero(list(tile_dc_offsets.names))
         for name, component in self.components.items():
             current_dc = self._read_dc(component.dc_table)
-            new_dc = current_dc+dc_diffs[name]
-            lenght, code = self._code_value(new_dc)
-            modified_segment.append(self._to_bits(lenght))
-            modified_segment.append(self._to_bits(code))
+            segment_dc_delta[name] += current_dc
+            new_dc = (
+                current_dc + stripe_dc_offsets[name] - tile_dc_offsets[name]
+            )  # ???
+
+            # Code the value into length and code
+            length, code = self._code_value(new_dc)
+            # Encode length using huffman table and write to output segment
+            output_segment += component.dc_table.encode_into_bits(length)
+            # If length is non-zero, write code (in bits) to output segment
+            if length != 0:
+                output_segment += self._to_bits(code)
+
+            # Get start and end of ac and write to output_segment
             ac_start = self._buffer.pos
             self._skip_ac(component.ac_table)
             ac_end = self._buffer.pos
-            modified_segment.append(self._buffer.read_to_bitarray(
+            output_segment += self._buffer.read_to_bitarray(
                 ac_start,
                 ac_end
-            ))
+            )
+
+        # Get start and end of rest of mcus and add to segment delta
         rest_start = self._buffer.pos
-        modified_segment.append(self._buffer.read_to_bitarray(
+        segment_dc_delta = self._read_multiple_mcus(
+            count - 1,
+            segment_dc_delta
+            )
+        end = self._buffer.pos
+        output_segment += self._buffer.read_to_bitarray(
             rest_start,
             end
-        ))
+        )
+
+        tile_dc_offsets += segment_dc_delta
+        stripe_dc_offsets += segment_dc_delta
+        return JpegSegment(
+            data=output_segment,
+            segment_delta=segment_dc_delta,
+            tile_offset=tile_dc_offsets
+        )
 
 
 
