@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from struct import unpack
 from typing import Callable, Dict, List, Optional, Tuple, Union, DefaultDict
 from collections import defaultdict
+from functools import lru_cache
 
 from bitarray import bitarray
 
@@ -226,6 +227,7 @@ class HuffmanTable:
                 buffer.tell()
             )
 
+    @lru_cache
     def encode(self, value: int) -> Tuple[int, int]:
         """Encode value into symbol and length
 
@@ -242,6 +244,7 @@ class HuffmanTable:
         """
         return self.encode_dict[value]
 
+    @lru_cache
     def encode_into_bits(self, value: int) -> bitarray:
         """Encode value into bits
 
@@ -264,6 +267,7 @@ class HuffmanTable:
             bits.append(symbol >> (symbol.bit_length()-index - 1) & 1)
         return bits
 
+    @lru_cache
     def decode(self, symbol: int, length: int) -> Optional[int]:
         """Return decoded value for symbol and length. If symbol and length
         does not produce a decoded value, return None.
@@ -285,7 +289,7 @@ class HuffmanTable:
             raise ValueError("Max length exceeded, Could not decode symbol")
         return self.decode_dict[(symbol, length)]
 
-    def decode_from_bits(self, bits: bitarray) -> int:
+    def decode_from_bits(self, bits: bitarray) -> Tuple[int, int]:
         """Decode bits using Huffman table.
 
         Parameters
@@ -301,10 +305,10 @@ class HuffmanTable:
         bit_position = 0
         symbol = bits[bit_position]
         length = 1
-        while (symbol, length) not in self.decode_dict.keys():
+        while self.decode_dict[symbol, length] is None:
             bit_position += 1
             symbol = 2*symbol + bits[bit_position]
             length += 1
             if length > 16:  # Max bit length for symbol
                 raise ValueError("Could not decode bits")
-        return self.decode_dict[(symbol, length)]
+        return self.decode_dict[(symbol, length)], bit_position+1
