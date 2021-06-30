@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import DefaultDict, Generator, Dict, Tuple, List
+from typing import DefaultDict, Generator, Dict, OrderedDict, Tuple, List
 
 from tifffile import FileHandle, TiffPage
 from bitarray import bitarray
@@ -24,7 +24,6 @@ class Tile:
 
     def add_segment(self, segment: JpegSegment):
         self.bits += segment.data
-        # self.dc_offsets = segment.tile_offset
 
     def get_tile(self) -> bytes:
         if self.tile is not None:
@@ -116,10 +115,9 @@ class NdpiPageTiler:
             Range of stripes needed to cover tile.
         """
         start = (tile * tile_size) // stripe_size
-        end = max(
-            start + 1,
-            ((tile+1) * tile_size) // stripe_size
-        )
+        end = ((tile+1) * tile_size) // stripe_size
+        if start == end:
+            end += 1
         return range(start, end)
 
     def get_stripe(self, coordinate: Tuple[int, int]) -> bytes:
@@ -149,9 +147,12 @@ class NdpiPageTiler:
         bytes
             Produced tile at x, y, wrapped in header.
         """
-        # Check if tile not is cached
+        # Check if tile not in cached
         if (x, y) not in self.tiles.keys():
+            # Empty cache
+            self.tiles = {}
 
+            # Get the needed stripes
             stripes = {
                 (stripe_x, stripe_y): self.get_stripe((stripe_x, stripe_y))
                 for stripe_y in self.stripe_range(
@@ -165,56 +166,47 @@ class NdpiPageTiler:
                     self._tile_width
                 )
             }
+
             # Loop over the stripes and get segments.
             for stripe_coordinate, stripe in stripes.items():
-                # Calculate the tiles the segments in this stripe will span.
-                tile_x_start = (
-                    stripe_coordinate[0] *
-                    self._stripe_width // self._tile_width
-                )
-                tile_y_start = (
-                    stripe_coordinate[1] *
-                    self._stripe_height // self._tile_height
-                )
-                tile_x_end = (
-                    (stripe_coordinate[0] + 1)
-                    * self._stripe_width // self._tile_width
+                # Tiles this stripe will cover.
+                tile_range = {
+                    (tile_x, tile_y)
+                    for tile_y in self.stripe_range(
+                        stripe_coordinate[1],
+                        self._tile_height,
+                        self._stripe_height
+                    )
+                    for tile_x in self.stripe_range(
+                        stripe_coordinate[0],
+                        self._tile_width,
+                        self._stripe_width
+                    )
+                }
 
-                )
-                tile_y_end = (
-                    (stripe_coordinate[1] + 1)
-                    * self._stripe_height // self._tile_height
-                )
-
+                # Get or make the tile(s) this stripe will cover
                 tiles: List[Tile] = []
-                for tile_y in range(tile_y_start, tile_y_end+1):
-                    for tile_x in range(tile_x_start, tile_x_end):
-                        try:
-                            tiles.append(self.tiles[tile_x, tile_y])
-                        except KeyError:
-                            tile = Tile(
-                                self._page.jpegheader,
-                                self._tile_width,
-                                self._tile_height,
-                                self._header.components
-                            )
-                            self.tiles[tile_x, tile_y] = tile
-                            tiles.append(tile)
-                dc_offsets = [
-                    tile.dc_offsets for tile in tiles
-                ]
-                print(tiles)
-                # print(dc_offsets)
-                # Send the tiles
-                # as a list. get_segments can then insert the segment directly
-                # into the tiles. The tile will give the current dc offset and
-                # get_segments can update the tile dc_offset after insertion.
+                for (tile_x, tile_y) in tile_range:
+                    try:
+                        tiles.append(self.tiles[tile_x, tile_y])
+                    except KeyError:
+                        tile = Tile(
+                            self._page.jpegheader,
+                            self._tile_width,
+                            self._tile_height,
+                            self._header.components
+                        )
+                        self.tiles[tile_x, tile_y] = tile
+                        tiles.append(tile)
 
+                # Get the segments, use the dc offsets of the tile(s)
                 segments = self._header.get_segments(
                     stripe,
                     self._tile_width,
-                    dc_offsets
+                    [tile.dc_offsets for tile in tiles]
                 )
+
+                # Insert the segments into the tile(s)
                 for tile_index, segment in enumerate(segments):
                     tiles[tile_index].add_segment(segment)
 
