@@ -1,9 +1,12 @@
+from dataclasses import dataclass
 import dataclasses
 import io
+from ndpi_tiler.huffman import HuffmanTable
+from os import read
 import unittest
 from struct import unpack
-from typing import List, Tuple
-from bitarray import bitarray
+from typing import List, Tuple, Dict
+from bitarray import bitarray, util
 
 import pytest
 from ndpi_tiler.jpeg import JpegBuffer, JpegHeader, JpegScan, JpegSegment, Dc
@@ -11,6 +14,21 @@ from ndpi_tiler.jpeg_tags import MARER_MAPPINGS
 from tifffile import TiffFile
 
 from .create_jpeg_data import create_large_set, create_small_set, open_tif
+
+
+@dataclass
+class Mcu:
+    position: int
+    dc_sum: List[int]
+
+
+@dataclass
+class Segment:
+    reset: bool
+    start: int
+    end: int
+    count: int
+    segment: JpegSegment
 
 
 @pytest.mark.unittest
@@ -69,38 +87,78 @@ class NdpiTilerJpegTest(unittest.TestCase):
             data=self.small_scan._buffer.read_to_bitarray(start, end),
             segment_delta=Dc({'Y': 508, 'Cb': 0, 'Cr': 0})
         )
-        read_segment = self.small_scan.read_segment(
-            2,
-            Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
-        )
+        read_segment = self.small_scan.read_segment(2)
         print(true_segment)
         print(read_segment)
         self.assertEqual(true_segment, read_segment)
 
     def test_large_scan_read_segments(self):
-        # Need to check dc sum
-        start = 8*0+0
-        end = 8*1135+6
-        true_segment = JpegSegment(
-            data=self.large_scan._buffer.read_to_bitarray(start, end),
-            segment_delta=Dc({'Y': 81, 'Cb': 2, 'Cr': 0})
-        )
+        starts = [0, 0, 8*267+7, 8*550+0, 8*824+4]
+        ends = [8*1135+6, 8*267+7, 8*550+0, 8*824+4, 8*1135+6]
+        data = [
+            self.large_scan._buffer.read_to_bitarray(starts[i], ends[i])
+            for i in range(len(starts))
+        ]
+        tests: List[Segment] = [
+            Segment(
+                reset=True,
+                start=starts[0],
+                end=ends[0],
+                count=512,
+                segment=JpegSegment(
+                    data=data[0],
+                    segment_delta=Dc({'Y': 81, 'Cb': 2, 'Cr': 0})
+                )),
+            Segment(
+                reset=True,
+                start=starts[1],
+                end=ends[1],
+                count=128,
+                segment=JpegSegment(
+                    data=data[1],
+                    segment_delta=Dc({'Y': 80, 'Cb': 2, 'Cr': 0})
+                )),
+            Segment(
+                reset=False,
+                start=starts[2],
+                end=ends[2],
+                count=128,
+                segment=JpegSegment(
+                    data=data[2],
+                    segment_delta=Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                )),
+            Segment(
+                reset=False,
+                start=starts[3],
+                end=ends[3],
+                count=128,
+                segment=JpegSegment(
+                    data=data[3],
+                    segment_delta=Dc({'Y': 1, 'Cb': 0, 'Cr': 0})
+                )),
+            Segment(
+                reset=False,
+                start=starts[4],
+                end=ends[4],
+                count=128,
+                segment=JpegSegment(
+                    data=data[4],
+                    segment_delta=Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                ))
+        ]
+        for test in tests:
+            if test.reset:
+                self.large_scan._buffer.seek(0)
+            print(self.large_scan._buffer.pos)
+            read_segment = self.large_scan.read_segment(test.count)
 
-        read_segment = self.large_scan.read_segment(
-            512,
-            Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
-        )
-
-        self.assertEqual(true_segment, read_segment)
+            self.assertEqual(test.segment, read_segment)
 
     def test_large_scan_read_mcus(self):
         # Header offset, as positions are readed from jpeg
         header_offset = 0x294
-        Mcu = dataclasses.make_dataclass(
-            'mcu',
-            [('position', int), ('dc_sum', List[int])]
-        )
-        true_mcus = {
+
+        true_mcus: Dict[int, Mcu] = {
             0: Mcu(
                 position=8*(0x294-header_offset) + 0,
                 dc_sum=Dc({'Y': 80, 'Cb': 2, 'Cr': 0})
@@ -130,7 +188,9 @@ class NdpiTilerJpegTest(unittest.TestCase):
         read_mcus = {
             index: Mcu(
                 position=self.large_scan._buffer.pos,
-                dc_sum=self.large_scan._read_mcu(Dc({'Y': 0, 'Cb': 0, 'Cr': 0}))
+                dc_sum=self.large_scan._read_mcu(
+                    Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                )
             )
             for index in range(self.large_header.mcu_count)
         }
@@ -144,30 +204,144 @@ class NdpiTilerJpegTest(unittest.TestCase):
             decode = JpegScan._decode_value(length, code)
             self.assertEqual(value, decode)
 
-    def test_read_and_modify_segment(self):
-        # Need to check dc sum
-        start = 8*0+0
-        end = 8*1135+6
-        true_segment = JpegSegment(
-            data=self.large_scan._buffer.read_to_bitarray(start, end),
-            segment_delta=Dc({'Y': 81, 'Cb': 2, 'Cr': 0}),
-            tile_offset=Dc({'Y': 81, 'Cb': 2, 'Cr': 0})
-        )
-        read_segment = self.large_scan.read_and_modify_segment(
-            512,
-            Dc({'Y': 0, 'Cb': 0, 'Cr': 0}),
-            Dc({'Y': 0, 'Cb': 0, 'Cr': 0}),
-        )
-        print(true_segment)
-        print(read_segment)
-        self.assertEqual(true_segment, read_segment)
-
     def test_write_and_read_bitarray(self):
-        # List of length, code pairs to write
-        values: List[Tuple[int, int]] = [
-            (0, 0),
-            (1, 1),
+        bits = bitarray()
+        # Write huffman coded length and symbol for each possible value
+        # in huffman tables.
+        for component in self.large_scan.components.values():
+            for table in [component.ac_table, component.dc_table]:
+                for value in table.encode_dict.keys():
+                    length, code = self.large_scan._code_value(value)
+                    length_bits = table.encode_into_bits(length)
+                    bits += length_bits
+                    code_bits = self.large_scan._to_bits(code, length)
+                    bits += code_bits
 
+        # Read huffman coded length and symbol and compare to each possible
+        # value in huffman tables
+        bit_position = 0
+        for component in self.large_scan.components.values():
+            for table in [component.ac_table, component.dc_table]:
+                for value in table.encode_dict.keys():
+                    decoded_length, read_bits = table.decode_from_bits(
+                        bits[bit_position:]
+                    )
+                    bit_position = bit_position + read_bits
+                    if decoded_length == 0:
+                        decoded_value = 0
+                    else:
+                        decoded_value = self.large_scan._decode_value(
+                            decoded_length,
+                            util.ba2int(
+                                bits[bit_position:bit_position+decoded_length]
+                            )
+                        )
+                    bit_position += decoded_length
+                    self.assertEqual(value, decoded_value)
+        # Check that all bits have been read
+        self.assertEqual(len(bits), bit_position)
 
+    def test_encode_know_sequence(self):
+        know_bits = bitarray(
+            '1111 1100 1111 1111 1110 0010\
+             1010 1111 1110 1111 1111 0011\
+             0001 0101 01'
+        )
+        # length symbol, value, table
+        values: List[Tuple[int, int, HuffmanTable]] = [
+            (10, -512, self.small_scan.components['Y'].dc_table),
+            (0, 0, self.small_scan.components['Y'].ac_table),
+            (0, 0, self.small_scan.components['Cb'].dc_table),
+            (0, 0, self.small_scan.components['Cb'].ac_table),
+            (0, 0, self.small_scan.components['Cb'].dc_table),
+            (0, 0, self.small_scan.components['Cb'].ac_table),
+            (10, 1020, self.small_scan.components['Y'].dc_table),
+            (0, 0, self.small_scan.components['Y'].ac_table),
+            (0, 0, self.small_scan.components['Cb'].dc_table),
+            (0, 0, self.small_scan.components['Cb'].ac_table),
+            (0, 0, self.small_scan.components['Cb'].dc_table),
+            (0, 0, self.small_scan.components['Cb'].ac_table),
         ]
         bits = bitarray()
+        for value in values:
+            block = bitarray()
+            table = value[2]
+            length, code = self.small_scan._code_value(value[1])
+            length_bits = table.encode_into_bits(length)
+            block += length_bits
+            code_bits = self.small_scan._to_bits(code, length)
+            block += code_bits
+            bits += block
+        self.assertEqual(know_bits, bits)
+
+    def test_read_and_modify_segment_no_modify(self):
+        starts = [0, 0, 8*267+7, 8*550+0, 8*824+4]
+        ends = [8*1135+6, 8*267+7, 8*550+0, 8*824+4, 8*1135+6]
+        data = [
+            self.large_scan._buffer.read_to_bitarray(starts[i], ends[i])
+            for i in range(len(starts))
+        ]
+        tests: List[Segment] = [
+            Segment(
+                reset=True,
+                start=starts[0],
+                end=ends[0],
+                count=512,
+                segment=JpegSegment(
+                    data=data[0],
+                    segment_delta=Dc({'Y': 81, 'Cb': 2, 'Cr': 0}),
+                    tile_offset=Dc({'Y': 81, 'Cb': 2, 'Cr': 0})
+                )),
+            Segment(
+                reset=True,
+                start=starts[1],
+                end=ends[1],
+                count=128,
+                segment=JpegSegment(
+                    data=data[1],
+                    segment_delta=Dc({'Y': 80, 'Cb': 2, 'Cr': 0}),
+                    tile_offset=Dc({'Y': 80, 'Cb': 2, 'Cr': 0})
+                )),
+            Segment(
+                reset=False,
+                start=starts[2],
+                end=ends[2],
+                count=128,
+                segment=JpegSegment(
+                    data=data[2],
+                    segment_delta=Dc({'Y': 0, 'Cb': 0, 'Cr': 0}),
+                    tile_offset=Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                )),
+            Segment(
+                reset=False,
+                start=starts[3],
+                end=ends[3],
+                count=128,
+                segment=JpegSegment(
+                    data=data[3],
+                    segment_delta=Dc({'Y': 1, 'Cb': 0, 'Cr': 0}),
+                    tile_offset=Dc({'Y': 1, 'Cb': 0, 'Cr': 0})
+                )),
+            Segment(
+                reset=False,
+                start=starts[4],
+                end=ends[4],
+                count=128,
+                segment=JpegSegment(
+                    data=data[4],
+                    segment_delta=Dc({'Y': 0, 'Cb': 0, 'Cr': 0}),
+                    tile_offset=Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                ))
+        ]
+        for test in tests:
+            if test.reset:
+                self.large_scan._buffer.seek(0)
+
+            read_segment = self.large_scan.read_and_modify_segment(
+                test.count,
+                Dc.zero(self.large_scan.components.keys()),
+                Dc.zero(self.large_scan.components.keys())
+            )
+            print(test.segment)
+            print(read_segment)
+            self.assertEqual(test.segment, read_segment)
