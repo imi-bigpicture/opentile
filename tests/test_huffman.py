@@ -88,7 +88,7 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
         self.assertEqual(root._insert_into_new_child(HuffmanLeaf(3), 1), None)
 
     def test_huffman(self):
-        DC_0 = self.large_header.components['Y'].dc_table
+        DC_0 = self.large_header.components[0].dc_table
         codes = {
             0x00: Bits('0b00'),
             0x01: Bits('0b010'),
@@ -108,7 +108,7 @@ class NdpiTilerHuffmanTest(unittest.TestCase):
             decoded, _ = DC_0.decode_from_bits(code)
             self.assertEqual(truth, decoded)
 
-        AC_0 = self.large_header.components['Y'].ac_table
+        AC_0 = self.large_header.components[0].ac_table
 
         codes = {
             0x01: Bits('0b00'),

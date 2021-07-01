@@ -16,8 +16,8 @@ MCU_SIZE = 8
 
 @dataclass
 class Component:
-    """Holds Huffman tables for a component identified by string name."""
-    name: str
+    """Holds Huffman tables for a component."""
+    identifier: int
     dc_table_id: HuffmanTableIdentifier
     ac_table_id: HuffmanTableIdentifier
     dc_table: HuffmanTable = None
@@ -26,24 +26,24 @@ class Component:
 
 @dataclass
 class Dc:
-    """Holds DC amplitude offsets for components identified by string name."""
-    offsets: Dict[str, int]
+    """Holds DC amplitude offsets for components identified by component id."""
+    offsets: Dict[int, int]
 
     def add(self, values: 'Dc') -> None:
         """Add another offset to this offset."""
-        for name in self.names:
-            self.offsets[name] += values[name]
+        for identifier in self.identifiers:
+            self.offsets[identifier] += values[identifier]
 
     def remove(self, values: 'Dc') -> None:
         """Remove another offset to this offset."""
-        for name in self.names:
-            self.offsets[name] -= values[name]
+        for identifier in self.identifiers:
+            self.offsets[identifier] -= values[identifier]
 
-    def __getitem__(self, name: str) -> int:
-        return self.offsets[name]
+    def __getitem__(self, identifier: int) -> int:
+        return self.offsets[identifier]
 
-    def __setitem__(self, name: str, value: int) -> None:
-        self.offsets[name] = value
+    def __setitem__(self, identifier: int, value: int) -> None:
+        self.offsets[identifier] = value
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Dc):
@@ -54,12 +54,12 @@ class Dc:
         return NotImplemented
 
     @classmethod
-    def zero(cls, names: List[str]) -> 'Dc':
+    def zero(cls, identifiers: List[int]) -> 'Dc':
         """Return a object initialized with 0."""
-        return cls({name: 0 for name in names})
+        return cls({identifier: 0 for identifier in identifiers})
 
     @property
-    def names(self) -> List[str]:
+    def identifiers(self) -> List[int]:
         return self.offsets.keys()
 
 
@@ -135,19 +135,85 @@ class JpegBuffer:
         skip_to = self.pos + skip_length
         self.seek(skip_to)
 
+    @classmethod
+    def convert_to_bytes(cls, bits: bitarray) -> bytes:
+        padding_bits = 7 - (len(bits) - 1) % 8
+        bits += bitarray(padding_bits*[1])
+
+        # Convert to bytes
+        data = bytearray(bits.tobytes())
+
+        # Add byte stuffing after 0xFF
+        data = data.replace(BYTE_TAG, BYTE_TAG_STUFFING)
+
+        return data
+
 
 class JpegHeader:
     """Class for minimal parsing of jpeg header"""
     def __init__(
         self,
-        width: int,
-        height: int,
-        components: List[Component],
-        restart_interval: int = None
+        data: bytes,
     ) -> None:
+        """Parse jpeg header. Read markers from data and parse payload if
+        huffman table(s) or start of frame.
 
+        Parameters
+        ----------
+        data: bytes
+            Jpeg header in bytes.
+
+        Returns
+        ----------
+        JpegHeader
+            JpegHeader created from data.
+        """
+        self.header_data = data
+        width: int
+        height: int
+        components: List[Component] = []
+        huffman_tables: Dict[HuffmanTableIdentifier, HuffmanTable] = {}
+
+        restart_interval = None
+        with io.BytesIO(data) as buffer:
+            marker = self.read_marker(buffer)
+            if not marker == TAGS['start of image']:
+                raise ValueError("Expected start of image marker")
+            marker = self.read_marker(buffer)
+            while marker is not None:
+                if (
+                    marker == TAGS['start of image'] or
+                    marker == TAGS['end of image']
+                ):
+                    raise ValueError("Unexpected marker")
+                payload = self.read_payload(buffer)
+                if marker == TAGS['huffman table']:
+                    huffman_tables = self.parse_huffman(
+                        payload,
+                        huffman_tables
+                    )
+                elif marker == TAGS['start of frame']:
+                    (width, height) = self.parse_start_of_frame(payload)
+                elif marker == TAGS['start of scan']:
+                    components = self.parse_start_of_scan(payload)
+                elif marker == TAGS['restart interval']:
+                    restart_interval = self.parse_restart_interval(payload)
+                else:
+                    pass
+
+                marker = self.read_marker(buffer)
+        if (
+            huffman_tables == {} or
+            width is None or height is None or
+            components == []
+        ):
+            raise ValueError("missing tags")
+
+        for component in components:
+            component.dc_table = huffman_tables[component.dc_table_id]
+            component.ac_table = huffman_tables[component.ac_table_id]
         self._components = {
-            component.name: component for component in components
+            component.identifier: component for component in components
         }
         self._width = width
         self._height = height
@@ -163,7 +229,7 @@ class JpegHeader:
         return self._height
 
     @property
-    def components(self) -> Dict[str, Component]:
+    def components(self) -> Dict[int, Component]:
         return self._components
 
     @property
@@ -175,69 +241,6 @@ class JpegHeader:
         if self._restart_interval is not None:
             return self._restart_interval
         return self.width * self.height // (MCU_SIZE*MCU_SIZE)
-
-    @classmethod
-    def from_bytes(cls, data: bytes) -> 'JpegHeader':
-        """Parse jpeg header. Read markers from data and parse payload if
-        huffman table(s) or start of frame. Ignore other markers (for now)
-
-        Parameters
-        ----------
-        data: bytes
-            Jpeg header in bytes.
-
-        Returns
-        ----------
-        JpegHeader
-            JpegHeader created from data.
-
-        """
-        width: int
-        height: int
-        components: List[Component] = []
-        huffman_tables: Dict[HuffmanTableIdentifier, HuffmanTable] = {}
-
-        with io.BytesIO(data) as buffer:
-            marker = cls.read_marker(buffer)
-            if not marker == TAGS['start of image']:
-                raise ValueError("Expected start of image marker")
-            marker = cls.read_marker(buffer)
-            while marker is not None:
-                if (
-                    marker == TAGS['start of image'] or
-                    marker == TAGS['end of image']
-                ):
-                    raise ValueError("Unexpected marker")
-                payload = cls.read_payload(buffer)
-                if marker == TAGS['huffman table']:
-                    huffman_tables = cls.parse_huffman(payload, huffman_tables)
-                elif marker == TAGS['start of frame']:
-                    (width, height) = cls.parse_start_of_frame(payload)
-                elif marker == TAGS['start of scan']:
-                    components = cls.parse_start_of_scan(payload)
-                elif marker == TAGS['restart interval']:
-                    restart_interval = cls.parse_restart_interval(payload)
-                else:
-                    pass
-
-                marker = cls.read_marker(buffer)
-        if (
-            huffman_tables == {} or
-            width is None or height is None or
-            components == []
-        ):
-            raise ValueError("missing tags")
-
-        for component in components:
-            component.dc_table = huffman_tables[component.dc_table_id]
-            component.ac_table = huffman_tables[component.ac_table_id]
-
-        return cls(
-            width,
-            height,
-            components,
-            restart_interval
-        )
 
     @staticmethod
     def find_tag(
@@ -252,12 +255,18 @@ class JpegHeader:
         return None, None
 
     @classmethod
-    def manupulate_header(cls, header: bytes, size: Tuple[int, int]) -> bytes:
-        """Manipulate pixel size (width, height) of page header and
-        remove reset interval marker.
+    def manupulated_header(
+        cls,
+        header: bytes,
+        size: Tuple[int, int]
+    ) -> bytes:
+        """Return manipulated header with changed pixel size (width, height)
+        of removed reset interval marker.
 
         Parameters
         ----------
+        heaer: bytes
+            Header to manipulate.
         size: Tuple[int, int]
             Pixel size to insert into header.
 
@@ -266,13 +275,13 @@ class JpegHeader:
         bytes:
             Manupulated header.
         """
+        header = bytearray(header)
         start_of_scan_index, length = cls.find_tag(
             header, TAGS['start of frame']
         )
         if start_of_scan_index is None:
             raise ValueError("Start of scan tag not found in header")
         size_index = start_of_scan_index+5
-        header = bytearray(header)
         header[size_index:size_index+2] = struct.pack(">H", size[1])
         header[size_index+2:size_index+4] = struct.pack(">H", size[0])
 
@@ -284,10 +293,8 @@ class JpegHeader:
 
         return bytes(header)
 
-    @classmethod
     def wrap_scan(
-        cls,
-        header: bytes,
+        self,
         scan: bytes,
         size: Tuple[int, int]
     ) -> bytes:
@@ -295,8 +302,6 @@ class JpegHeader:
 
         Parameters
         ----------
-        header: bytes
-            Header to use.
         scan: bytes
             Scan data to wrap.
         size: Tuple[int, int]
@@ -308,7 +313,7 @@ class JpegHeader:
             Scan wrapped in header as bytes.
         """
 
-        image = cls.manupulate_header(header, size)
+        image = self.manupulated_header(self.header_data, size)
         image += scan
         image += bytes([0xFF, 0xD9])
         return image
@@ -344,7 +349,7 @@ class JpegHeader:
         Returns
         ----------
         List[Component]
-            Huffman table selection with component name as key.
+            Huffman table selection with component identifier as key.
 
         """
         with io.BytesIO(payload) as buffer:
@@ -353,16 +358,9 @@ class JpegHeader:
             for component in range(number_of_components):
                 identifier, table_selection = unpack('BB', buffer.read(2))
                 dc_table, ac_table = split_byte_into_nibbles(table_selection)
-                if identifier == 0:
-                    name = 'Y'
-                elif identifier == 1:
-                    name = 'Cb'
-                elif identifier == 2:
-                    name = 'Cr'
-                else:
-                    raise ValueError("Incorrect component identifier")
+
                 components.append(Component(
-                    name=name,
+                    identifier=identifier,
                     dc_table_id=HuffmanTableIdentifier('DC', dc_table),
                     ac_table_id=HuffmanTableIdentifier('AC', ac_table)
                 ))
@@ -518,7 +516,7 @@ class JpegScan:
         self._buffer = JpegBuffer(data)
 
     @property
-    def components(self) -> Dict[str, Component]:
+    def components(self) -> Dict[int, Component]:
         return self._components
 
     @property
@@ -587,8 +585,8 @@ class JpegScan:
 
         """
         mcu_dc = Dc({
-                name: self._read_mcu_component(component)
-                for name, component in self.components.items()
+                identifier: self._read_mcu_component(component)
+                for identifier, component in self.components.items()
             })
         dc_sums.add(mcu_dc)
         return dc_sums
@@ -718,14 +716,14 @@ class JpegScan:
 
         output_segment = bitarray()
 
-        for name, component in self.components.items():
+        for id, component in self.components.items():
             current_dc = self._read_dc(component.dc_table)
             new_dc = (
-                stripe_dc_offsets[name] + current_dc - tile_dc_offsets[name]
+                stripe_dc_offsets[id] + current_dc - tile_dc_offsets[id]
             )
 
-            stripe_dc_offsets[name] += current_dc
-            tile_dc_offsets[name] += new_dc
+            stripe_dc_offsets[id] += current_dc
+            tile_dc_offsets[id] += new_dc
             # Code the value into length and code
             length, code = self._code_value(new_dc)
             # Encode length using huffman table and write to output segment

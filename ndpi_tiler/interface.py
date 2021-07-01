@@ -1,19 +1,17 @@
-from collections import defaultdict
-from typing import DefaultDict, Generator, Dict, OrderedDict, Tuple, List
+from typing import Dict, Tuple, List
 
 from tifffile import FileHandle, TiffPage
 from bitarray import bitarray
-from ndpi_tiler.jpeg import Component, JpegHeader, JpegSegment, Dc
-from ndpi_tiler.jpeg_tags import BYTE_TAG, BYTE_TAG_STUFFING
+from ndpi_tiler.jpeg import Component, JpegBuffer, JpegHeader, JpegSegment, Dc
 
 
 class Tile:
     def __init__(
         self,
-        header: bytes,
+        header: JpegHeader,
         tile_width: int,
         tile_height: int,
-        components: Dict[str, Component]
+        components: Dict[int, Component]
     ):
         self.header = header
         self.tile_width = tile_width
@@ -29,19 +27,11 @@ class Tile:
         if self.tile is not None:
             return self.tile
 
-        # Pad scan with ending 1
-        padding_bits = 7 - (len(self.bits) - 1) % 8
-        self.bits += bitarray(padding_bits*[1])
-
-        # Convert to bytes
-        scan_bytes = bytearray(self.bits.tobytes())
-
-        # Add byte stuffing after 0xFF
-        scan_bytes = scan_bytes.replace(BYTE_TAG, BYTE_TAG_STUFFING)
+        # Pad scan with ending 1, convert to bytes and add stuffing
+        scan_bytes = JpegBuffer.convert_to_bytes(self.bits)
 
         # Wrap scan with modified header and end of image tag.
-        self.tile = JpegHeader.wrap_scan(
-            self.header,
+        self.tile = self.header.wrap_scan(
             scan_bytes,
             (self.tile_width, self.tile_height)
         )
@@ -74,7 +64,7 @@ class NdpiPageTiler:
         """
         self._fh = fh
         self._page = page
-        self._header = JpegHeader.from_bytes(self._page.jpegheader)
+        self._header = JpegHeader(self._page.jpegheader)
         self._stripe_width = self._header.width
         self._stripe_height = self._header.height
         self.stripe_cols = self._page.chunked[1]
@@ -191,7 +181,7 @@ class NdpiPageTiler:
                         tiles.append(self.tiles[tile_x, tile_y])
                     except KeyError:
                         tile = Tile(
-                            self._page.jpegheader,
+                            self._header,
                             self._tile_width,
                             self._tile_height,
                             self._header.components

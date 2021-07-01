@@ -85,7 +85,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         end = 8*7+2
         true_segment = JpegSegment(
             data=self.small_scan._buffer.read_to_bitarray(start, end),
-            segment_delta=Dc({'Y': 508, 'Cb': 0, 'Cr': 0})
+            segment_delta=Dc({1: 508, 2: 0, 3: 0})
         )
         read_segment = self.small_scan.read_segment(2)
         print(true_segment)
@@ -107,7 +107,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 count=512,
                 segment=JpegSegment(
                     data=data[0],
-                    segment_delta=Dc({'Y': 81, 'Cb': 2, 'Cr': 0})
+                    segment_delta=Dc({0: 81, 1: 2, 2: 0})
                 )),
             Segment(
                 reset=True,
@@ -116,7 +116,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 count=128,
                 segment=JpegSegment(
                     data=data[1],
-                    segment_delta=Dc({'Y': 80, 'Cb': 2, 'Cr': 0})
+                    segment_delta=Dc({0: 80, 1: 2, 2: 0})
                 )),
             Segment(
                 reset=False,
@@ -125,7 +125,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 count=128,
                 segment=JpegSegment(
                     data=data[2],
-                    segment_delta=Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                    segment_delta=Dc({0: 0, 1: 0, 2: 0})
                 )),
             Segment(
                 reset=False,
@@ -134,7 +134,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 count=128,
                 segment=JpegSegment(
                     data=data[3],
-                    segment_delta=Dc({'Y': 1, 'Cb': 0, 'Cr': 0})
+                    segment_delta=Dc({0: 1, 1: 0, 2: 0})
                 )),
             Segment(
                 reset=False,
@@ -143,7 +143,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
                 count=128,
                 segment=JpegSegment(
                     data=data[4],
-                    segment_delta=Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                    segment_delta=Dc({0: 0, 1: 0, 2: 0})
                 ))
         ]
         for test in tests:
@@ -161,27 +161,27 @@ class NdpiTilerJpegTest(unittest.TestCase):
         true_mcus: Dict[int, Mcu] = {
             0: Mcu(
                 position=8*(0x294-header_offset) + 0,
-                dc_sum=Dc({'Y': 80, 'Cb': 2, 'Cr': 0})
+                dc_sum=Dc({0: 80, 1: 2, 2: 0})
             ),
             1: Mcu(
                 position=8*(0x297-header_offset) + 2,
-                dc_sum=Dc({'Y': 1, 'Cb': 0, 'Cr': 0})
+                dc_sum=Dc({0: 1, 1: 0, 2: 0})
             ),
             150: Mcu(
                 position=8*(0x3D4-header_offset) + 5,
-                dc_sum=Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                dc_sum=Dc({0: 0, 1: 0, 2: 0})
             ),
             151: Mcu(
                 position=8*(0x3D6-header_offset) + 3,
-                dc_sum=Dc({'Y': 0, 'Cb': 1, 'Cr': 0})
+                dc_sum=Dc({0: 0, 1: 1, 2: 0})
             ),
             510: Mcu(
                 position=8*(0x700-header_offset) + 0,
-                dc_sum=Dc({'Y': -1, 'Cb': 0, 'Cr': 0})
+                dc_sum=Dc({0: -1, 1: 0, 2: 0})
             ),
             511: Mcu(
                 position=8*(0x702-header_offset) + 0,
-                dc_sum=Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                dc_sum=Dc({0: 0, 1: 0, 2: 0})
             )
         }
         self.large_scan._buffer.seek(0)
@@ -189,7 +189,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
             index: Mcu(
                 position=self.large_scan._buffer.pos,
                 dc_sum=self.large_scan._read_mcu(
-                    Dc({'Y': 0, 'Cb': 0, 'Cr': 0})
+                    Dc({0: 0, 1: 0, 2: 0})
                 )
             )
             for index in range(self.large_header.mcu_count)
@@ -249,18 +249,18 @@ class NdpiTilerJpegTest(unittest.TestCase):
         )
         # length symbol, value, table
         values: List[Tuple[int, int, HuffmanTable]] = [
-            (10, -512, self.small_scan.components['Y'].dc_table),
-            (0, 0, self.small_scan.components['Y'].ac_table),
-            (0, 0, self.small_scan.components['Cb'].dc_table),
-            (0, 0, self.small_scan.components['Cb'].ac_table),
-            (0, 0, self.small_scan.components['Cb'].dc_table),
-            (0, 0, self.small_scan.components['Cb'].ac_table),
-            (10, 1020, self.small_scan.components['Y'].dc_table),
-            (0, 0, self.small_scan.components['Y'].ac_table),
-            (0, 0, self.small_scan.components['Cb'].dc_table),
-            (0, 0, self.small_scan.components['Cb'].ac_table),
-            (0, 0, self.small_scan.components['Cb'].dc_table),
-            (0, 0, self.small_scan.components['Cb'].ac_table),
+            (10, -512, self.small_scan.components[1].dc_table),
+            (0, 0, self.small_scan.components[1].ac_table),
+            (0, 0, self.small_scan.components[2].dc_table),
+            (0, 0, self.small_scan.components[2].ac_table),
+            (0, 0, self.small_scan.components[3].dc_table),
+            (0, 0, self.small_scan.components[3].ac_table),
+            (10, 1020, self.small_scan.components[1].dc_table),
+            (0, 0, self.small_scan.components[1].ac_table),
+            (0, 0, self.small_scan.components[2].dc_table),
+            (0, 0, self.small_scan.components[2].ac_table),
+            (0, 0, self.small_scan.components[3].dc_table),
+            (0, 0, self.small_scan.components[3].ac_table),
         ]
         bits = bitarray()
         for value in values:
