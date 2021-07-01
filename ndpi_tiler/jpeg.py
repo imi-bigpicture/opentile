@@ -95,7 +95,7 @@ class JpegBuffer:
         return data.replace(BYTE_TAG_STUFFING, BYTE_TAG)
 
     @property
-    def pos(self) -> int:
+    def position(self) -> int:
         """The current buffer position."""
         return self._bit_pos
 
@@ -104,6 +104,7 @@ class JpegBuffer:
         sum = 0
         for value in self._data[self._bit_pos:self._bit_pos+count]:
             sum = 2*sum + value
+
         self._bit_pos += count
         return sum
 
@@ -132,7 +133,7 @@ class JpegBuffer:
 
     def skip(self, skip_length: int) -> None:
         """Skip length of bits in buffer."""
-        skip_to = self.pos + skip_length
+        skip_to = self.position + skip_length
         self.seek(skip_to)
 
     @classmethod
@@ -539,9 +540,9 @@ class JpegScan:
         JpegSegment:
             Read segment.
         """
-        start = self._buffer.pos
+        start = self._buffer.position
         dc_offsets = self._read_multiple_mcus(count)
-        end = self._buffer.pos
+        end = self._buffer.position
         return JpegSegment(
             data=self._buffer.read_to_bitarray(start, end),
             segment_delta=dc_offsets
@@ -732,21 +733,21 @@ class JpegScan:
             output_segment += self._to_bits(code, length)
 
             # Get start and end of ac and write to output_segment
-            block_ac_start = self._buffer.pos
+            block_ac_start = self._buffer.position
             self._skip_ac(component.ac_table)
-            block_ac_end = self._buffer.pos
+            block_ac_end = self._buffer.position
             output_segment += self._buffer.read_to_bitarray(
                 block_ac_start,
                 block_ac_end
             )
 
         # Get start and end of rest of mcus and add to segment delta
-        rest_of_segment_start = self._buffer.pos
+        rest_of_segment_start = self._buffer.position
         rest_of_segment_dc_delta = self._read_multiple_mcus(count - 1)
 
         stripe_dc_offsets.add(rest_of_segment_dc_delta)
         tile_dc_offsets.add(rest_of_segment_dc_delta)
-        segment_end = self._buffer.pos
+        segment_end = self._buffer.position
         output_segment += self._buffer.read_to_bitarray(
             rest_of_segment_start,
             segment_end

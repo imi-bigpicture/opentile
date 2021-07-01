@@ -46,19 +46,19 @@ class NdpiTilerJpegBufferTest(unittest.TestCase):
 
     def test_seek(self):
         self.buffer.seek(18)
-        self.assertEqual(self.buffer.pos, 18)
+        self.assertEqual(self.buffer.position, 18)
 
         self.buffer.seek(7)
-        self.assertEqual(self.buffer.pos, 7)
+        self.assertEqual(self.buffer.position, 7)
 
         self.buffer.seek(25)
-        self.assertEqual(self.buffer.pos, 25)
+        self.assertEqual(self.buffer.position, 25)
 
         self.buffer.seek(32)
-        self.assertEqual(self.buffer.pos, 32)
+        self.assertEqual(self.buffer.position, 32)
 
         self.buffer.seek(31)
-        self.assertEqual(self.buffer.pos, 31)
+        self.assertEqual(self.buffer.position, 31)
 
     def test_seek_read(self):
         self.buffer.read(4)
@@ -76,10 +76,10 @@ class NdpiTilerJpegBufferTest(unittest.TestCase):
 
     def test_skip_pos(self):
         self.buffer.skip(2)
-        self.assertEqual(self.buffer.pos, 2)
+        self.assertEqual(self.buffer.position, 2)
 
         self.buffer.skip(6)
-        self.assertEqual(self.buffer.pos, 8)
+        self.assertEqual(self.buffer.position, 8)
 
     def test_skip_read(self):
         self.buffer.skip(8)
@@ -87,7 +87,7 @@ class NdpiTilerJpegBufferTest(unittest.TestCase):
 
         self.buffer.skip(1)
         self.assertEqual(self.buffer.read(3), 0b111)
-        print(self.buffer.pos)
+        print(self.buffer.position)
 
         self.buffer.skip(2)
         self.assertEqual(self.buffer.read(3), 0b000)

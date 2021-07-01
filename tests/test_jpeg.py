@@ -149,7 +149,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         for test in tests:
             if test.reset:
                 self.large_scan._buffer.seek(0)
-            print(self.large_scan._buffer.pos)
+            print(self.large_scan._buffer.position)
             read_segment = self.large_scan.read_segment(test.count)
 
             self.assertEqual(test.segment, read_segment)
@@ -187,7 +187,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         self.large_scan._buffer.seek(0)
         read_mcus = {
             index: Mcu(
-                position=self.large_scan._buffer.pos,
+                position=self.large_scan._buffer.position,
                 dc_sum=self.large_scan._read_mcu(
                     Dc({0: 0, 1: 0, 2: 0})
                 )
