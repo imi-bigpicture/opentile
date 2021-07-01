@@ -18,10 +18,8 @@ MCU_SIZE = 8
 class Component:
     """Holds Huffman tables for a component."""
     identifier: int
-    dc_table_id: HuffmanTableIdentifier
-    ac_table_id: HuffmanTableIdentifier
-    dc_table: HuffmanTable = None
-    ac_table: HuffmanTable = None
+    dc_table: HuffmanTable
+    ac_table: HuffmanTable
 
 
 @dataclass
@@ -172,7 +170,7 @@ class JpegHeader:
         self.header_data = data
         width: int
         height: int
-        components: List[Component] = []
+        components_stubs: List[Tuple[int, int, int]] = []
         huffman_tables: Dict[HuffmanTableIdentifier, HuffmanTable] = {}
 
         restart_interval = None
@@ -196,7 +194,7 @@ class JpegHeader:
                 elif marker == TAGS['start of frame']:
                     (width, height) = self.parse_start_of_frame(payload)
                 elif marker == TAGS['start of scan']:
-                    components = self.parse_start_of_scan(payload)
+                    components_stubs = self.parse_start_of_scan(payload)
                 elif marker == TAGS['restart interval']:
                     restart_interval = self.parse_restart_interval(payload)
                 else:
@@ -206,15 +204,17 @@ class JpegHeader:
         if (
             huffman_tables == {} or
             width is None or height is None or
-            components == []
+            components_stubs == []
         ):
             raise ValueError("missing tags")
 
-        for component in components:
-            component.dc_table = huffman_tables[component.dc_table_id]
-            component.ac_table = huffman_tables[component.ac_table_id]
         self._components = {
-            component.identifier: component for component in components
+            component_id: Component(
+                component_id,
+                huffman_tables[HuffmanTableIdentifier('DC', dc_id)],
+                huffman_tables[HuffmanTableIdentifier('AC', ac_id)]
+            )
+            for (component_id, dc_id, ac_id) in components_stubs
         }
         self._width = width
         self._height = height
@@ -338,7 +338,7 @@ class JpegHeader:
     @staticmethod
     def parse_start_of_scan(
         payload: bytes
-    ) -> List[Component]:
+    ) -> List[Tuple[int, int, int]]:
         """Parse start of scan paylaod. Only Huffman table selections are
         extracted.
 
@@ -349,22 +349,17 @@ class JpegHeader:
 
         Returns
         ----------
-        List[Component]
-            Huffman table selection with component identifier as key.
+        List[Tuple[int, int, int]]
+            List of component id, dc table id and ac table id
 
         """
         with io.BytesIO(payload) as buffer:
             number_of_components: int = unpack('B', buffer.read(1))[0]
-            components: List[Component] = []
+            components: List[Tuple[int, int, int]] = []
             for component in range(number_of_components):
                 identifier, table_selection = unpack('BB', buffer.read(2))
                 dc_table, ac_table = split_byte_into_nibbles(table_selection)
-
-                components.append(Component(
-                    identifier=identifier,
-                    dc_table_id=HuffmanTableIdentifier('DC', dc_table),
-                    ac_table_id=HuffmanTableIdentifier('AC', ac_table)
-                ))
+                components.append((identifier, dc_table, ac_table))
         return components
 
     @staticmethod

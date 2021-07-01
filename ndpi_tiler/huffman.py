@@ -195,7 +195,6 @@ class HuffmanTable:
                 self.encode_dict[value] = (symbol, length+1)
                 self.decode_dict[(symbol, length+1)] = value
 
-
     @property
     def identifier(self) -> HuffmanTableIdentifier:
         """Header of the Huffman table"""
