@@ -5,7 +5,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union, DefaultDict
 from collections import defaultdict
 from functools import lru_cache
 
-from bitarray import bitarray
+from bitarray import bitarray, decodetree, util
 
 from ndpi_tiler.utils import split_byte_into_nibbles
 
@@ -165,21 +165,19 @@ class HuffmanTable:
         self.decode_dict: DefaultDict[Tuple[int, int], int] = (
             defaultdict(lambda: None)
         )
+        self.decode_list: Dict[Tuple[int, int]] = {}
+        self.max_length: int = 0
+        for length, level in enumerate(values_in_levels):
+            if level != []:
+                self.max_length = length + 1
 
-        # Make a list of bits needed to be read at each length. E.g, there is
-        # almost never a symbol of length 1, so we can almost always start with
-        # reading two bits for the first symbol-length combination. Further,
-        # There is typically some gaps in the table that can be jumped.
-        # This could reduce the number of reads significantly as most
-        # symbols are short.
-        self.bits_to_read_at_length: List[int] = []
-
-        root = HuffmanNode(0)
+        self.root = HuffmanNode(0)
         for length, level in enumerate(values_in_levels):
             for value in level:
+                # self.max_length = length + 1
                 leaf = HuffmanLeaf(value)
                 # Return symbol if leaf inserted
-                symbol = root.insert(leaf, length)
+                symbol = self.root.insert(leaf, length)
                 if symbol is None:
                     raise ValueError(
                         f"Huffman table not correct "
@@ -194,6 +192,17 @@ class HuffmanTable:
                     )
                 self.encode_dict[value] = (symbol, length+1)
                 self.decode_dict[(symbol, length+1)] = value
+
+                shifted_symbol = symbol << (self.max_length - (length+1))
+                for less_bits in range(1 << (self.max_length - (length + 1))):
+                    self.decode_list[shifted_symbol+less_bits] = (
+                        value, length + 1
+                    )
+
+        self.decode_tree = decodetree({
+            (value, length): util.int2ba(symbol, length)
+            for (symbol, length), value in self.decode_dict.items()
+        })
 
     @property
     def identifier(self) -> HuffmanTableIdentifier:
@@ -296,6 +305,27 @@ class HuffmanTable:
         if length > 16:  # Max bit length for symbol
             raise ValueError("Max length exceeded, Could not decode symbol")
         return self.decode_dict[(symbol, length)]
+
+    @lru_cache(maxsize=None)
+    def decode_from_list(self, symbol: int) -> Tuple[int, int]:
+        """Return decoded value for symbol and length. If symbol and length
+        does not produce a decoded value, return None.
+
+        Parameters
+        ----------
+        symbol: int
+            Symbol to decode.
+        length: int
+            Length of symbol to decode.
+
+        Returns
+        ----------
+        Optional[int]
+            Decoded value from symbol and length.
+
+        """
+
+        return self.decode_list[symbol]
 
     def decode_from_bits(self, bits: bitarray) -> Tuple[int, int]:
         """Decode bits using Huffman table.

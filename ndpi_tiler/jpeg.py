@@ -1,13 +1,15 @@
 import io
 import struct
+from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
+from functools import lru_cache
 from struct import unpack
 from typing import Dict, List, Optional, Tuple
-from functools import lru_cache
 
 from bitarray import bitarray, util
 
-from ndpi_tiler.huffman import HuffmanTable, HuffmanTableIdentifier
+from ndpi_tiler.huffman import (HuffmanLeaf, HuffmanTable,
+                                HuffmanTableIdentifier)
 from ndpi_tiler.jpeg_tags import BYTE_TAG, BYTE_TAG_STUFFING, TAGS
 from ndpi_tiler.utils import split_byte_into_nibbles
 
@@ -68,7 +70,50 @@ class JpegSegment:
     segment_delta: Dc = None
 
 
-class JpegBuffer:
+class JpegBuffer(metaclass=ABCMeta):
+
+    @staticmethod
+    def remove_stuffing(data: bytes) -> bytearray:
+        """Remove byte stuffing (0x00 following 0xFF)"""
+        return data.replace(BYTE_TAG_STUFFING, BYTE_TAG)
+
+    @property
+    @abstractmethod
+    def position(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def read(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def read_variable_length(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def skip(self, count: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def read_to_bitarray(self, start: int, end: int) -> bitarray:
+        raise NotImplementedError
+
+    @abstractmethod
+    def reset(self) -> None:
+        raise NotImplementedError
+
+    @classmethod
+    def convert_to_bytes(cls, bits: bitarray) -> bytes:
+        padding_bits = 7 - (len(bits) - 1) % 8
+        bits += bitarray(padding_bits*[1])
+        # Convert to bytes
+        data = bytearray(bits.tobytes())
+        # Add byte stuffing after 0xFF
+        data = data.replace(BYTE_TAG, BYTE_TAG_STUFFING)
+        return data
+
+
+class JpegBufferBit(JpegBuffer):
     """Convenience class for reading bits from Jpeg data."""
     def __init__(
         self,
@@ -87,11 +132,6 @@ class JpegBuffer:
         self._data.frombytes(self.remove_stuffing(data))
         self._bit_pos = 0
 
-    @staticmethod
-    def remove_stuffing(data: bytes) -> bytearray:
-        """Remove byte stuffing (0x00 following 0xFF)"""
-        return data.replace(BYTE_TAG_STUFFING, BYTE_TAG)
-
     @property
     def position(self) -> int:
         """The current buffer position."""
@@ -99,23 +139,14 @@ class JpegBuffer:
 
     def read(self, count: int = 1) -> int:
         """Read count bits and return the unsigned integer interpretation."""
-        sum = 0
-        for value in self._data[self._bit_pos:self._bit_pos+count]:
-            sum = 2*sum + value
-
+        value = 0
+        for bit in self._data[self._bit_pos:self._bit_pos+count]:
+            value = 2*value + bit
         self._bit_pos += count
-        return sum
+        return value
 
-    def read_variable_length(self, table: HuffmanTable) -> int:
-        """Read variable length using huffman table"""
-        length = 1
-        symbol = self.read()
-        code = table.decode(symbol, length)
-        while code is None:
-            symbol = 2*symbol + self.read()
-            length += 1
-            code = table.decode(symbol, length)
-        return code
+    def peek(self, count: int = 1) -> bitarray:
+        return self._data[self._bit_pos:self._bit_pos+count]
 
     def read_to_bitarray(
         self,
@@ -134,18 +165,268 @@ class JpegBuffer:
         skip_to = self.position + skip_length
         self.seek(skip_to)
 
-    @classmethod
-    def convert_to_bytes(cls, bits: bitarray) -> bytes:
-        padding_bits = 7 - (len(bits) - 1) % 8
-        bits += bitarray(padding_bits*[1])
+    def reset(self) -> None:
+        self.seek(0)
 
-        # Convert to bytes
-        data = bytearray(bits.tobytes())
 
-        # Add byte stuffing after 0xFF
-        data = data.replace(BYTE_TAG, BYTE_TAG_STUFFING)
+class JpegBufferBitBit(JpegBufferBit):
+    def read_variable_length(self, table: HuffmanTable) -> int:
+        """Read variable length using huffman table"""
+        bits = self.peek(table.max_length)
+        value, length = next(bits.iterdecode(table.decode_tree))
+        self.skip(length)
+        return value
 
-        return data
+
+class JpegBufferBitDict(JpegBufferBit):
+    def read_variable_length(self, table: HuffmanTable) -> int:
+        """Read variable length using huffman table"""
+        length = 1
+        bits = self.read()
+        code = table.decode(bits, length)
+        while code is None:
+            length += 1
+            bits = 2 * bits + self.read()
+            code = table.decode(bits, length)
+        return code
+
+
+class JpegBufferBitBinary(JpegBufferBit):
+    def read_variable_length(self, table: HuffmanTable) -> int:
+        """Read variable length using huffman table"""
+        node = table.root
+        length = 0
+        while not isinstance(node, HuffmanLeaf):
+            length += 1
+            bit = self.read()
+            node = node._nodes[bit]
+        return node.value
+
+
+class JpegBufferInt(JpegBuffer):
+    """Convenience class for reading bits from Jpeg data."""
+    def __init__(
+        self,
+        data: bytes
+    ) -> None:
+        """Create a JpegBuffer from data. Offers read function for single,
+        multiple or range of bits.
+
+        Parameters
+        ----------
+        data: bytes
+            Byte data to buffer.
+
+        """
+        self._bytedata = self.remove_stuffing(data)
+        self._bit_pos = 0
+        self._bit_buffer: int = 0
+        self._bit_buffer_pos: int = -1
+        self._bit_buffer_mask = 0
+        self._byte_position = 0
+
+    @property
+    def position(self) -> int:
+        return - self._bit_buffer_pos - 1 + self._byte_position * 8
+
+    def reset(self) -> None:
+        self._bit_buffer_mask = 0
+        self._bit_buffer_pos = -1
+        self._byte_position = 0
+        self._bit_buffer = 0
+
+    def read(self, count: int = 1):
+        if count == 1:
+            return self._read_bit()
+        return self._read_bits(count)
+
+    def skip(self, count: int) -> None:
+        while (count > self._bit_buffer_pos + 1):
+            self._load_next_byte_to_buffer()
+        self._bit_buffer_pos -= count
+        self._bit_buffer_mask = self._bit_buffer_mask >> count
+
+    def read_to_bitarray(
+        self,
+        start: int,
+        end: int
+    ) -> bitarray:
+        """Return bitarray from start to end of buffer."""
+        bits = bitarray()
+        bits.frombytes(self._bytedata)
+        return bits[start:end]
+
+    def _read_bit(self) -> int:
+        if self._bit_buffer_pos < 0:
+            self._load_next_byte_to_buffer()
+        bit = int((self._bit_buffer & (1 << self._bit_buffer_pos)) != 0)
+        self._bit_buffer_pos -= 1
+        self._bit_buffer_mask = self._bit_buffer_mask >> 1
+        return bit
+
+    def _read_bits(self, count) -> int:
+        result = 0
+        while (count > self._bit_buffer_pos + 1):
+            self._load_next_byte_to_buffer()
+        result = result | (
+            (self._bit_buffer & self._bit_buffer_mask) >>
+            (self._bit_buffer_pos - count + 1)
+        )
+        self._bit_buffer_pos -= count
+        self._bit_buffer_mask = self._bit_buffer_mask >> count
+        return result
+
+    def _peek_bits(self, count: int) -> int:
+        while (count > self._bit_buffer_pos + 1):
+            self._load_next_byte_to_buffer()
+        return (
+            (self._bit_buffer & self._bit_buffer_mask) >>
+            (self._bit_buffer_pos - count + 1)
+        )
+
+    def _load_next_byte_to_buffer(self) -> None:
+        if self._byte_position < len(self._bytedata):
+            byte = self._bytedata[self._byte_position]
+        else:
+            byte = 0
+        self._byte_position += 1
+        self._bit_buffer = ((self._bit_buffer << 8) & 0xFFFF) | byte
+        self._bit_buffer_pos += 8
+        self._bit_buffer_mask = 0x0FF | (self._bit_buffer_mask << 8)
+
+
+class JpegBufferIntDict(JpegBufferInt):
+    def read_variable_length(self, table: HuffmanTable) -> int:
+        length = 1
+        symbol = self._read_bit()
+        code = table.decode(symbol, length)
+        while code is None:
+            symbol = 2*symbol + self._read_bit()
+            length += 1
+            code = table.decode(symbol, length)
+        return code
+
+
+class JpegBufferIntBinary(JpegBufferInt):
+    def read_variable_length(self, table: HuffmanTable) -> int:
+        node = table.root
+        length = 0
+        while not isinstance(node, HuffmanLeaf):
+            length += 1
+            bit = self._read_bit()
+            node = node._nodes[bit]
+        return node.value
+
+
+class JpegBufferIntList(JpegBufferInt):
+    def read_variable_length(self, table: HuffmanTable) -> int:
+        node = table.root
+        length = 0
+        while not isinstance(node, HuffmanLeaf):
+            length += 1
+            bit = self._read_bit()
+            node = node._nodes[bit]
+        return node.value
+
+
+class JpegBufferByte(JpegBuffer):
+    """Convenience class for reading bits from Jpeg data."""
+    def __init__(
+        self,
+        data: bytes
+    ) -> None:
+        """Create a JpegBuffer from data. Offers read function for single,
+        multiple or range of bits.
+
+        Parameters
+        ----------
+        data: bytes
+            Byte data to buffer.
+
+        """
+        self._data = self.remove_stuffing(data)
+        self._bit_pos = 0
+        self._byte_pos = 0
+        self._bit_mask = 0b10000000
+        self._byte = self._read_byte(0)
+
+    @property
+    def position(self) -> int:
+        """The current buffer position."""
+        return self._bit_pos
+
+    def read(self, count: int = 1) -> int:
+        """Read count bits and return the unsigned integer interpretation"""
+        value = 0
+        for i in range(count):
+            value = 2*value + self._read_bit()
+        return value
+
+    def seek(self, position: int) -> None:
+        """Seek to bit posiion in stream."""
+        old_position = self.position
+        self._bit_pos = position
+        if position // 8 != old_position // 8:
+            self._byte = self._read_byte(position // 8)
+        self._bit_mask = 0b10000000 >> (self._bit_pos % 8)
+
+    def skip(self, skip_length: int) -> None:
+        """Skip length of bits."""
+        skip_to = self._bit_pos + skip_length
+        self.seek(skip_to)
+
+    def read_to_bitarray(
+        self,
+        start: int,
+        end: int
+    ) -> bitarray:
+        """Return bitarray from start to end of buffer."""
+        bits = bitarray()
+        bits.frombytes(self._data)
+        return bits[start:end]
+
+    def reset(self) -> None:
+        self.seek(0)
+
+    def _read_byte(self, byte_position: int) -> int:
+        """Read new byte into buffer"""
+        byte = self._data[byte_position]
+        return byte
+
+    def _read_bit(self) -> int:
+        """Return a bit from the buffer."""
+        bit = int((self._byte & self._bit_mask) != 0)
+        self._bit_mask = self._bit_mask >> 1
+        self._bit_pos += 1
+        if self._bit_mask == 0:
+            self._bit_mask = 0b10000000
+            self._byte = self._read_byte(self._bit_pos // 8)
+        return bit
+
+
+class JpegBufferByteDict(JpegBufferByte):
+    def read_variable_length(self, table: HuffmanTable) -> int:
+        """Read variable length using huffman table"""
+        symbol = self.read()
+        length = 1
+        code = table.decode(symbol, length)
+        while code is None:
+            symbol = 2*symbol + self.read()
+            length += 1
+            code = table.decode(symbol, length)
+        return code
+
+
+class JpegBufferByteBinary(JpegBufferByte):
+    def read_variable_length(self, table: HuffmanTable) -> int:
+        """Read variable length using huffman table"""
+        node = table.root
+        length = 0
+        while not isinstance(node, HuffmanLeaf):
+            length += 1
+            bit = self.read()
+            node = node._nodes[bit]
+        return node.value
 
 
 class JpegHeader:
@@ -451,7 +732,8 @@ class JpegHeader:
          self,
          data: bytes,
          scan_width: int,
-         tiles_dc_offsets: List[Dc]
+         tiles_dc_offsets: List[Dc],
+         buffer_type=JpegBufferBitBit
     ) -> List[JpegSegment]:
         """Parse MCUs in jpeg scan data into segments of max scan width size.
         Modify the DC values in the segments according to the tile dc offset
@@ -474,7 +756,7 @@ class JpegHeader:
         segments: List[JpegSegment] = []
         mcu_scan_width = scan_width // MCU_SIZE
         mcus_left = self.mcu_count
-        scan = JpegScan(data, self.components)
+        scan = JpegScan(data, self.components, buffer_type)
         segment_dc_offset = Dc.zero(list(self.components.keys()))
         tile_index = 0
         while mcus_left > 0:
@@ -497,6 +779,7 @@ class JpegScan:
         self,
         data: bytes,
         components: List[Component],
+        buffer_type=JpegBufferBitBit
     ):
         """Parse jpeg data using information in components.
 
@@ -509,7 +792,7 @@ class JpegScan:
 
         """
         self._components = components
-        self._buffer = JpegBuffer(data)
+        self._buffer = buffer_type(data)
 
     @property
     def components(self) -> Dict[int, Component]:
@@ -709,17 +992,16 @@ class JpegScan:
         JpegSegment:
             Read and modified segment.
         """
-
         output_segment = bitarray()
 
-        for id, component in self.components.items():
+        for index, component in self.components.items():
             current_dc = self._read_dc(component.dc_table)
             new_dc = (
-                stripe_dc_offsets[id] + current_dc - tile_dc_offsets[id]
+                stripe_dc_offsets[index] + current_dc - tile_dc_offsets[index]
             )
 
-            stripe_dc_offsets[id] += current_dc
-            tile_dc_offsets[id] += new_dc
+            stripe_dc_offsets[index] += current_dc
+            tile_dc_offsets[index] += new_dc
             # Code the value into length and code
             length, code = self._code_value(new_dc)
             # Encode length using huffman table and write to output segment

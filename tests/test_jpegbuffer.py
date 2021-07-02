@@ -1,7 +1,10 @@
 import unittest
 
 import pytest
-from ndpi_tiler.jpeg import JpegBuffer
+from ndpi_tiler.jpeg import (JpegBuffer, JpegBufferBitBit, JpegBufferBitDict,
+                             JpegBufferByteBinary, JpegBufferByteDict,
+                             JpegBufferIntBinary, JpegBufferIntDict,
+                             JpegBufferIntList, JpegBufferBitBinary)
 
 from .create_jpeg_data import create_small_scan_data
 
@@ -15,7 +18,16 @@ class NdpiTilerJpegBufferTest(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
-        cls.buffer = JpegBuffer(create_small_scan_data())
+        data = create_small_scan_data()
+        buffer_types = [
+            JpegBufferByteBinary, JpegBufferByteDict,
+            JpegBufferBitBit, JpegBufferBitDict, JpegBufferBitBinary,
+            JpegBufferIntBinary, JpegBufferIntDict, JpegBufferIntList
+        ]
+        cls.buffers = [
+            buffer_type(data) for buffer_type in buffer_types
+        ]
+        cls.buffer = JpegBufferByteDict(create_small_scan_data())
 
     @classmethod
     def tearDown(cls):
@@ -33,61 +45,34 @@ class NdpiTilerJpegBufferTest(unittest.TestCase):
             0, 0, 0, 1, 0, 1, 0, 1,
             0, 1, 1, 1, 1, 1, 1, 1
         ]
-        for index, expected_result in enumerate(expected_results):
-            print(index)
-            self.assertEqual(self.buffer.read(), expected_result)
+        for buffer in self.buffers:
+            for index, expected_result in enumerate(expected_results):
+                self.assertEqual(buffer.read(), expected_result)
 
     def test_read_bits(self):
-        self.assertEqual(self.buffer.read(4), 0b1111)
-        self.assertEqual(self.buffer.read(4), 0b1100)
-        self.assertEqual(self.buffer.read(5), 0b11111)
-        self.assertEqual(self.buffer.read(7), 0b1111110)
-        self.assertEqual(self.buffer.read(12), 0b001010101111)
-
-    def test_seek(self):
-        self.buffer.seek(18)
-        self.assertEqual(self.buffer.position, 18)
-
-        self.buffer.seek(7)
-        self.assertEqual(self.buffer.position, 7)
-
-        self.buffer.seek(25)
-        self.assertEqual(self.buffer.position, 25)
-
-        self.buffer.seek(32)
-        self.assertEqual(self.buffer.position, 32)
-
-        self.buffer.seek(31)
-        self.assertEqual(self.buffer.position, 31)
-
-    def test_seek_read(self):
-        self.buffer.read(4)
-        self.buffer.seek(0)
-        self.assertEqual(self.buffer.read(4), 0b1111)
-
-        self.buffer.seek(24)
-        self.assertEqual(self.buffer.read(6), 0b101011)
-
-        self.buffer.seek(30)
-        self.assertEqual(self.buffer.read(5), 0b11111)
-
-        self.buffer.seek(14)
-        self.assertEqual(self.buffer.read(2), 0b11)
+        for buffer in self.buffers:
+            self.assertEqual(buffer.read(4), 0b1111)
+            self.assertEqual(buffer.read(4), 0b1100)
+            self.assertEqual(buffer.read(5), 0b11111)
+            self.assertEqual(buffer.read(7), 0b1111110)
+            self.assertEqual(buffer.read(12), 0b001010101111)
 
     def test_skip_pos(self):
-        self.buffer.skip(2)
-        self.assertEqual(self.buffer.position, 2)
+        for buffer in self.buffers:
+            buffer.skip(2)
+            self.assertEqual(buffer.position, 2)
 
-        self.buffer.skip(6)
-        self.assertEqual(self.buffer.position, 8)
+            buffer.skip(6)
+            self.assertEqual(buffer.position, 8)
 
     def test_skip_read(self):
-        self.buffer.skip(8)
-        self.assertEqual(self.buffer.read(5), 0b11111)
+        for buffer in self.buffers:
+            buffer.skip(8)
+            self.assertEqual(buffer.read(5), 0b11111)
 
-        self.buffer.skip(1)
-        self.assertEqual(self.buffer.read(3), 0b111)
-        print(self.buffer.position)
+            buffer.skip(1)
+            self.assertEqual(buffer.read(3), 0b111)
+            print(self.buffer.position)
 
-        self.buffer.skip(2)
-        self.assertEqual(self.buffer.read(3), 0b000)
+            buffer.skip(2)
+            self.assertEqual(buffer.read(3), 0b000)

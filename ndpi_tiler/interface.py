@@ -1,8 +1,10 @@
-from typing import Dict, Tuple, List
+from typing import Dict, List, Tuple
 
-from tifffile import FileHandle, TiffPage
 from bitarray import bitarray
-from ndpi_tiler.jpeg import Component, JpegBuffer, JpegHeader, JpegSegment, Dc
+from tifffile import FileHandle, TiffPage
+
+from ndpi_tiler.jpeg import (Component, Dc, JpegBuffer,
+                             JpegHeader, JpegSegment)
 
 
 class Tile:
@@ -45,7 +47,8 @@ class NdpiPageTiler:
         fh: FileHandle,
         page: TiffPage,
         tile_width: int,
-        tile_height: int
+        tile_height: int,
+        buffer_type=JpegBuffer
     ):
         """Cache for ndpi stripes, with functions to produce tiles of specified
         with and height.
@@ -72,6 +75,8 @@ class NdpiPageTiler:
         self._tile_height = tile_height
 
         self.tiles: Dict[(int, int), Tile] = {}
+
+        self.buffer_type = buffer_type
 
     @property
     def stripe_size(self) -> Tuple[int, int]:
@@ -193,7 +198,8 @@ class NdpiPageTiler:
                 segments = self._header.get_segments(
                     stripe,
                     self._tile_width,
-                    [tile.dc_offsets for tile in tiles]
+                    [tile.dc_offsets for tile in tiles],
+                    self.buffer_type
                 )
 
                 # Insert the segments into the tile(s)

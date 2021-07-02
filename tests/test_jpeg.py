@@ -1,15 +1,17 @@
-from dataclasses import dataclass
-import dataclasses
 import io
-from ndpi_tiler.huffman import HuffmanTable
-from os import read
 import unittest
+from dataclasses import dataclass
 from struct import unpack
-from typing import List, Tuple, Dict
-from bitarray import bitarray, util
+from typing import Dict, List, Tuple
 
 import pytest
-from ndpi_tiler.jpeg import JpegBuffer, JpegHeader, JpegScan, JpegSegment, Dc
+from bitarray import bitarray, util
+from ndpi_tiler.huffman import HuffmanTable
+from ndpi_tiler.jpeg import (Dc, JpegBufferBitBinary, JpegBufferBitBit,
+                             JpegBufferBitDict, JpegBufferByteBinary,
+                             JpegBufferByteDict, JpegBufferIntBinary,
+                             JpegBufferIntDict, JpegBufferIntList, JpegHeader,
+                             JpegScan, JpegSegment)
 from ndpi_tiler.jpeg_tags import MARER_MAPPINGS
 from tifffile import TiffFile
 
@@ -43,8 +45,8 @@ class NdpiTilerJpegTest(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
-        cls.large_scan._buffer.seek(0)
-        cls.small_scan._buffer.seek(0)
+        cls.large_scan._buffer.reset()
+        cls.small_scan._buffer.reset()
 
     @classmethod
     def setUpClass(cls):
@@ -274,6 +276,36 @@ class NdpiTilerJpegTest(unittest.TestCase):
             bits += block
         self.assertEqual(know_bits, bits)
 
+    def test_decode_know_sequence(self):
+        know_bits = bytes([
+            0b11111100, 0b11111111, 0b11100010,
+            0b10101111, 0b11101111, 0b11110011,
+            0b00010101, 0b01110000
+        ])
+        buffers = [
+            JpegBufferByteBinary, JpegBufferByteDict,
+            JpegBufferBitBit, JpegBufferBitDict, JpegBufferBitBinary,
+            JpegBufferIntBinary, JpegBufferIntDict, JpegBufferIntList
+        ]
+        for buffer_type in buffers:
+            buffer = buffer_type(know_bits)
+            tables = [
+                self.small_scan.components[1].dc_table,
+                self.small_scan.components[1].ac_table,
+                self.small_scan.components[2].dc_table,
+                self.small_scan.components[2].ac_table,
+                self.small_scan.components[3].dc_table,
+                self.small_scan.components[3].ac_table,
+            ]
+            for block in range(2):
+                for table in tables:
+                    # print(table.decode_tree_dict)
+                    length = buffer.read_variable_length(table)
+                    code = buffer.read(length)
+
+                    decoded = JpegScan._decode_value(length, code)
+                    print(length, code, decoded)
+
     def test_read_and_modify_segment_no_modify(self):
         starts = [0, 0, 8*267+7, 8*550+0, 8*824+4]
         ends = [8*1135+6, 8*267+7, 8*550+0, 8*824+4, 8*1135+6]
@@ -325,7 +357,7 @@ class NdpiTilerJpegTest(unittest.TestCase):
         ]
         for test in tests:
             if test.reset:
-                self.large_scan._buffer.seek(0)
+                self.large_scan._buffer.reset()
 
             read_segment = self.large_scan.read_and_modify_segment(
                 test.count,
