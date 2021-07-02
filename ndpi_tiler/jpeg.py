@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from functools import lru_cache
 from struct import unpack
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Type
 
 from bitarray import bitarray, util
 
@@ -63,6 +63,27 @@ class Dc:
         return self.offsets.keys()
 
 
+class BitBuffer:
+    def __init__(self):
+        self.data = 0
+        self.length = 0
+
+    def add(self, value: int, length: int):
+        self.data = (self.data << length) + value
+        self.length += length
+
+    def to_bytes(self):
+        padding = (8-self.length % 8)
+        out = (self.data << padding)
+        return out.to_bytes((self.length+padding)//8, 'big')
+
+
+class TileData:
+    def __init__(self, components: List[int]):
+        self.bits = BitBuffer()
+        self.dc_offsets = Dc.zero(components)
+
+
 @dataclass
 class JpegSegment:
     """A segment of Jpeg data read and possibly modified from buffer."""
@@ -71,7 +92,6 @@ class JpegSegment:
 
 
 class JpegBuffer(metaclass=ABCMeta):
-
     @staticmethod
     def remove_stuffing(data: bytes) -> bytearray:
         """Remove byte stuffing (0x00 following 0xFF)"""
@@ -87,7 +107,7 @@ class JpegBuffer(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def read_variable_length(self) -> int:
+    def read_variable_length(self, table: HuffmanTable) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -320,13 +340,10 @@ class JpegBufferIntBinary(JpegBufferInt):
 
 class JpegBufferIntList(JpegBufferInt):
     def read_variable_length(self, table: HuffmanTable) -> int:
-        node = table.root
-        length = 0
-        while not isinstance(node, HuffmanLeaf):
-            length += 1
-            bit = self._read_bit()
-            node = node._nodes[bit]
-        return node.value
+        bits = self._peek_bits(table.max_length)
+        value, length = table.decode_list[bits]
+        self.skip(length)
+        return value
 
 
 class JpegBufferByte(JpegBuffer):
@@ -733,7 +750,7 @@ class JpegHeader:
          data: bytes,
          scan_width: int,
          tiles_dc_offsets: List[Dc],
-         buffer_type=JpegBufferBitBit
+         buffer_type: Type[JpegBuffer] = JpegBufferBitBit
     ) -> List[JpegSegment]:
         """Parse MCUs in jpeg scan data into segments of max scan width size.
         Modify the DC values in the segments according to the tile dc offset
@@ -759,12 +776,12 @@ class JpegHeader:
         scan = JpegScan(data, self.components, buffer_type)
         segment_dc_offset = Dc.zero(list(self.components.keys()))
         tile_index = 0
-        while mcus_left > 0:
+        for tile_dc_offsets in tiles_dc_offsets:
             mcu_to_scan = min(mcus_left, mcu_scan_width)
             segment = scan.read_and_modify_segment(
                 mcu_to_scan,
                 segment_dc_offset,
-                tiles_dc_offsets[tile_index]
+                tile_dc_offsets
             )
             segments.append(segment)
             mcus_left -= mcu_to_scan
@@ -779,7 +796,7 @@ class JpegScan:
         self,
         data: bytes,
         components: List[Component],
-        buffer_type=JpegBufferBitBit
+        buffer_type: Type[JpegBuffer] = JpegBufferBitBit
     ):
         """Parse jpeg data using information in components.
 

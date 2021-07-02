@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Type
 
 from bitarray import bitarray
 from tifffile import FileHandle, TiffPage
@@ -48,7 +48,7 @@ class NdpiPageTiler:
         page: TiffPage,
         tile_width: int,
         tile_height: int,
-        buffer_type=JpegBuffer
+        buffer_type: Type[JpegBuffer] = JpegBuffer
     ):
         """Cache for ndpi stripes, with functions to produce tiles of specified
         with and height.
