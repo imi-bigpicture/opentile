@@ -7,12 +7,13 @@ from typing import Dict, List, Tuple, Type
 import pytest
 from bitarray import bitarray, util
 from ndpi_tiler.huffman import HuffmanTable
-from ndpi_tiler.jpeg import (Dc, JpegBuffer, JpegBufferBitBinary,
-                             JpegBufferBitBit, JpegBufferBitDict,
-                             JpegBufferByteBinary, JpegBufferByteDict,
-                             JpegBufferIntBinary, JpegBufferIntDict,
-                             JpegBufferIntList, JpegHeader, JpegScan,
-                             JpegSegment)
+from ndpi_tiler.jpeg import (Dc, JpegBuffer, JpegBufferBitarrayBinary,
+                             JpegBufferBitarrayBit, JpegBufferBitarrayDict,
+                             JpegBufferBitstringBinary,
+                             JpegBufferBitstringDict, JpegBufferByteBinary,
+                             JpegBufferByteDict, JpegBufferIntBinary,
+                             JpegBufferIntDict, JpegBufferIntList, JpegHeader,
+                             JpegScan, JpegSegment)
 from ndpi_tiler.jpeg_tags import MARER_MAPPINGS
 from tifffile import TiffFile
 
@@ -285,8 +286,10 @@ class NdpiTilerJpegTest(unittest.TestCase):
         ])
         buffers: List[Type[JpegBuffer]] = [
             JpegBufferByteBinary, JpegBufferByteDict,
-            JpegBufferBitBit, JpegBufferBitDict, JpegBufferBitBinary,
-            JpegBufferIntBinary, JpegBufferIntDict, JpegBufferIntList
+            JpegBufferBitarrayBit, JpegBufferBitarrayDict,
+            JpegBufferBitarrayBinary,
+            JpegBufferIntBinary, JpegBufferIntDict, JpegBufferIntList,
+            JpegBufferBitstringBinary, JpegBufferBitstringBinary
         ]
         for buffer_type in buffers:
             buffer = buffer_type(know_bits)

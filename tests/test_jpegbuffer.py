@@ -1,10 +1,12 @@
 import unittest
 
 import pytest
-from ndpi_tiler.jpeg import (JpegBuffer, JpegBufferBitBit, JpegBufferBitDict,
-                             JpegBufferByteBinary, JpegBufferByteDict,
-                             JpegBufferIntBinary, JpegBufferIntDict,
-                             JpegBufferIntList, JpegBufferBitBinary)
+from ndpi_tiler.jpeg import (JpegBuffer, JpegBufferBitarrayBinary,
+                             JpegBufferBitarrayBit, JpegBufferBitarrayDict,
+                             JpegBufferBitstringBinary,
+                             JpegBufferBitstringDict, JpegBufferByteBinary,
+                             JpegBufferByteDict, JpegBufferIntBinary,
+                             JpegBufferIntDict, JpegBufferIntList)
 
 from .create_jpeg_data import create_small_scan_data
 
@@ -21,8 +23,10 @@ class NdpiTilerJpegBufferTest(unittest.TestCase):
         data = create_small_scan_data()
         buffer_types = [
             JpegBufferByteBinary, JpegBufferByteDict,
-            JpegBufferBitBit, JpegBufferBitDict, JpegBufferBitBinary,
-            JpegBufferIntBinary, JpegBufferIntDict, JpegBufferIntList
+            JpegBufferBitarrayBit, JpegBufferBitarrayDict,
+            JpegBufferBitarrayBinary, JpegBufferBitstringBinary,
+            JpegBufferIntBinary, JpegBufferIntDict, JpegBufferIntList,
+            JpegBufferBitstringDict
         ]
         cls.buffers = [
             buffer_type(data) for buffer_type in buffer_types

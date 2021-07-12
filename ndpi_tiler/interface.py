@@ -1,10 +1,9 @@
 from typing import Dict, List, Tuple, Type
 
-from bitarray import bitarray
 from tifffile import FileHandle, TiffPage
 
-from ndpi_tiler.jpeg import (Component, Dc, JpegBuffer,
-                             JpegHeader, JpegSegment)
+from ndpi_tiler.jpeg import (Component, JpegBuffer,
+                             JpegHeader, OutputBuffer, OutputBufferBitstring)
 
 
 class Tile:
@@ -13,28 +12,22 @@ class Tile:
         header: JpegHeader,
         tile_width: int,
         tile_height: int,
-        components: Dict[int, Component]
+        components: Dict[int, Component],
+        write_buffer_type: Type[OutputBuffer]
     ):
         self.header = header
         self.tile_width = tile_width
         self.tile_height = tile_height
-        self.bits = bitarray()
+        self.write_buffer = write_buffer_type(components.keys())
         self.tile: bytes = None
-        self.dc_offsets = Dc.zero(list(components.keys()))
-
-    def add_segment(self, segment: JpegSegment):
-        self.bits += segment.data
 
     def get_tile(self) -> bytes:
         if self.tile is not None:
             return self.tile
 
-        # Pad scan with ending 1, convert to bytes and add stuffing
-        scan_bytes = JpegBuffer.convert_to_bytes(self.bits)
-
         # Wrap scan with modified header and end of image tag.
         self.tile = self.header.wrap_scan(
-            scan_bytes,
+            self.write_buffer.to_bytes(),
             (self.tile_width, self.tile_height)
         )
 
@@ -48,7 +41,8 @@ class NdpiPageTiler:
         page: TiffPage,
         tile_width: int,
         tile_height: int,
-        buffer_type: Type[JpegBuffer] = JpegBuffer
+        read_buffer_type: Type[JpegBuffer] = JpegBuffer,
+        write_buffer_type: Type[OutputBuffer] = OutputBufferBitstring
     ):
         """Cache for ndpi stripes, with functions to produce tiles of specified
         with and height.
@@ -76,7 +70,8 @@ class NdpiPageTiler:
 
         self.tiles: Dict[(int, int), Tile] = {}
 
-        self.buffer_type = buffer_type
+        self.read_buffer_type = read_buffer_type
+        self.write_buffer_type = write_buffer_type
 
     @property
     def stripe_size(self) -> Tuple[int, int]:
@@ -189,21 +184,18 @@ class NdpiPageTiler:
                             self._header,
                             self._tile_width,
                             self._tile_height,
-                            self._header.components
+                            self._header.components,
+                            self.write_buffer_type
                         )
                         self.tiles[tile_x, tile_y] = tile
                         tiles.append(tile)
 
                 # Get the segments, use the dc offsets of the tile(s)
-                segments = self._header.get_segments(
+                self._header.get_segments(
                     stripe,
                     self._tile_width,
-                    [tile.dc_offsets for tile in tiles],
-                    self.buffer_type
+                    [tile.write_buffer for tile in tiles],
+                    self.read_buffer_type
                 )
-
-                # Insert the segments into the tile(s)
-                for tile_index, segment in enumerate(segments):
-                    tiles[tile_index].add_segment(segment)
 
         return self.tiles[x, y].get_tile()
