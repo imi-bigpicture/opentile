@@ -227,7 +227,7 @@ class NdpiPageTiler:
     def tile_generator(self) -> Generator[Tuple[Point, bytes], None, None]:
         """Return generator for creating all tiles in level."""
         return (
-            (Point(x, y), self.get_tile(x, y))
+            (Point(x, y), self.get_tile(Point(x, y)))
             for y in range(self.tiled_size.height)
             for x in range(self.tiled_size.width)
         )
@@ -262,7 +262,6 @@ class NdpiPageTiler:
             self.tiles.update(self._create_tiles(jpeg_data, tile_point))
 
         return self.tiles[tile_point]
-
 
     @staticmethod
     def _find_tag(

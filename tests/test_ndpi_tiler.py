@@ -26,7 +26,7 @@ class NdpiTilerTest(unittest.TestCase):
             cls.tif.filehandle,
             page,
             (cls.tile_size, cls.tile_size),
-            r'C:\tools\libjpeg-turbo-vc64\bin\turbojpeg.dll'
+            'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
 
     @classmethod
