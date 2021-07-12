@@ -75,7 +75,7 @@ class NdpiTilerTest(unittest.TestCase):
         )
 
     def test_get_stitched_image(self):
-        image = self.tiler.get_stitched_image(Point(10, 10))
+        image = self.tiler._get_stitched_image(Point(10, 10))
         self.assertEqual(
             5153423,
             sum(image)

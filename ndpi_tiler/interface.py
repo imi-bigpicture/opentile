@@ -232,6 +232,38 @@ class NdpiPageTiler:
             for x in range(self.tiled_size.width)
         )
 
+    def get_tile(
+        self,
+        tile_position: Tuple[int, int]
+    ) -> bytes:
+        """Return tile for tile position x and y. If stripes for the tile
+        is not cached, read them from disk and parse the jpeg data.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Position of tile to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position, wrapped in header.
+        """
+        tile_point = Point(*tile_position)
+        # Check if tile not in cached
+        if tile_point not in self.tiles.keys():
+            # Empty cache
+            self.tiles = {}
+
+            # Create jpeg data from stripes
+            jpeg_data = self._get_stitched_image(tile_point)
+
+            # Create tiles from jpeg data
+            self.tiles.update(self._create_tiles(jpeg_data, tile_point))
+
+        return self.tiles[tile_point]
+
+
     @staticmethod
     def _find_tag(
         header: bytes,
@@ -312,7 +344,7 @@ class NdpiPageTiler:
         stripe = self._fh.read(bytecount)
         return stripe
 
-    def get_stitched_image(self, tile_coordinate: Point) -> bytes:
+    def _get_stitched_image(self, tile_coordinate: Point) -> bytes:
         """Return stitched image covering tile coorindate as valid jpeg bytes.
         Includes header with the correct image size. Original restart markers
         are updated to get the proper incrementation. End of image tag is
@@ -393,34 +425,3 @@ class NdpiPageTiler:
             )
             for tile in tile_region.iterate_all()
         }
-
-    def get_tile(
-        self,
-        tile_position: Tuple[int, int]
-    ) -> bytes:
-        """Return tile for tile position x and y. If stripes for the tile
-        is not cached, read them from disk and parse the jpeg data.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Position of tile to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position, wrapped in header.
-        """
-        tile_point = Point(*tile_position)
-        # Check if tile not in cached
-        if tile_point not in self.tiles.keys():
-            # Empty cache
-            self.tiles = {}
-
-            # Create jpeg data from stripes
-            jpeg_data = self.get_stitched_image(tile_point)
-
-            # Create tiles from jpeg data
-            self.tiles.update(self._create_tiles(jpeg_data, tile_point))
-
-        return self.tiles[tile_point]
