@@ -1,37 +1,11 @@
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Tuple, Type, Optional
 
+from struct import unpack
+import struct
+from .jpeg_tags import TAGS
 from tifffile import FileHandle, TiffPage
 
-from ndpi_tiler.jpeg import (Component, JpegBuffer,
-                             JpegHeader, OutputBuffer, OutputBufferBitstring)
-
-
-class Tile:
-    def __init__(
-        self,
-        header: JpegHeader,
-        tile_width: int,
-        tile_height: int,
-        components: Dict[int, Component],
-        write_buffer_type: Type[OutputBuffer]
-    ):
-        self.header = header
-        self.tile_width = tile_width
-        self.tile_height = tile_height
-        self.write_buffer = write_buffer_type(components.keys())
-        self.tile: bytes = None
-
-    def get_tile(self) -> bytes:
-        if self.tile is not None:
-            return self.tile
-
-        # Wrap scan with modified header and end of image tag.
-        self.tile = self.header.wrap_scan(
-            self.write_buffer.to_bytes(),
-            (self.tile_width, self.tile_height)
-        )
-
-        return self.tile
+from turbojpeg import TurboJPEG
 
 
 class NdpiPageTiler:
@@ -41,8 +15,6 @@ class NdpiPageTiler:
         page: TiffPage,
         tile_width: int,
         tile_height: int,
-        read_buffer_type: Type[JpegBuffer] = JpegBuffer,
-        write_buffer_type: Type[OutputBuffer] = OutputBufferBitstring
     ):
         """Cache for ndpi stripes, with functions to produce tiles of specified
         with and height.
@@ -61,25 +33,80 @@ class NdpiPageTiler:
         """
         self._fh = fh
         self._page = page
-        self._header = JpegHeader(self._page.jpegheader)
-        self._stripe_width = self._header.width
-        self._stripe_height = self._header.height
+        self.jpeg = TurboJPEG(r'C:\tools\libjpeg-turbo-vc64\bin\turbojpeg.dll')
+        (
+            self._stripe_width,
+            self._stripe_height, _, _
+        ) = self.jpeg.decode_header(page.jpegheader)
+
         self.stripe_cols = self._page.chunked[1]
         self._tile_width = tile_width
         self._tile_height = tile_height
 
-        self.tiles: Dict[(int, int), Tile] = {}
-
-        self.read_buffer_type = read_buffer_type
-        self.write_buffer_type = write_buffer_type
+        self.tiles: Dict[(int, int), bytes] = {}
 
     @property
     def stripe_size(self) -> Tuple[int, int]:
-        return (self._header.width, self._header.height)
+        return (self._stripe_width, self._stripe_height)
 
     @property
     def tile_size(self) -> Tuple[int, int]:
         return (self._tile_width, self._tile_height)
+
+    @staticmethod
+    def find_tag(
+        header: bytes,
+        tag: int
+    ) -> Tuple[Optional[int], Optional[int]]:
+        """Return first index and length of payload of tag in header."""
+        index = header.find(tag.to_bytes(2, 'big'))
+        if index != -1:
+            (length, ) = unpack('>H', header[index+2:index+4])
+            return index, length
+        return None, None
+
+    @classmethod
+    def manupulated_header(
+        cls,
+        header: bytes,
+        size: Tuple[int, int],
+        remove_restart_interval: bool = False
+    ) -> bytes:
+        """Return manipulated header with changed pixel size (width, height)
+        and removed reset interval marker.
+
+        Parameters
+        ----------
+        heaer: bytes
+            Header to manipulate.
+        size: Tuple[int, int]
+            Pixel size to insert into header.
+
+        Returns
+        ----------
+        bytes:
+            Manupulated header.
+        """
+        header = bytearray(header)
+        start_of_scan_index, length = cls.find_tag(
+            header, TAGS['start of frame']
+        )
+        if start_of_scan_index is None:
+            raise ValueError("Start of scan tag not found in header")
+        size_index = start_of_scan_index+5
+        header[size_index:size_index+2] = struct.pack(">H", size[1])
+        header[size_index+2:size_index+4] = struct.pack(">H", size[0])
+
+        if remove_restart_interval:
+            restart_interval_index, length = cls.find_tag(
+                header, TAGS['restart interval']
+            )
+            if restart_interval_index is not None:
+                del header[
+                    restart_interval_index:restart_interval_index+length+2
+                ]
+
+        return bytes(header)
 
     def stripe_range(
         self,
@@ -142,60 +169,48 @@ class NdpiPageTiler:
             # Empty cache
             self.tiles = {}
 
-            # Get the needed stripes
-            stripes = {
-                (stripe_x, stripe_y): self.get_stripe((stripe_x, stripe_y))
-                for stripe_y in self.stripe_range(
+            jpeg_data = self.manupulated_header(
+                self._page.jpegheader,
+                (self._stripe_width, self._tile_height)
+            )
+            restart_marker_index = 0
+            for stripe_y in self.stripe_range(
                     y,
                     self._stripe_height,
                     self._tile_height
-                )
+            ):
                 for stripe_x in self.stripe_range(
                     x,
                     self._stripe_width,
                     self._tile_width
+                ):
+                    jpeg_data += self.get_stripe((stripe_x, stripe_y))[:-1]
+                    jpeg_data += bytes([0xD0 + restart_marker_index % 8])
+                    restart_marker_index += 1
+            jpeg_data += bytes([0xFF, 0xD9])
+
+            tile_range = {
+                (tile_x, tile_y)
+                for tile_y in self.stripe_range(
+                    y * self._tile_height // self._stripe_height,
+                    self._tile_height,
+                    self._stripe_height
+                )
+                for tile_x in self.stripe_range(
+                    x * self._tile_width // self._stripe_width,
+                    self._tile_width,
+                    self._stripe_width
                 )
             }
 
-            # Loop over the stripes and get segments.
-            for stripe_coordinate, stripe in stripes.items():
-                # Tiles this stripe will cover.
-                tile_range = {
-                    (tile_x, tile_y)
-                    for tile_y in self.stripe_range(
-                        stripe_coordinate[1],
-                        self._tile_height,
-                        self._stripe_height
-                    )
-                    for tile_x in self.stripe_range(
-                        stripe_coordinate[0],
-                        self._tile_width,
-                        self._stripe_width
-                    )
-                }
-
-                # Get or make the tile(s) this stripe will cover
-                tiles: List[Tile] = []
-                for (tile_x, tile_y) in tile_range:
-                    try:
-                        tiles.append(self.tiles[tile_x, tile_y])
-                    except KeyError:
-                        tile = Tile(
-                            self._header,
-                            self._tile_width,
-                            self._tile_height,
-                            self._header.components,
-                            self.write_buffer_type
-                        )
-                        self.tiles[tile_x, tile_y] = tile
-                        tiles.append(tile)
-
-                # Get the segments, use the dc offsets of the tile(s)
-                self._header.get_segments(
-                    stripe,
-                    self._tile_width,
-                    [tile.write_buffer for tile in tiles],
-                    self.read_buffer_type
+            for (tile_x, tile_y) in tile_range:
+                tile = self.jpeg.crop(
+                    jpeg_data,
+                    0,
+                    0,
+                    1024,
+                    1024
                 )
+                self.tiles[x, y] = tile
 
-        return self.tiles[x, y].get_tile()
+        return self.tiles[x, y]
