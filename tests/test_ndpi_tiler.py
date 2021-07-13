@@ -4,7 +4,7 @@ import pytest
 from tifffile.tifffile import TiffFile
 
 from ndpi_tiler import __version__, NdpiPageTiler
-from ndpi_tiler.interface import Tags, Size, Point
+from ndpi_tiler.interface import Tags, Size, Point, NdpiFileHandle
 from .create_jpeg_data import open_tif
 
 
@@ -19,12 +19,11 @@ class NdpiTilerTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tile_size = 512
         cls.tif = open_tif()
-        tiff_series = cls.tif.series[0]
-        tiff_level = tiff_series.levels[0]
-        page = tiff_level.pages[0]
         cls.tiler = NdpiPageTiler(
-            cls.tif.filehandle,
-            page,
+            cls.tif,
+            NdpiFileHandle(cls.tif.filehandle),
+            0,
+            0,
             (cls.tile_size, cls.tile_size),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )

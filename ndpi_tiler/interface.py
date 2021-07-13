@@ -1,10 +1,13 @@
+import concurrent.futures
+import threading
 import struct
+from dataclasses import dataclass
 from pathlib import Path
 from struct import unpack
 from typing import Dict, Generator, List, Optional, Tuple
-from dataclasses import dataclass
 
 from tifffile import FileHandle, TiffPage
+from tifffile.tifffile import TiffFile
 from turbojpeg import TurboJPEG
 
 
@@ -159,11 +162,40 @@ class Tags:
         return bytes([cls.TAGS['restart mark'] + index % 8])
 
 
+class NdpiFileHandle:
+    """A lockable file handle for reading stripes."""
+    def __init__(self, fh: FileHandle):
+        self._fh = fh
+        self._lock = threading.Lock()
+
+    def read(self, offset: int, bytecount: int) -> bytes:
+        """Return stripe bytes.
+
+        Parameters
+        ----------
+        offset: int
+            Offset in bytes to stripe.
+        bytecount: int
+            Length in bytes of stripe.
+
+        Returns
+        ----------
+        bytes
+            Stripe as bytes.
+        """
+        with self._lock:
+            self._fh.seek(offset)
+            stripe = self._fh.read(bytecount)
+        return stripe
+
+
 class NdpiPageTiler:
     def __init__(
         self,
-        fh: FileHandle,
-        page: TiffPage,
+        tif: TiffFile,
+        fh: NdpiFileHandle,
+        series: int,
+        level: int,
         tile_size: Tuple[int, int],
         turbo_path: Path = None
     ):
@@ -172,18 +204,23 @@ class NdpiPageTiler:
 
         Parameters
         ----------
-        fh: FileHandle
+        tif: TiffFile
+            Tiff file
+        fh: NdpiFileHandle
             File handle to stripe data.
-        page: TiffPage
-            Page to cache and tile.
+        series: int
+            Series in tiff file
+        level: int
+            Level in tiff file
         tile_size: Tuple[int, int]
             Tile size to cache and produce. Must be multiple of 8.
         turbo_path: Path
             Path to turbojpeg (dll or so).
 
         """
+
         self._fh = fh
-        self._page = page
+        self._page: TiffPage = tif.series[series].levels[level].pages[0]
 
         self._tile_size = Size(*tile_size)
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
@@ -193,7 +230,7 @@ class NdpiPageTiler:
         (
             stripe_width,
             stripe_height, _, _
-        ) = self.jpeg.decode_header(page.jpegheader)
+        ) = self.jpeg.decode_header(self._page.jpegheader)
 
         self._stripe_size = Size(stripe_width, stripe_height)
         self._striped_size = Size(self._page.chunked[1], self._page.chunked[0])
@@ -341,8 +378,7 @@ class NdpiPageTiler:
         index = self._stripe_coordinate_to_index(coordinate)
         offset = self._page.dataoffsets[index]
         bytecount = self._page.databytecounts[index]
-        self._fh.seek(offset)
-        stripe = self._fh.read(bytecount)
+        stripe = self._fh.read(offset, bytecount)
         return stripe
 
     def _get_stitched_image(self, tile_coordinate: Point) -> bytes:
@@ -416,13 +452,20 @@ class NdpiPageTiler:
             starting_tile,
             Size.max(self.stripe_size // self.tile_size, Size(1, 1))
         )
-        return {
-            tile: self.jpeg.crop(
+
+        tiles = {}
+
+        def crop_thread(tile: Point):
+            tiles[tile] = self.jpeg.crop(
                 jpeg_data,
                 self._map_tile_to_image(tile).x % self.stripe_size.width,
                 self._map_tile_to_image(tile).y % self.stripe_size.height,
                 self.tile_size.width,
                 self.tile_size.height
             )
-            for tile in tile_region.iterate_all()
-        }
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            executor.map(crop_thread, tile_region.iterate_all())
+
+        return tiles
+
