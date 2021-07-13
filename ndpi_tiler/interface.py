@@ -184,7 +184,10 @@ class NdpiPageTiler:
         """
         self._fh = fh
         self._page = page
+
         self._tile_size = Size(*tile_size)
+        if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
+            raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
 
         self.jpeg = TurboJPEG(turbo_path)
         (
@@ -227,7 +230,7 @@ class NdpiPageTiler:
     def tile_generator(self) -> Generator[Tuple[Point, bytes], None, None]:
         """Return generator for creating all tiles in level."""
         return (
-            (Point(x, y), self.get_tile(Point(x, y)))
+            (Point(x, y), self.get_tile((x, y)))
             for y in range(self.tiled_size.height)
             for x in range(self.tiled_size.width)
         )
@@ -250,14 +253,13 @@ class NdpiPageTiler:
             Produced tile at position, wrapped in header.
         """
         tile_point = Point(*tile_position)
+
         # Check if tile not in cached
         if tile_point not in self.tiles.keys():
             # Empty cache
             self.tiles = {}
-
             # Create jpeg data from stripes
             jpeg_data = self._get_stitched_image(tile_point)
-
             # Create tiles from jpeg data
             self.tiles.update(self._create_tiles(jpeg_data, tile_point))
 
