@@ -3,8 +3,8 @@ import unittest
 import pytest
 from tifffile.tifffile import TiffFile
 
-from ndpi_tiler import __version__, NdpiPageTiler
-from ndpi_tiler.interface import Tags, Size, Point, NdpiFileHandle
+from ndpi_tiler import __version__, NdpiTiler
+from ndpi_tiler.interface import NdpiLevel, Tags, Size, Point, NdpiFileHandle
 from .create_jpeg_data import open_tif
 
 
@@ -13,20 +13,20 @@ class NdpiTilerTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tif: TiffFile
-        self.tiler: NdpiPageTiler
+        self.tiler: NdpiTiler
+        self.level: NdpiLevel
 
     @classmethod
     def setUpClass(cls):
         cls.tile_size = 512
         cls.tif = open_tif()
-        cls.tiler = NdpiPageTiler(
-            cls.tif,
+        cls.tiler = NdpiTiler(
+            cls.tif.series[0],
             NdpiFileHandle(cls.tif.filehandle),
-            0,
-            0,
             (cls.tile_size, cls.tile_size),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
+        cls.level = cls.tiler._create_level(0)
 
     @classmethod
     def tearDownClass(cls):
@@ -40,15 +40,15 @@ class NdpiTilerTest(unittest.TestCase):
         self.assertEqual(Tags.restart_mark(9), bytes([0xD1]))
 
     def test_find_tag(self):
-        header = self.tiler._page.jpegheader
-        index, length = self.tiler._find_tag(header, Tags.start_of_frame())
+        header = self.level._page.jpegheader
+        index, length = self.level._find_tag(header, Tags.start_of_frame())
         self.assertEqual(621, index)
         self.assertEqual(17, length)
 
-    def test__update_header(self):
+    def test_update_header(self):
         target_size = Size(512, 200)
-        header = self.tiler._page.jpegheader
-        updated_header = self.tiler._update_header(header, target_size)
+        header = self.level._page.jpegheader
+        updated_header = self.level._update_header(header, target_size)
         (
             stripe_width,
             stripe_height,
@@ -59,22 +59,22 @@ class NdpiTilerTest(unittest.TestCase):
     def test_stripe_coordinate_to_index(self):
         self.assertEqual(
             50,
-            self.tiler._stripe_coordinate_to_index(Point(50, 0))
+            self.level._stripe_coordinate_to_index(Point(50, 0))
         )
         self.assertEqual(
             800,
-            self.tiler._stripe_coordinate_to_index(Point(20, 20))
+            self.level._stripe_coordinate_to_index(Point(20, 20))
         )
 
     def test_get_stripe(self):
-        stripe = self.tiler._get_stripe(Point(50, 0))
+        stripe = self.level._get_stripe(Point(50, 0))
         self.assertEqual(
             84212,
             sum(stripe)
         )
 
     def test_get_stitched_image(self):
-        image = self.tiler._get_stitched_image(Point(10, 10))
+        image = self.level._get_stitched_image(Point(10, 10))
         self.assertEqual(
             5153423,
             sum(image)
@@ -83,5 +83,5 @@ class NdpiTilerTest(unittest.TestCase):
     def test_map_tile_to_image(self):
         self.assertEqual(
             Point(5*self.tile_size, 5*self.tile_size),
-            self.tiler._map_tile_to_image(Point(5, 5))
+            self.level._map_tile_to_image(Point(5, 5))
         )

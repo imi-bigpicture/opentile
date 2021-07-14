@@ -5,9 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from struct import unpack
 from typing import Dict, Generator, List, Optional, Tuple
+from abc import ABCMeta, abstractmethod
 
 from tifffile import FileHandle, TiffPage
-from tifffile.tifffile import TiffFile
+from tifffile.tifffile import TiffPageSeries
 from turbojpeg import TurboJPEG
 
 
@@ -189,48 +190,63 @@ class NdpiFileHandle:
         return stripe
 
 
-class NdpiPageTiler:
+class NdpiLevel(metaclass=ABCMeta):
     def __init__(
         self,
-        tif: TiffFile,
+        page: TiffPage,
         fh: NdpiFileHandle,
-        series: int,
-        level: int,
-        tile_size: Tuple[int, int],
-        turbo_path: Path = None
+        jpeg: TurboJPEG,
+        tile_size: Size
     ):
-        """Cache for ndpi stripes, with functions to produce tiles of specified
-        size.
-
-        Parameters
-        ----------
-        tif: TiffFile
-            Tiff file
-        fh: NdpiFileHandle
-            File handle to stripe data.
-        series: int
-            Series in tiff file
-        level: int
-            Level in tiff file
-        tile_size: Tuple[int, int]
-            Tile size to cache and produce. Must be multiple of 8.
-        turbo_path: Path
-            Path to turbojpeg (dll or so).
-
-        """
-
+        self._page = page
         self._fh = fh
-        self._page: TiffPage = tif.series[series].levels[level].pages[0]
+        self._tile_size = tile_size
+        self._jpeg = jpeg
+        self.tiles: Dict[Point, bytes] = {}
 
-        self._tile_size = Size(*tile_size)
-        if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
-            raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
+    @property
+    def tile_size(self) -> Size:
+        """The size of the tiles to generate."""
+        return self._tile_size
 
-        self.jpeg = TurboJPEG(turbo_path)
+    def _read_data(self, index: int) -> bytes:
+        offset = self._page.dataoffsets[index]
+        bytecount = self._page.databytecounts[index]
+        return self._fh.read(offset, bytecount)
+
+    @abstractmethod
+    def get_tile(
+        self,
+        tile_position: Tuple[int, int]
+    ) -> bytes:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _create_tiles(
+        self,
+        requested_tile: Point
+    ) -> Dict[Point, bytes]:
+        raise NotImplementedError
+
+
+class NdpiLevelNonTiled(NdpiLevel):
+    pass
+
+
+class NdpiLevelTiled(NdpiLevel):
+    def __init__(
+        self,
+        page: TiffPage,
+        fh: NdpiFileHandle,
+        jpeg: TurboJPEG,
+        tile_size: Size
+    ):
+        super().__init__(page, fh, jpeg, tile_size)
+
         (
             stripe_width,
             stripe_height, _, _
-        ) = self.jpeg.decode_header(self._page.jpegheader)
+        ) = self._jpeg.decode_header(self._page.jpegheader)
 
         self._stripe_size = Size(stripe_width, stripe_height)
         self._striped_size = Size(self._page.chunked[1], self._page.chunked[0])
@@ -241,8 +257,6 @@ class NdpiPageTiler:
             self._stripe_size
             )
         self._header = self._update_header(self._page.jpegheader, read_size)
-
-        self.tiles: Dict[Point, bytes] = {}
 
     @property
     def stripe_size(self) -> Size:
@@ -255,22 +269,9 @@ class NdpiPageTiler:
         return self._striped_size
 
     @property
-    def tile_size(self) -> Size:
-        """The size of the tiles to generate."""
-        return self._tile_size
-
-    @property
     def tiled_size(self) -> Size:
         """The level size when tiled (coluns and rows of tiles)."""
         return self._tiled_size
-
-    def tile_generator(self) -> Generator[Tuple[Point, bytes], None, None]:
-        """Return generator for creating all tiles in level."""
-        return (
-            (Point(x, y), self.get_tile((x, y)))
-            for y in range(self.tiled_size.height)
-            for x in range(self.tiled_size.width)
-        )
 
     def get_tile(
         self,
@@ -295,10 +296,8 @@ class NdpiPageTiler:
         if tile_point not in self.tiles.keys():
             # Empty cache
             self.tiles = {}
-            # Create jpeg data from stripes
-            jpeg_data = self._get_stitched_image(tile_point)
-            # Create tiles from jpeg data
-            self.tiles.update(self._create_tiles(jpeg_data, tile_point))
+            # Create tiles and add to tile cache
+            self.tiles.update(self._create_tiles(tile_point))
 
         return self.tiles[tile_point]
 
@@ -376,10 +375,7 @@ class NdpiPageTiler:
             Stripe as bytes.
         """
         index = self._stripe_coordinate_to_index(coordinate)
-        offset = self._page.dataoffsets[index]
-        bytecount = self._page.databytecounts[index]
-        stripe = self._fh.read(offset, bytecount)
-        return stripe
+        return self._read_data(index)
 
     def _get_stitched_image(self, tile_coordinate: Point) -> bytes:
         """Return stitched image covering tile coorindate as valid jpeg bytes.
@@ -427,7 +423,6 @@ class NdpiPageTiler:
 
     def _create_tiles(
         self,
-        jpeg_data: bytes,
         requested_tile: Point
     ) -> Dict[Point, bytes]:
         """Return tiles created by parsing jpeg data. Additional tiles than the
@@ -445,9 +440,14 @@ class NdpiPageTiler:
         Dict[Point, bytes]:
             Created tiles ordered by tile coordiante.
         """
+
         # Starting tile should be at stripe border
         ratio = self.stripe_size / self.tile_size
         starting_tile = requested_tile - (requested_tile % ratio)
+
+        # Create jpeg data from stripes
+        jpeg_data = self._get_stitched_image(starting_tile)
+
         tile_region = Region(
             starting_tile,
             Size.max(self.stripe_size // self.tile_size, Size(1, 1))
@@ -469,3 +469,77 @@ class NdpiPageTiler:
 
         return tiles
 
+
+class NdpiTiler:
+    def __init__(
+        self,
+        tiff_series: TiffPageSeries,
+        fh: NdpiFileHandle,
+        tile_size: Tuple[int, int],
+        turbo_path: Path = None
+    ):
+        """Cache for ndpi stripes, with functions to produce tiles of specified
+        size.
+
+        Parameters
+        ----------
+        tif: TiffFile
+            Tiff file
+        fh: NdpiFileHandle
+            File handle to stripe data.
+        series: int
+            Series in tiff file
+        tile_size: Tuple[int, int]
+            Tile size to cache and produce. Must be multiple of 8.
+        turbo_path: Path
+            Path to turbojpeg (dll or so).
+
+        """
+
+        self._fh = fh
+        self._tile_size = Size(*tile_size)
+        self._tiff_series: TiffPageSeries = tiff_series
+        if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
+            raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
+
+        self.jpeg = TurboJPEG(turbo_path)
+        self._levels: Dict[int, NdpiLevel] = {}
+
+    @property
+    def tile_size(self) -> Size:
+        """The size of the tiles to generate."""
+        return self._tile_size
+
+    def get_tile(
+        self,
+        level: int,
+        tile_position: Tuple[int, int]
+    ) -> bytes:
+        """Return tile for tile position x and y. If stripes for the tile
+        is not cached, read them from disk and parse the jpeg data.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Position of tile to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position, wrapped in header.
+        """
+        try:
+            ndpi_level = self._levels[level]
+        except KeyError:
+            ndpi_level = self._create_level(level)
+            self._levels[level] = ndpi_level
+
+        return ndpi_level.get_tile(*tile_position)
+
+    def _create_level(self, level: int) -> NdpiLevel:
+        page: TiffPage = self._tiff_series.levels[level].pages[0]
+        if page.is_tiled:
+            level_type = NdpiLevelTiled
+        else:
+            level_type = NdpiLevelNonTiled
+        return level_type(page, self._fh, self.jpeg, self.tile_size)
