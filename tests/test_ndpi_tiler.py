@@ -3,7 +3,7 @@ import unittest
 import pytest
 from ndpi_tiler import NdpiTiler, __version__
 from ndpi_tiler.interface import (NdpiFileHandle, NdpiLevel, NdpiStripedLevel,
-                                  Point, Size, Tags)
+                                  Point, Size, Tags, NdpiTile)
 from tifffile.tifffile import TiffFile
 
 from .create_jpeg_data import open_tif
@@ -19,12 +19,12 @@ class NdpiTilerTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tile_size = 1024
+        cls.tile_size = Size(1024, 1024)
         cls.tif = open_tif()
         cls.tiler = NdpiTiler(
             cls.tif.series[0],
             NdpiFileHandle(cls.tif.filehandle),
-            (cls.tile_size, cls.tile_size),
+            (cls.tile_size.width, cls.tile_size.height),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
         cls.level: NdpiStripedLevel = cls.tiler._create_level(0)
@@ -57,14 +57,14 @@ class NdpiTilerTest(unittest.TestCase):
         ) = self.tiler.jpeg.decode_header(updated_header)
         self.assertEqual(target_size, Size(stripe_width, stripe_height))
 
-    def test_stripe_coordinate_to_index(self):
+    def test_stripe_position_to_index(self):
         self.assertEqual(
             50,
-            self.level._stripe_coordinate_to_index(Point(50, 0))
+            self.level._stripe_position_to_index(Point(50, 0))
         )
         self.assertEqual(
             800,
-            self.level._stripe_coordinate_to_index(Point(20, 20))
+            self.level._stripe_position_to_index(Point(20, 20))
         )
 
     def test_file_handle_read(self):
@@ -97,24 +97,29 @@ class NdpiTilerTest(unittest.TestCase):
             sum(image)
         )
 
-    def test_map_tile_to_image(self):
+    def test_map_tile_to_frame(self):
+        tile = NdpiTile(Point(5, 5), self.tile_size, self.level.frame_size)
+
         self.assertEqual(
-            Point(5*self.tile_size, 5*self.tile_size),
-            self.level._map_tile_to_image(Point(5, 5))
+            Point(1024, 0),
+            Point(tile.left, tile.top)
         )
 
     def test_origin_tile(self):
+        tile = NdpiTile(Point(3, 0), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(0, 0),
-            self.level._get_origin_tile(Point(3, 0))
+            tile.origin
         )
+        tile = NdpiTile(Point(7, 0), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(4, 0),
-            self.level._get_origin_tile(Point(7, 0))
+            tile.origin
         )
+        tile = NdpiTile(Point(5, 2), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(4, 2),
-            self.level._get_origin_tile(Point(5, 2))
+            tile.origin
         )
 
     # def test_create_tile_jobs(self):
