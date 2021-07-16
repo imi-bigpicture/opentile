@@ -198,7 +198,6 @@ class NdpiFileHandle:
         return data
 
 
-@dataclass
 class NdpiTile:
     """Defines a tile by position and coordinates and size for cropping out
     out frame."""
@@ -288,7 +287,6 @@ class NdpiTile:
         return tile_position - (tile_position % ratio)
 
 
-@dataclass
 class NdpiTileJob:
     """A list of tiles for a thread to parse. Tiles need to have the same
     origin."""
@@ -318,14 +316,9 @@ class NdpiTileJob:
             raise ValueError(f"{tile} does not match {self} origin")
         self._tiles.append(tile)
 
-    def __len__(self) -> int:
-        """The number of tiles in the job."""
-        return len(self._tiles)
-
-    def __iter__(self) -> NdpiTile:
-        """Iterator over the tile job yielding tiles."""
-        for elem in self._tiles:
-            yield elem
+    @property
+    def tiles(self) -> List[NdpiTile]:
+        return self._tiles
 
 
 class NdpiLevel(metaclass=ABCMeta):
@@ -369,7 +362,7 @@ class NdpiLevel(metaclass=ABCMeta):
     @cached_property
     def level_size(self) -> Size:
         """The size of the level."""
-        return Size(page.shape[1], page.shape[0])
+        return Size(self._page.shape[1], self._page.shape[0])
 
     @cached_property
     def frame_size(self) -> Size:
@@ -490,14 +483,13 @@ class NdpiLevel(metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordiante.
         """
-        origin_coorindate = tile_job.origin
         try:
-            frame = self.frame_cache[origin_coorindate]
+            frame = self.frame_cache[tile_job.origin]
         except KeyError:
-            frame = self._get_frame(origin_coorindate)
+            frame = self._get_frame(tile_job.origin)
             self.frame_cache = {}
             self.tile_cache = {}
-            self.frame_cache[origin_coorindate] = frame
+            self.frame_cache[tile_job.origin] = frame
         tiles = self._crop_to_tiles(tile_job, frame)
         return tiles
 
@@ -532,7 +524,7 @@ class NdpiLevel(metaclass=ABCMeta):
                 tile.width,
                 tile.height
             )
-            for tile in tile_job
+            for tile in tile_job.tiles
         }
 
     def _sort_into_tile_jobs(
@@ -553,15 +545,14 @@ class NdpiLevel(metaclass=ABCMeta):
             List of created tile jobs.
 
         """
-        origin_tiles: Dict[Point, NdpiTileJob] = {}
+        tile_jobs: Dict[Point, NdpiTileJob] = {}
         for tile_position in tile_positions:
             tile = NdpiTile(tile_position, self.tile_size, self.frame_size)
             try:
-                origin_tiles[tile.origin].append(tile)
+                tile_jobs[tile.origin].append(tile)
             except KeyError:
-                tile_job = NdpiTileJob(tile)
-                origin_tiles[tile.origin] = tile_job
-        return list(origin_tiles.values())
+                tile_jobs[tile.origin] = NdpiTileJob(tile)
+        return list(tile_jobs.values())
 
     def _parse_tile_job(self, tile_job: NdpiTileJob) -> bytes:
         """Return the concatenated bytes from a parsed tile job.
