@@ -405,6 +405,19 @@ class NdpiLevel(metaclass=ABCMeta):
         self,
         number_of_tiles: int
     ) -> Generator[List[Point], None, None]:
+        """Divide the tiles covering the level into batches with maximum
+        number_of_tiles in each batch.
+
+        Parameters
+        ----------
+        number_of_tiles: int
+            Number of tiles in each batch
+
+        Returns
+        ----------
+        Generator[List[Point], None, None]:
+            Generator with list of points for each batch
+        """
         level_region = Region(Point(0, 0), self.tiled_size)
         tiles = list(level_region.iterate_all())
         for index in range(0, len(tiles), number_of_tiles):
@@ -650,9 +663,36 @@ class NdpiOneFrameLevel(NdpiLevel):
     """
 
     def _get_size_in_file(self, page: TiffPage) -> Size:
+        """Return size of the single frame in file.
+
+        Parameters
+        ----------
+        page: TiffPage
+            Page to read size from.
+
+        Returns
+        ----------
+        Size
+            The size of frame in the file.
+        """
         return Size(page.shape[1], page.shape[0])
 
     def _get_frame_size(self, size_in_file: Size, tile_size: Size) -> Size:
+        """Return frame size used for creating tiles.
+
+        Parameters
+        ----------
+        size_in_file: Size
+            Size of frame in file.
+        tile_size: Size
+            Requested tile size
+
+        Returns
+        ----------
+        Size
+            The size of frames to create when creating tiles.
+        """
+
         return (size_in_file // tile_size + 1) * tile_size
 
     def _get_frame(self, tile_position: Point) -> bytes:
@@ -693,20 +733,35 @@ class NdpiStripedLevel(NdpiLevel):
 
     @property
     def stripe_size(self) -> Size:
+        """Size of the stripes."""
         return self._size_in_file
 
     @cached_property
     def striped_size(self) -> Size:
+        """Number of stripes in columns and rows."""
         return Size(self._page.chunked[1], self._page.chunked[0])
 
     @cached_property
     def header(self) -> bytes:
+        """Modified jpeg header for reading frames."""
         return self._update_header(
             self._page.jpegheader,
             self.frame_size
         )
 
     def _get_size_in_file(self, page: TiffPage) -> Size:
+        """Return size of stripes in file.
+
+        Parameters
+        ----------
+        page: TiffPage
+            Page to read size from.
+
+        Returns
+        ----------
+        Size
+            The size of stripes in the file.
+        """
         (
             stripe_width,
             stripe_height, _, _
@@ -714,6 +769,20 @@ class NdpiStripedLevel(NdpiLevel):
         return Size(stripe_width, stripe_height)
 
     def _get_frame_size(self, size_in_file: Size, tile_size: Size) -> Size:
+        """Return frame size used for creating tiles.
+
+        Parameters
+        ----------
+        size_in_file: Size
+            Size of stripes in file.
+        tile_size: Size
+            Requested tile size
+
+        Returns
+        ----------
+        Size
+            The size of frames to create when creating tiles.
+        """
         return Size.max(tile_size, self.stripe_size)
 
     def _get_frame(self, tile_position: Point) -> bytes:
