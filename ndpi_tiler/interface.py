@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from struct import unpack
 from typing import Dict, Generator, List, Optional, Tuple
+from functools import cached_property
 
 from PIL import Image
 from tifffile import FileHandle, TiffPage
@@ -334,7 +335,6 @@ class NdpiLevel(metaclass=ABCMeta):
         page: TiffPage,
         fh: NdpiFileHandle,
         tile_size: Size,
-        frame_size: Size,
         jpeg: TurboJPEG
     ):
         """Metaclass for a ndpi level, should not be used.
@@ -347,8 +347,6 @@ class NdpiLevel(metaclass=ABCMeta):
             Filehandler to read data from.
         tile_size:
             Requested tile size.
-        frame_size:
-            Specified frame size.
         jpeg: TurboJpeg
             TurboJpeg instance to use.
 
@@ -356,44 +354,34 @@ class NdpiLevel(metaclass=ABCMeta):
         self._page = page
         self._fh = fh
         self._tile_size = tile_size
-        self._frame_size = frame_size
         self._jpeg = jpeg
-        self._framed_size = Size(page.chunked[1], page.chunked[0])
-        level_size = self.frame_size * self.framed_size
-        self._tiled_size = level_size // tile_size
-        self._tiles_per_frame = Size.max(
-            self.frame_size // self.tile_size,
-            Size(1, 1)
-        )
-        read_size = Size.max(
-            self._tile_size,
-            self._frame_size
-            )
-        self._header = self._update_header(self._page.jpegheader, read_size)
+
+        self._size_in_file = self._get_size_in_file(page)
+
         self.tile_cache: Dict[Point, bytes] = {}
         self.frame_cache: Dict[Point, bytes] = {}
-
-    @property
-    def frame_size(self) -> Size:
-        """The size of the stripes in the level."""
-        return self._frame_size
-
-    @property
-    def framed_size(self) -> Size:
-        """The level size when striped (columns and rows of stripes)."""
-        return self._framed_size
-
-    @property
-    def tiled_size(self) -> Size:
-        """The level size when tiled (coluns and rows of tiles)."""
-        return self._tiled_size
 
     @property
     def tile_size(self) -> Size:
         """The size of the tiles to generate."""
         return self._tile_size
 
-    @property
+    @cached_property
+    def level_size(self) -> Size:
+        """The size of the level."""
+        return Size(page.shape[1], page.shape[0])
+
+    @cached_property
+    def frame_size(self) -> Size:
+        """The size of the frames to use for creating tiles."""
+        return self._get_frame_size(self._size_in_file, self.tile_size)
+
+    @cached_property
+    def tiled_size(self) -> Size:
+        """The level size when tiled (columns and rows of tiles)."""
+        return self.level_size // self.tile_size
+
+    @cached_property
     def tiles_per_frame(self) -> Size:
         """The number of tiles created when parsing one frame."""
         return Size.max(
@@ -402,10 +390,15 @@ class NdpiLevel(metaclass=ABCMeta):
         )
 
     @abstractmethod
-    def _get_frame(
-        self,
-        tile_position: Point
-    ) -> bytes:
+    def _get_frame(self, tile_position: Point) -> bytes:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _get_size_in_file(self, page: TiffPage) -> Size:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _get_frame_size(self, size_in_file: Size, tile_size: Size) -> Size:
         raise NotImplementedError
 
     def create_batches(
@@ -650,42 +643,17 @@ class NdpiLevel(metaclass=ABCMeta):
 
 
 class NdpiOneFrameLevel(NdpiLevel):
-    def __init__(
-        self,
-        page: TiffPage,
-        fh: NdpiFileHandle,
-        tile_size: Size,
-        jpeg: TurboJPEG
-    ):
-        """Class for a ndpi level containing only one frame. The frame can be
-        of any size (smaller or larger than the wanted tile size). The
-        frame is padded to an even multipe of tile size. This is currently
-        not lossless.
+    """Class for a ndpi level containing only one frame. The frame can be
+    of any size (smaller or larger than the wanted tile size). The
+    frame is padded to an even multipe of tile size. This is currently
+    not lossless.
+    """
 
-        Parameters
-        ----------
-        page: TiffPage
-            TiffPage defining the level.
-        fh: NdpiFileHandle
-            Filehandler to read data from.
-        tile_size:
-            Requested tile size.
-        jpeg: TurboJpeg
-            TurboJpeg instance to use.
+    def _get_size_in_file(self, page: TiffPage) -> Size:
+        return Size(page.shape[1], page.shape[0])
 
-        """
-        original_size = Size(page.shape[1], page.shape[0])
-        frame_size = (
-            (original_size // tile_size + 1) * tile_size
-        )
-        super().__init__(
-            page,
-            fh,
-            tile_size,
-            frame_size,
-            jpeg
-
-        )
+    def _get_frame_size(self, size_in_file: Size, tile_size: Size) -> Size:
+        return (size_in_file // tile_size + 1) * tile_size
 
     def _get_frame(self, tile_position: Point) -> bytes:
         """Return padded image covering tile coorindate as valid jpeg bytes.
@@ -718,56 +686,35 @@ class NdpiOneFrameLevel(NdpiLevel):
 
 
 class NdpiStripedLevel(NdpiLevel):
-    def __init__(
-        self,
-        page: TiffPage,
-        fh: NdpiFileHandle,
-        tile_size: Size,
-        jpeg: TurboJPEG
-    ):
-        (
-            frame_width,
-            frame_height, _, _
-        ) = jpeg.decode_header(page.jpegheader)
-        frame_size = Size(frame_width, frame_height)
-        super().__init__(
-            page,
-            fh,
-            tile_size,
-            frame_size,
-            jpeg
+    """Class for a ndpi level containing stripes. A frame is constructed by
+    concatenating multiple stripes, and from the frame one or more tiles can be
+    produced by cropping. The procedure is lossless.
+    """
+
+    @property
+    def stripe_size(self) -> Size:
+        return self._size_in_file
+
+    @cached_property
+    def striped_size(self) -> Size:
+        return Size(self._page.chunked[1], self._page.chunked[0])
+
+    @cached_property
+    def header(self) -> bytes:
+        return self._update_header(
+            self._page.jpegheader,
+            self.frame_size
         )
 
-    def _stripe_position_to_index(self, position: Point) -> int:
-        """Return stripe index from position.
+    def _get_size_in_file(self, page: TiffPage) -> Size:
+        (
+            stripe_width,
+            stripe_height, _, _
+        ) = self._jpeg.decode_header(page.jpegheader)
+        return Size(stripe_width, stripe_height)
 
-        Parameters
-        ----------
-        position: Point
-            position of stripe to get index for.
-
-        Returns
-        ----------
-        int
-            Stripe index.
-        """
-        return position.x + position.y * self.framed_size.width
-
-    def _get_stripe(self, position: Point) -> bytes:
-        """Return stripe bytes for stripe at point.
-
-        Parameters
-        ----------
-        position: Point
-            position of stripe to get.
-
-        Returns
-        ----------
-        bytes
-            Stripe as bytes.
-        """
-        index = self._stripe_position_to_index(position)
-        return self._read(index)
+    def _get_frame_size(self, size_in_file: Size, tile_size: Size) -> Size:
+        return Size.max(tile_size, self.stripe_size)
 
     def _get_frame(self, tile_position: Point) -> bytes:
         """Return concatenated frame covering tile coorindate as valid jpeg
@@ -785,11 +732,11 @@ class NdpiStripedLevel(NdpiLevel):
         bytes
             Concatenated frame as jpeg bytes.
         """
-        jpeg_data = self._header
+        jpeg_data = self.header
         restart_marker_index = 0
         stripe_region = Region(
-            (tile_position * self.tile_size) // self.frame_size,
-            Size.max(self.tile_size // self.frame_size, Size(1, 1))
+            (tile_position * self.tile_size) // self.stripe_size,
+            Size.max(self.tile_size // self.stripe_size, Size(1, 1))
         )
         for stripe_coordiante in stripe_region.iterate_all():
             jpeg_data += self._get_stripe(stripe_coordiante)[:-1]
@@ -797,6 +744,37 @@ class NdpiStripedLevel(NdpiLevel):
             restart_marker_index += 1
         jpeg_data += Tags.end_of_image()
         return jpeg_data
+
+    def _stripe_position_to_index(self, position: Point) -> int:
+        """Return stripe index from position.
+
+        Parameters
+        ----------
+        position: Point
+            position of stripe to get index for.
+
+        Returns
+        ----------
+        int
+            Stripe index.
+        """
+        return position.x + position.y * self.striped_size.width
+
+    def _get_stripe(self, position: Point) -> bytes:
+        """Return stripe bytes for stripe at point.
+
+        Parameters
+        ----------
+        position: Point
+            position of stripe to get.
+
+        Returns
+        ----------
+        bytes
+            Stripe as bytes.
+        """
+        index = self._stripe_position_to_index(position)
+        return self._read(index)
 
 
 class NdpiTiler:
