@@ -171,6 +171,83 @@ class Tags:
         return bytes([cls.TAGS['restart mark'] + index % 8])
 
 
+class NdpiCache():
+    """Cache for bytes ordered by tile position. Oldest entry is removed when
+    size of conent is above set size."""
+    def __init__(self, size: int):
+        """Create cache for size items.
+
+        Parameters
+        ----------
+        size: int
+            Size of the cache.
+
+        """
+        self._size = size
+        self._content: Dict[Point, bytes] = {}
+        self._history: List[Point] = []
+
+    def __setitem__(self, key: Point, value: bytes) -> None:
+        """Set item in cache. Remove old items if needed.
+
+        Parameters
+        ----------
+        key: Point
+            Key for item to set.
+        value: bytes:
+            Value for item to set.
+
+        """
+        self._content[key] = value
+        self._history.append(key)
+        self._remove_old()
+
+    def __getitem__(self, key: Point) -> bytes:
+        """Get item from cache.
+
+        Parameters
+        ----------
+        key: Point
+            Key for item to get.
+
+        Returns
+        ----------
+        bytes
+            Value for key.
+
+        """
+        return self._content[key]
+
+    def keys(self) -> List[Point]:
+        """Returns keys in cache.
+
+        Returns
+        ----------
+        List[Point]
+            Keys in cache.
+
+        """
+        return self._content.keys()
+
+    def update(self, items: Dict[Point, bytes]) -> None:
+        """Update items in cache. Remove old items if needed.
+
+        Parameters
+        ----------
+        items: Dict[Point, bytes]
+            Items to update.
+
+        """
+        self._content.update(items)
+        self._remove_old()
+
+    def _remove_old(self) -> None:
+        """Remove old items in cache if needed."""
+        while len(self._history) > self._size:
+            key_to_remove = self._history.pop(0)
+            self._content.pop(key_to_remove)
+
+
 class NdpiFileHandle:
     """A lockable file handle for reading stripes."""
     def __init__(self, fh: FileHandle):
@@ -178,7 +255,7 @@ class NdpiFileHandle:
         self._lock = threading.Lock()
 
     def read(self, offset: int, bytecount: int) -> bytes:
-        """Return bytes.
+        """Return bytes from filehandle.
 
         Parameters
         ----------
@@ -351,8 +428,8 @@ class NdpiLevel(metaclass=ABCMeta):
 
         self._size_in_file = self._get_size_in_file(page)
 
-        self.tile_cache: Dict[Point, bytes] = {}
-        self.frame_cache: Dict[Point, bytes] = {}
+        self.tile_cache = NdpiCache(10)
+        self.frame_cache = NdpiCache(10)
 
     @property
     def tile_size(self) -> Size:
@@ -417,8 +494,7 @@ class NdpiLevel(metaclass=ABCMeta):
             yield tiles[index:index + number_of_tiles]
 
     def get_tile(self, tile_position: Point) -> bytes:
-        """Return tile for tile position. Creates a new tile if the
-        tile is not in cache.
+        """Return tile for tile position. Caches created frames and tiles.
 
         Parameters
         ----------
@@ -448,7 +524,7 @@ class NdpiLevel(metaclass=ABCMeta):
     def get_tiles(self, tile_positions: List[Point]) -> bytes:
         """Return tiles for tile positions. Sorts the requested tile posistions
         into tile jobs and uses a pool of threads to parse tile jobs. The
-        results are concatenated.
+        results are concatenated. Frames and tiles are not cached.
 
         Parameters
         ----------
@@ -487,8 +563,6 @@ class NdpiLevel(metaclass=ABCMeta):
             frame = self.frame_cache[tile_job.origin]
         except KeyError:
             frame = self._get_frame(tile_job.origin)
-            self.frame_cache = {}
-            self.tile_cache = {}
             self.frame_cache[tile_job.origin] = frame
         tiles = self._crop_to_tiles(tile_job, frame)
         return tiles
