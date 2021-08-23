@@ -1,13 +1,14 @@
 import io
+import math
 import struct
 import threading
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from struct import unpack
 from typing import Dict, Generator, List, Optional, Tuple
-from functools import cached_property
 
 from PIL import Image
 from tifffile import FileHandle, TiffPage
@@ -60,6 +61,12 @@ class Size:
             height=max(size_1.height, size_2.height)
         )
 
+    def ceil(self) -> 'Size':
+        return Size(
+            width=int(math.ceil(self.width)),
+            height=int(math.ceil(self.height))
+        )
+
 
 @dataclass
 class Point:
@@ -67,7 +74,7 @@ class Point:
     y: int
 
     def __str__(self):
-        return f'{self.x},{self.y}'
+        return f'{self.x}, {self.y}'
 
     def __hash__(self) -> int:
         return hash((self.x, self.y))
@@ -187,6 +194,9 @@ class NdpiCache():
         self._content: Dict[Point, bytes] = {}
         self._history: List[Point] = []
 
+    def __len__(self) -> int:
+        return len(self._history)
+
     def __setitem__(self, key: Point, value: bytes) -> None:
         """Set item in cache. Remove old items if needed.
 
@@ -239,6 +249,7 @@ class NdpiCache():
 
         """
         self._content.update(items)
+        self._history += list(items.keys())
         self._remove_old()
 
     def _remove_old(self) -> None:
@@ -299,12 +310,33 @@ class NdpiTile:
         self._tile_position = tile_position
         self._tile_size = tile_size
         self._frame_size = frame_size
+
+        self._tiles_per_frame = Size.max(
+            self._frame_size // self._tile_size,
+            Size(1, 1)
+        )
+
         frame_position = self._map_tile_to_frame(tile_position)
         self._origin = self._get_origin_tile(tile_position)
         self._left = frame_position.x
         self._top = frame_position.y
         self._width = tile_size.width
         self._height = tile_size.height
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, NdpiTile):
+            return (
+                self._tile_position == other._tile_position and
+                self._tile_size == other._tile_size and
+                self._frame_size == other._frame_size
+            )
+        return NotImplemented
+
+    def __repr__(self) -> str:
+        return (
+            f"NdpiTile({self.position}, {self._tile_size}, "
+            f"{self._frame_size})"
+        )
 
     @property
     def position(self) -> Point:
@@ -360,8 +392,7 @@ class NdpiTile:
             The origin tile position for tile.
 
         """
-        ratio = self._frame_size / self._tile_size
-        return tile_position - (tile_position % ratio)
+        return (tile_position // self._tiles_per_frame) * self._tiles_per_frame
 
 
 class NdpiTileJob:
@@ -369,7 +400,7 @@ class NdpiTileJob:
     origin."""
     def __init__(
         self,
-        tile: NdpiTile
+        tiles: List[NdpiTile]
     ) -> None:
         """Create a tile job from given tile.
 
@@ -379,8 +410,18 @@ class NdpiTileJob:
             Tile to base the tile job on.
 
         """
-        self._origin = tile.origin
-        self._tiles = [tile]
+        self._origin = tiles[0].origin
+        self._tiles: List[NdpiTile] = []
+        for tile in tiles:
+            self.append(tile)
+
+    def __repr__(self) -> str:
+        return f"NdpiTileJob({self.tiles})"
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, NdpiTileJob):
+            return self.tiles == other.tiles
+        return NotImplemented
 
     @property
     def origin(self) -> Point:
@@ -426,7 +467,7 @@ class NdpiLevel(metaclass=ABCMeta):
         self._tile_size = tile_size
         self._jpeg = jpeg
 
-        self._size_in_file = self._get_size_in_file(page)
+        self._size_in_file = self._get_size_in_file()
 
         self.tile_cache = NdpiCache(10)
         self.frame_cache = NdpiCache(10)
@@ -449,7 +490,10 @@ class NdpiLevel(metaclass=ABCMeta):
     @cached_property
     def tiled_size(self) -> Size:
         """The level size when tiled (columns and rows of tiles)."""
+        # This rounds down, correct should round up. But we cant handle
+        # not complete tiles
         return self.level_size // self.tile_size
+        # return (self.level_size / self.tile_size).ceil()
 
     @cached_property
     def tiles_per_frame(self) -> Size:
@@ -461,14 +505,17 @@ class NdpiLevel(metaclass=ABCMeta):
 
     @abstractmethod
     def _get_frame(self, tile_position: Point) -> bytes:
+        """Return frame for creating tiles."""
         raise NotImplementedError
 
     @abstractmethod
-    def _get_size_in_file(self, page: TiffPage) -> Size:
+    def _get_size_in_file(self) -> Size:
+        """Return size of the single frame in file."""
         raise NotImplementedError
 
     @abstractmethod
     def _get_frame_size(self, size_in_file: Size, tile_size: Size) -> Size:
+        """Return frame size used for creating tiles."""
         raise NotImplementedError
 
     def create_batches(
@@ -514,7 +561,7 @@ class NdpiLevel(metaclass=ABCMeta):
                 self.tile_size,
                 self.frame_size
             )
-            tile_job = NdpiTileJob(tile)
+            tile_job = NdpiTileJob([tile])
             # Create new tiles
             new_tiles = self._create_tiles(tile_job)
             # Add to tile cache
@@ -522,7 +569,7 @@ class NdpiLevel(metaclass=ABCMeta):
         return self.tile_cache[tile_position]
 
     def get_tiles(self, tile_positions: List[Point]) -> bytes:
-        """Return tiles for tile positions. Sorts the requested tile posistions
+        """Return tiles for tile positions. Sorts the requested tile positions
         into tile jobs and uses a pool of threads to parse tile jobs. The
         results are concatenated. Frames and tiles are not cached.
 
@@ -538,7 +585,9 @@ class NdpiLevel(metaclass=ABCMeta):
         """
         tile_jobs = self._sort_into_tile_jobs(tile_positions)
         with ThreadPoolExecutor() as pool:
-            result = pool.map(self._parse_tile_job, tile_jobs)
+            def thread(tile_job: NdpiTileJob) -> bytes:
+                return b"".join(self._create_tiles(tile_job).values())
+            result = pool.map(thread, tile_jobs)
             return b"".join(result)
 
     def _create_tiles(
@@ -570,7 +619,7 @@ class NdpiLevel(metaclass=ABCMeta):
     def _crop_to_tiles(
         self,
         tile_job: NdpiTileJob,
-        jpeg_data: bytes
+        frame: bytes
     ) -> Dict[Point, bytes]:
         """Crop jpeg data to tiles.
 
@@ -578,7 +627,7 @@ class NdpiLevel(metaclass=ABCMeta):
         ----------
         tile_job: NdpiTileJob
             Tile job defining the tiles to produce by cropping jpeg data.
-        jpeg_data: bytes
+        frame: bytes
             Data to crop from.
 
         Returns
@@ -592,7 +641,7 @@ class NdpiLevel(metaclass=ABCMeta):
         # mcu handling.)
         return {
             tile.position: self._jpeg.crop(
-                jpeg_data,
+                frame,
                 tile.left,
                 tile.top,
                 tile.width,
@@ -625,25 +674,8 @@ class NdpiLevel(metaclass=ABCMeta):
             try:
                 tile_jobs[tile.origin].append(tile)
             except KeyError:
-                tile_jobs[tile.origin] = NdpiTileJob(tile)
+                tile_jobs[tile.origin] = NdpiTileJob([tile])
         return list(tile_jobs.values())
-
-    def _parse_tile_job(self, tile_job: NdpiTileJob) -> bytes:
-        """Return the concatenated bytes from a parsed tile job.
-
-        Parameters
-        ----------
-        tile_job: NdpiTileJob
-            Tile job to parse.
-
-        Returns
-        ----------
-        bytes
-            Concatenated bytes from tile job.
-
-        """
-        tiles = self._create_tiles(tile_job).values()
-        return b"".join(tiles)
 
     def _read(self, index: int) -> bytes:
         """Read frame bytes at index.
@@ -661,6 +693,155 @@ class NdpiLevel(metaclass=ABCMeta):
         offset = self._page.dataoffsets[index]
         bytecount = self._page.databytecounts[index]
         return self._fh.read(offset, bytecount)
+
+
+class NdpiOneFrameLevel(NdpiLevel):
+    """Class for a ndpi level containing only one frame. The frame can be
+    of any size (smaller or larger than the wanted tile size). The
+    frame is padded to an even multipe of tile size. This is currently
+    not lossless.
+    """
+
+    def _get_size_in_file(self) -> Size:
+        """Return size of the single frame in file.
+
+        Returns
+        ----------
+        Size
+            The size of frame in the file.
+        """
+        return Size(self._page.shape[1], self._page.shape[0])
+
+    def _get_frame_size(self, size_in_file: Size, tile_size: Size) -> Size:
+        """Return frame size used for creating tiles.
+
+        Parameters
+        ----------
+        size_in_file: Size
+            Size of frame in file.
+        tile_size: Size
+            Requested tile size
+
+        Returns
+        ----------
+        Size
+            The size of frames to create when creating tiles.
+        """
+
+        return (size_in_file // tile_size + 1) * tile_size
+
+    def _get_frame(self, tile_position: Point) -> bytes:
+        """Return padded image covering tile coorindate as valid jpeg bytes.
+        Includes header with the correct image size. Original restart markers
+        are updated to get the proper incrementation. End of image tag is
+        appended end.
+
+        Parameters
+        ----------
+        tile_position: Point
+            Tile position that should be covered by the stripe region.
+
+        Returns
+        ----------
+        bytes
+            Stitched image as jpeg bytes.
+        """
+        # This is not lossless!
+        frame = self._read(0)
+        frame_image = Image.open(io.BytesIO(frame))
+        padded_frame = Image.new(
+            'RGB',
+            (self.frame_size.width, self.frame_size.height),
+            (255, 255, 255)
+        )
+        padded_frame.paste(frame_image, (0, 0))
+        with io.BytesIO() as buffer:
+            padded_frame.save(buffer, format='jpeg')
+            return buffer.getvalue()
+
+
+class NdpiStripedLevel(NdpiLevel):
+    """Class for a ndpi level containing stripes. A frame is constructed by
+    concatenating multiple stripes, and from the frame one or more tiles can be
+    produced by cropping. The procedure is lossless. Edge tiles were the tile
+    is 'outside' a frame is not handled correctly.
+    """
+
+    @property
+    def stripe_size(self) -> Size:
+        """Size of the stripes."""
+        return self._size_in_file
+
+    @cached_property
+    def striped_size(self) -> Size:
+        """Number of stripes in columns and rows."""
+        return Size(self._page.chunked[1], self._page.chunked[0])
+
+    @cached_property
+    def header(self) -> bytes:
+        """Modified jpeg header for reading frames."""
+        return self._update_header(self._page.jpegheader, self.frame_size)
+
+    def _get_size_in_file(self) -> Size:
+        """Return size of stripes in file.
+
+        Returns
+        ----------
+        Size
+            The size of stripes in the file.
+        """
+        (
+            stripe_width,
+            stripe_height,
+            _, _
+        ) = self._jpeg.decode_header(self._page.jpegheader)
+        return Size(stripe_width, stripe_height)
+
+    def _get_frame_size(self, size_in_file: Size, tile_size: Size) -> Size:
+        """Return frame size used for creating tiles.
+
+        Parameters
+        ----------
+        size_in_file: Size
+            Size of stripes in file.
+        tile_size: Size
+            Requested tile size
+
+        Returns
+        ----------
+        Size
+            The size of frames to create when creating tiles.
+        """
+        return Size.max(tile_size, size_in_file)
+
+    def _get_frame(self, tile_position: Point) -> bytes:
+        """Return concatenated frame covering tile coorindate as valid jpeg
+        bytes including header with correct image size. Original restart
+        markers are updated to get the proper incrementation. End of image tag
+        is appended.
+
+        Parameters
+        ----------
+        tile_position: Point
+            Tile position that should be covered by the stripe region.
+
+        Returns
+        ----------
+        bytes
+            Concatenated frame as jpeg bytes.
+        """
+        jpeg_data = self.header
+        restart_marker_index = 0
+        stripe_region = Region(
+            (tile_position * self.tile_size) // self.stripe_size,
+            Size.max(self.tile_size // self.stripe_size, Size(1, 1))
+        )
+        for stripe_coordiante in stripe_region.iterate_all():
+            jpeg_data += self._get_stripe(stripe_coordiante)[:-1]
+            jpeg_data += Tags.restart_mark(restart_marker_index)
+            restart_marker_index += 1
+        jpeg_data += Tags.end_of_image()
+        return jpeg_data
 
     @staticmethod
     def _find_tag(
@@ -719,166 +900,6 @@ class NdpiLevel(metaclass=ABCMeta):
 
         return bytes(header)
 
-
-class NdpiOneFrameLevel(NdpiLevel):
-    """Class for a ndpi level containing only one frame. The frame can be
-    of any size (smaller or larger than the wanted tile size). The
-    frame is padded to an even multipe of tile size. This is currently
-    not lossless.
-    """
-
-    def _get_size_in_file(self, page: TiffPage) -> Size:
-        """Return size of the single frame in file.
-
-        Parameters
-        ----------
-        page: TiffPage
-            Page to read size from.
-
-        Returns
-        ----------
-        Size
-            The size of frame in the file.
-        """
-        return Size(page.shape[1], page.shape[0])
-
-    def _get_frame_size(self, size_in_file: Size, tile_size: Size) -> Size:
-        """Return frame size used for creating tiles.
-
-        Parameters
-        ----------
-        size_in_file: Size
-            Size of frame in file.
-        tile_size: Size
-            Requested tile size
-
-        Returns
-        ----------
-        Size
-            The size of frames to create when creating tiles.
-        """
-
-        return (size_in_file // tile_size + 1) * tile_size
-
-    def _get_frame(self, tile_position: Point) -> bytes:
-        """Return padded image covering tile coorindate as valid jpeg bytes.
-        Includes header with the correct image size. Original restart markers
-        are updated to get the proper incrementation. End of image tag is
-        appended end.
-
-        Parameters
-        ----------
-        tile_position: Point
-            Tile position that should be covered by the stripe region.
-
-        Returns
-        ----------
-        bytes
-            Stitched image as jpeg bytes.
-        """
-        # This is not lossless!
-        frame = self._read(0)
-        frame_image = Image.open(io.BytesIO(frame))
-        padded_frame = Image.new(
-            'RGB',
-            (self.frame_size.width, self.frame_size.height),
-            (255, 255, 255)
-        )
-        padded_frame.paste(frame_image, (0, 0))
-        with io.BytesIO() as buffer:
-            padded_frame.save(buffer, format='jpeg')
-            return buffer.getvalue()
-
-
-class NdpiStripedLevel(NdpiLevel):
-    """Class for a ndpi level containing stripes. A frame is constructed by
-    concatenating multiple stripes, and from the frame one or more tiles can be
-    produced by cropping. The procedure is lossless.
-    """
-
-    @property
-    def stripe_size(self) -> Size:
-        """Size of the stripes."""
-        return self._size_in_file
-
-    @cached_property
-    def striped_size(self) -> Size:
-        """Number of stripes in columns and rows."""
-        return Size(self._page.chunked[1], self._page.chunked[0])
-
-    @cached_property
-    def header(self) -> bytes:
-        """Modified jpeg header for reading frames."""
-        return self._update_header(
-            self._page.jpegheader,
-            self.frame_size
-        )
-
-    def _get_size_in_file(self, page: TiffPage) -> Size:
-        """Return size of stripes in file.
-
-        Parameters
-        ----------
-        page: TiffPage
-            Page to read size from.
-
-        Returns
-        ----------
-        Size
-            The size of stripes in the file.
-        """
-        (
-            stripe_width,
-            stripe_height, _, _
-        ) = self._jpeg.decode_header(page.jpegheader)
-        return Size(stripe_width, stripe_height)
-
-    def _get_frame_size(self, size_in_file: Size, tile_size: Size) -> Size:
-        """Return frame size used for creating tiles.
-
-        Parameters
-        ----------
-        size_in_file: Size
-            Size of stripes in file.
-        tile_size: Size
-            Requested tile size
-
-        Returns
-        ----------
-        Size
-            The size of frames to create when creating tiles.
-        """
-        return Size.max(tile_size, self.stripe_size)
-
-    def _get_frame(self, tile_position: Point) -> bytes:
-        """Return concatenated frame covering tile coorindate as valid jpeg
-        bytes including header with correct image size. Original restart
-        markers are updated to get the proper incrementation. End of image tag
-        is appended.
-
-        Parameters
-        ----------
-        tile_position: Point
-            Tile position that should be covered by the stripe region.
-
-        Returns
-        ----------
-        bytes
-            Concatenated frame as jpeg bytes.
-        """
-        jpeg_data = self.header
-        restart_marker_index = 0
-        stripe_region = Region(
-            (tile_position * self.tile_size) // self.stripe_size,
-            Size.max(self.tile_size // self.stripe_size, Size(1, 1))
-        )
-        for stripe_coordiante in stripe_region.iterate_all():
-            jpeg_data += self._get_stripe(stripe_coordiante)[:-1]
-            jpeg_data += Tags.restart_mark(restart_marker_index)
-            restart_marker_index += 1
-        jpeg_data += Tags.end_of_image()
-        return jpeg_data
-
     def _stripe_position_to_index(self, position: Point) -> int:
         """Return stripe index from position.
 
@@ -908,7 +929,11 @@ class NdpiStripedLevel(NdpiLevel):
             Stripe as bytes.
         """
         index = self._stripe_position_to_index(position)
-        return self._read(index)
+        try:
+            data = self._read(index)
+        except IndexError:
+            raise IndexError(f"error reading tile {position} with index {index}")
+        return data
 
 
 class NdpiTiler:
@@ -975,6 +1000,18 @@ class NdpiTiler:
         return ndpi_level.get_tile(Point(*tile_position))
 
     def get_level(self, level: int) -> NdpiLevel:
+        """Return level. Create level if not found.
+
+        Parameters
+        ----------
+        level: int
+            Level to get.
+
+        Returns
+        ----------
+        NdpiLevel
+            Requested level.
+        """
         try:
             ndpi_level = self._levels[level]
         except KeyError:

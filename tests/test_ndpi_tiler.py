@@ -1,9 +1,11 @@
 import unittest
+from hashlib import md5
 
 import pytest
 from ndpi_tiler import NdpiTiler, __version__
-from ndpi_tiler.interface import (NdpiFileHandle, NdpiLevel, NdpiStripedLevel,
-                                  Point, Size, Tags, NdpiTile)
+from ndpi_tiler.interface import (NdpiCache, NdpiFileHandle, NdpiLevel,
+                                  NdpiStripedLevel, NdpiTile, NdpiTileJob,
+                                  Point, Size, Tags)
 from tifffile.tifffile import TiffFile
 
 from .create_jpeg_data import open_tif
@@ -72,29 +74,87 @@ class NdpiTilerTest(unittest.TestCase):
         length = self.level._page.databytecounts[50]
         data = self.level._fh.read(offset, length)
         self.assertEqual(
-            84212,
-            sum(data)
+            'e2a7321a7d7032437f91df442b0182da',
+            md5(data).hexdigest()
         )
 
     def test_level_read(self):
         data = self.level._read(50)
         self.assertEqual(
-            84212,
-            sum(data)
+            'e2a7321a7d7032437f91df442b0182da',
+            md5(data).hexdigest()
         )
 
     def test_get_stripe(self):
         stripe = self.level._get_stripe(Point(50, 0))
         self.assertEqual(
-            84212,
-            sum(stripe)
+            'e2a7321a7d7032437f91df442b0182da',
+            md5(stripe).hexdigest()
         )
 
     def test_get_frame(self):
         image = self.level._get_frame(Point(10, 10))
         self.assertEqual(
-            10629431,
-            sum(image)
+            '25a908ef4b5340354e6d0d7771e18fcd',
+            md5(image).hexdigest()
+        )
+
+    def test_get_tile(self):
+        tile = self.level.get_tile(Point(0, 0))
+        self.assertEqual(
+            '4d7d1eb65b8e86b32691aa4d9ab000e4',
+            md5(tile).hexdigest()
+        )
+        tile = self.level.get_tile(Point(20, 20))
+        self.assertEqual(
+            'eef2ff23353e54464a870d4fdcda6701',
+            md5(tile).hexdigest()
+        )
+
+    def test_get_tiles(self):
+        points = [Point(0, 0), Point(1, 0)]
+        tiles_single = [self.level.get_tile(point) for point in points]
+        self.assertEqual(
+            b"".join(tiles_single),
+            self.level.get_tiles(points)
+        )
+
+    def test_create_tiles(self):
+        tile_job = NdpiTileJob(
+            [
+                NdpiTile(
+                    Point(x, 0),
+                    self.tile_size,
+                    self.level.frame_size
+                )
+                for x in range(4)
+            ]
+        )
+        tiles_single = [self.level.get_tile(Point(x, 0)) for x in range(4)]
+        self.assertEqual(
+            tiles_single,
+            list(self.level._create_tiles(tile_job).values())
+        )
+
+    def test_crop_to_tiles(self):
+        tile_job = NdpiTileJob(
+            [
+                NdpiTile(
+                    Point(x, 0),
+                    self.tile_size,
+                    self.level.frame_size
+                )
+                for x in range(4)
+            ]
+        )
+        tiles_single = {
+            Point(x, 0): self.level.get_tile(Point(x, 0))
+            for x in range(4)
+        }
+        frame = self.level._get_frame(tile_job.origin)
+        self.assertEqual(
+            tiles_single,
+            self.level._crop_to_tiles(tile_job, frame)
         )
 
     def test_map_tile_to_frame(self):
@@ -102,37 +162,149 @@ class NdpiTilerTest(unittest.TestCase):
 
         self.assertEqual(
             Point(1024, 0),
-            Point(tile.left, tile.top)
+            tile._map_tile_to_frame((Point(5, 5)))
         )
 
     def test_origin_tile(self):
         tile = NdpiTile(Point(3, 0), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(0, 0),
-            tile.origin
+            tile._get_origin_tile(Point(3, 0))
         )
         tile = NdpiTile(Point(7, 0), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(4, 0),
-            tile.origin
+            tile._get_origin_tile(Point(7, 0))
         )
         tile = NdpiTile(Point(5, 2), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(4, 2),
-            tile.origin
+            tile._get_origin_tile(Point(5, 2))
         )
 
-    # def test_create_tile_jobs(self):
-    #     requested_tiles = [
-    #         Point(0, 0),
-    #         Point(1, 0),
-    #         Point(5, 0),
-    #         Point(5, 1)
-    #     ]
-    #     expected_jobs = [
-    #         [Point(0, 0), Point(1, 0)],
-    #         [Point(5, 0)],
-    #         [Point(5, 1)]
-    #     ]
-    #     jobs = self.level._create_tile_jobs(requested_tiles)
-    #     self.assertEqual(expected_jobs, jobs)
+    def test_tile_jobs(self):
+        tile0 = NdpiTile(Point(3, 0), self.tile_size, self.level.frame_size)
+        tile_job = NdpiTileJob([tile0])
+        self.assertEqual(Point(0, 0), tile_job.origin)
+
+        tile1 = NdpiTile(Point(2, 0), self.tile_size, self.level.frame_size)
+        tile_job.append(tile1)
+        self.assertEqual([tile0, tile1], tile_job.tiles)
+
+        tile2 = NdpiTile(Point(2, 1), self.tile_size, self.level.frame_size)
+        with self.assertRaises(ValueError):
+            tile_job.append(tile2)
+
+    def test_sort_into_tile_jobs(self):
+        self.assertEqual(
+            [
+                NdpiTileJob(
+                    [
+                        NdpiTile(
+                            Point(index_x_0+index_x_1, index_y),
+                            self.tile_size,
+                            self.level.frame_size
+                        )
+                        for index_x_1 in range(4)
+                    ]
+
+                )
+                for index_x_0 in range(0, 8, 4)
+                for index_y in range(2)
+            ],
+            self.level._sort_into_tile_jobs(
+                [
+                    Point(index_x, index_y)
+                    for index_x in range(8)
+                    for index_y in range(2)
+                ]
+            )
+        )
+
+    def test_cache(self):
+        cache_size = 10
+        cache = NdpiCache(cache_size)
+        for index in range(10):
+            point = Point(index, index)
+            data = bytes([index])
+            cache[point] = data
+            self.assertEqual(data, cache[point])
+        self.assertEqual(cache_size, len(cache))
+
+        next = 10
+        point = Point(next, next)
+        data = bytes([next])
+        cache[point] = data
+        self.assertEqual(data, cache[point])
+        self.assertEqual(cache_size, len(cache))
+        with self.assertRaises(KeyError):
+            cache[Point(0, 0)]
+
+        update = {
+            Point(index, index): bytes([index])
+            for index in range(11, 20)
+        }
+        cache.update(update)
+        self.assertEqual(cache_size, len(cache))
+        for index in range(10, 20):
+            point = Point(index, index)
+            data = bytes([index])
+            self.assertEqual(data, cache[point])
+
+        for index in range(10):
+            with self.assertRaises(KeyError):
+                cache[Point(index, index)]
+
+        self.assertEqual(
+            [Point(index, index) for index in range(10, 20)],
+            list(cache.keys())
+        )
+
+    def test_stripe_size(self):
+        self.assertEqual(Size(4096, 8), self.level.stripe_size)
+
+    def test_striped_size(self):
+        self.assertEqual(Size(39, 12992), self.level.striped_size)
+
+    def test_header(self):
+        self.assertEqual(
+            '9cd86e1fd0652838fbcde51fdf966dfc',
+            md5(self.level.header).hexdigest()
+        )
+
+    def test_get_size_in_file(self):
+        self.assertEqual(Size(4096, 8), self.level._get_size_in_file())
+
+    def test_get_frame_size(self):
+        self.assertEqual(
+            Size(4096, 1024),
+            self.level._get_frame_size(
+                self.level._size_in_file,
+                self.tile_size
+            )
+        )
+
+    def test_tiled_size(self):
+        print(self.level.tiled_size)
+        self.assertEqual(Size(156, 101), self.level.tiled_size)
+
+    def test_create_batches(self):
+        batch_size = 400
+        batches = self.level.create_batches(batch_size)
+        for offset in range(
+            0,
+            (
+                self.level.tiled_size.width * self.level.tiled_size.height
+                - batch_size
+            ),
+            batch_size
+        ):
+            expected_batch = [
+                Point(
+                    index % self.level.tiled_size.width,
+                    index // self.level.tiled_size.width
+                )
+                for index in range(offset, offset+batch_size)
+            ]
+            next_batch = next(batches)
+            self.assertEqual(expected_batch, next_batch)
