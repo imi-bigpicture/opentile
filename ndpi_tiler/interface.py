@@ -782,6 +782,10 @@ class NdpiStripedLevel(NdpiLevel):
         """Modified jpeg header for reading frames."""
         return self._update_header(self._page.jpegheader, self.frame_size)
 
+    @property
+    def native_header(self) -> bytes:
+        return self._page.jpegheader
+
     def _get_size_in_file(self) -> Size:
         """Return size of stripes in file.
 
@@ -932,7 +936,10 @@ class NdpiStripedLevel(NdpiLevel):
         try:
             data = self._read(index)
         except IndexError:
-            raise IndexError(f"error reading tile {position} with index {index}")
+            raise IndexError(
+                f"error reading tile {position}"
+                " with index {index}"
+            )
         return data
 
 
