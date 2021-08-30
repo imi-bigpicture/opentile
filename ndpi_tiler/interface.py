@@ -1,4 +1,3 @@
-import io
 import math
 import struct
 import threading
@@ -10,10 +9,9 @@ from pathlib import Path
 from struct import unpack
 from typing import Dict, Generator, List, Optional, Tuple
 
-from PIL import Image
 from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TiffPageSeries
-from turbojpeg import TurboJPEG
+from wsi_turbojpeg import TurboJPEG
 
 
 @dataclass
@@ -438,6 +436,13 @@ class NdpiTileJob:
     def tiles(self) -> List[NdpiTile]:
         return self._tiles
 
+    @property
+    def crop_parameters(self) -> List[Tuple[int, int, int, int]]:
+        return [
+            (tile.left, tile.top, tile.width, tile.height)
+            for tile in self._tiles
+        ]
+
 
 class NdpiLevel(metaclass=ABCMeta):
     """Metaclass for a ndpi level."""
@@ -635,19 +640,13 @@ class NdpiLevel(metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordiante.
         """
-        # Each tile currently requires one complete calculation
-        # This could thus be faster if we could reuse some calculations between
-        # tiles. For this a custom libjpeg wrapper is needed (and some magic
-        # mcu handling.)
+        tiles = self._jpeg.crop_multiple(
+            frame,
+            tile_job.crop_parameters
+        )
         return {
-            tile.position: self._jpeg.crop(
-                frame,
-                tile.left,
-                tile.top,
-                tile.width,
-                tile.height
-            )
-            for tile in tile_job.tiles
+            tile.position: tiles[i]
+            for i, tile in enumerate(tile_job.tiles)
         }
 
     def _sort_into_tile_jobs(
@@ -698,8 +697,7 @@ class NdpiLevel(metaclass=ABCMeta):
 class NdpiOneFrameLevel(NdpiLevel):
     """Class for a ndpi level containing only one frame. The frame can be
     of any size (smaller or larger than the wanted tile size). The
-    frame is padded to an even multipe of tile size. This is currently
-    not lossless.
+    frame is padded to an even multipe of tile size.
     """
 
     def _get_size_in_file(self) -> Size:
@@ -732,9 +730,6 @@ class NdpiOneFrameLevel(NdpiLevel):
 
     def _get_frame(self, tile_position: Point) -> bytes:
         """Return padded image covering tile coorindate as valid jpeg bytes.
-        Includes header with the correct image size. Original restart markers
-        are updated to get the proper incrementation. End of image tag is
-        appended end.
 
         Parameters
         ----------
@@ -746,18 +741,12 @@ class NdpiOneFrameLevel(NdpiLevel):
         bytes
             Stitched image as jpeg bytes.
         """
-        # This is not lossless!
         frame = self._read(0)
-        frame_image = Image.open(io.BytesIO(frame))
-        padded_frame = Image.new(
-            'RGB',
-            (self.frame_size.width, self.frame_size.height),
-            (255, 255, 255)
+        tiles = self._jpeg.crop_multiple(
+            frame,
+            [0, 0, self.frame_size.width, self.frame_size.height]
         )
-        padded_frame.paste(frame_image, (0, 0))
-        with io.BytesIO() as buffer:
-            padded_frame.save(buffer, format='jpeg')
-            return buffer.getvalue()
+        return tiles[0]
 
 
 class NdpiStripedLevel(NdpiLevel):
