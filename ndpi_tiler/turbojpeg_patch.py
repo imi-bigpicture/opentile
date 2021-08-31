@@ -45,6 +45,12 @@ class TransformStruct(Structure):
     ]
 
 
+# MCU for luminance is always 8
+MCU_WIDTH = 8
+MCU_HEIGHT = 8
+MCU_SIZE = 64
+
+
 def fill_background(
     coeffs_ptr: POINTER(c_short),
     arrayRegion: CroppingRegion,
@@ -82,22 +88,8 @@ def fill_background(
 
     # Only modify luminance data, so we dont need to worry about subsampling
     if componentID == 0:
-        MCU_WIDTH = 8
-        MCU_HEIGHT = 8
-        MCU_SIZE = 64
-        # print("-----------")
-        # print(
-        #     f"arrayRegion x {arrayRegion.x}, y {arrayRegion.y}",
-        #     f" w {arrayRegion.w}, h {arrayRegion.h}"
-        # )
-        # print(
-        #     f"planeRegion  w {planeRegion.w}, h {planeRegion.h}"
-        # )
-        # print(f"componentID {componentID}")
-        # print(f"transformID {transformID}")
 
         coeff_array_size = arrayRegion.w * arrayRegion.h
-
         # Read the coefficients in the pointer as a np array (no copy)
         ArrayType = c_short*coeff_array_size
         array_pointer = cast(coeffs_ptr, POINTER(ArrayType))
@@ -115,25 +107,42 @@ def fill_background(
         background_data = cast(
             transform.data, POINTER(BackgroundStruct)
         ).contents
-        # print(
-        #     f"callback data: w {background_data.w}, h {background_data.h}, "
-        #     f"luminance {background_data.lum}"
-        # )
 
         # The coeff array is typically just one MCU heigh, but it is up to the
         # libjpeg implementation how to do it. The part of the coeff array that
         # is 'left' of 'non-background' data should thus be handled separately
         # from the part 'under'. (Most of the time, the coeff array will be
-        # either 'left' or 'under', but both could happen)
+        # either 'left' or 'under', but both could happen). Note that start
+        # and end rows defined below can be outside the arrayRegion, but that
+        # the range they then define is of 0 length.
 
-        # mcus left of image, currently 'does not stop' when 'under' the image
-
+        # fill mcus left of image
+        left_start_row = min(arrayRegion.y, background_data.h) - arrayRegion.y
+        left_end_row = (
+            min(arrayRegion.y+arrayRegion.h, background_data.h)
+            - arrayRegion.y
+        )
         for x in range(background_data.w//MCU_WIDTH, planeRegion.w//MCU_WIDTH):
-            for y in range(0, arrayRegion.h//MCU_WIDTH):
+            for y in range(
+                left_start_row//MCU_HEIGHT,
+                left_end_row//MCU_HEIGHT
+            ):
                 coeffs[y][x] = background_data.lum
 
-        # mcus under image,
-        # TBD
+        # fill mcus under image
+        bottom_start_row = (
+            max(arrayRegion.y, background_data.h) - arrayRegion.y
+        )
+        bottom_end_row = (
+            max(arrayRegion.y+arrayRegion.h, background_data.h)
+            - arrayRegion.y
+        )
+        for x in range(0, planeRegion.w//MCU_WIDTH):
+            for y in range(
+                bottom_start_row//MCU_HEIGHT,
+                bottom_end_row//MCU_HEIGHT
+            ):
+                coeffs[y][x] = background_data.lum
 
     return 1
 
@@ -328,5 +337,3 @@ class TurboJPEG_patch(TurboJPEG):
             )
             and (background_luminance != 0)
         )
-
-
