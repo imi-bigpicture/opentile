@@ -11,7 +11,7 @@ from typing import Dict, Generator, List, Optional, Tuple
 
 from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TiffPageSeries
-from wsi_turbojpeg import TurboJPEG
+from .turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
 
 @dataclass
