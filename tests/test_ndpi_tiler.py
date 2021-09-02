@@ -50,8 +50,7 @@ class NdpiTilerTest(unittest.TestCase):
 
     def test_update_header(self):
         target_size = Size(512, 200)
-        header = self.level._page.jpegheader
-        updated_header = self.level._update_header(header, target_size)
+        updated_header = self.level._create_header(target_size)
         (
             stripe_width,
             stripe_height,
@@ -93,7 +92,7 @@ class NdpiTilerTest(unittest.TestCase):
         )
 
     def test_get_frame(self):
-        image = self.level._get_frame(Point(10, 10))
+        image = self.level._get_frame(Point(10, 10), self.level.frame_size)
         self.assertEqual(
             '25a908ef4b5340354e6d0d7771e18fcd',
             md5(image).hexdigest()
@@ -151,7 +150,8 @@ class NdpiTilerTest(unittest.TestCase):
             Point(x, 0): self.level.get_tile(Point(x, 0))
             for x in range(4)
         }
-        frame = self.level._get_frame(tile_job.origin)
+        frame_size = self.level._get_frame_size_for_tile(tile_job.origin)
+        frame = self.level._get_frame(tile_job.origin, frame_size)
         self.assertEqual(
             tiles_single,
             self.level._crop_to_tiles(tile_job, frame)
@@ -169,17 +169,17 @@ class NdpiTilerTest(unittest.TestCase):
         tile = NdpiTile(Point(3, 0), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(0, 0),
-            tile._get_origin_tile(Point(3, 0))
+            tile.origin
         )
         tile = NdpiTile(Point(7, 0), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(4, 0),
-            tile._get_origin_tile(Point(7, 0))
+            tile.origin
         )
         tile = NdpiTile(Point(5, 2), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(4, 2),
-            tile._get_origin_tile(Point(5, 2))
+            tile.origin
         )
 
     def test_tile_jobs(self):
@@ -267,26 +267,33 @@ class NdpiTilerTest(unittest.TestCase):
         self.assertEqual(Size(39, 12992), self.level.striped_size)
 
     def test_header(self):
+        header = self.level._page.jpegheader
         self.assertEqual(
-            '9cd86e1fd0652838fbcde51fdf966dfc',
-            md5(self.level.header).hexdigest()
+            '624428850c21156087d870b5a95ea8ac',
+            md5(header).hexdigest()
         )
 
-    def test_get_size_in_file(self):
-        self.assertEqual(Size(4096, 8), self.level._get_size_in_file())
+    def test_get_file_frame_size(self):
+        self.assertEqual(Size(4096, 8), self.level._get_file_frame_size())
 
     def test_get_frame_size(self):
         self.assertEqual(
             Size(4096, 1024),
-            self.level._get_frame_size(
-                self.level._size_in_file,
-                self.tile_size
-            )
+            self.level.frame_size
+        )
+
+    def test_get_frame_size_for_tile(self):
+        self.assertEqual(
+            Size(4096, 1024),
+            self.level._get_frame_size_for_tile(Point(0, 0))
+        )
+        self.assertEqual(
+            Size(4096, 512),
+            self.level._get_frame_size_for_tile(Point(155, 101))
         )
 
     def test_tiled_size(self):
-        print(self.level.tiled_size)
-        self.assertEqual(Size(156, 101), self.level.tiled_size)
+        self.assertEqual(Size(156, 102), self.level.tiled_size)
 
     def test_create_batches(self):
         batch_size = 400
