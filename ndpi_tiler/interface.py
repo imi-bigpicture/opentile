@@ -203,6 +203,12 @@ class NdpiCache():
     def __len__(self) -> int:
         return len(self._history)
 
+    def __str__(self) -> str:
+        return f"NdpiCache of size {len(self)} and max size {self._size}"
+
+    def __repr__(self) -> str:
+        return f"NdpiCache({self._size})"
+
     def __setitem__(self, key: Point, value: bytes) -> None:
         """Set item in cache. Remove old items if needed.
 
@@ -270,6 +276,12 @@ class NdpiFileHandle:
     def __init__(self, fh: FileHandle):
         self._fh = fh
         self._lock = threading.Lock()
+
+    def __str__(self) -> str:
+        return f"NdpiFileHandle for FileHandle {self._fh}"
+
+    def __repr__(self) -> str:
+        return f"NdpiFileHandle({self._fh})"
 
     def read(self, offset: int, bytecount: int) -> bytes:
         """Return bytes from filehandle.
@@ -341,6 +353,9 @@ class NdpiTile:
             f"NdpiTile({self.position}, {self._tile_size}, "
             f"{self._frame_size})"
         )
+
+    def __str__(self) -> str:
+        return f"NdpiTile of position {self.position}"
 
     @property
     def position(self) -> Point:
@@ -427,6 +442,9 @@ class NdpiTileJob:
     def __repr__(self) -> str:
         return f"NdpiTileJob({self.tiles})"
 
+    def __str__(self) -> str:
+        return f"NdpiTileJob of tiles {self.tiles}"
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, NdpiTileJob):
             return self.tiles == other.tiles
@@ -490,6 +508,14 @@ class NdpiLevel(metaclass=ABCMeta):
         self._tile_cache = NdpiCache(10)
         self._frame_cache = NdpiCache(10)
         self._headers: Dict[Size, bytes] = {}
+
+    @abstractmethod
+    def __repr__(self) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __str__(self) -> str:
+        raise NotImplementedError
 
     @property
     def tile_size(self) -> Size:
@@ -718,6 +744,14 @@ class NdpiOneFrameLevel(NdpiLevel):
     of any size (smaller or larger than the wanted tile size). The
     frame is padded to an even multipe of tile size.
     """
+    def __repr__(self) -> str:
+        return (
+            f"NdpiOneFrameLevel({self._page}, {self._fh}, "
+            f"{self.tile_size}, {self._jpeg})"
+        )
+
+    def __str__(self) -> str:
+        return f"NdpiOneFrameLevel of page {self._page}"
 
     def _get_file_frame_size(self) -> Size:
         """Return size of the single frame in file.
@@ -760,6 +794,15 @@ class NdpiStripedLevel(NdpiLevel):
     produced by cropping. The procedure is lossless. Edge tiles were the tile
     is 'outside' a frame is not handled correctly.
     """
+
+    def __repr__(self) -> str:
+        return (
+            f"NdpiStripedLevel({self._page}, {self._fh}, "
+            f"{self.tile_size}, {self._jpeg})"
+        )
+
+    def __str__(self) -> str:
+        return f"NdpiStripedLevel of page {self._page}"
 
     @property
     def stripe_size(self) -> Size:
@@ -975,15 +1018,23 @@ class NdpiTiler:
             Path to turbojpeg (dll or so).
 
         """
-
+        self._tiff_series: TiffPageSeries = tiff_series
         self._fh = fh
         self._tile_size = Size(*tile_size)
-        self._tiff_series: TiffPageSeries = tiff_series
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
-
-        self._jpeg = TurboJPEG(turbo_path)
+        self._turbo_path = turbo_path
+        self._jpeg = TurboJPEG(self._turbo_path)
         self._levels: Dict[int, NdpiLevel] = {}
+
+    def __repr__(self) -> str:
+        return (
+            f"NdpiTiler({self._tiff_series}, {self._fh}, "
+            f"{self.tile_size}, {self._turbo_path})"
+        )
+
+    def __str__(self) -> str:
+        return f"NdpiTiler of TiffPageSeries {self._tiff_series}"
 
     @property
     def tile_size(self) -> Size:
