@@ -1,9 +1,7 @@
-import math
 import struct
 import threading
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from struct import unpack
@@ -13,144 +11,7 @@ from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TiffPageSeries
 from .turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
-
-@dataclass
-class Size:
-    width: int
-    height: int
-
-    def __str__(self):
-        return f'{self.width}x{self.height}'
-
-    def __hash__(self) -> int:
-        return hash((self.width, self.height))
-
-    def __add__(self, value):
-        if isinstance(value, int):
-            return Size(self.width + value, self.height + value)
-        return NotImplemented
-
-    def __sub__(self, value):
-        if isinstance(value, Size):
-            return Size(self.width - value.width, self.height - value.height)
-        return NotImplemented
-
-    def __mul__(self, factor):
-        if isinstance(factor, (int, float)):
-            return Size(int(factor*self.width), int(factor*self.height))
-        elif isinstance(factor, Size):
-            return Size(factor.width*self.width, factor.height*self.height)
-        elif isinstance(factor, Point):
-            return Size(factor.x*self.width, factor.y*self.height)
-        return NotImplemented
-
-    def __floordiv__(self, divider):
-        if isinstance(divider, Size):
-            return Size(
-                int(self.width/divider.width),
-                int(self.height/divider.height)
-            )
-        return NotImplemented
-
-    def __truediv__(self, divider):
-        if isinstance(divider, Size):
-            return Size(
-                self.width/divider.width,
-                self.height/divider.height
-            )
-        return NotImplemented
-
-    @staticmethod
-    def max(size_1: 'Size', size_2: 'Size'):
-        return Size(
-            width=max(size_1.width, size_2.width),
-            height=max(size_1.height, size_2.height)
-        )
-
-    def ceil(self) -> 'Size':
-        return Size(
-            width=int(math.ceil(self.width)),
-            height=int(math.ceil(self.height))
-        )
-
-
-@dataclass
-class Point:
-    x: int
-    y: int
-
-    def __str__(self):
-        return f'{self.x}, {self.y}'
-
-    def __hash__(self) -> int:
-        return hash((self.x, self.y))
-
-    def __add__(self, value):
-        if isinstance(value, Size):
-            return Point(self.x + value.width, self.y + value.height)
-        elif isinstance(value, Point):
-            return Point(self.x + value.x, self.y + value.y)
-        return NotImplemented
-
-    def __sub__(self, value):
-        if isinstance(value, Point):
-            return Point(self.x - value.x, self.y - value.y)
-        return NotImplemented
-
-    def __mul__(self, factor):
-        if isinstance(factor, (int, float)):
-            return Point(int(factor*self.x), int(factor*self.y))
-        elif isinstance(factor, Size):
-            return Point(factor.width*self.x, factor.height*self.y)
-        elif isinstance(factor, Point):
-            return Point(factor.x*self.x, factor.y*self.y)
-        return NotImplemented
-
-    def __floordiv__(self, divider):
-        if isinstance(divider, Point):
-            return Point(int(self.x/divider.x), int(self.y/divider.y))
-        elif isinstance(divider, Size):
-            return Point(int(self.x/divider.width), int(self.y/divider.height))
-        return NotImplemented
-
-    def __mod__(self, divider):
-        if isinstance(divider, Size):
-            return Point(
-                int(self.x % divider.width),
-                int(self.y % divider.height)
-            )
-        elif isinstance(divider, Point):
-            return Point(
-                int(self.x % divider.x),
-                int(self.y % divider.y)
-            )
-        return NotImplemented
-
-
-@dataclass
-class Region:
-    position: Point
-    size: Size
-
-    def __str__(self):
-        return f'from {self.start} to {self.end}'
-
-    @property
-    def start(self) -> Point:
-        return self.position
-
-    @property
-    def end(self) -> Point:
-        end: Point = self.position + self.size
-        return end
-
-    def iterate_all(self, include_end=False) -> Generator[Point, None, None]:
-        offset = 1 if include_end else 0
-        return (
-            Point(x, y)
-            for y in range(self.start.y, self.end.y + offset)
-            for x in range(self.start.x, self.end.x + offset)
-        )
+from wsidicom.geometry import Size, Point, Region
 
 
 class Tags:
@@ -604,6 +465,9 @@ class NdpiLevel(metaclass=ABCMeta):
             self._tile_cache.update(new_tiles)
         return self._tile_cache[tile_position]
 
+    def get_encoded_tile(self, tile_position: Point) -> bytes:
+        return self.get_tile(tile_position)
+
     def get_tiles(self, tile_positions: List[Point]) -> bytes:
         """Return tiles for tile positions. Sorts the requested tile positions
         into tile jobs and uses a pool of threads to parse tile jobs. The
@@ -943,7 +807,6 @@ class NdpiStripedLevel(NdpiLevel):
         except KeyError:
             header = self._create_header(frame_size)
             self._headers[frame_size] = header
-
         jpeg_data = header
         restart_marker_index = 0
 

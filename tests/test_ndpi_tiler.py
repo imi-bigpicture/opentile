@@ -5,8 +5,9 @@ import pytest
 from ndpi_tiler import NdpiTiler, __version__
 from ndpi_tiler.interface import (NdpiCache, NdpiFileHandle, NdpiLevel,
                                   NdpiStripedLevel, NdpiTile, NdpiTileJob,
-                                  Point, Size, Tags)
+                                  Tags)
 from tifffile.tifffile import TiffFile
+from wsidicom.geometry import Point, Size
 
 from .create_jpeg_data import open_tif
 
@@ -92,7 +93,10 @@ class NdpiTilerTest(unittest.TestCase):
         )
 
     def test_get_frame(self):
-        image = self.level._get_frame(Point(10, 10), self.level.frame_size)
+        point = Point(10, 10)
+        print(type(point))
+        print(point.x)
+        image = self.level._get_frame(point, self.level.frame_size)
         self.assertEqual(
             '25a908ef4b5340354e6d0d7771e18fcd',
             md5(image).hexdigest()
