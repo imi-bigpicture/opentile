@@ -55,17 +55,17 @@ class NdpiTilerTest(unittest.TestCase):
             stripe_width,
             stripe_height,
             _, _
-        ) = self.tiler.jpeg.decode_header(updated_header)
+        ) = self.tiler._jpeg.decode_header(updated_header)
         self.assertEqual(target_size, Size(stripe_width, stripe_height))
 
-    def test_stripe_position_to_index(self):
+    def test_get_stripe_position_to_index(self):
         self.assertEqual(
             50,
-            self.level._stripe_position_to_index(Point(50, 0))
+            self.level._get_stripe_position_to_index(Point(50, 0))
         )
         self.assertEqual(
             800,
-            self.level._stripe_position_to_index(Point(20, 20))
+            self.level._get_stripe_position_to_index(Point(20, 20))
         )
 
     def test_file_handle_read(self):
