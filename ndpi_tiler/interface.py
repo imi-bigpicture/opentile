@@ -671,7 +671,6 @@ class NdpiLevel(metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordiante.
         """
-
         tiles = self._jpeg.crop_multiple(
             frame,
             tile_job.crop_parameters
@@ -764,7 +763,7 @@ class NdpiOneFrameLevel(NdpiLevel):
         return Size(self._page.shape[1], self._page.shape[0])
 
     def _get_frame_size_for_tile(self, tile_position: Point) -> Size:
-        return self.frame_size
+        return ((self.frame_size) // self.tile_size + 1) * self.tile_size
 
     def _get_frame(self, tile_position: Point, frame_size: Size) -> bytes:
         """Return padded image covering tile coorindate as valid jpeg bytes.
@@ -783,7 +782,7 @@ class NdpiOneFrameLevel(NdpiLevel):
         # Use crop_multiple as it allows extending frame
         tile = self._jpeg.crop_multiple(
             frame,
-            [(0, 0, self.frame_size.width, self.frame_size.height)]
+            [(0, 0, frame_size.width, frame_size.height)]
         )[0]
         return tile
 
@@ -829,6 +828,59 @@ class NdpiStripedLevel(NdpiLevel):
         ) = self._jpeg.decode_header(self._page.jpegheader)
         return Size(stripe_width, stripe_height)
 
+    def _is_partial_frame(self, tile_position: Point) -> Tuple[bool, bool]:
+        """Return a tuple of bools, that are true if tile position is at the
+        edge of the image in x or y.
+
+        Parameters
+        ----------
+        tile_position: int
+            Tile position (x or y) to check.
+
+        Returns
+        ----------
+        Tuple[bool, bool]
+            Tuple that is True if tile position x or y is at edge of image.
+        """
+        partial_x = (
+            tile_position.x == (self.tiled_size.width - 1) and
+            self.stripe_size.width < self.tile_size.width
+        )
+        partial_y = (
+            tile_position.y == (self.tiled_size.height - 1) and
+            self.stripe_size.height < self.tile_size.height
+        )
+        return partial_x, partial_y
+
+    @staticmethod
+    def _get_partial_frame_dimension(
+        tile_position: int,
+        striped_size: int,
+        tile_size: int,
+        stripe_size: int
+    ) -> int:
+        """Return frame dimension (either width or height) for edge tile
+        at tile position, so that the frame does not extend beyond the image.
+
+        Parameters
+        ----------
+        tile_position: int
+            Tile position (x or y) for frame size calculation.
+        striped_size: int
+            Striped size for image (width or height).
+        tile_size: int
+            Requested tile size (width or height).
+        stripe_size: int
+            Stripe size (width or height).
+
+        Returns
+        ----------
+        int
+            Frame size (width or height) to be used at tile position.
+        """
+
+        return int(stripe_size * striped_size - tile_position * tile_size)
+
     def _get_frame_size_for_tile(self, tile_position: Point) -> Size:
         """Return frame size used for creating tile at tile position.
         If tile is an edge tile, ensure that the frame does not extend beyond
@@ -844,22 +896,28 @@ class NdpiStripedLevel(NdpiLevel):
         Size
             Frame size to be used at tile position.
         """
-        # Check if edge tile
-        if (
-            tile_position.x == (self.tiled_size.width - 1)
-            or
-            tile_position.y == (self.tiled_size.height - 1)
-        ):
-            # Return reduced frame size
-            return Size.max(
-                (
-                    self.stripe_size * self.striped_size
-                    - self.tile_size * tile_position
-                ),
-                self.stripe_size
+
+        is_partial_frame = self._is_partial_frame(tile_position)
+        if is_partial_frame[0]:
+            width = self._get_partial_frame_dimension(
+                tile_position.x,
+                self.striped_size.width,
+                self.tile_size.width,
+                self.stripe_size.width
             )
-        # Return default frame size
-        return self.frame_size
+        else:
+            width = self.frame_size.width
+
+        if is_partial_frame[1]:
+            height = self._get_partial_frame_dimension(
+                tile_position.y,
+                self.striped_size.height,
+                self.tile_size.height,
+                self.stripe_size.height
+            )
+        else:
+            height = self.frame_size.height
+        return Size(width, height)
 
     def _get_frame(self, tile_position: Point, frame_size: Size) -> bytes:
         """Return concatenated frame of frame size starting at tile position.
