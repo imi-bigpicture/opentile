@@ -1,3 +1,4 @@
+import os
 import unittest
 from hashlib import md5
 
@@ -6,10 +7,13 @@ from ndpi_tiler import NdpiTiler, __version__
 from ndpi_tiler.interface import (NdpiCache, NdpiFileHandle, NdpiLevel,
                                   NdpiStripedLevel, NdpiTile, NdpiTileJob,
                                   Tags)
+from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
 from wsidicom.geometry import Point, Size
 
-from .create_jpeg_data import open_tif
+tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
+tif_test_file_name = "test.ndpi"
+tif_test_file_path = tif_test_data_dir + '/' + tif_test_file_name
 
 
 @pytest.mark.unittest
@@ -23,7 +27,7 @@ class NdpiTilerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tile_size = Size(1024, 1024)
-        cls.tif = open_tif()
+        cls.tif = TiffFile(tif_test_file_path)
         cls.tiler = NdpiTiler(
             cls.tif.series[0],
             NdpiFileHandle(cls.tif.filehandle),
@@ -112,14 +116,6 @@ class NdpiTilerTest(unittest.TestCase):
         self.assertEqual(
             'eef2ff23353e54464a870d4fdcda6701',
             md5(tile).hexdigest()
-        )
-
-    def test_get_tiles(self):
-        points = [Point(0, 0), Point(1, 0)]
-        tiles_single = [self.level.get_tile(point) for point in points]
-        self.assertEqual(
-            b"".join(tiles_single),
-            self.level.get_tiles(points)
         )
 
     def test_create_tiles(self):
