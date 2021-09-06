@@ -17,8 +17,8 @@ from .turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
 
 class Tags:
-    TAG = 0xFF
     TAGS = {
+        'tag marker': 0xFF,
         'start of image': 0xD8,
         'application default header': 0xE0,
         'quantization table': 0xDB,
@@ -33,12 +33,12 @@ class Tags:
     @classmethod
     def start_of_frame(cls) -> bytes:
         """Return bytes representing a start of frame tag."""
-        return bytes([cls.TAG, cls.TAGS['start of frame']])
+        return bytes([cls.TAGS['tag marker'], cls.TAGS['start of frame']])
 
     @classmethod
     def end_of_image(cls) -> bytes:
         """Return bytes representing a end of image tag."""
-        return bytes([cls.TAG, cls.TAGS['end of image']])
+        return bytes([cls.TAGS['tag marker'], cls.TAGS['end of image']])
 
     @classmethod
     def restart_mark(cls, index: int) -> bytes:
