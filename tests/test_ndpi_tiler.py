@@ -88,8 +88,8 @@ class NdpiTilerTest(unittest.TestCase):
             md5(data).hexdigest()
         )
 
-    def test_get_stripe(self):
-        stripe = self.level._get_stripe(Point(50, 0))
+    def test_read_stripe(self):
+        stripe = self.level._read_stripe(Point(50, 0))
         self.assertEqual(
             'e2a7321a7d7032437f91df442b0182da',
             md5(stripe).hexdigest()
@@ -99,7 +99,7 @@ class NdpiTilerTest(unittest.TestCase):
         point = Point(10, 10)
         print(type(point))
         print(point.x)
-        image = self.level._get_frame(point, self.level.frame_size)
+        image = self.level._read_frame(point, self.level.frame_size)
         self.assertEqual(
             '25a908ef4b5340354e6d0d7771e18fcd',
             md5(image).hexdigest()
@@ -150,7 +150,7 @@ class NdpiTilerTest(unittest.TestCase):
             for x in range(4)
         }
         frame_size = self.level._get_frame_size_for_tile(tile_job.origin)
-        frame = self.level._get_frame(tile_job.origin, frame_size)
+        frame = self.level._read_frame(tile_job.origin, frame_size)
         self.assertEqual(
             tiles_single,
             self.level._crop_to_tiles(tile_job, frame)
@@ -293,24 +293,3 @@ class NdpiTilerTest(unittest.TestCase):
 
     def test_tiled_size(self):
         self.assertEqual(Size(156, 102), self.level.tiled_size)
-
-    def test_create_batches(self):
-        batch_size = 400
-        batches = self.level.create_batches(batch_size)
-        for offset in range(
-            0,
-            (
-                self.level.tiled_size.width * self.level.tiled_size.height
-                - batch_size
-            ),
-            batch_size
-        ):
-            expected_batch = [
-                Point(
-                    index % self.level.tiled_size.width,
-                    index // self.level.tiled_size.width
-                )
-                for index in range(offset, offset+batch_size)
-            ]
-            next_batch = next(batches)
-            self.assertEqual(expected_batch, next_batch)
