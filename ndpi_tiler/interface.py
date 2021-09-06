@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
 from pathlib import Path
 from struct import unpack
-from typing import Dict, Generator, List, Optional, Tuple
+from typing import Dict, Generator, List, Optional, Tuple, Iterator
 
 from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TiffPageSeries
@@ -489,6 +489,13 @@ class NdpiLevel(metaclass=ABCMeta):
                 return b"".join(self._create_tiles(tile_job).values())
             result = pool.map(thread, tile_jobs)
             return b"".join(result)
+
+    def get_encoded_tiles(self, tiles) -> Iterator[List[bytes]]:
+        tile_jobs = self._sort_into_tile_jobs(tiles)
+        with ThreadPoolExecutor() as pool:
+            def thread(tile_job: NdpiTileJob) -> List[bytes]:
+                return self._create_tiles(tile_job).values()
+            return pool.map(thread, tile_jobs)
 
     def _create_tiles(
         self,
