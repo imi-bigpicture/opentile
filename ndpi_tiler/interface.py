@@ -12,6 +12,7 @@ from tifffile.tifffile import TiffPageSeries
 from .turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
 from wsidicom.geometry import Size, Point, Region
+import pydicom
 
 
 class Tags:
@@ -468,10 +469,11 @@ class NdpiLevel(metaclass=ABCMeta):
     def get_encoded_tile(self, tile_position: Point) -> bytes:
         return self.get_tile(tile_position)
 
-    def get_tiles(self, tile_positions: List[Point]) -> bytes:
+    def get_encapsulated_tiles(self, tile_positions: List[Point]) -> bytes:
         """Return tiles for tile positions. Sorts the requested tile positions
         into tile jobs and uses a pool of threads to parse tile jobs. The
-        results are concatenated. Frames and tiles are not cached.
+        results are encapsulated and concatenated. Frames and tiles are not
+        cached.
 
         Parameters
         ----------
@@ -486,7 +488,7 @@ class NdpiLevel(metaclass=ABCMeta):
         tile_jobs = self._sort_into_tile_jobs(tile_positions)
         with ThreadPoolExecutor() as pool:
             def thread(tile_job: NdpiTileJob) -> bytes:
-                return b"".join(self._create_tiles(tile_job).values())
+                return b"".join(self._create_encapsulated_tiles(tile_job))
             result = pool.map(thread, tile_jobs)
             return b"".join(result)
 
@@ -522,6 +524,37 @@ class NdpiLevel(metaclass=ABCMeta):
             self._frame_cache[tile_job.origin] = frame
         tiles = self._crop_to_tiles(tile_job, frame)
         return tiles
+
+    def _create_encapsulated_tiles(
+        self,
+        tile_job: NdpiTileJob
+    ) -> List[bytes]:
+        """Return tiles created by parsing frame needed for requested tile.
+        Additional tiles than the requested tile is created if the
+        level is striped and the stripes span multiple tiles.
+
+        Parameters
+        ----------
+        tile_job: NdpiTileJob
+            Tile job containing tiles that should be created.
+
+        Returns
+        ----------
+        Dict[Point, bytes]:
+            Created tiles ordered by tile coordiante.
+        """
+        try:
+            frame = self._frame_cache[tile_job.origin]
+        except KeyError:
+            frame = self._get_frame(tile_job.origin, tile_job.frame_size)
+            self._frame_cache[tile_job.origin] = frame
+
+        tiles = self._crop_to_tiles(tile_job, frame).values()
+
+        return [
+            b"".join(pydicom.encaps.itemize_frame(tile))
+            for tile in tiles
+        ]
 
     def _crop_to_tiles(
         self,
@@ -624,14 +657,15 @@ class NdpiOneFrameLevel(NdpiLevel):
         return f"NdpiOneFrameLevel of page {self._page}"
 
     def _get_file_frame_size(self) -> Size:
-        """Return size of the single frame in file.
+        """Return size of the single frame in file. For single framed level
+        this is equal to the level size.
 
         Returns
         ----------
         Size
             The size of frame in the file.
         """
-        return Size(self._page.shape[1], self._page.shape[0])
+        return self.level_size
 
     def _get_frame_size_for_tile(self, tile_position: Point) -> Size:
         return ((self.frame_size) // self.tile_size + 1) * self.tile_size
@@ -685,7 +719,8 @@ class NdpiStripedLevel(NdpiLevel):
         return Size(self._page.chunked[1], self._page.chunked[0])
 
     def _get_file_frame_size(self) -> Size:
-        """Return size of stripes in file.
+        """Return size of stripes in file. For striped levels this is parsed
+        from the jpeg header.
 
         Returns
         ----------
