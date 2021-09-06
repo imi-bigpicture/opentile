@@ -29,12 +29,11 @@ class NdpiTilerTest(unittest.TestCase):
         cls.tile_size = Size(1024, 1024)
         cls.tif = TiffFile(tif_test_file_path)
         cls.tiler = NdpiTiler(
-            cls.tif.series[0],
-            NdpiFileHandle(cls.tif.filehandle),
+            tif_test_file_path,
             (cls.tile_size.width, cls.tile_size.height),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
-        cls.level: NdpiStripedLevel = cls.tiler._create_level(0)
+        cls.level: NdpiStripedLevel = cls.tiler.get_level(0, 0)
 
     @classmethod
     def tearDownClass(cls):

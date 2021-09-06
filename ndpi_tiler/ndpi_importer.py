@@ -1,17 +1,15 @@
+import copy
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
-import copy
 
-from tifffile import TiffFile
-from tifffile.tifffile import TIFF, TiffPageSeries
-
-from wsidicom.interface import WsiGenericInstance, FileImporter
-from wsidicom.geometry import Size, SizeMm
-
-from ndpi_tiler import NdpiTiler, NdpiFileHandle
-from pydicom.uid import UID as Uid
+import pydicom
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence as DicomSequence
+from tifffile.tifffile import TIFF, TiffPageSeries
+from wsidicom.geometry import Size, SizeMm
+from wsidicom.interface import FileImporter, WsiGenericInstance
+
+from ndpi_tiler import NdpiTiler
 
 
 class NdpiFileImporter(FileImporter):
@@ -19,8 +17,7 @@ class NdpiFileImporter(FileImporter):
         self,
         filepath: Path,
         base_dataset: Dataset,
-        include_series: Dict[str, Tuple[int, List[Union[str, Dataset]]]],
-        transfer_syntax: Uid,
+        include_series: Dict[str, Tuple[int, Dict[int, Union[str, Dataset]]]],
         tile_size: Size,
         turbo_path: Path
     ):
@@ -28,10 +25,18 @@ class NdpiFileImporter(FileImporter):
             filepath,
             base_dataset,
             include_series,
-            transfer_syntax
+            pydicom.uid.JPEGBaseline8Bit
         )
         self.tile_size = tile_size
         self.turbo_path = turbo_path
+        self.tiler = NdpiTiler(
+            self.filepath,
+            self.tile_size,
+            self.turbo_path
+        )
+
+    def close(self) -> None:
+        self.tiler.close()
 
     @staticmethod
     def _get_mpp_from_page(page: TiffPageSeries) -> SizeMm:
@@ -51,73 +56,72 @@ class NdpiFileImporter(FileImporter):
             return ['ORGINAL', 'PRIMARY', 'VOLUME', 'NONE']
         return ['DERIVED', 'PRIMARY', 'VOLUME', 'RESAMPLED']
 
-    def level_instances(
+    def _create_instance_dataset(
         self,
-        selected_levels: List[int] = None
-    ):
+        level_index: int,
+        level_uid: int,
+        level: TiffPageSeries
+    ) -> Dataset:
+        dataset = copy.deepcopy(self.base_dataset)
+        dataset.ImageType = self._get_image_type(level_index)
+        dataset.SOPInstanceUID = level_uid
+        shared_functional_group_sequence = Dataset()
+        pixel_measure_sequence = Dataset()
+        pixel_spacing = self._get_mpp_from_page(level.pages[0])
+
+        pixel_measure_sequence.PixelSpacing = [
+            pixel_spacing.width,
+            pixel_spacing.height
+        ]
+        pixel_measure_sequence.SpacingBetweenSlices = 0.0
+        pixel_measure_sequence.SliceThickness = 0.0
+        shared_functional_group_sequence.PixelMeasuresSequence = (
+            DicomSequence([pixel_measure_sequence])
+        )
+        dataset.SharedFunctionalGroupsSequence = DicomSequence(
+            [shared_functional_group_sequence]
+        )
+        dataset.TotalPixelMatrixColumns = level.shape[1]
+        dataset.TotalPixelMatrixRows = level.shape[0]
+        dataset.Columns = self.tile_size[0]
+        dataset.Rows = self.tile_size[1]
+        dataset.ImagedVolumeWidth = (
+            level.shape[1] * pixel_spacing.width
+        )
+        dataset.ImagedVolumeHeight = (
+            level.shape[0] * pixel_spacing.height
+        )
+        dataset.ImagedVolumeDepth = 0.0
+        dataset.SamplesPerPixel = 3
+        dataset.PhotometricInterpretation = 'YBR_FULL_422'
+        dataset.InstanceNumber = 0
+        dataset.FocusMethod = 'AUTO'
+        dataset.ExtendedDepthOfField = 'NO'
+        return dataset
+
+    def level_instances(self):
         instances = []
-        slide = TiffFile(self.filepath)
-        filehandle = NdpiFileHandle(slide.filehandle)
 
-        level_definition = self.include_series['VOLUME']
-        level_series = level_definition[0]
-        series: TiffPageSeries = slide.series[level_series]
+        series_definition = self.include_series['VOLUME']
 
-        tiler = NdpiTiler(series, filehandle, self.tile_size, self.turbo_path)
-
-        if selected_levels is None:
-            levels_to_parse = {
-                level_index: level
-                for level_index, level in enumerate(series.levels)
-            }
-        else:
-            levels_to_parse = {
-                level_index: level
-                for level_index, level in enumerate(series.levels)
-                if level_index in selected_levels
-            }
-        for level_index, level in levels_to_parse.items():
-            level_shape = level.shape
-
-            pixel_spacing = self._get_mpp_from_page(level.pages[0])
-
-            instance_ds = copy.deepcopy(self.base_dataset)
-            instance_ds.ImageType = self._get_image_type(level_index)
-            instance_ds.SOPInstanceUID = level_definition[1][level_index]
-            shared_functional_group_sequence = Dataset()
-            pixel_measure_sequence = Dataset()
-            pixel_measure_sequence.PixelSpacing = [
-                pixel_spacing.width,
-                pixel_spacing.height
-            ]
-            pixel_measure_sequence.SpacingBetweenSlices = 0.0
-            pixel_measure_sequence.SliceThickness = 0.0
-            shared_functional_group_sequence.PixelMeasuresSequence = (
-                DicomSequence([pixel_measure_sequence])
-            )
-            instance_ds.SharedFunctionalGroupsSequence = DicomSequence(
-                [shared_functional_group_sequence]
-            )
-            instance_ds.TotalPixelMatrixColumns = level_shape[1]
-            instance_ds.TotalPixelMatrixRows = level_shape[0]
-            instance_ds.Columns = self.tile_size[0]
-            instance_ds.Rows = self.tile_size[1]
-            instance_ds.ImagedVolumeWidth = (
-                level_shape[1] * pixel_spacing.width
-            )
-            instance_ds.ImagedVolumeHeight = (
-                level_shape[0] * pixel_spacing.height
-            )
-            instance_ds.ImagedVolumeDepth = 0.0
-            instance_ds.SamplesPerPixel = 3
-            instance_ds.PhotometricInterpretation = 'YBR_FULL_422'
-            instance_ds.InstanceNumber = 0
-            instance_ds.FocusMethod = 'AUTO'
-            instance_ds.ExtendedDepthOfField = 'NO'
+        series_index = series_definition[0]
+        for level_index, level_definition in series_definition[1].items():
+            # If str, create dataset with str as uid
+            # Otherwise use instance_dataset as dataset
+            if isinstance(level_definition, str):
+                instance_dataset = self._create_instance_dataset(
+                    level_index,
+                    level_definition,
+                    self.tiler.series[series_index].levels[level_index]
+                )
+            elif isinstance(level_definition, Dataset):
+                instance_dataset = level_definition
+            else:
+                raise ValueError()
 
             instance = WsiGenericInstance(
-                tiler.get_level(level_index),
-                instance_ds,
+                self.tiler.get_level(series_index, level_index),
+                instance_dataset,
                 self.transfer_syntax
             )
             instances.append(instance)

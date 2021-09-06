@@ -15,7 +15,14 @@ from wsidicom import WsiDataset, WsiDicom
 ndpi_test_data_dir = os.environ.get("NDPI_TESTDIR", "C:/temp/ndpi")
 sub_data_dir = "convert"
 ndpi_data_dir = ndpi_test_data_dir + '/' + sub_data_dir
-levels_to_convert = [3, 4]
+uids = [pydicom.uid.generate_uid() for i in range(10)]
+
+include_series = {
+    'VOLUME': (0, {
+        3: uids[0],
+        4: uids[1]
+    })
+}
 
 
 class WsiFolder(TypedDict):
@@ -48,21 +55,16 @@ class NdpiConvertTest(unittest.TestCase):
     def open(cls, path: Path) -> Tuple[WsiDicom, TemporaryDirectory]:
         folder = Path(path).joinpath('ndpi/input.ndpi')
 
-        uids = [pydicom.uid.generate_uid() for i in range(10)]
-        include_series = {
-            'VOLUME': (0, uids[0:7])
-        }
         base_dataset = WsiDataset.create_test_base_dataset()
         file_importer = NdpiFileImporter(
             folder,
             base_dataset,
             include_series,
-            pydicom.uid.JPEGBaseline8Bit,
             cls.tile_size,
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
         tempdir = TemporaryDirectory()
-        WsiDicom.convert(Path(tempdir.name), file_importer, levels_to_convert)
+        WsiDicom.convert(Path(tempdir.name), file_importer)
         wsi = WsiDicom.open(str(tempdir.name))
         return (wsi, tempdir)
 
@@ -112,4 +114,3 @@ class NdpiConvertTest(unittest.TestCase):
 
                 bbox = diff.getbbox()
                 self.assertIsNone(bbox, msg=json_file)
-

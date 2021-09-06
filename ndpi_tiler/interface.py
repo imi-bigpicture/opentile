@@ -8,7 +8,7 @@ from struct import unpack
 from typing import Dict, Generator, List, Optional, Tuple, Iterator
 
 from tifffile import FileHandle, TiffPage
-from tifffile.tifffile import TiffPageSeries
+from tifffile.tifffile import TiffFile, TiffPageSeries
 from .turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
 from wsidicom.geometry import Size, Point, Region
@@ -959,8 +959,7 @@ class NdpiStripedLevel(NdpiLevel):
 class NdpiTiler:
     def __init__(
         self,
-        tiff_series: TiffPageSeries,
-        fh: NdpiFileHandle,
+        filepath: str,
         tile_size: Tuple[int, int],
         turbo_path: Path
     ):
@@ -973,16 +972,14 @@ class NdpiTiler:
             Tiff file
         fh: NdpiFileHandle
             File handle to stripe data.
-        series: int
-            Series in tiff file
         tile_size: Tuple[int, int]
             Tile size to cache and produce. Must be multiple of 8.
         turbo_path: Path
             Path to turbojpeg (dll or so).
 
         """
-        self._tiff_series: TiffPageSeries = tiff_series
-        self._fh = fh
+        self._tiff_file = TiffFile(filepath)
+        self._fh = NdpiFileHandle(self._tiff_file.filehandle)
         self._tile_size = Size(*tile_size)
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
@@ -1004,8 +1001,16 @@ class NdpiTiler:
         """The size of the tiles to generate."""
         return self._tile_size
 
+    @property
+    def series(self) -> List[TiffPageSeries]:
+        return self._tiff_file.series
+
+    def close(self) -> None:
+        self._tiff_file.close()
+
     def get_tile(
         self,
+        series: int,
         level: int,
         tile_position: Tuple[int, int]
     ) -> bytes:
@@ -1014,6 +1019,8 @@ class NdpiTiler:
 
         Parameters
         ----------
+        series: int
+            Series of tile to get.
         level: int
             Level of tile to get.
         tile_position: Tuple[int, int]
@@ -1024,14 +1031,16 @@ class NdpiTiler:
         bytes
             Produced tile at position, wrapped in header.
         """
-        ndpi_level = self.get_level(level)
+        ndpi_level = self.get_level(series, level)
         return ndpi_level.get_tile(Point(*tile_position))
 
-    def get_level(self, level: int) -> NdpiLevel:
+    def get_level(self, series: int, level: int) -> NdpiLevel:
         """Return level. Create level if not found.
 
         Parameters
         ----------
+        series: int
+            Series of level to get.
         level: int
             Level to get.
 
@@ -1041,13 +1050,13 @@ class NdpiTiler:
             Requested level.
         """
         try:
-            ndpi_level = self._levels[level]
+            ndpi_level = self._levels[series, level]
         except KeyError:
-            ndpi_level = self._create_level(level)
-            self._levels[level] = ndpi_level
+            ndpi_level = self._create_level(series, level)
+            self._levels[series, level] = ndpi_level
         return ndpi_level
 
-    def _create_level(self, level: int) -> NdpiLevel:
+    def _create_level(self, series: int, level: int) -> NdpiLevel:
         """Create a new level.
 
         Parameters
@@ -1060,7 +1069,7 @@ class NdpiTiler:
         NdpiLevel
             Created level.
         """
-        page: TiffPage = self._tiff_series.levels[level].pages[0]
+        page: TiffPage = self._tiff_file.series[series].levels[level].pages[0]
         if page.is_tiled:
             return NdpiStripedLevel(page, self._fh, self.tile_size, self._jpeg)
         return NdpiOneFrameLevel(page, self._fh, self.tile_size, self._jpeg)
