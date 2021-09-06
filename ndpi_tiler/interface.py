@@ -5,14 +5,15 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
 from pathlib import Path
 from struct import unpack
-from typing import Dict, Generator, List, Optional, Tuple, Iterator
+from typing import Dict, Generator, Iterator, List, Optional, Tuple
 
+import pydicom
 from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TiffFile, TiffPageSeries
-from .turbojpeg_patch import TurboJPEG_patch as TurboJPEG
+from wsidicom import TiledLevel
+from wsidicom.geometry import Point, Region, Size
 
-from wsidicom.geometry import Size, Point, Region
-import pydicom
+from .turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
 
 class Tags:
@@ -339,7 +340,7 @@ class NdpiTileJob:
         ]
 
 
-class NdpiLevel(metaclass=ABCMeta):
+class NdpiLevel(TiledLevel, metaclass=ABCMeta):
     """Metaclass for a ndpi level."""
     def __init__(
         self,
