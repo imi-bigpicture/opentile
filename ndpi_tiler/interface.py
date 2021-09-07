@@ -599,7 +599,8 @@ class NdpiLevel(TiledLevel, metaclass=ABCMeta):
         return list(tile_jobs.values())
 
     def _read(self, index: int) -> bytes:
-        """Read frame bytes at index from file.
+        """Read frame bytes at index from file. Locks the filehandle while
+        reading.
 
         Parameters
         ----------
@@ -960,10 +961,8 @@ class NdpiTiler:
 
         Parameters
         ----------
-        tif: TiffFile
-            Tiff file
-        fh: NdpiFileHandle
-            File handle to stripe data.
+        filepath: str
+            File path to ndpi file.
         tile_size: Tuple[int, int]
             Tile size to cache and produce. Must be multiple of 8.
         turbo_path: Path
