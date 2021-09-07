@@ -3,12 +3,13 @@ from ctypes import *
 
 import numpy as np
 import pytest
-from ndpi_tiler.turbojpeg_patch import (CUSTOMFILTER, BackgroundStruct,
+from ndpi_tiler.turbojpeg_patch import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP,
+                                        TJXOPT_GRAY, TJXOPT_PERFECT,
+                                        BackgroundStruct, CroppingRegion,
                                         TransformStruct)
 from ndpi_tiler.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 from ndpi_tiler.turbojpeg_patch import fill_background
-from turbojpeg import (TJXOP_NONE, TJXOPT_CROP, TJXOPT_GRAY,
-                       TJXOPT_PERFECT, CroppingRegion)
+
 
 turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
 test_file_path = 'C:/temp/ndpi/turbojpeg/frame_1024x512.jpg'
