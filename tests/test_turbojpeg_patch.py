@@ -129,7 +129,7 @@ class TurboJpegTest(unittest.TestCase):
         coeffs[0:original_width*original_height] = 1
 
         # Make a copy of the original data and change the coefficents for the
-        # extended mcus (1, 2, 3) manually.
+        # extended mcus ((0, 0), (1, 0), (1, 1)) manually.
         expected_results = np.copy(coeffs)
         for index in range(mcu_size, extended_width*extended_height, mcu_size):
             expected_results[index] = background_luminance
@@ -167,4 +167,5 @@ class TurboJpegTest(unittest.TestCase):
                 pointer(transform_struct)
             )
 
+        # Compare the modified data with the expected result
         self.assertTrue(np.array_equal(expected_results, coeffs))
