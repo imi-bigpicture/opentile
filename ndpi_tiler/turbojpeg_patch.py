@@ -88,7 +88,6 @@ def fill_background(
 
     # Only modify luminance data, so we dont need to worry about subsampling
     if componentID == 0:
-
         coeff_array_size = arrayRegion.w * arrayRegion.h
         # Read the coefficients in the pointer as a np array (no copy)
         ArrayType = c_short*coeff_array_size
@@ -99,7 +98,6 @@ def fill_background(
             arrayRegion.w//MCU_HEIGHT,
             MCU_SIZE
         )
-
         # Cast the content of the transform pointer into a transform structure
         transform = cast(transform_ptr, POINTER(TransformStruct)).contents
         # Cast the content of the callback data pointer in the transform
@@ -127,8 +125,7 @@ def fill_background(
                 left_start_row//MCU_HEIGHT,
                 left_end_row//MCU_HEIGHT
             ):
-                coeffs[y][x] = background_data.lum
-
+                coeffs[y][x][0] = background_data.lum
         # fill mcus under image
         bottom_start_row = (
             max(arrayRegion.y, background_data.h) - arrayRegion.y
@@ -142,7 +139,7 @@ def fill_background(
                 bottom_start_row//MCU_HEIGHT,
                 bottom_end_row//MCU_HEIGHT
             ):
-                coeffs[y][x] = background_data.lum
+                coeffs[y][x][0] = background_data.lum
 
     return 1
 

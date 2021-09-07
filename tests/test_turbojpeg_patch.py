@@ -1,14 +1,20 @@
 import unittest
+from ctypes import *
 
+import numpy as np
 import pytest
+from ndpi_tiler.turbojpeg_patch import (CUSTOMFILTER, BackgroundStruct,
+                                        TransformStruct)
 from ndpi_tiler.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from turbojpeg import CroppingRegion
+from ndpi_tiler.turbojpeg_patch import fill_background
+from turbojpeg import (TJXOP_NONE, TJXOPT_CROP, TJXOPT_GRAY,
+                       TJXOPT_PERFECT, CroppingRegion)
 
 turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
 test_file_path = 'C:/temp/ndpi/turbojpeg/frame_1024x512.jpg'
 
 
-@pytest.mark.unittest
+@pytest.mark.turbojpeg
 class TurboJpegTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -100,3 +106,65 @@ class TurboJpegTest(unittest.TestCase):
         crop = self.jpeg.crop_multiple(self.buffer, crop_parameters)[0]
         width, height, _, _ = self.jpeg.decode_header(crop)
         self.assertEqual((1024, 1024), (width, height))
+
+    def test_fill_background(self):
+        mcu_size = 64
+        original_width = 8
+        original_height = 8
+        extended_width = 16
+        extended_height = 16
+        callback_row_heigth = 8
+        background_luminance = 508
+        gray = False
+        componentID = 0
+        transformID = 0
+
+        crop_region = CroppingRegion(0, 0, extended_width, extended_height)
+
+        # Create coefficent array, filled with 0:s. The data is arranged in
+        # mcus, i.e. first 64 values are for mcu (0, 0), second 64 values for
+        # mcu (1, 0)
+        coeffs = np.zeros(extended_width*extended_height, dtype=c_short)
+        # Fill the mcu corresponding to the original image with 1:s.
+        coeffs[0:original_width*original_height] = 1
+
+        # Make a copy of the original data and change the coefficents for the
+        # extended mcus (1, 2, 3) manually.
+        expected_results = np.copy(coeffs)
+        for index in range(mcu_size, extended_width*extended_height, mcu_size):
+            expected_results[index] = background_luminance
+
+        planeRegion = CroppingRegion(0, 0, extended_width, extended_width)
+
+        transform_struct = TransformStruct(
+            crop_region,
+            TJXOP_NONE,
+            TJXOPT_PERFECT | TJXOPT_CROP | (gray and TJXOPT_GRAY),
+            pointer(BackgroundStruct(
+                original_width,
+                original_height,
+                background_luminance
+            )),
+            CUSTOMFILTER(fill_background)
+        )
+
+        # Iterate the callback with one mcu-row of data.
+        for row in range(extended_height//callback_row_heigth):
+            data_start = row * callback_row_heigth * extended_width
+            data_end = (row+1) * callback_row_heigth * extended_width
+            arrayRegion = CroppingRegion(
+                0,
+                row*callback_row_heigth,
+                extended_width,
+                callback_row_heigth
+            )
+            callback_result = fill_background(
+                coeffs[data_start:data_end].ctypes.data,
+                arrayRegion,
+                planeRegion,
+                componentID,
+                transformID,
+                pointer(transform_struct)
+            )
+
+        self.assertTrue(np.array_equal(expected_results, coeffs))
