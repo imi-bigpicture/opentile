@@ -4,9 +4,8 @@ from hashlib import md5
 
 import pytest
 from ndpi_tiler import NdpiTiler, __version__
-from ndpi_tiler.interface import (NdpiCache, NdpiFileHandle, NdpiLevel,
-                                  NdpiStripedLevel, NdpiTile, NdpiTileJob,
-                                  Tags)
+from ndpi_tiler.ndpi_tiler import (NdpiCache, NdpiLevel, NdpiStripedLevel,
+                                   NdpiTile, NdpiTileJob, Tags)
 from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
 from wsidicom.geometry import Point, Size

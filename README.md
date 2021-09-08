@@ -1,17 +1,17 @@
 # *ndpi-tiler*
-Python library for producing rectangular tiles from Ndpi-files, to be used
-together with WsiDicom to convert Ndpi-files to Dicom.
+Python library for reading tiles from Tifffile-compatible wsi-files. Image data
+in Ndpi-files are losslessly converted to tiles.
 
 ## Important note
 Please note that this is an early release and the API is not frozen yet. Function names and functionality is prone to change.
 
 ## Requirements
-*ndpi-tiler* uses tifffile, PyTurboJPEG, and wsidicom.
+*open-tiler* uses tifffile, PyTurboJPEG, and wsidicom.
 
 ## Basic usage
 ***Load a Ndpi-file using tile size (1024, 1024) pixels. Optionally specify series index for levels, labels, and overview if not default.***
 ```python
-from ndpi_tiler import NdpiTiler
+from open_tiler import NdpiTiler
 tile_size = (1024, 1024)
 turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
 ndpi_tiler = NdpiTiler(path_to_ndpi_file, tile_size, turbo_path)

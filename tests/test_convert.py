@@ -56,7 +56,9 @@ class NdpiConvertTest(unittest.TestCase):
         file_importer = FileImporter(
             tiler,
             base_dataset,
-            include_levels=[3, 4]
+            include_levels=[3, 4],
+            include_label=False,
+            include_overview=False
         )
         tempdir = TemporaryDirectory()
         WsiDicom.convert(Path(tempdir.name), file_importer)
