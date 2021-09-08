@@ -5,7 +5,7 @@ from hashlib import md5
 import pytest
 from opentile import NdpiTiler, __version__
 from opentile.ndpi_tiler import (NdpiCache, NdpiLevel, NdpiStripedLevel,
-                                   NdpiTile, NdpiTileJob, Tags)
+                                 NdpiTile, NdpiTileJob, Tags)
 from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
 from wsidicom.geometry import Point, Size

@@ -1,5 +1,5 @@
 # *opentile*
-Python library for reading tiles from Tifffile-compatible wsi-files. Image data
+*opentile* is a Python library for reading tiles from Tifffile-compatible wsi-files. Specifically image data
 in Ndpi-files are losslessly converted to tiles.
 
 ## Important note
