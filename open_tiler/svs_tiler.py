@@ -1,9 +1,8 @@
 import io
 import math
-from pathlib import Path
 from typing import Dict, Tuple, List, Iterator
 
-from tifffile.tifffile import (FileHandle, TiffFile, TiffPage, TiffPageSeries,
+from tifffile.tifffile import (FileHandle, TiffPage, TiffPageSeries,
                                svs_description_metadata)
 from wsidicom.geometry import Point, Size, SizeMm
 from wsidicom.interface import TiledLevel
@@ -30,10 +29,13 @@ class TiffTiledLevel(TiledLevel):
             self.page.shape[1],
             self.page.shape[0]
         )
-        self._tiled_size = Size(
-            math.ceil(self.level_size.width / self.tile_size.width),
-            math.ceil(self.level_size.height / self.tile_size.height)
-        )
+        if self._tile_size != Size(0, 0):
+            self._tiled_size = Size(
+                math.ceil(self.level_size.width / self.tile_size.width),
+                math.ceil(self.level_size.height / self.tile_size.height)
+            )
+        else:
+            self._tiled_size = Size(1, 1)
 
     @property
     def page(self) -> TiffPage:
@@ -59,7 +61,10 @@ class TiffTiledLevel(TiledLevel):
     def mpp(self) -> SizeMm:
         return self._mpp
 
-    def get_encoded_tile(self, tile: Point) -> bytes:
+    def get_encoded_tile(self, tile_position: Point) -> bytes:
+        return self.get_tile(tile_position)
+
+    def get_tile(self, tile: Point) -> bytes:
         # index for reading tile
         tile_index = tile.y * self.tiled_size.width + tile.x
         self._fh.seek(self.page.dataoffsets[tile_index])
@@ -83,10 +88,13 @@ class SvsTiler(TifffileTiler):
     ) -> TiffTiledLevel:
         tiff_level = self.series[series].levels[level]
         base = self.series[series].levels[0]
-        base_mpp: Tuple[int, int] = svs_description_metadata(
-            base.pages[0].description
-        )['MPP']
 
+        if series == self._volume_series_index:
+            base_mpp: Tuple[int, int] = svs_description_metadata(
+                base.pages[0].description
+            )['MPP']
+        else:
+            base_mpp = 1.0
         return TiffTiledLevel(
             self._tiff_file.filehandle, tiff_level, base.shape, base_mpp
         )
