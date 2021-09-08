@@ -30,39 +30,18 @@ ndpi_tiler.close()
 ```
 
 ## Convert Ndpi-file into Dicom using WsiDicom
-***Specify series and levels to extract from Ndpi-file, and define instance uids.***
-```python
-import pydicom
-uids = [pydicom.uid.generate_uid() for i in range(10)]
-include_series = {
-    'VOLUME': (0, {
-        0: uids[0],
-        1: uids[1],
-        2: uids[2],
-        3: uids[3],
-        4: uids[4],
-        5: uids[5],
-        6: uids[6],
-    }),
-    'LABEL': (2, {0: uids[7]}),
-    'OVERVIEW': (3, {0: uids[8]})
-```
-
 ***Create a base dataset that will be common for all created Dicom instances.***
 ```python
 from wsidicom import WsiDataset
 base_dataset = WsiDataset.create_test_base_dataset()
 ```
 
-***Create a NdpiFileImporter, specifying input file path, base dataset, included series, transfer syntax, tile size, and path to turbojpeg library.***
+***Create a FileImporter using the ndpi tiler base dataset. Optional specify function for creating uids, levels to include, and if label(s) and overview(s) should be inclued, and transfer syntax.***
 ```python
-from ndpi_tiler import NdpiFileImporter
+from wsidicom import FileImporter
 file_importer = NdpiFileImporter(
-    path_to_ndpi_file,
-    base_dataset,
-    include_series,
-    (1024, 1024),
-    'C:/libjpeg-turbo64/bin/turbojpeg.dll'
+    ndpi_tiler,
+    base_dataset
 )
 ```
 

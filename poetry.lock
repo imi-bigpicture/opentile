@@ -55,7 +55,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 
 [[package]]
 name = "more-itertools"
-version = "8.8.0"
+version = "8.9.0"
 description = "More routines for operating on iterables, beyond itertools"
 category = "dev"
 optional = false
@@ -84,7 +84,7 @@ pyparsing = ">=2.0.2"
 name = "pillow"
 version = "8.3.2"
 description = "Python Imaging Library (Fork)"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -165,7 +165,7 @@ watchdog = ">=0.6.0"
 
 [[package]]
 name = "pyturbojpeg"
-version = "1.5.2"
+version = "1.5.3"
 description = "A Python wrapper of libjpeg-turbo for decoding and encoding JPEG image."
 category = "main"
 optional = false
@@ -216,6 +216,24 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "wsidicom"
+version = "0.1.0"
+description = "Tools for handling DICOM based whole scan images"
+category = "main"
+optional = false
+python-versions = "^3.7"
+develop = true
+
+[package.dependencies]
+numpy = "^1.15.0"
+Pillow = "^8.0.0"
+pydicom = "^2.1.0"
+
+[package.source]
+type = "directory"
+url = "../wsidicom"
+
+[[package]]
 name = "zipp"
 version = "3.5.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
@@ -230,7 +248,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "84f59ecce64a7b148155983a5005b3abaef3ad1c3b7a78158d1799860ee44eff"
+content-hash = "d17ed36f37b2e3801e28b385bae517de25d1f922cb8c81e0de25f5c9cc336ea8"
 
 [metadata.files]
 atomicwrites = [
@@ -253,8 +271,8 @@ importlib-metadata = [
     {file = "importlib_metadata-4.8.1.tar.gz", hash = "sha256:f284b3e11256ad1e5d03ab86bb2ccd6f5339688ff17a4d797a0fe7df326f23b1"},
 ]
 more-itertools = [
-    {file = "more-itertools-8.8.0.tar.gz", hash = "sha256:83f0308e05477c68f56ea3a888172c78ed5d5b3c282addb67508e7ba6c8f813a"},
-    {file = "more_itertools-8.8.0-py3-none-any.whl", hash = "sha256:2cf89ec599962f2ddc4d568a05defc40e0a587fbc10d5989713638864c36be4d"},
+    {file = "more-itertools-8.9.0.tar.gz", hash = "sha256:8c746e0d09871661520da4f1241ba6b908dc903839733c8203b552cffaf173bd"},
+    {file = "more_itertools-8.9.0-py3-none-any.whl", hash = "sha256:70401259e46e216056367a0a6034ee3d3f95e0bf59d3aa6a4eb77837171ed996"},
 ]
 numpy = [
     {file = "numpy-1.21.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:38e8648f9449a549a7dfe8d8755a5979b45b3538520d1e735637ef28e8c2dc50"},
@@ -356,7 +374,7 @@ pytest-watch = [
     {file = "pytest-watch-4.2.0.tar.gz", hash = "sha256:06136f03d5b361718b8d0d234042f7b2f203910d8568f63df2f866b547b3d4b9"},
 ]
 pyturbojpeg = [
-    {file = "PyTurboJPEG-1.5.2.tar.gz", hash = "sha256:a8e5c3fd3d513e524fd0e4e10ff1b50b31952d441515b2c26333eb93bfd23a2c"},
+    {file = "PyTurboJPEG-1.5.3.tar.gz", hash = "sha256:71e17e7c912e402022c1e0cf41410ebfcfdb3141c38dd5cb9904d9e4ff90f043"},
 ]
 tifffile = [
     {file = "tifffile-2021.8.30-py3-none-any.whl", hash = "sha256:524f9f3a96ca91d12e5b5ddce80209d2b07769c1764ceecf505613668143f63c"},
@@ -396,6 +414,7 @@ wcwidth = [
     {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},
     {file = "wcwidth-0.2.5.tar.gz", hash = "sha256:c4d647b99872929fdb7bdcaa4fbe7f01413ed3d98077df798530e5b04f116c83"},
 ]
+wsidicom = []
 zipp = [
     {file = "zipp-3.5.0-py3-none-any.whl", hash = "sha256:957cfda87797e389580cb8b9e3870841ca991e2125350677b2ca83a0e99390a3"},
     {file = "zipp-3.5.0.tar.gz", hash = "sha256:f5812b1e007e48cff63449a5e9f4e7ebea716b4111f9c4f9a645f91d579bf0c4"},

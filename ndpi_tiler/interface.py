@@ -9,9 +9,10 @@ from typing import Dict, Generator, Iterator, List, Optional, Tuple
 
 import pydicom
 from tifffile import FileHandle, TiffPage
-from tifffile.tifffile import TiffFile, TiffPageSeries
+from tifffile.tifffile import TIFF, TiffFile, TiffPageSeries
 from wsidicom import TiledLevel
-from wsidicom.geometry import Point, Region, Size
+from wsidicom.geometry import Point, Region, Size, SizeMm
+from wsidicom.interface import Tiler
 
 from .turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
@@ -376,6 +377,7 @@ class NdpiLevel(TiledLevel, metaclass=ABCMeta):
         self._tile_cache = NdpiCache(tile_cache)
         self._frame_cache = NdpiCache(frame_cache)
         self._headers: Dict[Size, bytes] = {}
+        self._mpp = self._get_mpp_from_page(page)
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -389,6 +391,10 @@ class NdpiLevel(TiledLevel, metaclass=ABCMeta):
     def tile_size(self) -> Size:
         """The size of the tiles to generate."""
         return self._tile_size
+
+    @property
+    def mpp(self) -> SizeMm:
+        return self._mpp
 
     @cached_property
     def level_size(self) -> Size:
@@ -622,6 +628,18 @@ class NdpiLevel(TiledLevel, metaclass=ABCMeta):
             tile_position.x < self.tiled_size.width and
             tile_position.y < self.tiled_size.height
         )
+
+    @staticmethod
+    def _get_mpp_from_page(page: TiffPage) -> SizeMm:
+        x_resolution = page.tags['XResolution'].value[0]
+        y_resolution = page.tags['YResolution'].value[0]
+        resolution_unit = page.tags['ResolutionUnit'].value
+        if resolution_unit != TIFF.RESUNIT.CENTIMETER:
+            raise ValueError("Unkown resolution unit")
+
+        mpp_x = 1/x_resolution
+        mpp_y = 1/y_resolution
+        return Size(mpp_x, mpp_y)
 
 
 class NdpiOneFrameLevel(NdpiLevel):
@@ -949,12 +967,15 @@ class NdpiStripedLevel(NdpiLevel):
         return data
 
 
-class NdpiTiler:
+class NdpiTiler(Tiler):
     def __init__(
         self,
         filepath: str,
         tile_size: Tuple[int, int],
-        turbo_path: Path
+        turbo_path: Path,
+        volume_series_index: int = 0,
+        label_series_index: int = 2,
+        overview_series_index: int = 3
     ):
         """Cache for ndpi stripes, with functions to produce tiles of specified
         size.
@@ -977,6 +998,9 @@ class NdpiTiler:
         self._turbo_path = turbo_path
         self._jpeg = TurboJPEG(self._turbo_path)
         self._levels: Dict[int, NdpiLevel] = {}
+        self._volume_series_index = volume_series_index
+        self._overview_series_index = overview_series_index
+        self._label_series_index = label_series_index
 
     def __repr__(self) -> str:
         return (
@@ -995,6 +1019,10 @@ class NdpiTiler:
     @property
     def series(self) -> List[TiffPageSeries]:
         return self._tiff_file.series
+
+    @property
+    def levels(self) -> List[TiffPageSeries]:
+        return self.series[self._volume_series_index].levels
 
     def close(self) -> None:
         self._tiff_file.close()
@@ -1025,13 +1053,11 @@ class NdpiTiler:
         ndpi_level = self.get_level(series, level)
         return ndpi_level.get_tile(Point(*tile_position))
 
-    def get_level(self, series: int, level: int) -> NdpiLevel:
+    def get_level(self, level: int) -> NdpiLevel:
         """Return level. Create level if not found.
 
         Parameters
         ----------
-        series: int
-            Series of level to get.
         level: int
             Level to get.
 
@@ -1041,10 +1067,10 @@ class NdpiTiler:
             Requested level.
         """
         try:
-            ndpi_level = self._levels[series, level]
+            ndpi_level = self._levels[self._volume_series_index, level]
         except KeyError:
-            ndpi_level = self._create_level(series, level)
-            self._levels[series, level] = ndpi_level
+            ndpi_level = self._create_level(self._volume_series_index, level)
+            self._levels[self._volume_series_index, level] = ndpi_level
         return ndpi_level
 
     def _create_level(self, series: int, level: int) -> NdpiLevel:

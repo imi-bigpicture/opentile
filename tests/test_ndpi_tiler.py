@@ -33,7 +33,7 @@ class NdpiTilerTest(unittest.TestCase):
             (cls.tile_size.width, cls.tile_size.height),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
-        cls.level: NdpiStripedLevel = cls.tiler.get_level(0, 0)
+        cls.level: NdpiStripedLevel = cls.tiler.get_level(0)
 
     @classmethod
     def tearDownClass(cls):

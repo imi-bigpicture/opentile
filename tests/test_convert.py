@@ -6,23 +6,16 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Dict, Tuple, TypedDict
 
-import pydicom
 import pytest
-from ndpi_tiler import NdpiFileImporter, __version__
+from wsidicom.interface import FileImporter
+from ndpi_tiler import NdpiTiler, __version__
 from PIL import Image, ImageChops
 from wsidicom import WsiDataset, WsiDicom
 
 ndpi_test_data_dir = os.environ.get("NDPI_TESTDIR", "C:/temp/ndpi")
 sub_data_dir = "convert"
 ndpi_data_dir = ndpi_test_data_dir + '/' + sub_data_dir
-uids = [pydicom.uid.generate_uid() for i in range(10)]
-
-include_series = {
-    'VOLUME': (0, {
-        3: uids[0],
-        4: uids[1]
-    })
-}
+turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
 
 
 class WsiFolder(TypedDict):
@@ -53,15 +46,17 @@ class NdpiConvertTest(unittest.TestCase):
 
     @classmethod
     def open(cls, path: Path) -> Tuple[WsiDicom, TemporaryDirectory]:
-        folder = Path(path).joinpath('ndpi/input.ndpi')
-
-        base_dataset = WsiDataset.create_test_base_dataset()
-        file_importer = NdpiFileImporter(
-            folder,
-            base_dataset,
-            include_series,
+        filepath = Path(path).joinpath('ndpi/input.ndpi')
+        tiler = NdpiTiler(
+            filepath,
             cls.tile_size,
-            'C:/libjpeg-turbo64/bin/turbojpeg.dll'
+            turbo_path
+        )
+        base_dataset = WsiDataset.create_test_base_dataset()
+        file_importer = FileImporter(
+            tiler,
+            base_dataset,
+            include_levels=[3, 4]
         )
         tempdir = TemporaryDirectory()
         WsiDicom.convert(Path(tempdir.name), file_importer)
