@@ -3,16 +3,19 @@ import unittest
 from hashlib import md5
 
 import pytest
-from ndpi_tiler import NdpiTiler, __version__
-from ndpi_tiler.ndpi_tiler import (NdpiCache, NdpiLevel, NdpiStripedLevel,
+from open_tiler import NdpiTiler, __version__
+from open_tiler.ndpi_tiler import (NdpiCache, NdpiLevel, NdpiStripedLevel,
                                    NdpiTile, NdpiTileJob, Tags)
 from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
 from wsidicom.geometry import Point, Size
 
-tif_test_data_dir = os.environ.get("TIF_TESTDIR", "C:/temp/tif")
-tif_test_file_name = "test.ndpi"
-tif_test_file_path = tif_test_data_dir + '/' + tif_test_file_name
+ndpi_test_data_dir = os.environ.get(
+    "NDPI_TESTDIR",
+    "C:/temp/open_tiler/ndpi/"
+)
+sub_data_path = "convert/ham/ndpi/input.ndpi"
+ndpi_file_path = ndpi_test_data_dir + '/' + sub_data_path
 
 
 @pytest.mark.unittest
@@ -26,9 +29,8 @@ class NdpiTilerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tile_size = Size(1024, 1024)
-        cls.tif = TiffFile(tif_test_file_path)
         cls.tiler = NdpiTiler(
-            tif_test_file_path,
+            ndpi_file_path,
             (cls.tile_size.width, cls.tile_size.height),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
@@ -36,7 +38,7 @@ class NdpiTilerTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.tif.close()
+        cls.tiler.close()
 
     def test_tags(self):
         self.assertEqual(Tags.start_of_frame(), bytes([0xFF, 0xC0]))

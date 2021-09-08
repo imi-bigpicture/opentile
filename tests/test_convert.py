@@ -8,11 +8,14 @@ from typing import Dict, Tuple, TypedDict
 
 import pytest
 from wsidicom.interface import FileImporter
-from ndpi_tiler import NdpiTiler, __version__
+from open_tiler import NdpiTiler, __version__
 from PIL import Image, ImageChops
 from wsidicom import WsiDataset, WsiDicom
 
-ndpi_test_data_dir = os.environ.get("NDPI_TESTDIR", "C:/temp/ndpi")
+ndpi_test_data_dir = os.environ.get(
+    "NDPI_TESTDIR",
+    "C:/temp/open_tiler/ndpi/"
+)
 sub_data_dir = "convert"
 ndpi_data_dir = ndpi_test_data_dir + '/' + sub_data_dir
 turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
