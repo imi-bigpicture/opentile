@@ -6,12 +6,10 @@ together with WsiDicom to convert Ndpi-files to Dicom.
 Please note that this is an early release and the API is not frozen yet. Function names and functionality is prone to change.
 
 ## Requirements
-*ndpi-tiler* uses tifffile, PyTurboJPEG, wsidicom, and pydicom.
-
-## Limitations
+*ndpi-tiler* uses tifffile, PyTurboJPEG, and wsidicom.
 
 ## Basic usage
-***Load a Ndpi-file using tile size (1024, 1024) pixels.***
+***Load a Ndpi-file using tile size (1024, 1024) pixels. Optionally specify series index for levels, labels, and overview if not default.***
 ```python
 from ndpi_tiler import NdpiTiler
 tile_size = (1024, 1024)

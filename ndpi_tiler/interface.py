@@ -7,7 +7,6 @@ from pathlib import Path
 from struct import unpack
 from typing import Dict, Generator, Iterator, List, Optional, Tuple
 
-import pydicom
 from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TIFF, TiffFile, TiffPageSeries
 from wsidicom import TiledLevel
@@ -513,35 +512,34 @@ class NdpiLevel(TiledLevel, metaclass=ABCMeta):
         tiles = self._crop_to_tiles(tile_job, frame)
         return tiles
 
-    def _create_encapsulated_tiles(
-        self,
-        tile_job: NdpiTileJob
-    ) -> List[bytes]:
-        """Return pydicom encapsulated tiles defined by tile job.
+    # def _create_encapsulated_tiles(
+    #     self,
+    #     tile_job: NdpiTileJob
+    # ) -> List[bytes]:
+    #     """Return pydicom encapsulated tiles defined by tile job.
 
+    #     Parameters
+    #     ----------
+    #     tile_job: NdpiTileJob
+    #         Tile job containing tiles that should be created.
 
-        Parameters
-        ----------
-        tile_job: NdpiTileJob
-            Tile job containing tiles that should be created.
+    #     Returns
+    #     ----------
+    #     Dict[Point, bytes]:
+    #         Created and encapsulated tiles ordered by tile coordiante.
+    #     """
+    #     try:
+    #         frame = self._frame_cache[tile_job.origin]
+    #     except KeyError:
+    #         frame = self._read_frame(tile_job.origin, tile_job.frame_size)
+    #         self._frame_cache[tile_job.origin] = frame
 
-        Returns
-        ----------
-        Dict[Point, bytes]:
-            Created and encapsulated tiles ordered by tile coordiante.
-        """
-        try:
-            frame = self._frame_cache[tile_job.origin]
-        except KeyError:
-            frame = self._read_frame(tile_job.origin, tile_job.frame_size)
-            self._frame_cache[tile_job.origin] = frame
+    #     tiles = self._crop_to_tiles(tile_job, frame).values()
 
-        tiles = self._crop_to_tiles(tile_job, frame).values()
-
-        return [
-            b"".join(pydicom.encaps.itemize_frame(tile))
-            for tile in tiles
-        ]
+    #     return [
+    #         b"".join(pydicom.encaps.itemize_frame(tile))
+    #         for tile in tiles
+    #     ]
 
     def _crop_to_tiles(
         self,
