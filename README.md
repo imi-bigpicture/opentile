@@ -1,4 +1,4 @@
-# *ndpi-tiler*
+# *open-tiler*
 Python library for reading tiles from Tifffile-compatible wsi-files. Image data
 in Ndpi-files are losslessly converted to tiles.
 
