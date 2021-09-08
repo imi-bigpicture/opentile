@@ -8,13 +8,13 @@ from typing import Dict, Tuple, TypedDict
 
 import pytest
 from wsidicom.interface import FileImporter
-from open_tiler import NdpiTiler, __version__
+from opentile import NdpiTiler, __version__
 from PIL import Image, ImageChops
 from wsidicom import WsiDataset, WsiDicom
 
 ndpi_test_data_dir = os.environ.get(
     "NDPI_TESTDIR",
-    "C:/temp/open_tiler/ndpi/"
+    "C:/temp/opentile/ndpi/"
 )
 sub_data_dir = "convert"
 ndpi_data_dir = ndpi_test_data_dir + '/' + sub_data_dir

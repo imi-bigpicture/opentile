@@ -4,14 +4,14 @@ from hashlib import md5
 
 import pytest
 from wsidicom.interface import TiledLevel
-from open_tiler import SvsTiler, __version__
+from opentile import SvsTiler, __version__
 from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
 from wsidicom.geometry import Point, Size
 
 svs_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
-    "C:/temp/open_tiler/svs/"
+    "C:/temp/opentile/svs/"
 )
 sub_data_path = "input.svs"
 svs_file_path = svs_test_data_dir + '/' + sub_data_path

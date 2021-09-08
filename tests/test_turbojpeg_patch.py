@@ -3,16 +3,15 @@ from ctypes import *
 
 import numpy as np
 import pytest
-from open_tiler.turbojpeg_patch import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP,
-                                        TJXOPT_GRAY, TJXOPT_PERFECT,
-                                        BackgroundStruct, CroppingRegion,
-                                        TransformStruct)
-from open_tiler.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from open_tiler.turbojpeg_patch import fill_background
-
+from opentile.turbojpeg_patch import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP,
+                                      TJXOPT_GRAY, TJXOPT_PERFECT,
+                                      BackgroundStruct, CroppingRegion,
+                                      TransformStruct)
+from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
+from opentile.turbojpeg_patch import fill_background
 
 turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
-test_file_path = 'C:/temp/open_tiler/turbojpeg/frame_1024x512.jpg'
+test_file_path = 'C:/temp/opentile/turbojpeg/frame_1024x512.jpg'
 
 
 @pytest.mark.turbojpeg

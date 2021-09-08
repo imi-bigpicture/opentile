@@ -9,6 +9,7 @@ DEFAULT_VOLUME_SERIES_INDEX = 0
 DEFAULT_LABEL_SERIES_INDEX = 2
 DEFAULT_OVERVIEW_SERIES_INDEX = 3
 
+
 class TifffileTiler(Tiler):
     def __init__(
         self,

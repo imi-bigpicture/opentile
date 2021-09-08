@@ -1,4 +1,4 @@
-# *open-tiler*
+# *opentile*
 Python library for reading tiles from Tifffile-compatible wsi-files. Image data
 in Ndpi-files are losslessly converted to tiles.
 
@@ -6,7 +6,7 @@ in Ndpi-files are losslessly converted to tiles.
 Please note that this is an early release and the API is not frozen yet. Function names and functionality is prone to change.
 
 ## Requirements
-*open-tiler* uses tifffile, PyTurboJPEG, and wsidicom.
+*opentile* uses tifffile, PyTurboJPEG, and wsidicom.
 
 ## Basic usage
 ***Load a Ndpi-file using tile size (1024, 1024) pixels. Optionally specify series index for levels, labels, and overview if not default.***

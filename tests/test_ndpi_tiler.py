@@ -3,8 +3,8 @@ import unittest
 from hashlib import md5
 
 import pytest
-from open_tiler import NdpiTiler, __version__
-from open_tiler.ndpi_tiler import (NdpiCache, NdpiLevel, NdpiStripedLevel,
+from opentile import NdpiTiler, __version__
+from opentile.ndpi_tiler import (NdpiCache, NdpiLevel, NdpiStripedLevel,
                                    NdpiTile, NdpiTileJob, Tags)
 from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
@@ -12,7 +12,7 @@ from wsidicom.geometry import Point, Size
 
 ndpi_test_data_dir = os.environ.get(
     "NDPI_TESTDIR",
-    "C:/temp/open_tiler/ndpi/"
+    "C:/temp/opentile/ndpi/"
 )
 sub_data_path = "convert/ham/ndpi/input.ndpi"
 ndpi_file_path = ndpi_test_data_dir + '/' + sub_data_path
