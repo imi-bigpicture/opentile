@@ -6,23 +6,17 @@ from typing import List, Tuple
 from wsidicom.geometry import Point
 
 DEFAULT_VOLUME_SERIES_INDEX = 0
-DEFAULT_LABEL_SERIES_INDEX = 2
-DEFAULT_OVERVIEW_SERIES_INDEX = 3
+DEFAULT_LABEL_SERIES_INDEX = None
+DEFAULT_OVERVIEW_SERIES_INDEX = None
 
 
 class TifffileTiler(Tiler):
-    def __init__(
-        self,
-        filepath: Path,
-        volume_series_index: int = DEFAULT_VOLUME_SERIES_INDEX,
-        label_series_index: int = DEFAULT_LABEL_SERIES_INDEX,
-        overview_series_index: int = DEFAULT_OVERVIEW_SERIES_INDEX
-    ):
+    def __init__(self, filepath: Path):
         self._filepath = filepath
         self._tiff_file = TiffFile(self._filepath)
-        self._volume_series_index = volume_series_index
-        self._overview_series_index = overview_series_index
-        self._label_series_index = label_series_index
+        self._volume_series_index = DEFAULT_VOLUME_SERIES_INDEX
+        self._overview_series_index = DEFAULT_LABEL_SERIES_INDEX
+        self._label_series_index = DEFAULT_OVERVIEW_SERIES_INDEX
 
     @property
     def series(self) -> List[TiffPageSeries]:
@@ -30,14 +24,20 @@ class TifffileTiler(Tiler):
 
     @property
     def level_count(self) -> int:
+        if self._volume_series_index is None:
+            return 0
         return len(self.series[self._volume_series_index].levels)
 
     @property
     def label_count(self) -> int:
+        if self._label_series_index is None:
+            return 0
         return len(self.series[self._label_series_index].levels)
 
     @property
     def overview_count(self) -> int:
+        if self._overview_series_index is None:
+            return 0
         return len(self.series[self._overview_series_index].levels)
 
     @abstractmethod

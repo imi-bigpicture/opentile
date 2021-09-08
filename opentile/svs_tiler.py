@@ -1,11 +1,13 @@
 import io
 import math
-from typing import Dict, Tuple, List, Iterator
+from pathlib import Path
+from typing import Dict, Iterator, List, Tuple
 
 from tifffile.tifffile import (FileHandle, TiffPage, TiffPageSeries,
                                svs_description_metadata)
 from wsidicom.geometry import Point, Size, SizeMm
 from wsidicom.interface import TiledLevel
+
 from .interface import TifffileTiler
 
 
@@ -81,6 +83,15 @@ class TiffTiledLevel(TiledLevel):
 
 
 class SvsTiler(TifffileTiler):
+    def __init__(self, filepath: Path):
+        super().__init__(filepath)
+
+        for series_index, series in enumerate(self.series):
+            if series.name == 'Label':
+                self._label_series_index = series_index
+            elif series.name == 'Macro':
+                self._overview_series_index = series_index
+
     def _get_level_from_series(
         self,
         series: int,

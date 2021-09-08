@@ -969,10 +969,7 @@ class NdpiTiler(TifffileTiler):
         self,
         filepath: str,
         tile_size: Tuple[int, int],
-        turbo_path: Path,
-        volume_series_index: int = 0,
-        label_series_index: int = 2,
-        overview_series_index: int = 3
+        turbo_path: Path
     ):
         """Cache for ndpi stripes, with functions to produce tiles of specified
         size.
@@ -987,12 +984,7 @@ class NdpiTiler(TifffileTiler):
             Path to turbojpeg (dll or so).
 
         """
-        super().__init__(
-            filepath,
-            volume_series_index,
-            label_series_index,
-            overview_series_index
-        )
+        super().__init__(filepath)
 
         self._fh = NdpiFileHandle(self._tiff_file.filehandle)
         self._tile_size = Size(*tile_size)
