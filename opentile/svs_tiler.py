@@ -60,6 +60,10 @@ class TiffTiledLevel(ImageData):
         return self._image_size
 
     @property
+    def pixel_spacing(self) -> SizeMm:
+        return self.mpp * 1000
+
+    @property
     def mpp(self) -> SizeMm:
         return self._mpp
 

@@ -394,6 +394,10 @@ class NdpiLevel(ImageData, metaclass=ABCMeta):
         return self._tile_size
 
     @property
+    def pixel_spacing(self) -> SizeMm:
+        return self.mpp * 1000.0
+
+    @property
     def mpp(self) -> SizeMm:
         return self._mpp
 
@@ -605,7 +609,7 @@ class NdpiLevel(ImageData, metaclass=ABCMeta):
 
         mpp_x = 1/x_resolution
         mpp_y = 1/y_resolution
-        return Size(mpp_x, mpp_y)
+        return SizeMm(mpp_x, mpp_y)
 
 
 class NdpiOneFrameLevel(NdpiLevel):
