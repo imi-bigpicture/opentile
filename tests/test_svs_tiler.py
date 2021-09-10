@@ -3,11 +3,11 @@ import unittest
 from hashlib import md5
 
 import pytest
-from wsidicom.interface import TiledLevel
 from opentile import SvsTiler, __version__
 from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
 from wsidicom.geometry import Point, Size
+from wsidicom.image_data import ImageData
 
 svs_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
@@ -23,13 +23,13 @@ class NdpiTilerTest(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self.tif: TiffFile
         self.tiler: SvsTiler
-        self.level: TiledLevel
+        self.level: ImageData
 
     @classmethod
     def setUpClass(cls):
         cls.tile_size = Size(1024, 1024)
         cls.tiler = SvsTiler(svs_file_path)
-        cls.level: TiledLevel = cls.tiler.get_level(0)
+        cls.level: ImageData = cls.tiler.get_level(0)
 
     @classmethod
     def tearDownClass(cls):

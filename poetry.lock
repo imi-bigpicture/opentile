@@ -230,10 +230,8 @@ Pillow = "^8.0.0"
 pydicom = "^2.1.0"
 
 [package.source]
-type = "git"
-url = "https://github.com/imi-bigpicture/wsidicom.git"
-reference = "WIP-save_support"
-resolved_reference = "d01095b09ec31d622981e911a4c37031c11ac2ab"
+type = "directory"
+url = "../wsidicom"
 
 [[package]]
 name = "zipp"
@@ -250,7 +248,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "6560ef54f3a3b0009688e3650e3510e55dab3e1f4300b3f596cffb051f45e843"
+content-hash = "6cd01acbecda5e92055de67476eb80bb27cab3ea8f23065dc9cd2fdf35b2a711"
 
 [metadata.files]
 atomicwrites = [

@@ -5,11 +5,11 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
 from pathlib import Path
 from struct import unpack
-from typing import Dict, Generator, Iterator, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
 from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TIFF
-from wsidicom import TiledLevel
+from wsidicom.image_data import ImageData
 from wsidicom.geometry import Point, Region, Size, SizeMm
 from .interface import TifffileTiler
 from .turbojpeg_patch import TurboJPEG_patch as TurboJPEG
@@ -339,7 +339,7 @@ class NdpiTileJob:
         ]
 
 
-class NdpiLevel(TiledLevel, metaclass=ABCMeta):
+class NdpiLevel(ImageData, metaclass=ABCMeta):
     """Metaclass for a ndpi level."""
     def __init__(
         self,
@@ -394,8 +394,21 @@ class NdpiLevel(TiledLevel, metaclass=ABCMeta):
     def mpp(self) -> SizeMm:
         return self._mpp
 
+    @property
+    def focal_planes(self) -> List[float]:
+        # No support for multiple focal planes
+        return [0]
+
+    @property
+    def optical_paths(self) -> List[str]:
+        # No support for multiple optical paths
+        return ['0']
+
+    def close(self) -> None:
+        pass
+
     @cached_property
-    def level_size(self) -> Size:
+    def image_size(self) -> Size:
         """The size of the level."""
         return Size(self._page.shape[1], self._page.shape[0])
 
@@ -407,7 +420,7 @@ class NdpiLevel(TiledLevel, metaclass=ABCMeta):
     @cached_property
     def tiled_size(self) -> Size:
         """The level size when tiled (columns and rows of tiles)."""
-        return (self.level_size / self.tile_size).ceil()
+        return (self.image_size / self.tile_size).ceil()
 
     @abstractmethod
     def _read_frame(self, tile_position: Point, frame_size: Size) -> bytes:
@@ -457,29 +470,6 @@ class NdpiLevel(TiledLevel, metaclass=ABCMeta):
     def get_encoded_tile(self, tile_position: Point) -> bytes:
         return self.get_tile(tile_position)
 
-    def get_encapsulated_tiles(self, tile_positions: List[Point]) -> bytes:
-        """Return tiles for tile positions. Sorts the requested tile positions
-        into tile jobs and uses a pool of threads to parse tile jobs. The
-        results are encapsulated and concatenated. Frames and tiles are not
-        cached.
-
-        Parameters
-        ----------
-        tile_positions: List[Point]
-            List of position to get.
-
-        Returns
-        ----------
-        bytes
-            Concatentated tiles from positions.
-        """
-        tile_jobs = self._sort_into_tile_jobs(tile_positions)
-        with ThreadPoolExecutor() as pool:
-            def thread(tile_job: NdpiTileJob) -> bytes:
-                return b"".join(self._create_encapsulated_tiles(tile_job))
-            result = pool.map(thread, tile_jobs)
-            return b"".join(result)
-
     def get_encoded_tiles(self, tiles) -> Iterator[List[bytes]]:
         tile_jobs = self._sort_into_tile_jobs(tiles)
         with ThreadPoolExecutor() as pool:
@@ -510,35 +500,6 @@ class NdpiLevel(TiledLevel, metaclass=ABCMeta):
             self._frame_cache[tile_job.origin] = frame
         tiles = self._crop_to_tiles(tile_job, frame)
         return tiles
-
-    # def _create_encapsulated_tiles(
-    #     self,
-    #     tile_job: NdpiTileJob
-    # ) -> List[bytes]:
-    #     """Return pydicom encapsulated tiles defined by tile job.
-
-    #     Parameters
-    #     ----------
-    #     tile_job: NdpiTileJob
-    #         Tile job containing tiles that should be created.
-
-    #     Returns
-    #     ----------
-    #     Dict[Point, bytes]:
-    #         Created and encapsulated tiles ordered by tile coordiante.
-    #     """
-    #     try:
-    #         frame = self._frame_cache[tile_job.origin]
-    #     except KeyError:
-    #         frame = self._read_frame(tile_job.origin, tile_job.frame_size)
-    #         self._frame_cache[tile_job.origin] = frame
-
-    #     tiles = self._crop_to_tiles(tile_job, frame).values()
-
-    #     return [
-    #         b"".join(pydicom.encaps.itemize_frame(tile))
-    #         for tile in tiles
-    #     ]
 
     def _crop_to_tiles(
         self,
@@ -662,7 +623,7 @@ class NdpiOneFrameLevel(NdpiLevel):
         Size
             The size of frame in the file.
         """
-        return self.level_size
+        return self.image_size
 
     def _get_frame_size_for_tile(self, tile_position: Point) -> Size:
         """Return read frame size for tile position. For single frame level

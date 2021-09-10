@@ -7,10 +7,10 @@ from tempfile import TemporaryDirectory
 from typing import Dict, Tuple, TypedDict
 
 import pytest
-from wsidicom.interface import FileImporter
 from opentile import NdpiTiler, __version__
 from PIL import Image, ImageChops
-from wsidicom import WsiDataset, WsiDicom
+from wsidicom import WsiDicom
+from wsidicom.file import WsiDataset
 
 ndpi_test_data_dir = os.environ.get(
     "NDPI_TESTDIR",
@@ -56,13 +56,13 @@ class NdpiConvertTest(unittest.TestCase):
             turbo_path
         )
         base_dataset = WsiDataset.create_test_base_dataset()
-        file_importer = FileImporter(
+        tempdir = TemporaryDirectory()
+        WsiDicom.convert(
+            Path(tempdir.name),
             tiler,
             base_dataset,
             include_levels=[3, 4]
         )
-        tempdir = TemporaryDirectory()
-        WsiDicom.convert(Path(tempdir.name), file_importer)
         wsi = WsiDicom.open(str(tempdir.name))
         return (wsi, tempdir)
 

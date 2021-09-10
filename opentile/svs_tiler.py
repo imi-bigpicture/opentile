@@ -1,17 +1,17 @@
 import io
 import math
 from pathlib import Path
-from typing import Dict, Iterator, List, Tuple
+from typing import List, Tuple
 
 from tifffile.tifffile import (FileHandle, TiffPage, TiffPageSeries,
                                svs_description_metadata)
 from wsidicom.geometry import Point, Size, SizeMm
-from wsidicom.interface import TiledLevel
+from wsidicom.image_data import ImageData
 
 from .interface import TifffileTiler
 
 
-class TiffTiledLevel(TiledLevel):
+class TiffTiledLevel(ImageData):
     def __init__(
         self,
         filehandle: FileHandle,
@@ -27,14 +27,14 @@ class TiffTiledLevel(TiledLevel):
             int(self.page.tilewidth),
             int(self.page.tilelength)
         )
-        self._level_size = Size(
+        self._image_size = Size(
             self.page.shape[1],
             self.page.shape[0]
         )
         if self._tile_size != Size(0, 0):
             self._tiled_size = Size(
-                math.ceil(self.level_size.width / self.tile_size.width),
-                math.ceil(self.level_size.height / self.tile_size.height)
+                math.ceil(self.image_size.width / self.tile_size.width),
+                math.ceil(self.image_size.height / self.tile_size.height)
             )
         else:
             self._tiled_size = Size(1, 1)
@@ -56,12 +56,25 @@ class TiffTiledLevel(TiledLevel):
         return self._tiled_size
 
     @property
-    def level_size(self) -> Size:
-        return self._level_size
+    def image_size(self) -> Size:
+        return self._image_size
 
     @property
     def mpp(self) -> SizeMm:
         return self._mpp
+
+    @property
+    def focal_planes(self) -> List[float]:
+        # No support for multiple focal planes
+        return [0]
+
+    @property
+    def optical_paths(self) -> List[str]:
+        # No support for multiple optical paths
+        return ['0']
+
+    def close(self) -> None:
+        pass
 
     def get_encoded_tile(self, tile_position: Point) -> bytes:
         return self.get_tile(tile_position)

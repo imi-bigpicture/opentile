@@ -1,9 +1,10 @@
 from abc import abstractmethod
-from wsidicom.interface import TiledLevel, Tiler
 from pathlib import Path
-from tifffile.tifffile import TiffFile, TiffPageSeries
 from typing import List, Tuple
+
+from tifffile.tifffile import TiffFile, TiffPageSeries
 from wsidicom.geometry import Point
+from wsidicom.image_data import ImageData, Tiler
 
 DEFAULT_VOLUME_SERIES_INDEX = 0
 DEFAULT_LABEL_SERIES_INDEX = None
@@ -41,7 +42,7 @@ class TifffileTiler(Tiler):
         return len(self.series[self._overview_series_index].levels)
 
     @abstractmethod
-    def _get_level_from_series(self, series: int, level: int) -> TiledLevel:
+    def _get_level_from_series(self, series: int, level: int) -> ImageData:
         raise NotImplementedError
 
     def close(self) -> None:
@@ -69,7 +70,7 @@ class TifffileTiler(Tiler):
         tiled_level = self.get_level(level)
         return tiled_level.get_tile(Point(*tile_position))
 
-    def get_level(self, level: int) -> TiledLevel:
+    def get_level(self, level: int) -> ImageData:
         """Return level from volume series.
 
         Parameters
@@ -84,7 +85,7 @@ class TifffileTiler(Tiler):
         """
         return self._get_level_from_series(self._volume_series_index, level)
 
-    def get_label(self, index: int = 0) -> TiledLevel:
+    def get_label(self, index: int = 0) -> ImageData:
         """Return label from label series.
 
         Parameters
@@ -99,7 +100,7 @@ class TifffileTiler(Tiler):
         """
         return self._get_level_from_series(self._label_series_index, index)
 
-    def get_overview(self, index: int = 0) -> TiledLevel:
+    def get_overview(self, index: int = 0) -> ImageData:
         """Return overview from overview series.
 
         Parameters
