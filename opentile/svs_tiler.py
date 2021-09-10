@@ -74,14 +74,19 @@ class TiffTiledLevel(ImageData):
         return ['0']
 
     def close(self) -> None:
-        pass
+        self._fh.close()
 
     def get_encoded_tile(self, tile_position: Point) -> bytes:
         return self.get_tile(tile_position)
 
-    def get_tile(self, tile: Point) -> bytes:
+    def get_tile(
+        self,
+        tile_position: Point,
+        z: float = 0,
+        path: str = '0'
+    ) -> bytes:
         # index for reading tile
-        tile_index = tile.y * self.tiled_size.width + tile.x
+        tile_index = tile_position.y * self.tiled_size.width + tile_position.x
         self._fh.seek(self.page.dataoffsets[tile_index])
         data = self._fh.read(self.page.databytecounts[tile_index])
 

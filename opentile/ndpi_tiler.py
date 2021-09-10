@@ -165,6 +165,9 @@ class NdpiFileHandle:
             data = self._fh.read(bytecount)
         return data
 
+    def close(self) -> None:
+        self._fh.close()
+
 
 class NdpiTile:
     """Defines a tile by position and coordinates and size for cropping out
@@ -405,7 +408,7 @@ class NdpiLevel(ImageData, metaclass=ABCMeta):
         return ['0']
 
     def close(self) -> None:
-        pass
+        self._fh.close()
 
     @cached_property
     def image_size(self) -> Size:
@@ -437,7 +440,12 @@ class NdpiLevel(ImageData, metaclass=ABCMeta):
         """Return frame size used for creating tile at tile position."""
         raise NotImplementedError
 
-    def get_tile(self, tile_position: Point) -> bytes:
+    def get_tile(
+        self,
+        tile_position: Point,
+        z: float = 0,
+        path: str = '0'
+    ) -> bytes:
         """Return tile for tile position. Caches created frames and tiles.
 
         Parameters
