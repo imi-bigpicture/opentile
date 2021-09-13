@@ -228,16 +228,18 @@ class TurboJPEG_patch(TurboJPEG):
                     background_luminance
                 ):
                     # Use callback to fill in background post-transform
+                    callback_data = BackgroundStruct(
+                        image_width,
+                        image_height,
+                        background_luminance
+                    )
+                    callback = CUSTOMFILTER(fill_background)
                     crop_transforms[i] = TransformStruct(
                         crop_region,
                         TJXOP_NONE,
                         TJXOPT_PERFECT | TJXOPT_CROP | (gray and TJXOPT_GRAY),
-                        pointer(BackgroundStruct(
-                            image_width,
-                            image_height,
-                            background_luminance
-                        )),
-                        CUSTOMFILTER(fill_background)
+                        pointer(callback_data),
+                        callback
                     )
                 else:
                     crop_transforms[i] = TransformStruct(
