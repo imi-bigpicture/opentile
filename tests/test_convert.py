@@ -21,16 +21,14 @@ ndpi_data_dir = ndpi_test_data_dir + '/' + sub_data_dir
 turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
 
 
-class WsiFolder(TypedDict):
-    path: Path
-    wsi_dicom: WsiDicom
-
-
 @pytest.mark.convert
 class NdpiConvertTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.test_folders: Dict[Path, Tuple[WsiDicom, TemporaryDirectory]]
+        self.test_folders: Dict[
+            Path,
+            Tuple[WsiDicom, NdpiTiler, TemporaryDirectory]
+        ]
         self.tile_size: Tuple[int, int]
 
     @classmethod
@@ -43,8 +41,9 @@ class NdpiConvertTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        for (wsi, tempdir) in cls.test_folders.values():
+        for (wsi, tiler, tempdir) in cls.test_folders.values():
             wsi.close()
+            tiler.close()
             tempdir.cleanup()
 
     @classmethod
@@ -64,7 +63,7 @@ class NdpiConvertTest(unittest.TestCase):
             include_levels=[3, 4]
         )
         wsi = WsiDicom.open(str(tempdir.name))
-        return (wsi, tempdir)
+        return (wsi, tiler, tempdir)
 
     @classmethod
     def _get_folders(cls):
@@ -74,7 +73,7 @@ class NdpiConvertTest(unittest.TestCase):
         ]
 
     def test_read_region(self):
-        for folder, (wsi, tempdir) in self.test_folders.items():
+        for folder, (wsi, _, _) in self.test_folders.items():
             json_files = glob.glob(
                 str(folder.absolute())+"/read_region/*.json")
 
@@ -96,7 +95,7 @@ class NdpiConvertTest(unittest.TestCase):
                 self.assertIsNone(bbox, msg=json_file)
 
     def test_read_thumbnail(self):
-        for folder, (wsi, tempdir) in self.test_folders.items():
+        for folder, (wsi, _, _) in self.test_folders.items():
             json_files = glob.glob(
                 str(folder.absolute())+"/read_thumbnail/*.json")
 
