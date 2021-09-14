@@ -4,7 +4,7 @@ from hashlib import md5
 
 import pytest
 from opentile import NdpiTiler, __version__
-from opentile.ndpi_tiler import (NdpiCache, NdpiLevel, NdpiStripedLevel,
+from opentile.ndpi_tiler import (NdpiCache, NdpiPage, NdpiStripedPage,
                                  NdpiTile, NdpiTileJob, Tags)
 from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
@@ -24,7 +24,7 @@ class NdpiTilerTest(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self.tif: TiffFile
         self.tiler: NdpiTiler
-        self.level: NdpiLevel
+        self.level: NdpiPage
 
     @classmethod
     def setUpClass(cls):
@@ -34,7 +34,7 @@ class NdpiTilerTest(unittest.TestCase):
             (cls.tile_size.width, cls.tile_size.height),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
-        cls.level: NdpiStripedLevel = cls.tiler.get_level(0)
+        cls.level: NdpiStripedPage = cls.tiler.get_level(0)
 
     @classmethod
     def tearDownClass(cls):

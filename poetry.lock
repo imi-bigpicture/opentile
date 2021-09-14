@@ -165,7 +165,7 @@ watchdog = ">=0.6.0"
 
 [[package]]
 name = "pyturbojpeg"
-version = "1.5.3"
+version = "1.5.4"
 description = "A Python wrapper of libjpeg-turbo for decoding and encoding JPEG image."
 category = "main"
 optional = false
@@ -374,7 +374,7 @@ pytest-watch = [
     {file = "pytest-watch-4.2.0.tar.gz", hash = "sha256:06136f03d5b361718b8d0d234042f7b2f203910d8568f63df2f866b547b3d4b9"},
 ]
 pyturbojpeg = [
-    {file = "PyTurboJPEG-1.5.3.tar.gz", hash = "sha256:71e17e7c912e402022c1e0cf41410ebfcfdb3141c38dd5cb9904d9e4ff90f043"},
+    {file = "PyTurboJPEG-1.5.4.tar.gz", hash = "sha256:294db827a894db2f222f2c63262ba1e99ab1fadd4f541ae578e7ff9969df0382"},
 ]
 tifffile = [
     {file = "tifffile-2021.8.30-py3-none-any.whl", hash = "sha256:524f9f3a96ca91d12e5b5ddce80209d2b07769c1764ceecf505613668143f63c"},

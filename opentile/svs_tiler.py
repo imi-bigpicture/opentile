@@ -1,63 +1,55 @@
 import io
 import math
+from functools import cached_property
 from pathlib import Path
-from typing import List, Tuple
 
-from tifffile.tifffile import (FileHandle, TiffPage, TiffPageSeries,
-                               svs_description_metadata)
+from tifffile.tifffile import FileHandle, TiffPage, svs_description_metadata
 from wsidicom.geometry import Point, Size, SizeMm
-from wsidicom.image_data import ImageData
 
-from .interface import TifffileTiler
+from opentile.interface import TifffileTiler, TiledPage
 
 
-class TiffTiledLevel(ImageData):
+class SvsTiledPage(TiledPage):
     def __init__(
         self,
-        filehandle: FileHandle,
-        level: TiffPageSeries,
-        base_shape: Tuple[int, int],
-        base_mpp: Tuple[int, int]
+        page: TiffPage,
+        fh: FileHandle,
+        base_shape: Size,
+        base_mpp: SizeMm
     ):
-        self._level = level
-        self._fh = filehandle
-        pyramid_index = int(math.log2(base_shape[0]/level.shape[0]))
-        self._mpp = SizeMm(base_mpp, base_mpp) * pow(2, pyramid_index) * 1000
-        self._tile_size = Size(
+        super().__init__(page, fh)
+        self._pyramid_index = int(
+            math.log2(base_shape.width/self.image_size.width)
+        )
+        self._mpp = base_mpp * pow(2, self.pyramid_index)
+
+    @property
+    def pyramid_index(self) -> int:
+        return self._pyramid_index
+
+    @cached_property
+    def tile_size(self) -> Size:
+        return Size(
             int(self.page.tilewidth),
             int(self.page.tilelength)
         )
-        self._image_size = Size(
-            self.page.shape[1],
-            self.page.shape[0]
-        )
-        if self._tile_size != Size(0, 0):
-            self._tiled_size = Size(
+
+    @cached_property
+    def tiled_size(self) -> Size:
+        if self.tile_size != Size(0, 0):
+            return Size(
                 math.ceil(self.image_size.width / self.tile_size.width),
                 math.ceil(self.image_size.height / self.tile_size.height)
             )
         else:
-            self._tiled_size = Size(1, 1)
+            return Size(1, 1)
 
-    @property
-    def page(self) -> TiffPage:
-        return self.level.pages[0]
-
-    @property
-    def level(self) -> TiffPageSeries:
-        return self._level
-
-    @property
-    def tile_size(self) -> Size:
-        return self._tile_size
-
-    @property
-    def tiled_size(self) -> Size:
-        return self._tiled_size
-
-    @property
+    @cached_property
     def image_size(self) -> Size:
-        return self._image_size
+        return Size(
+            self.page.shape[1],
+            self.page.shape[0]
+        )
 
     @property
     def pixel_spacing(self) -> SizeMm:
@@ -66,16 +58,6 @@ class TiffTiledLevel(ImageData):
     @property
     def mpp(self) -> SizeMm:
         return self._mpp
-
-    @property
-    def focal_planes(self) -> List[float]:
-        # No support for multiple focal planes
-        return [0]
-
-    @property
-    def optical_paths(self) -> List[str]:
-        # No support for multiple optical paths
-        return ['0']
 
     def close(self) -> None:
         self._fh.close()
@@ -107,27 +89,30 @@ class TiffTiledLevel(ImageData):
 class SvsTiler(TifffileTiler):
     def __init__(self, filepath: Path):
         super().__init__(filepath)
+        self._fh = self._tiff_file.filehandle
 
         for series_index, series in enumerate(self.series):
-            if series.name == 'Label':
+            if series.name == 'Baseline':
+                self._volume_series_index = series_index
+            elif series.name == 'Label':
                 self._label_series_index = series_index
             elif series.name == 'Macro':
                 self._overview_series_index = series_index
 
-    def _get_level_from_series(
+    @cached_property
+    def base_page(self) -> TiffPage:
+        return self.series[self._volume_series_index].pages[0]
+
+    def get_page(
         self,
         series: int,
-        level: int
-    ) -> TiffTiledLevel:
-        tiff_level = self.series[series].levels[level]
-        base = self.series[series].levels[0]
-
-        if series == self._volume_series_index:
-            base_mpp: Tuple[int, int] = svs_description_metadata(
-                base.pages[0].description
-            )['MPP']
-        else:
-            base_mpp = 1.0
-        return TiffTiledLevel(
-            self._tiff_file.filehandle, tiff_level, base.shape, base_mpp
+        level: int,
+        page: int = 0
+    ) -> SvsTiledPage:
+        tiff_page = self.series[series].levels[level].pages[page]
+        return SvsTiledPage(
+            tiff_page,
+            self._fh,
+            self.base_size,
+            self.base_mpp
         )

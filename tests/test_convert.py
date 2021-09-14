@@ -10,7 +10,7 @@ import pytest
 from opentile import NdpiTiler, __version__
 from PIL import Image, ImageChops
 from wsidicom import WsiDicom
-from wsidicom.file import WsiDataset
+from wsidicom.interface import WsiDataset
 
 ndpi_test_data_dir = os.environ.get(
     "NDPI_TESTDIR",
@@ -60,7 +60,7 @@ class NdpiConvertTest(unittest.TestCase):
             Path(tempdir.name),
             tiler,
             base_dataset,
-            include_levels=[3, 4]
+            include_levels=[4]
         )
         wsi = WsiDicom.open(str(tempdir.name))
         return (wsi, tiler, tempdir)
