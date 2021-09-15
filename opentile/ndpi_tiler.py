@@ -445,9 +445,7 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
 
     def get_tile(
         self,
-        tile_position: Point,
-        z: float = 0,
-        path: str = '0'
+        tile_position: Point
     ) -> bytes:
         """Return tile for tile position. Caches created frames and tiles.
 

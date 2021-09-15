@@ -15,7 +15,6 @@ wsidicom = {path = "../wsidicom", develop = true}
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 pytest-watch = "^4.2.0"
-Pillow = "^8.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

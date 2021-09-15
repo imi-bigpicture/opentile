@@ -67,9 +67,7 @@ class SvsTiledPage(TiledPage):
 
     def get_tile(
         self,
-        tile_position: Point,
-        z: float = 0,
-        path: str = '0'
+        tile_position: Point
     ) -> bytes:
         # index for reading tile
         tile_index = tile_position.y * self.tiled_size.width + tile_position.x
