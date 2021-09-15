@@ -10,8 +10,8 @@ from typing import Dict, Iterator, List, Optional, Tuple
 
 from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TIFF
+from wsidicom.geometry import Point, Region, Size, SizeMm
 
-from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.interface import TiledPage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
@@ -452,7 +452,7 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
         Parameters
         ----------
         tile_position: Point
-            Tile osition to get.
+            Tile position to get.
 
         Returns
         ----------
