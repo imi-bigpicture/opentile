@@ -83,7 +83,7 @@ class TiledPage(metaclass=ABCMeta):
         return region.is_inside(self.plane_region)
 
 
-class TifffileTiler:
+class Tiler:
     def __init__(self, filepath: Path):
         self._filepath = filepath
         self._tiff_file = TiffFile(self._filepath)

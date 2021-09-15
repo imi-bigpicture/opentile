@@ -6,7 +6,7 @@ from pathlib import Path
 from tifffile.tifffile import FileHandle, TiffPage, svs_description_metadata
 from wsidicom.geometry import Point, Size, SizeMm
 
-from opentile.interface import TifffileTiler, TiledPage
+from opentile.interface import Tiler, TiledPage
 
 
 class SvsTiledPage(TiledPage):
@@ -84,7 +84,7 @@ class SvsTiledPage(TiledPage):
             return buffer.getvalue()
 
 
-class SvsTiler(TifffileTiler):
+class SvsTiler(Tiler):
     def __init__(self, filepath: Path):
         super().__init__(filepath)
         self._fh = self._tiff_file.filehandle
@@ -100,6 +100,11 @@ class SvsTiler(TifffileTiler):
     @cached_property
     def base_page(self) -> TiffPage:
         return self.series[self._volume_series_index].pages[0]
+
+    @cached_property
+    def base_mpp(self) -> SizeMm:
+        mpp = svs_description_metadata(self.base_page.description)['MPP']
+        return SizeMm(mpp, mpp)
 
     def get_page(
         self,

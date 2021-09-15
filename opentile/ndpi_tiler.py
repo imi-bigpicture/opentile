@@ -12,7 +12,7 @@ from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TIFF
 from wsidicom.geometry import Point, Region, Size, SizeMm
 
-from opentile.interface import TifffileTiler, TiledPage
+from opentile.interface import Tiler, TiledPage
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
 
@@ -930,7 +930,7 @@ class NdpiStripedPage(NdpiPage):
         return data
 
 
-class NdpiTiler(TifffileTiler):
+class NdpiTiler(Tiler):
     def __init__(
         self,
         filepath: str,
