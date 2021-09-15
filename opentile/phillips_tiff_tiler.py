@@ -68,12 +68,12 @@ class PhillipsTiffTiledPage(TiledPage):
     def close(self) -> None:
         self._fh.close()
 
-    def _read_tile(self, tile_index: int) -> bytes:
-        self._fh.seek(self.page.dataoffsets[tile_index])
-        return self._fh.read(self.page.databytecounts[tile_index])
+    def _read_frame(self, frame_index: int) -> bytes:
+        self._fh.seek(self.page.dataoffsets[frame_index])
+        return self._fh.read(self.page.databytecounts[frame_index])
 
     def _add_header(self, frame: bytes) -> bytes:
-        # read data has jpeg header but no tables. Insert tables before start
+        # frame has jpeg header but no tables. Insert tables before start
         # of scan tag.
         start_of_scan = frame.find(bytes([0xFF, 0xDA]))
         with io.BytesIO() as buffer:
@@ -93,7 +93,7 @@ class PhillipsTiffTiledPage(TiledPage):
             )
         except StopIteration:
             raise ValueError
-        valid_frame = self._read_tile(valid_frame_index)
+        valid_frame = self._read_frame(valid_frame_index)
         valid_tile = self._add_header(valid_frame)
         return self._jpeg.fill_image(valid_tile)
 
@@ -101,14 +101,16 @@ class PhillipsTiffTiledPage(TiledPage):
         self,
         tile_position: Point
     ) -> bytes:
-        # index for reading tile
-        tile_index = tile_position.y * self.tiled_size.width + tile_position.x
-        if tile_index >= len(self.page.databytecounts):
+        # index for reading frame
+        frame_index = tile_position.y * self.tiled_size.width + tile_position.x
+        if (
+            frame_index >= len(self.page.databytecounts) or
+            self.page.databytecounts[frame_index] == 0
+        ):
+            # Sparse tile
             return self.blank_tile
-        data = self._read_tile(tile_index)
-        if data == b'':  # Sparse tile
-            return self.blank_tile
-        return self._add_header(data)
+        frame = self._read_frame(frame_index)
+        return self._add_header(frame)
 
     def get_tiles(self, tiles: List[Point]) -> Iterator[List[bytes]]:
         return (
