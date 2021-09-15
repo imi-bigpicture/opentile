@@ -103,6 +103,8 @@ class PhillipsTiffTiledPage(TiledPage):
     ) -> bytes:
         # index for reading tile
         tile_index = tile_position.y * self.tiled_size.width + tile_position.x
+        if tile_index >= len(self.page.databytecounts):
+            return self.blank_tile
         data = self._read_tile(tile_index)
         if data == b'':  # Sparse tile
             return self.blank_tile
