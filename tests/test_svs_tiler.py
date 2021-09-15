@@ -4,10 +4,10 @@ from hashlib import md5
 
 import pytest
 from opentile import SvsTiler, __version__
-from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.svs_tiler import SvsTiledPage
 from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
+from wsidicom.geometry import Point, Size
 
 svs_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
@@ -27,6 +27,7 @@ class SvsTilerTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.tile_size = Size(1024, 1024)
         cls.tiler = SvsTiler(svs_file_path)
         cls.level: SvsTiledPage = cls.tiler.get_level(0)
 

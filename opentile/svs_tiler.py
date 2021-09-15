@@ -4,9 +4,9 @@ from functools import cached_property
 from pathlib import Path
 
 from tifffile.tifffile import FileHandle, TiffPage, svs_description_metadata
+from wsidicom.geometry import Point, Size, SizeMm
 
-from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.interface import TiledPage, Tiler
+from opentile.interface import Tiler, TiledPage
 
 
 class SvsTiledPage(TiledPage):

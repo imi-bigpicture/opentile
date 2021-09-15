@@ -1,11 +1,10 @@
 from abc import ABCMeta, abstractmethod
-from functools import cached_property
 from pathlib import Path
 from typing import List, Tuple
 
 from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
-
-from opentile.geometry import Point, Region, Size, SizeMm
+from wsidicom.geometry import Point, Size, SizeMm, Region
+from functools import cached_property
 
 
 class TiledPage(metaclass=ABCMeta):

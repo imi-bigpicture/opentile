@@ -4,9 +4,9 @@ from hashlib import md5
 
 import pytest
 from opentile import PhillipsTiffTiler, __version__
-from opentile.geometry import Point, Region, Size, SizeMm
 from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
+from wsidicom.geometry import Point, Size
 
 phillips_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
