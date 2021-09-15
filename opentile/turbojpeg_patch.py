@@ -283,6 +283,82 @@ class TurboJPEG_patch(TurboJPEG):
         finally:
             self._TurboJPEG__destroy(handle)
 
+    def fill_image(
+        self,
+        jpeg_buf: bytes,
+        background_luminance: int = 508,
+    ) -> bytes:
+        """
+        """
+        handle: c_void_p = self._TurboJPEG__init_transform()
+        try:
+            jpeg_array: np.ndarray = np.frombuffer(jpeg_buf, dtype=np.uint8)
+            src_addr = self._TurboJPEG__getaddr(jpeg_array)
+            image_width = c_int()
+            image_height = c_int()
+            jpeg_subsample = c_int()
+            jpeg_colorspace = c_int()
+
+            # Decompress header to get input image size and subsample value
+            decompress_header_status: int = self._TurboJPEG__decompress_header(
+                handle,
+                src_addr,
+                jpeg_array.size,
+                byref(image_width),
+                byref(image_height),
+                byref(jpeg_subsample),
+                byref(jpeg_colorspace)
+            )
+
+            if decompress_header_status != 0:
+                self._TurboJPEG__report_error(handle)
+
+            # Use callback to fill in background post-transform
+            callback_data = BackgroundStruct(
+                0,
+                0,
+                background_luminance
+            )
+            callback = CUSTOMFILTER(fill_background)
+
+            # Pointers to output image buffers and buffer size
+            dest_array = c_void_p()
+            dest_size = c_ulong()
+            region = CroppingRegion(0, 0, image_width, image_height)
+            crop_transform = TransformStruct(
+                region,
+                TJXOP_NONE,
+                TJXOPT_PERFECT | TJXOPT_CROP,
+                pointer(callback_data),
+                callback
+            )
+            # Do the transforms
+            transform_status = self.__transform(
+                handle,
+                src_addr,
+                jpeg_array.size,
+                1,
+                byref(dest_array),
+                byref(dest_size),
+                byref(crop_transform),
+                TJFLAG_ACCURATEDCT
+            )
+
+            # Copy the transform results int python bytes
+            dest_buf = create_string_buffer(dest_size.value)
+            memmove(dest_buf, dest_array.value, dest_size.value)
+
+            # Free the output image buffers
+            self._TurboJPEG__free(dest_array)
+
+            if transform_status != 0:
+                self._TurboJPEG__report_error(handle)
+
+            return dest_buf.raw
+
+        finally:
+            self._TurboJPEG__destroy(handle)
+
     @staticmethod
     def __define_cropping_regions(
         crop_parameters: List[Tuple[int, int, int, int]]
