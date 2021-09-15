@@ -6,8 +6,8 @@ from typing import Dict, Iterator, List
 from xml.etree import ElementTree as etree
 
 from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
-from wsidicom.geometry import Point, Size, SizeMm
 
+from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.interface import TiledPage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
