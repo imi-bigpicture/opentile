@@ -52,7 +52,7 @@ class PhillipsTiffTiledPage(TiledPage):
     def tiled_size(self) -> Size:
         if self.tile_size != Size(0, 0):
             return Size(
-                round(self.image_size.width / self.tile_size.width),
+                math.ceil(self.image_size.width / self.tile_size.width),
                 math.ceil(self.image_size.height / self.tile_size.height)
             )
         else:
