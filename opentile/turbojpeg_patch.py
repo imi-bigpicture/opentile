@@ -227,7 +227,7 @@ class TurboJPEG_patch(TurboJPEG):
         self,
         jpeg_buf: bytes,
         crop_parameters: List[Tuple[int, int, int, int]],
-        background_luminance: int = 508,
+        background_luminance: int = 2047,
         gray: bool = False
     ) -> List[bytes]:
         """Lossless crop and/or extension operations on jpeg image.
@@ -349,7 +349,7 @@ class TurboJPEG_patch(TurboJPEG):
     def fill_image(
         self,
         jpeg_buf: bytes,
-        background_luminance: int = 200,
+        background_luminance: int = 2047,
     ) -> bytes:
         """
         """
