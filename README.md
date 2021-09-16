@@ -5,7 +5,7 @@
 Please note that this is an early release and the API is not frozen yet. Function names and functionality is prone to change.
 
 ## Requirements
-*opentile* uses tifffile, PyTurboJPEG, and wsidicom.
+*opentile* uses tifffile and PyTurboJPEG.
 
 ## Limitations
 Files with z-stacks are currently not supported.
