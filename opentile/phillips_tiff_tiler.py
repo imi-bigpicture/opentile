@@ -20,8 +20,22 @@ class PhillipsTiffTiledPage(TiledPage):
         base_shape: Size,
         base_mpp: SizeMm,
         jpeg: TurboJPEG
-
     ):
+        """TiledPage for Phillips Tiff-page.
+
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        fh: NdpiFileHandle
+            Filehandler to read data from.
+        base_shape: Size
+            Size of base level in pyramid.
+        base_mpp: SizeMm
+            Mpp (um/pixel) for base level in pyramid.
+        jpeg: TurboJpeg
+            TurboJpeg instance to use.
+        """
         super().__init__(page, fh)
         self._jpeg = jpeg
         self._pyramid_index = int(
@@ -35,10 +49,12 @@ class PhillipsTiffTiledPage(TiledPage):
 
     @property
     def pixel_spacing(self) -> SizeMm:
+        """Return pixel spacing in mm per pixel."""
         return self.mpp * 1000
 
     @property
     def mpp(self) -> SizeMm:
+        """Return pixel spacing in um per pixel."""
         return self._mpp
 
     @cached_property
@@ -60,19 +76,16 @@ class PhillipsTiffTiledPage(TiledPage):
 
     @cached_property
     def image_size(self) -> Size:
-        return Size(
-            self.page.shape[1],
-            self.page.shape[0]
-        )
-
-    def close(self) -> None:
-        self._fh.close()
+        """The size of the image."""
+        return Size(self.page.shape[1], self.page.shape[0])
 
     def _read_frame(self, frame_index: int) -> bytes:
+        """Read frame at frame index from page."""
         self._fh.seek(self.page.dataoffsets[frame_index])
         return self._fh.read(self.page.databytecounts[frame_index])
 
     def _add_header(self, frame: bytes) -> bytes:
+        """Add header with jpeg tables to frame."""
         # frame has jpeg header but no tables. Insert tables before start
         # of scan tag.
         start_of_scan = frame.find(bytes([0xFF, 0xDA]))
@@ -85,6 +98,7 @@ class PhillipsTiffTiledPage(TiledPage):
 
     @cached_property
     def blank_tile(self) -> bytes:
+        """Create a blank (white) tile from a valid tile."""
         try:
             valid_frame_index = next(
                 index
@@ -101,9 +115,19 @@ class PhillipsTiffTiledPage(TiledPage):
         self,
         tile_position: Tuple[int, int]
     ) -> bytes:
-        tile_point = Point.from_tuple(tile_position)
+        """Return tile for tile position.
 
-        # index for reading frame
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Tile at position.
+        """
+        tile_point = Point.from_tuple(tile_position)
         frame_index = tile_point.y * self.tiled_size.width + tile_point.x
         if (
             frame_index >= len(self.page.databytecounts) or
@@ -114,14 +138,18 @@ class PhillipsTiffTiledPage(TiledPage):
         frame = self._read_frame(frame_index)
         return self._add_header(frame)
 
-    def get_tiles(self, tiles: List[Tuple[int, int]]) -> Iterator[List[bytes]]:
-        return (
-            [self.get_tile(tile)] for tile in tiles
-        )
-
 
 class PhillipsTiffTiler(Tiler):
     def __init__(self, filepath: Path, turbo_path: Path):
+        """Tiler for Phillips tiff file.
+
+        Parameters
+        ----------
+        filepath: str
+            File path to Phillips tiff file.
+        turbo_path: Path
+            Path to turbojpeg (dll or so).
+        """
         super().__init__(filepath)
         self._fh = self._tiff_file.filehandle
 
@@ -136,15 +164,13 @@ class PhillipsTiffTiler(Tiler):
                 self._overview_series_index = series_index
 
     @cached_property
-    def base_page(self) -> TiffPage:
-        return self.series[self._volume_series_index].pages[0]
-
-    @cached_property
     def base_mpp(self) -> SizeMm:
-        return self.phillips_properties['pixel_spacing']
+        """Return pixel spacing in um/pixel for base level."""
+        return self.phillips_properties['pixel_spacing'] / 1000.0
 
     @cached_property
     def phillips_properties(self) -> Dict[str, any]:
+        """Return dictionary with phillips tiff file properties."""
         metadata = etree.fromstring(self._tiff_file.philips_metadata)
         pixel_spacing = None
         for element in metadata.iter():
@@ -199,6 +225,8 @@ class PhillipsTiffTiler(Tiler):
         level: int,
         page: int = 0
     ) -> PhillipsTiffTiledPage:
+        """Return PhillipsTiffTiledPage for series, level, page.
+        """
         tiff_page = self.series[series].levels[level].pages[page]
         return PhillipsTiffTiledPage(
             tiff_page,
@@ -210,14 +238,18 @@ class PhillipsTiffTiler(Tiler):
 
     @staticmethod
     def is_overview(series: TiffPageSeries) -> bool:
+        """Return true if series is a overview series."""
         return series.pages[0].description.find('Macro') > - 1
 
     @staticmethod
     def is_label(series: TiffPageSeries) -> bool:
+        """Return true if series is a label series."""
         return series.pages[0].description.find('Label') > - 1
 
     @staticmethod
     def get_associated_mpp_from_page(page: TiffPage):
+        """Return mpp (um/pixel) for associated image (label or
+        macro) from page."""
         pixel_size_start_string = 'pixelsize=('
         pixel_size_start = page.description.find(pixel_size_start_string)
         pixel_size_end = page.description.find(')', pixel_size_start)
@@ -227,4 +259,4 @@ class PhillipsTiffTiler(Tiler):
         pixel_spacing = SizeMm.from_tuple(
             [float(v) for v in pixel_size_string.replace('"', '').split(',')]
         )
-        return pixel_spacing
+        return pixel_spacing / 1000.0

@@ -20,11 +20,21 @@ class SizeMm:
             return SizeMm(factor.x*self.width, factor.y*self.height)
         return NotImplemented
 
+    def __truediv__(self, divider):
+        if isinstance(divider, (int, float)):
+            return SizeMm(self.width/divider, self.height/divider)
+        if isinstance(divider, SizeMm):
+            return SizeMm(
+                self.width/divider.width,
+                self.height/divider.height
+            )
+        return NotImplemented
+
     def __floordiv__(self, divider):
         if isinstance(divider, (int, float)):
             return SizeMm(int(self.width/divider), int(self.height/divider))
         if isinstance(divider, SizeMm):
-            return Size(
+            return SizeMm(
                 int(self.width/divider.width),
                 int(self.height/divider.height)
             )

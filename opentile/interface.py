@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from functools import cached_property
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Iterator
 
 from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 
@@ -14,11 +14,21 @@ class TiledPage(metaclass=ABCMeta):
         page: TiffPage,
         fh: FileHandle
     ):
+        """Abstract class for getting tiles from TiffPage.
+
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage to get tiles from.
+        fh: FileHandle
+            FileHandle for reading data.
+        """
         self._page = page
         self._fh = fh
 
     @property
     def page(self) -> TiffPage:
+        """Return source TiffPage."""
         return self._page
 
     @property
@@ -58,7 +68,25 @@ class TiledPage(metaclass=ABCMeta):
     def get_tile(self, tile: Tuple[int, int]) -> bytes:
         raise NotImplementedError
 
+    def get_tiles(self, tiles: List[Tuple[int, int]]) -> Iterator[List[bytes]]:
+        """Return iterator of list of bytes for tile positions.
+
+        Parameters
+        ----------
+        tile_positions: List[Tuple[int, int]]
+            Tile positions to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        return (
+            [self.get_tile(tile)] for tile in tiles
+        )
+
     def close(self) -> None:
+        """Close filehandle."""
         self._fh.close()
 
     def pretty_str(
@@ -69,7 +97,8 @@ class TiledPage(metaclass=ABCMeta):
         return str(self)
 
     @cached_property
-    def plane_region(self) -> Region:
+    def tiled_region(self) -> Region:
+        """Tile region covering the TiledPage."""
         return Region(position=Point(0, 0), size=self.tiled_size - 1)
 
     def valid_tiles(self, region: Region) -> bool:
@@ -81,7 +110,7 @@ class TiledPage(metaclass=ABCMeta):
         region: Region
             Tile region.
         """
-        return region.is_inside(self.plane_region)
+        return region.is_inside(self.tiled_region)
 
 
 class Tiler:
@@ -94,18 +123,22 @@ class Tiler:
 
     @cached_property
     def base_page(self) -> TiffPage:
+        """Return base pyramid level in volume series."""
         return self.series[self._volume_series_index].pages[0]
 
     @cached_property
     def base_size(self) -> Size:
+        """Return size of base pyramid level in volume series."""
         return Size(self.base_page.shape[1], self.base_page.shape[0])
 
     @property
     def series(self) -> List[TiffPageSeries]:
+        """Return contained TiffPageSeries."""
         return self._tiff_file.series
 
     @property
     def levels(self) -> List[TiledPage]:
+        """Return list of volume level TiledPages."""
         if self._volume_series_index is None:
             return []
         return [
@@ -117,6 +150,7 @@ class Tiler:
 
     @property
     def labels(self) -> List[TiledPage]:
+        """Return list of label TiledPages."""
         if self._label_series_index is None:
             return []
         return [
@@ -128,6 +162,7 @@ class Tiler:
 
     @property
     def overviews(self) -> List[TiledPage]:
+        """Return list of overview TiledPages."""
         if self._overview_series_index is None:
             return []
         return [
@@ -142,6 +177,7 @@ class Tiler:
         raise NotImplementedError
 
     def close(self) -> None:
+        """CLose tiff-file."""
         self._tiff_file.close()
 
     def get_tile(
@@ -155,15 +191,19 @@ class Tiler:
 
         Parameters
         ----------
+        series: int
+            Series of page to get tile from.
         level: int
-            Level of tile to get.
+            Level of page to get tile from.
+        page: int
+            Page to get tile from.
         tile_position: Tuple[int, int]
             Position of tile to get.
 
         Returns
         ----------
         bytes
-            Produced tile at position.
+            Tile at position.
         """
         tiled_page = self.get_page(series, level, page)
         return tiled_page.get_tile(tile_position)
@@ -173,6 +213,20 @@ class Tiler:
         level: int,
         page: int = 0
     ) -> TiledPage:
+        """Return TiledPage for level in volume series.
+
+        Parameters
+        ----------
+        level: int
+            Level to get.
+        page: int
+            Index of page to get.
+
+        Returns
+        ----------
+        TiledPage
+            Level TiledPage.
+        """
         return self.get_page(self._volume_series_index, level, page)
 
     def get_label(
@@ -180,6 +234,20 @@ class Tiler:
         index: int = 0,
         page: int = 0
     ) -> TiledPage:
+        """Return TiledPage for label in label series.
+
+        Parameters
+        ----------
+        index: int
+            Index of label to get.
+        page: int
+            Index of page to get.
+
+        Returns
+        ----------
+        TiledPage
+            Label TiledPage.
+        """
         return self.get_page(self._label_series_index, index, page)
 
     def get_overview(
@@ -187,4 +255,18 @@ class Tiler:
         index: int = 0,
         page: int = 0
     ) -> TiledPage:
+        """Return TiledPage for overview in overview series.
+
+        Parameters
+        ----------
+        index: int
+            Index of overview to get.
+        page: int
+            Index of page to get.
+
+        Returns
+        ----------
+        TiledPage
+            Overview TiledPage.
+        """
         return self.get_page(self._overview_series_index, index, page)

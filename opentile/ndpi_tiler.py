@@ -362,6 +362,8 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
             TiffPage defining the page.
         fh: NdpiFileHandle
             Filehandler to read data from.
+        base_shape: Size
+            Size of base level in pyramid.
         tile_size: Size
             Requested tile size.
         jpeg: TurboJpeg
@@ -372,12 +374,6 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
             Number of read frames to cache.
         """
         super().__init__(page, fh)
-        # print(
-        #     f"make pyramid index by: {base_shape, self.image_size}",
-        #     int(
-        #         math.log2(base_shape.width/self.image_size.width)
-        #     )
-        # )
         self._pyramid_index = int(
             math.log2(base_shape.width/self.image_size.width)
         )
@@ -407,15 +403,17 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
 
     @property
     def pixel_spacing(self) -> SizeMm:
+        """Return pixel spacing in mm per pixel."""
         return self.mpp * 1000.0
 
     @cached_property
     def mpp(self) -> SizeMm:
+        """Return pixel spacing in um per pixel."""
         return self._get_mpp_from_page()
 
     @cached_property
     def image_size(self) -> Size:
-        """The size of the level."""
+        """The size of the image."""
         return Size(self._page.shape[1], self._page.shape[0])
 
     @cached_property
@@ -451,7 +449,7 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
 
         Parameters
         ----------
-        tile_position: Point
+        tile_position: Tuple[int, int]
             Tile position to get.
 
         Returns
@@ -478,6 +476,18 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
         return self._tile_cache[tile_point]
 
     def get_tiles(self, tiles: List[Tuple[int, int]]) -> Iterator[List[bytes]]:
+        """Return iterator of list of bytes for tile positions.
+
+        Parameters
+        ----------
+        tile_positions: List[Tuple[int, int]]
+            Tile positions to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
         tile_jobs = self._sort_into_tile_jobs(tiles)
         with ThreadPoolExecutor() as pool:
             def thread(tile_job: NdpiTileJob) -> List[bytes]:
@@ -590,12 +600,14 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
         )
 
     def _check_if_tile_inside_image(self, tile_position: Point) -> bool:
+        """Return true if tile position is inside tiled image."""
         return (
             tile_position.x < self.tiled_size.width and
             tile_position.y < self.tiled_size.height
         )
 
     def _get_mpp_from_page(self) -> SizeMm:
+        """Return pixel spacing in um/pixel."""
         x_resolution = self.page.tags['XResolution'].value[0]
         y_resolution = self.page.tags['YResolution'].value[0]
         resolution_unit = self.page.tags['ResolutionUnit'].value
@@ -939,7 +951,7 @@ class NdpiTiler(Tiler):
         tile_size: Tuple[int, int],
         turbo_path: Path
     ):
-        """Cache for ndpi stripes, with functions to produce tiles of specified
+        """Tiler for ndpi file, with functions to produce tiles of specified
         size.
 
         Parameters
@@ -991,6 +1003,9 @@ class NdpiTiler(Tiler):
         level: int,
         page: int
     ) -> NdpiPage:
+        """Return NdpiPage for series, level, page. NdpiPages holds a cache, so
+        store created pages.
+        """
         try:
             ndpi_page = self._pages[series, level, page]
         except KeyError:
@@ -1004,12 +1019,16 @@ class NdpiTiler(Tiler):
         level: int,
         page: int,
     ) -> NdpiPage:
-        """Create a new page.
+        """Create a new page from TiffPage.
 
         Parameters
         ----------
+        series: int
+            Series of page.
         level: int
-            Level to add
+            Level of page.
+        page: int
+            Page to use.
 
         Returns
         ----------

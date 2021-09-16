@@ -18,6 +18,19 @@ class SvsTiledPage(TiledPage):
         base_shape: Size,
         base_mpp: SizeMm
     ):
+        """TiledPage for Phillips Tiff-page.
+
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        fh: NdpiFileHandle
+            Filehandler to read data from.
+        base_shape: Size
+            Size of base level in pyramid.
+        base_mpp: SizeMm
+            Mpp (um/pixel) for base level in pyramid.
+        """
         super().__init__(page, fh)
         self._pyramid_index = int(
             math.log2(base_shape.width/self.image_size.width)
@@ -47,6 +60,7 @@ class SvsTiledPage(TiledPage):
 
     @cached_property
     def image_size(self) -> Size:
+        """The size of the image."""
         return Size(
             self.page.shape[1],
             self.page.shape[0]
@@ -54,22 +68,31 @@ class SvsTiledPage(TiledPage):
 
     @property
     def pixel_spacing(self) -> SizeMm:
+        """Return pixel spacing in mm per pixel."""
         return self.mpp * 1000
 
     @property
     def mpp(self) -> SizeMm:
+        """Return pixel spacing in um per pixel."""
         return self._mpp
-
-    def close(self) -> None:
-        self._fh.close()
 
     def get_tile(
         self,
         tile_position: Tuple[int, int]
     ) -> bytes:
-        # index for reading tile
-        tile_point = Point.from_tuple(tile_position)
+        """Return tile for tile position.
 
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        tile_point = Point.from_tuple(tile_position)
         tile_index = tile_point.y * self.tiled_size.width + tile_point.x
         self._fh.seek(self.page.dataoffsets[tile_index])
         data = self._fh.read(self.page.databytecounts[tile_index])
@@ -86,6 +109,13 @@ class SvsTiledPage(TiledPage):
 
 class SvsTiler(Tiler):
     def __init__(self, filepath: Path):
+        """Tiler for svs file.
+
+        Parameters
+        ----------
+        filepath: str
+            File path to svs file.
+        """
         super().__init__(filepath)
         self._fh = self._tiff_file.filehandle
 
@@ -98,11 +128,8 @@ class SvsTiler(Tiler):
                 self._overview_series_index = series_index
 
     @cached_property
-    def base_page(self) -> TiffPage:
-        return self.series[self._volume_series_index].pages[0]
-
-    @cached_property
     def base_mpp(self) -> SizeMm:
+        """Return pixel spacing in um/pixel for base level."""
         mpp = svs_description_metadata(self.base_page.description)['MPP']
         return SizeMm(mpp, mpp)
 
@@ -112,6 +139,8 @@ class SvsTiler(Tiler):
         level: int,
         page: int = 0
     ) -> SvsTiledPage:
+        """Return SvsTiledPage for series, level, page.
+        """
         tiff_page = self.series[series].levels[level].pages[page]
         return SvsTiledPage(
             tiff_page,
