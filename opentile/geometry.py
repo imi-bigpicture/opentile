@@ -43,6 +43,9 @@ class SizeMm:
     def to_int_tuple(self) -> Tuple[int, int]:
         return int(self.width), int(self.height)
 
+    def to_tuple(self) -> Tuple[float, float]:
+        return self.width, self.height
+
     @staticmethod
     def from_tuple(tuple: Tuple[float, float]) -> 'SizeMm':
         return SizeMm(width=tuple[0], height=tuple[1])
