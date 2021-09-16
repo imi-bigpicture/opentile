@@ -8,7 +8,8 @@ from opentile.turbojpeg_patch import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP,
                                       BackgroundStruct, CroppingRegion,
                                       TransformStruct)
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.turbojpeg_patch import fill_background
+from opentile.turbojpeg_patch import (fill_background,
+                                      fill_whole_image_with_background)
 
 turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
 test_file_path = 'C:/temp/opentile/turbojpeg/frame_1024x512.jpg'
@@ -143,6 +144,7 @@ class TurboJpegTest(unittest.TestCase):
             pointer(BackgroundStruct(
                 original_width,
                 original_height,
+                0,
                 background_luminance
             )),
             CUSTOMFILTER(fill_background)
@@ -184,17 +186,19 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(0, 0, extended_width, extended_height)
 
-        # Create coefficent array, filled with 0:s. The data is arranged in
+        # Create coefficent array, filled with 1:s. The data is arranged in
         # mcus, i.e. first 64 values are for mcu (0, 0), second 64 values for
         # mcu (1, 0)
-        coeffs = np.zeros(extended_width*extended_height, dtype=c_short)
+        coeffs = np.ones(extended_width*extended_height, dtype=c_short)
 
-        # Make a copy of the original data and change the coefficents for the
-        # extended mcus ((0, 0), (1, 0), (1, 1)) manually.
-        expected_results = np.copy(coeffs)
+        # The expected result is fileld with 0:s and luminance dc component
+        # changed
+        expected_results = np.zeros(
+            extended_width*extended_height, dtype=c_short
+        )
         for index in range(0, extended_width*extended_height, mcu_size):
             expected_results[index] = background_luminance
-
+        print(expected_results)
         planeRegion = CroppingRegion(0, 0, extended_width, extended_width)
 
         transform_struct = TransformStruct(
@@ -204,9 +208,10 @@ class TurboJpegTest(unittest.TestCase):
             pointer(BackgroundStruct(
                 original_width,
                 original_height,
+                0,
                 background_luminance
             )),
-            CUSTOMFILTER(fill_background)
+            CUSTOMFILTER(fill_whole_image_with_background)
         )
 
         # Iterate the callback with one mcu-row of data.
@@ -219,7 +224,7 @@ class TurboJpegTest(unittest.TestCase):
                 extended_width,
                 callback_row_heigth
             )
-            callback_result = fill_background(
+            callback_result = fill_whole_image_with_background(
                 coeffs[data_start:data_end].ctypes.data,
                 arrayRegion,
                 planeRegion,

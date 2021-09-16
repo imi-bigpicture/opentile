@@ -3,7 +3,8 @@ from typing import List, Tuple
 
 import numpy as np
 from turbojpeg import (TJFLAG_ACCURATEDCT, TJXOP_NONE, TJXOPT_CROP,
-                       TJXOPT_GRAY, TJXOPT_PERFECT, CroppingRegion, TurboJPEG)
+                       TJXOPT_GRAY, TJXOPT_PERFECT, CroppingRegion, TurboJPEG,
+                       tjMCUHeight, tjMCUWidth)
 
 CUSTOMFILTER = CFUNCTYPE(
     c_int,
@@ -25,13 +26,16 @@ class BackgroundStruct(Structure):
         Width of the input image.
     h: c_int
         Height of the input image.
+    subsample: c_int
+        Subsample value of image.
     lum: c_int
         Luminance value to use as background when extending the image.
     """
     _fields_ = [
         ("w", c_int),
         ("h", c_int),
-        ("lum", c_int)
+        ("subsample", c_int),
+        ("lum", c_int),
     ]
 
 
@@ -45,10 +49,28 @@ class TransformStruct(Structure):
     ]
 
 
-# MCU for luminance is always 8
-MCU_WIDTH = 8
-MCU_HEIGHT = 8
-MCU_SIZE = 64
+def get_transform_data(transform_ptr):
+    # Cast the content of the transform pointer into a transform structure
+    transform = cast(transform_ptr, POINTER(TransformStruct)).contents
+    # Cast the content of the callback data pointer in the transform
+    # structure to a background structure
+    return cast(
+        transform.data, POINTER(BackgroundStruct)
+    ).contents
+
+
+def get_np_coeffs(coeffs_ptr, arrayRegion, subsampling):
+    coeff_array_size = arrayRegion.w * arrayRegion.h
+    # Read the coefficients in the pointer as a np array (no copy)
+    ArrayType = c_short*coeff_array_size
+    array_pointer = cast(coeffs_ptr, POINTER(ArrayType))
+    coeffs = np.frombuffer(array_pointer.contents, dtype=np.int16)
+    coeffs.shape = (
+        arrayRegion.h//tjMCUWidth[subsampling],
+        arrayRegion.w//tjMCUHeight[subsampling],
+        tjMCUWidth[subsampling] * tjMCUHeight[subsampling]
+    )
+    return coeffs
 
 
 def fill_background(
@@ -88,23 +110,9 @@ def fill_background(
 
     # Only modify luminance data, so we dont need to worry about subsampling
     if componentID == 0:
-        coeff_array_size = arrayRegion.w * arrayRegion.h
-        # Read the coefficients in the pointer as a np array (no copy)
-        ArrayType = c_short*coeff_array_size
-        array_pointer = cast(coeffs_ptr, POINTER(ArrayType))
-        coeffs = np.frombuffer(array_pointer.contents, dtype=np.int16)
-        coeffs.shape = (
-            arrayRegion.h//MCU_WIDTH,
-            arrayRegion.w//MCU_HEIGHT,
-            MCU_SIZE
-        )
-        # Cast the content of the transform pointer into a transform structure
-        transform = cast(transform_ptr, POINTER(TransformStruct)).contents
-        # Cast the content of the callback data pointer in the transform
-        # structure to a background structure
-        background_data = cast(
-            transform.data, POINTER(BackgroundStruct)
-        ).contents
+        coeffs = get_np_coeffs(coeffs_ptr, arrayRegion, 0)
+
+        background_data = get_transform_data(transform_ptr)
 
         # The coeff array is typically just one MCU heigh, but it is up to the
         # libjpeg implementation how to do it. The part of the coeff array that
@@ -120,10 +128,13 @@ def fill_background(
             min(arrayRegion.y+arrayRegion.h, background_data.h)
             - arrayRegion.y
         )
-        for x in range(background_data.w//MCU_WIDTH, planeRegion.w//MCU_WIDTH):
+        for x in range(
+            background_data.w//tjMCUWidth[0],
+            planeRegion.w//tjMCUWidth[0]
+        ):
             for y in range(
-                left_start_row//MCU_HEIGHT,
-                left_end_row//MCU_HEIGHT
+                left_start_row//tjMCUHeight[0],
+                left_end_row//tjMCUHeight[0]
             ):
                 coeffs[y][x][0] = background_data.lum
         # fill mcus under image
@@ -134,12 +145,64 @@ def fill_background(
             max(arrayRegion.y+arrayRegion.h, background_data.h)
             - arrayRegion.y
         )
-        for x in range(0, planeRegion.w//MCU_WIDTH):
+        for x in range(0, planeRegion.w//tjMCUWidth[0]):
             for y in range(
-                bottom_start_row//MCU_HEIGHT,
-                bottom_end_row//MCU_HEIGHT
+                bottom_start_row//tjMCUHeight[0],
+                bottom_end_row//tjMCUHeight[0]
             ):
                 coeffs[y][x][0] = background_data.lum
+
+    return 1
+
+
+def fill_whole_image_with_background(
+    coeffs_ptr: POINTER(c_short),
+    arrayRegion: CroppingRegion,
+    planeRegion: CroppingRegion,
+    componentID: c_int,
+    transformID: c_int,
+    transform_ptr: c_void_p
+) -> c_int:
+    """Callback function for filling whole image with background color.
+
+    Parameters
+    ----------
+    coeffs_ptr: POINTER(c_short)
+        Pointer to the coefficient array for the callback.
+    arrayRegion: CroppingRegion
+        The width and height coefficient array and its offset relative to
+        the component plane.
+    planeRegion: CroppingRegion
+        The width and height of the component plane of the coefficient array.
+    componentID: c_int
+        The component number (i.e. 0, 1, or 2)
+    transformID: c_int
+        The index of the transformation in the array of transformation given to
+        the transform function.
+    transform_ptr: c_voipd_p
+        Pointer to the transform structure used for the transformation.
+
+    Returns
+    ----------
+    c_int
+        CFUNCTYPE function must return an int.
+    """
+
+    background_data = get_transform_data(transform_ptr)
+
+    if componentID == 0:
+        dc_component = background_data.lum
+        subsampling = 0
+    else:
+        dc_component = 0
+        subsampling = background_data.subsample
+
+    coeffs = get_np_coeffs(coeffs_ptr, arrayRegion, subsampling)
+
+    for x in range(0, arrayRegion.w//tjMCUWidth[subsampling]):
+        for y in range(0, arrayRegion.h//tjMCUHeight[subsampling]):
+            coeffs[y][x][0] = dc_component
+            coeffs[y][x][1:] = 0
 
     return 1
 
@@ -231,6 +294,7 @@ class TurboJPEG_patch(TurboJPEG):
                     callback_data = BackgroundStruct(
                         image_width,
                         image_height,
+                        jpeg_subsample,
                         background_luminance
                     )
                     callback = CUSTOMFILTER(fill_background)
@@ -290,6 +354,7 @@ class TurboJPEG_patch(TurboJPEG):
     ) -> bytes:
         """
         """
+        # TODO fill all components and coefficents
         handle: c_void_p = self._TurboJPEG__init_transform()
         try:
             jpeg_array: np.ndarray = np.frombuffer(jpeg_buf, dtype=np.uint8)
@@ -315,11 +380,12 @@ class TurboJPEG_patch(TurboJPEG):
 
             # Use callback to fill in background post-transform
             callback_data = BackgroundStruct(
-                0,
-                0,
+                image_width,
+                image_height,
+                jpeg_subsample,
                 background_luminance
             )
-            callback = CUSTOMFILTER(fill_background)
+            callback = CUSTOMFILTER(fill_whole_image_with_background)
 
             # Pointers to output image buffers and buffer size
             dest_array = c_void_p()
