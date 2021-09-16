@@ -36,12 +36,12 @@ class SvsTilerTest(unittest.TestCase):
         cls.tiler.close()
 
     def test_get_tile(self):
-        tile = self.level.get_tile(Point(0, 0))
+        tile = self.level.get_tile((0, 0))
         self.assertEqual(
             'd233adca5123262394a45a2cc7d5f6cf',
             md5(tile).hexdigest()
         )
-        tile = self.level.get_tile(Point(20, 20))
+        tile = self.level.get_tile((20, 20))
         self.assertEqual(
             'baab24a3fd1ef3e5b74bac00790c8480',
             md5(tile).hexdigest()

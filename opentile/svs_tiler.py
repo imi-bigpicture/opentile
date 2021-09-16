@@ -2,6 +2,7 @@ import io
 import math
 from functools import cached_property
 from pathlib import Path
+from typing import Tuple
 
 from tifffile.tifffile import FileHandle, TiffPage, svs_description_metadata
 
@@ -62,15 +63,14 @@ class SvsTiledPage(TiledPage):
     def close(self) -> None:
         self._fh.close()
 
-    def get_encoded_tile(self, tile_position: Point) -> bytes:
-        return self.get_tile(tile_position)
-
     def get_tile(
         self,
-        tile_position: Point
+        tile_position: Tuple[int, int]
     ) -> bytes:
         # index for reading tile
-        tile_index = tile_position.y * self.tiled_size.width + tile_position.x
+        tile_point = Point.from_tuple(tile_position)
+
+        tile_index = tile_point.y * self.tiled_size.width + tile_point.x
         self._fh.seek(self.page.dataoffsets[tile_index])
         data = self._fh.read(self.page.databytecounts[tile_index])
 

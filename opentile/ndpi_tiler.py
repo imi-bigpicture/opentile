@@ -445,7 +445,7 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
 
     def get_tile(
         self,
-        tile_position: Point
+        tile_position: Tuple[int, int]
     ) -> bytes:
         """Return tile for tile position. Caches created frames and tiles.
 
@@ -459,24 +459,25 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
         bytes
             Produced tile at position.
         """
-        if not self._check_if_tile_inside_image(tile_position):
+        tile_point = Point.from_tuple(tile_position)
+        if not self._check_if_tile_inside_image(tile_point):
             raise ValueError(
-                f"Tile {tile_position} is outside "
+                f"Tile {tile_point} is outside "
                 f"tiled size {self.tiled_size}"
             )
         # If tile not in cached
-        if tile_position not in self._tile_cache.keys():
+        if tile_point not in self._tile_cache.keys():
             # Create a tile job
-            frame_size = self._get_frame_size_for_tile(tile_position)
-            tile = NdpiTile(tile_position, self.tile_size, frame_size)
+            frame_size = self._get_frame_size_for_tile(tile_point)
+            tile = NdpiTile(tile_point, self.tile_size, frame_size)
             tile_job = NdpiTileJob([tile])
             # Create tile
             new_tiles = self._create_tiles(tile_job)
             # Add to tile cache
             self._tile_cache.update(new_tiles)
-        return self._tile_cache[tile_position]
+        return self._tile_cache[tile_point]
 
-    def get_tiles(self, tiles: List[Point]) -> Iterator[List[bytes]]:
+    def get_tiles(self, tiles: List[Tuple[int, int]]) -> Iterator[List[bytes]]:
         tile_jobs = self._sort_into_tile_jobs(tiles)
         with ThreadPoolExecutor() as pool:
             def thread(tile_job: NdpiTileJob) -> List[bytes]:
@@ -537,7 +538,7 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
 
     def _sort_into_tile_jobs(
         self,
-        tile_positions: List[Point]
+        tile_positions: List[Tuple[int, int]]
     ) -> List[NdpiTileJob]:
         """Sorts tile positions into tile jobs with commmon tile origin (i.e.
         from the same frame.)
@@ -555,13 +556,14 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
         """
         tile_jobs: Dict[Point, NdpiTileJob] = {}
         for tile_position in tile_positions:
-            if not self._check_if_tile_inside_image(tile_position):
+            tile_point = Point.from_tuple(tile_position)
+            if not self._check_if_tile_inside_image(tile_point):
                 raise ValueError(
-                    f"Tile {tile_position} is outside "
+                    f"Tile {tile_point} is outside "
                     f"tiled size {self.tiled_size}"
                 )
-            frame_size = self._get_frame_size_for_tile(tile_position)
-            tile = NdpiTile(tile_position, self.tile_size, frame_size)
+            frame_size = self._get_frame_size_for_tile(tile_point)
+            tile = NdpiTile(tile_point, self.tile_size, frame_size)
             try:
                 tile_jobs[tile.origin].append(tile)
             except KeyError:

@@ -55,7 +55,7 @@ class TiledPage(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def get_tile(self, tile: Point) -> bytes:
+    def get_tile(self, tile: Tuple[int, int]) -> bytes:
         raise NotImplementedError
 
     def close(self) -> None:
@@ -166,7 +166,7 @@ class Tiler:
             Produced tile at position.
         """
         tiled_page = self.get_page(series, level, page)
-        return tiled_page.get_tile(Point(*tile_position))
+        return tiled_page.get_tile(tile_position)
 
     def get_level(
         self,

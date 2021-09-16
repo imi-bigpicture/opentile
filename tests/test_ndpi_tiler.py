@@ -97,22 +97,19 @@ class NdpiTilerTest(unittest.TestCase):
         )
 
     def test_get_frame(self):
-        point = Point(10, 10)
-        print(type(point))
-        print(point.x)
-        image = self.level._read_frame(point, self.level.frame_size)
+        image = self.level._read_frame(Point(10, 10), self.level.frame_size)
         self.assertEqual(
             '25a908ef4b5340354e6d0d7771e18fcd',
             md5(image).hexdigest()
         )
 
     def test_get_tile(self):
-        tile = self.level.get_tile(Point(0, 0))
+        tile = self.level.get_tile((0, 0))
         self.assertEqual(
             '4d7d1eb65b8e86b32691aa4d9ab000e4',
             md5(tile).hexdigest()
         )
-        tile = self.level.get_tile(Point(20, 20))
+        tile = self.level.get_tile((20, 20))
         self.assertEqual(
             'eef2ff23353e54464a870d4fdcda6701',
             md5(tile).hexdigest()
@@ -129,7 +126,7 @@ class NdpiTilerTest(unittest.TestCase):
                 for x in range(4)
             ]
         )
-        tiles_single = [self.level.get_tile(Point(x, 0)) for x in range(4)]
+        tiles_single = [self.level.get_tile((x, 0)) for x in range(4)]
         self.assertEqual(
             tiles_single,
             list(self.level._create_tiles(tile_job).values())
@@ -147,7 +144,7 @@ class NdpiTilerTest(unittest.TestCase):
             ]
         )
         tiles_single = {
-            Point(x, 0): self.level.get_tile(Point(x, 0))
+            Point(x, 0): self.level.get_tile((x, 0))
             for x in range(4)
         }
         frame_size = self.level._get_frame_size_for_tile(tile_job.origin)
@@ -214,7 +211,7 @@ class NdpiTilerTest(unittest.TestCase):
             ],
             self.level._sort_into_tile_jobs(
                 [
-                    Point(index_x, index_y)
+                    (index_x, index_y)
                     for index_x in range(8)
                     for index_y in range(2)
                 ]

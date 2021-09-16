@@ -2,7 +2,7 @@ import io
 import math
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, Iterator, List
+from typing import Dict, Iterator, List, Tuple
 from xml.etree import ElementTree as etree
 
 from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
@@ -99,10 +99,12 @@ class PhillipsTiffTiledPage(TiledPage):
 
     def get_tile(
         self,
-        tile_position: Point
+        tile_position: Tuple[int, int]
     ) -> bytes:
+        tile_point = Point.from_tuple(tile_position)
+
         # index for reading frame
-        frame_index = tile_position.y * self.tiled_size.width + tile_position.x
+        frame_index = tile_point.y * self.tiled_size.width + tile_point.x
         if (
             frame_index >= len(self.page.databytecounts) or
             self.page.databytecounts[frame_index] == 0
@@ -112,7 +114,7 @@ class PhillipsTiffTiledPage(TiledPage):
         frame = self._read_frame(frame_index)
         return self._add_header(frame)
 
-    def get_tiles(self, tiles: List[Point]) -> Iterator[List[bytes]]:
+    def get_tiles(self, tiles: List[Tuple[int, int]]) -> Iterator[List[bytes]]:
         return (
             [self.get_tile(tile)] for tile in tiles
         )
