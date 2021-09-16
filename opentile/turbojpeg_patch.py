@@ -59,16 +59,16 @@ def get_transform_data(transform_ptr):
     ).contents
 
 
-def get_np_coeffs(coeffs_ptr, arrayRegion, subsampling):
+def get_np_coeffs(coeffs_ptr, arrayRegion):
     coeff_array_size = arrayRegion.w * arrayRegion.h
     # Read the coefficients in the pointer as a np array (no copy)
     ArrayType = c_short*coeff_array_size
     array_pointer = cast(coeffs_ptr, POINTER(ArrayType))
     coeffs = np.frombuffer(array_pointer.contents, dtype=np.int16)
     coeffs.shape = (
-        arrayRegion.h//tjMCUWidth[subsampling],
-        arrayRegion.w//tjMCUHeight[subsampling],
-        tjMCUWidth[subsampling] * tjMCUHeight[subsampling]
+        arrayRegion.h//8,
+        arrayRegion.w//8,
+        64
     )
     return coeffs
 
@@ -110,7 +110,7 @@ def fill_background(
 
     # Only modify luminance data, so we dont need to worry about subsampling
     if componentID == 0:
-        coeffs = get_np_coeffs(coeffs_ptr, arrayRegion, 0)
+        coeffs = get_np_coeffs(coeffs_ptr, arrayRegion)
 
         background_data = get_transform_data(transform_ptr)
 
@@ -196,8 +196,7 @@ def fill_whole_image_with_background(
     else:
         dc_component = 0
         subsampling = background_data.subsample
-
-    coeffs = get_np_coeffs(coeffs_ptr, arrayRegion, subsampling)
+    coeffs = get_np_coeffs(coeffs_ptr, arrayRegion)
 
     for x in range(0, arrayRegion.w//tjMCUWidth[subsampling]):
         for y in range(0, arrayRegion.h//tjMCUHeight[subsampling]):
@@ -350,11 +349,10 @@ class TurboJPEG_patch(TurboJPEG):
     def fill_image(
         self,
         jpeg_buf: bytes,
-        background_luminance: int = 508,
+        background_luminance: int = 200,
     ) -> bytes:
         """
         """
-        # TODO fill all components and coefficents
         handle: c_void_p = self._TurboJPEG__init_transform()
         try:
             jpeg_array: np.ndarray = np.frombuffer(jpeg_buf, dtype=np.uint8)
@@ -394,7 +392,7 @@ class TurboJPEG_patch(TurboJPEG):
             crop_transform = TransformStruct(
                 region,
                 TJXOP_NONE,
-                TJXOPT_PERFECT | TJXOPT_CROP,
+                TJXOPT_PERFECT,
                 pointer(callback_data),
                 callback
             )
