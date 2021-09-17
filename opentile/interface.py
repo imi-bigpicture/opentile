@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from functools import cached_property
 from pathlib import Path
-from typing import List, Tuple, Iterator
+from typing import List, Tuple, Iterator, Dict
 
 from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 
@@ -120,6 +120,10 @@ class Tiler:
         self._volume_series_index: int = None
         self._overview_series_index: int = None
         self._label_series_index: int = None
+
+    @property
+    def properties(self) -> Dict[str, any]:
+        return {}
 
     @cached_property
     def base_page(self) -> TiffPage:

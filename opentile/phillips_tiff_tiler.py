@@ -2,7 +2,7 @@ import io
 import math
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, Iterator, List, Tuple
+from typing import Dict, Iterator, List, Tuple, Type
 from xml.etree import ElementTree as etree
 
 from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
@@ -10,6 +10,10 @@ from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
 from opentile.geometry import Point, Size, SizeMm
 from opentile.interface import TiledPage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
+
+
+def split_and_cast_text(string: str, type: Type) -> List[any]:
+    return [type(element) for element in string.replace('"', '').split()]
 
 
 class PhillipsTiffTiledPage(TiledPage):
@@ -166,10 +170,10 @@ class PhillipsTiffTiler(Tiler):
     @cached_property
     def base_mpp(self) -> SizeMm:
         """Return pixel spacing in um/pixel for base level."""
-        return self.phillips_properties['pixel_spacing'] / 1000.0
+        return SizeMm.from_tuple(self.properties['pixel_spacing']) / 1000.0
 
     @cached_property
-    def phillips_properties(self) -> Dict[str, any]:
+    def properties(self) -> Dict[str, any]:
         """Return dictionary with phillips tiff file properties."""
         metadata = etree.fromstring(self._tiff_file.philips_metadata)
         pixel_spacing = None
@@ -177,22 +181,23 @@ class PhillipsTiffTiler(Tiler):
             if element.tag == 'Attribute':
                 name = element.attrib['Name']
                 if name == 'DICOM_PIXEL_SPACING' and pixel_spacing is None:
-                    pixel_spacing = [
-                        float(v)
-                        for v in element.text.replace('"', '').split()
-                    ]
+                    pixel_spacing = split_and_cast_text(element.text, float)
                 elif name == 'DICOM_ACQUISITION_DATETIME':
-                    date = element.text
+                    aquisition_datatime = element.text
                 elif name == 'DICOM_DEVICE_SERIAL_NUMBER':
                     device_serial_number = element.text
                 elif name == 'DICOM_MANUFACTURER':
                     manufacturer = element.text
                 elif name == 'DICOM_SOFTWARE_VERSIONS':
-                    software_version = element.text
+                    software_versions = split_and_cast_text(element.text, str)
                 elif name == 'DICOM_LOSSY_IMAGE_COMPRESSION_METHOD':
-                    lossy_image_compression_method = element.text
+                    lossy_image_compression_method = split_and_cast_text(
+                        element.text, str
+                    )
                 elif name == 'DICOM_LOSSY_IMAGE_COMPRESSION_RATIO':
-                    lossy_image_compression_ratio = element.text
+                    lossy_image_compression_ratio = split_and_cast_text(
+                        element.text, float
+                    )
                 elif name == 'DICOM_PHOTOMETRIC_INTERPRETATION':
                     photometric_interpretation = element.text
                 elif name == 'DICOM_BITS_ALLOCATED':
@@ -204,11 +209,11 @@ class PhillipsTiffTiler(Tiler):
                 elif name == 'DICOM_PIXEL_REPRESENTATION':
                     pixel_representation = element.text
         return {
-            'pixel_spacing': SizeMm.from_tuple(pixel_spacing),
-            'date': date,
+            'pixel_spacing': pixel_spacing,
+            'aquisition_datatime': aquisition_datatime,
             'device_serial_number': device_serial_number,
             'manufacturer': manufacturer,
-            'software_version': software_version,
+            'software_versions': software_versions,
             'lossy_image_compression_method': lossy_image_compression_method,
             'lossy_image_compression_ratio': lossy_image_compression_ratio,
             'photometric_interpretation': photometric_interpretation,
@@ -216,7 +221,6 @@ class PhillipsTiffTiler(Tiler):
             'bits_stored': bits_stored,
             'high_bit': high_bit,
             'pixel_representation': pixel_representation
-
         }
 
     def get_page(
