@@ -6,14 +6,34 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
 from pathlib import Path
 from struct import unpack
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple, Type
 
 from tifffile import FileHandle, TiffPage
-from tifffile.tifffile import TIFF
+from tifffile.tifffile import TIFF, TiffTag
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.interface import TiledPage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
+
+
+def get_value_from_ndpi_comments(
+    comments: str,
+    value_name: str,
+    value_type: Type
+) -> any:
+    for line in comments.split("\n"):
+        if value_name in line:
+            value_string = line.split('=')[1]
+            return(value_type(value_string))
+
+
+def get_value_from_tiff_tags(
+    tiff_tags: List[TiffTag],
+    value_name: str
+) -> str:
+    for tag in tiff_tags:
+        if tag.name == value_name:
+            return tag.value
 
 
 class Tags:
@@ -395,6 +415,38 @@ class NdpiPage(TiledPage, metaclass=ABCMeta):
     @abstractmethod
     def __str__(self) -> str:
         raise NotImplementedError
+
+    @cached_property
+    def focal_plane(self) -> List[float]:
+        # Return focal plane in um.
+        try:
+            # Defined in nm
+            return self.page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
+        except KeyError:
+            return 0.0
+
+    @cached_property
+    def properties(self) -> Dict[str, any]:
+        """Return dictionary with ndpifile properties."""
+        ndpi_tags = self.page.ndpi_tags
+        manufacturer = ndpi_tags['Make']
+        model = ndpi_tags['Model']
+        software_versions = [ndpi_tags['Software']]
+        device_serial_number = ndpi_tags['ScannerSerialNumber']
+        aquisition_datatime = get_value_from_tiff_tags(
+            self.page.tags, 'DateTime'
+        )
+        photometric_interpretation = get_value_from_tiff_tags(
+            self.page.tags, 'PhotometricInterpretation'
+        )
+        return {
+            'aquisition_datatime': aquisition_datatime,
+            'device_serial_number': device_serial_number,
+            'manufacturer': manufacturer,
+            'model': model,
+            'software_versions': software_versions,
+            'photometric_interpretation': photometric_interpretation
+        }
 
     @property
     def tile_size(self) -> Size:

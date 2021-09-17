@@ -32,11 +32,11 @@ class TiledPage(metaclass=ABCMeta):
         return self._page
 
     @property
-    def default_z(self) -> float:
+    def focal_plane(self) -> float:
         return 0.0
 
     @property
-    def default_path(self) -> str:
+    def optical_path(self) -> str:
         return '0'
 
     @property
