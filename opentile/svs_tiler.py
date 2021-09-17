@@ -4,7 +4,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import Tuple
 
-from tifffile.tifffile import FileHandle, TiffPage, svs_description_metadata
+from tifffile.tifffile import (TIFF, FileHandle, TiffPage,
+                               svs_description_metadata)
 
 from opentile.geometry import Point, Size, SizeMm
 from opentile.interface import TiledPage, Tiler
@@ -36,6 +37,10 @@ class SvsTiledPage(TiledPage):
             math.log2(base_shape.width/self.image_size.width)
         )
         self._mpp = base_mpp * pow(2, self.pyramid_index)
+
+    @property
+    def compression(self) -> str:
+        return str(self._page.compression)
 
     @property
     def pyramid_index(self) -> int:
@@ -76,6 +81,19 @@ class SvsTiledPage(TiledPage):
         """Return pixel spacing in um per pixel."""
         return self._mpp
 
+    def _add_jpeg_tables(
+        self,
+        frame: bytes
+    ) -> bytes:
+        with io.BytesIO() as buffer:
+            buffer.write(self.page.jpegtables[:-2])
+            buffer.write(
+                b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
+                b"\x65\x00\x64\x80\x00\x00\x00\x00"
+            )  # colorspace fix
+            buffer.write(frame[2:])
+            return buffer.getvalue()
+
     def get_tile(
         self,
         tile_position: Tuple[int, int]
@@ -96,15 +114,9 @@ class SvsTiledPage(TiledPage):
         tile_index = tile_point.y * self.tiled_size.width + tile_point.x
         self._fh.seek(self.page.dataoffsets[tile_index])
         data = self._fh.read(self.page.databytecounts[tile_index])
-
-        with io.BytesIO() as buffer:
-            buffer.write(self.page.jpegtables[:-2])
-            buffer.write(
-                b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
-                b"\x65\x00\x64\x80\x00\x00\x00\x00"
-            )  # colorspace fix
-            buffer.write(data[2:])
-            return buffer.getvalue()
+        if self.compression == 'COMPRESSION.JPEG':
+            return self._add_jpeg_tables(data)
+        return data
 
 
 class SvsTiler(Tiler):

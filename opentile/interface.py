@@ -27,6 +27,10 @@ class TiledPage(metaclass=ABCMeta):
         self._fh = fh
 
     @property
+    def compression(self) -> str:
+        return str(self._page.compression)
+
+    @property
     def page(self) -> TiffPage:
         """Return source TiffPage."""
         return self._page
