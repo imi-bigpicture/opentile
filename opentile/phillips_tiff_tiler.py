@@ -88,31 +88,17 @@ class PhillipsTiffTiledPage(NativeTiledPage):
         valid_tile = self._add_jpeg_tables(valid_frame)
         return self._jpeg.fill_image(valid_tile)
 
-    def get_tile(
-        self,
-        tile_position: Tuple[int, int]
-    ) -> bytes:
-        """Return tile for tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Tile at position.
-        """
-        frame_index = self._tile_position_to_frame_index(tile_position)
+    def _read_frame(self, frame_index: int) -> bytes:
+        """Read frame at frame index from page. Return blank tile if tile is
+        sparse."""
         if (
             frame_index >= len(self.page.databytecounts) or
             self.page.databytecounts[frame_index] == 0
         ):
             # Sparse tile
             return self.blank_tile
-        frame = self._read_frame(frame_index)
-        return self._add_jpeg_tables(frame)
+        self._fh.seek(self.page.dataoffsets[frame_index])
+        return self._fh.read(self.page.databytecounts[frame_index])
 
 
 class PhillipsTiffTiler(Tiler):

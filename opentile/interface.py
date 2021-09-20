@@ -158,6 +158,41 @@ class NativeTiledPage(TiledPage, metaclass=ABCMeta):
         frame_index = tile_point.y * self.tiled_size.width + tile_point.x
         return frame_index
 
+    @abstractmethod
+    def _add_jpeg_tables(self, frame) -> bytes:
+        raise NotImplementedError
+
+    def get_tile(
+        self,
+        tile_position: Tuple[int, int]
+    ) -> bytes:
+        """Return tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        frame_index = self._tile_position_to_frame_index(tile_position)
+        frame = self._read_frame(frame_index)
+        if self.compression == 'COMPRESSION.JPEG':
+            return self._add_jpeg_tables(frame)
+        return frame
+
+    def get_decoded_tile(self, tile: Tuple[int, int]) -> np.ndarray:
+        frame_index = self._tile_position_to_frame_index(tile)
+        frame = self._read_frame(frame_index)
+        if self.compression == 'COMPRESSION.JPEG':
+            tables = self.page.jpegtables
+        else:
+            tables = None
+        return self.page.decode(frame, frame_index, tables)
+
 
 class Tiler:
     def __init__(self, filepath: Path):
