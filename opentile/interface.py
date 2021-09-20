@@ -191,7 +191,9 @@ class NativeTiledPage(TiledPage, metaclass=ABCMeta):
             tables = self.page.jpegtables
         else:
             tables = None
-        return self.page.decode(frame, frame_index, tables)
+        data, indices, shape = self.page.decode(frame, frame_index, tables)
+        data.shape = shape[1:]
+        return data
 
 
 class Tiler:
