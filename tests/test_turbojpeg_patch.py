@@ -36,7 +36,8 @@ class TurboJpegTest(unittest.TestCase):
         self.assertFalse(
             self.jpeg._TurboJPEG_patch__need_fill_background(
                 crop_region,
-                image_size
+                image_size,
+                1.0
             )
         )
 
@@ -44,7 +45,8 @@ class TurboJpegTest(unittest.TestCase):
         self.assertFalse(
             self.jpeg._TurboJPEG_patch__need_fill_background(
                 crop_region,
-                image_size
+                image_size,
+                1.0
             )
         )
 
@@ -52,7 +54,8 @@ class TurboJpegTest(unittest.TestCase):
         self.assertFalse(
             self.jpeg._TurboJPEG_patch__need_fill_background(
                 crop_region,
-                image_size
+                image_size,
+                1.0
             )
         )
 
@@ -60,7 +63,17 @@ class TurboJpegTest(unittest.TestCase):
         self.assertTrue(
             self.jpeg._TurboJPEG_patch__need_fill_background(
                 crop_region,
-                image_size
+                image_size,
+                1.0
+            )
+        )
+
+        crop_region = CroppingRegion(0, 0, 2048, 2048)
+        self.assertFalse(
+            self.jpeg._TurboJPEG_patch__need_fill_background(
+                crop_region,
+                image_size,
+                0.5
             )
         )
 

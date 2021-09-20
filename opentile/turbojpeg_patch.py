@@ -508,6 +508,21 @@ class TurboJPEG_patch(TurboJPEG):
         jpeg_data: bytes,
         dqt_index: int
     ) -> Optional[int]:
+        """Return byte offset to quantification table with index dqt_index in
+        jpeg_data.
+
+        Parameters
+        ----------
+        jpeg_data: bytes
+            Jpeg data containing quantification table(s).
+        dqt_index: int
+            Index of quantificatin table to find (0 - luminance).
+
+        Returns
+        ----------
+        Optional[int]
+            Byte offset to quantification table, or None if not found.
+        """
         offset = 0
         while offset < len(jpeg_data):
             dct_table_offset = jpeg_data[offset:].find(bytes([0xFF, 0xDB]))
@@ -528,11 +543,26 @@ class TurboJPEG_patch(TurboJPEG):
         return None
 
     @classmethod
-    def __get_dc_dqt_coefficient(
+    def __get_dc_dqt_element(
         cls,
         jpeg_data: bytes,
         dqt_index: int
     ) -> int:
+        """Return dc quantification element from jpeg_data for quantification
+        table dqt_index.
+
+        Parameters
+        ----------
+        jpeg_data: bytes
+            Jpeg data containing quantification table(s).
+        dqt_index: int
+            Index of quantificatin table to get (0 - luminance).
+
+        Returns
+        ----------
+        int
+            Dc quantification element.
+        """
         dqt_offset = cls.__find_dqt(jpeg_data, dqt_index)
         if dqt_offset is None:
             raise ValueError(
@@ -560,8 +590,24 @@ class TurboJPEG_patch(TurboJPEG):
         jpeg_data: bytes,
         luminance: float
     ) -> int:
+        """Map a luminance level (0 - 1) to quantified dc dct coefficient.
+        Before quantification dct coefficient have a range -1024 - 1023. This
+        is reduced upon quantification by the quantification factor. This
+        function maps the input luminance level range to the quantified dc dct
+        coefficient range.
+
+        Parameters
+        ----------
+        jpeg_data: bytes
+            Jpeg data containing quantification table(s).
+        luminance: float
+            Luminance level (0 - black, 1 - white).
+
+        Returns
+        ----------
+        int
+            Quantified luminance dc dct coefficent.
+        """
         luminance = min(max(luminance, 0), 1)
-        dc_dqt_coefficient = cls.__get_dc_dqt_coefficient(jpeg_data, 0)
-        return(
-            round((luminance * 2047 - 1024) / dc_dqt_coefficient)
-        )
+        dc_dqt_coefficient = cls.__get_dc_dqt_element(jpeg_data, 0)
+        return(round((luminance * 2047 - 1024) / dc_dqt_coefficient))
