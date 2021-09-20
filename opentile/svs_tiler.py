@@ -3,15 +3,16 @@ import math
 from functools import cached_property
 from pathlib import Path
 from typing import Tuple
+import numpy as np
 
 from tifffile.tifffile import (TIFF, FileHandle, TiffPage,
                                svs_description_metadata)
 
 from opentile.geometry import Point, Size, SizeMm
-from opentile.interface import TiledPage, Tiler
+from opentile.interface import NativeTiledPage, Tiler
 
 
-class SvsTiledPage(TiledPage):
+class SvsTiledPage(NativeTiledPage):
     def __init__(
         self,
         page: TiffPage,
@@ -39,37 +40,8 @@ class SvsTiledPage(TiledPage):
         self._mpp = base_mpp * pow(2, self.pyramid_index)
 
     @property
-    def compression(self) -> str:
-        return str(self._page.compression)
-
-    @property
     def pyramid_index(self) -> int:
         return self._pyramid_index
-
-    @cached_property
-    def tile_size(self) -> Size:
-        return Size(
-            int(self.page.tilewidth),
-            int(self.page.tilelength)
-        )
-
-    @cached_property
-    def tiled_size(self) -> Size:
-        if self.tile_size != Size(0, 0):
-            return Size(
-                math.ceil(self.image_size.width / self.tile_size.width),
-                math.ceil(self.image_size.height / self.tile_size.height)
-            )
-        else:
-            return Size(1, 1)
-
-    @cached_property
-    def image_size(self) -> Size:
-        """The size of the image."""
-        return Size(
-            self.page.shape[1],
-            self.page.shape[0]
-        )
 
     @property
     def pixel_spacing(self) -> SizeMm:
@@ -85,6 +57,7 @@ class SvsTiledPage(TiledPage):
         self,
         frame: bytes
     ) -> bytes:
+        """Add jpeg tables to frame."""
         with io.BytesIO() as buffer:
             buffer.write(self.page.jpegtables[:-2])
             buffer.write(
@@ -110,13 +83,12 @@ class SvsTiledPage(TiledPage):
         bytes
             Produced tile at position.
         """
-        tile_point = Point.from_tuple(tile_position)
-        tile_index = tile_point.y * self.tiled_size.width + tile_point.x
-        self._fh.seek(self.page.dataoffsets[tile_index])
-        data = self._fh.read(self.page.databytecounts[tile_index])
+        frame_index = self._tile_position_to_frame_index(tile_position)
+        frame = self._read_frame(frame_index)
+
         if self.compression == 'COMPRESSION.JPEG':
-            return self._add_jpeg_tables(data)
-        return data
+            return self._add_jpeg_tables(frame)
+        return frame
 
 
 class SvsTiler(Tiler):

@@ -1,8 +1,10 @@
 from abc import ABCMeta, abstractmethod
 from functools import cached_property
 from pathlib import Path
-from typing import List, Tuple, Iterator, Dict
+from typing import Dict, Iterator, List, Tuple
+import math
 
+import numpy as np
 from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 
 from opentile.geometry import Point, Region, Size, SizeMm
@@ -41,6 +43,7 @@ class TiledPage(metaclass=ABCMeta):
 
     @property
     def optical_path(self) -> str:
+        # Not sure if there is optical paths in tiff files...
         return '0'
 
     @property
@@ -115,6 +118,45 @@ class TiledPage(metaclass=ABCMeta):
             Tile region.
         """
         return region.is_inside(self.tiled_region)
+
+
+class NativeTiledPage(TiledPage, metaclass=ABCMeta):
+    """Meta class for pages that are natively tiled (e.g. not ndpi)"""
+    @cached_property
+    def tile_size(self) -> Size:
+        return Size(
+            int(self.page.tilewidth),
+            int(self.page.tilelength)
+        )
+
+    @cached_property
+    def tiled_size(self) -> Size:
+        if self.tile_size != Size(0, 0):
+            return Size(
+                math.ceil(self.image_size.width / self.tile_size.width),
+                math.ceil(self.image_size.height / self.tile_size.height)
+            )
+        else:
+            return Size(1, 1)
+
+    @cached_property
+    def image_size(self) -> Size:
+        """The size of the image."""
+        return Size(self.page.shape[1], self.page.shape[0])
+
+    def _read_frame(self, frame_index: int) -> bytes:
+        """Read frame at frame index from page."""
+        self._fh.seek(self.page.dataoffsets[frame_index])
+        return self._fh.read(self.page.databytecounts[frame_index])
+
+    def _tile_position_to_frame_index(
+        self,
+        tile_position: Tuple[int, int]
+    ) -> Point:
+        """Return linear frame index for tile position."""
+        tile_point = Point.from_tuple(tile_position)
+        frame_index = tile_point.y * self.tiled_size.width + tile_point.x
+        return frame_index
 
 
 class Tiler:

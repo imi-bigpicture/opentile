@@ -8,7 +8,7 @@ from xml.etree import ElementTree as etree
 from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
 
 from opentile.geometry import Point, Size, SizeMm
-from opentile.interface import TiledPage, Tiler
+from opentile.interface import NativeTiledPage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 
 
@@ -16,7 +16,7 @@ def split_and_cast_text(string: str, type: Type) -> List[any]:
     return [type(element) for element in string.replace('"', '').split()]
 
 
-class PhillipsTiffTiledPage(TiledPage):
+class PhillipsTiffTiledPage(NativeTiledPage):
     def __init__(
         self,
         page: TiffPage,
@@ -61,35 +61,8 @@ class PhillipsTiffTiledPage(TiledPage):
         """Return pixel spacing in um per pixel."""
         return self._mpp
 
-    @cached_property
-    def tile_size(self) -> Size:
-        return Size(
-            int(self.page.tilewidth),
-            int(self.page.tilelength)
-        )
-
-    @cached_property
-    def tiled_size(self) -> Size:
-        if self.tile_size != Size(0, 0):
-            return Size(
-                math.ceil(self.image_size.width / self.tile_size.width),
-                math.ceil(self.image_size.height / self.tile_size.height)
-            )
-        else:
-            return Size(1, 1)
-
-    @cached_property
-    def image_size(self) -> Size:
-        """The size of the image."""
-        return Size(self.page.shape[1], self.page.shape[0])
-
-    def _read_frame(self, frame_index: int) -> bytes:
-        """Read frame at frame index from page."""
-        self._fh.seek(self.page.dataoffsets[frame_index])
-        return self._fh.read(self.page.databytecounts[frame_index])
-
-    def _add_header(self, frame: bytes) -> bytes:
-        """Add header with jpeg tables to frame."""
+    def _add_jpeg_tables(self, frame: bytes) -> bytes:
+        """Add jpeg tables to frame."""
         # frame has jpeg header but no tables. Insert tables before start
         # of scan tag.
         start_of_scan = frame.find(bytes([0xFF, 0xDA]))
@@ -112,7 +85,7 @@ class PhillipsTiffTiledPage(TiledPage):
         except StopIteration:
             raise ValueError
         valid_frame = self._read_frame(valid_frame_index)
-        valid_tile = self._add_header(valid_frame)
+        valid_tile = self._add_jpeg_tables(valid_frame)
         return self._jpeg.fill_image(valid_tile)
 
     def get_tile(
@@ -131,8 +104,7 @@ class PhillipsTiffTiledPage(TiledPage):
         bytes
             Tile at position.
         """
-        tile_point = Point.from_tuple(tile_position)
-        frame_index = tile_point.y * self.tiled_size.width + tile_point.x
+        frame_index = self._tile_position_to_frame_index(tile_position)
         if (
             frame_index >= len(self.page.databytecounts) or
             self.page.databytecounts[frame_index] == 0
@@ -140,7 +112,7 @@ class PhillipsTiffTiledPage(TiledPage):
             # Sparse tile
             return self.blank_tile
         frame = self._read_frame(frame_index)
-        return self._add_header(frame)
+        return self._add_jpeg_tables(frame)
 
 
 class PhillipsTiffTiler(Tiler):
