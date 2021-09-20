@@ -1,5 +1,6 @@
 from ctypes import *
-from typing import List, Tuple
+from typing import List, Tuple, Optional
+from struct import unpack, calcsize
 
 import numpy as np
 from turbojpeg import (TJFLAG_ACCURATEDCT, TJXOP_NONE, TJXOPT_CROP,
@@ -206,6 +207,12 @@ def fill_whole_image_with_background(
     return 1
 
 
+def split_byte_into_nibbles(value: int) -> Tuple[int, int]:
+    first = value >> 4
+    second = value & 0x0F
+    return first, second
+
+
 class TurboJPEG_patch(TurboJPEG):
     def __init__(self, lib_path=None):
         super().__init__(lib_path)
@@ -227,7 +234,7 @@ class TurboJPEG_patch(TurboJPEG):
         self,
         jpeg_buf: bytes,
         crop_parameters: List[Tuple[int, int, int, int]],
-        background_luminance: int = 2047,
+        background_luminance: float = 1.0,
         gray: bool = False
     ) -> List[bytes]:
         """Lossless crop and/or extension operations on jpeg image.
@@ -241,9 +248,9 @@ class TurboJPEG_patch(TurboJPEG):
         crop_parameters: List[Tuple[int, int, int, int]]
             List of crop parameters defining start x and y origin and width
             and height of each crop operation.
-        background_luminance: int
-            Luminance level to fill background when extending image. Default to
-            full, resulting in white background.
+        background_luminance: float
+            Luminance level (0 -1 ) to fill background when extending image.
+            Default to 1, resulting in white background.
         gray: bool
             Produce greyscale output
 
@@ -294,7 +301,10 @@ class TurboJPEG_patch(TurboJPEG):
                         image_width,
                         image_height,
                         jpeg_subsample,
-                        background_luminance
+                        self.__map_luminance_to_dc_dct_coefficient(
+                            jpeg_buf,
+                            background_luminance
+                        )
                     )
                     callback = CUSTOMFILTER(fill_background)
                     crop_transforms[i] = TransformStruct(
@@ -349,9 +359,22 @@ class TurboJPEG_patch(TurboJPEG):
     def fill_image(
         self,
         jpeg_buf: bytes,
-        background_luminance: int = 2047,
+        background_luminance: float = 1.0,
     ) -> bytes:
-        """
+        """Lossless fill jpeg image with background luminance.
+
+        Parameters
+        ----------
+        jpeg_buf: bytes
+            Input jpeg image.
+        background_luminance: float
+            Luminance level (0 -1 ) to fill background when extending image.
+            Default to 1, resulting in white background.
+
+        Returns
+        ----------
+        List[bytes]
+            Filled jpeg images.
         """
         handle: c_void_p = self._TurboJPEG__init_transform()
         try:
@@ -381,7 +404,10 @@ class TurboJPEG_patch(TurboJPEG):
                 image_width,
                 image_height,
                 jpeg_subsample,
-                background_luminance
+                self.__map_luminance_to_dc_dct_coefficient(
+                    jpeg_buf,
+                    background_luminance
+                )
             )
             callback = CUSTOMFILTER(fill_whole_image_with_background)
 
@@ -450,7 +476,7 @@ class TurboJPEG_patch(TurboJPEG):
     def __need_fill_background(
         crop_region: CroppingRegion,
         image_size: Tuple[int, int],
-        background_luminance: int
+        background_luminance: float
     ) -> bool:
         """Return true if crop operation require background fill operation.
 
@@ -460,7 +486,7 @@ class TurboJPEG_patch(TurboJPEG):
             The crop region to check.
         image_size: [int, int]
             Size of input image.
-        background_luminance: int
+        background_luminance: float
             Requested background luminance.
 
         Returns
@@ -474,5 +500,68 @@ class TurboJPEG_patch(TurboJPEG):
                 or
                 (crop_region.y + crop_region.h > image_size[1])
             )
-            and (background_luminance != 0)
+            and (background_luminance != 0.5)
+        )
+
+    @staticmethod
+    def __find_dqt(
+        jpeg_data: bytes,
+        dqt_index: int
+    ) -> Optional[int]:
+        offset = 0
+        while offset < len(jpeg_data):
+            dct_table_offset = jpeg_data[offset:].find(bytes([0xFF, 0xDB]))
+            if dct_table_offset == -1:
+                break
+            dct_table_offset += offset
+            dct_table_length = unpack(
+                '>H',
+                jpeg_data[dct_table_offset+2:dct_table_offset+4]
+            )[0]
+            dct_table_id_offset = dct_table_offset + 4
+            table_index, _ = split_byte_into_nibbles(
+                jpeg_data[dct_table_id_offset]
+            )
+            if table_index == dqt_index:
+                return dct_table_offset
+            offset += dct_table_offset+dct_table_length
+        return None
+
+    @classmethod
+    def __get_dc_dqt_coefficient(
+        cls,
+        jpeg_data: bytes,
+        dqt_index: int
+    ) -> int:
+        dqt_offset = cls.__find_dqt(jpeg_data, dqt_index)
+        if dqt_offset is None:
+            raise ValueError(
+                f"Quantisation table {dqt_index} not found in header"
+            )
+        precision_offset = dqt_offset+4
+        precision = split_byte_into_nibbles(jpeg_data[precision_offset])[0]
+        if precision == 0:
+            unpack_type = '>b'
+        elif precision == 1:
+            unpack_type = '>h'
+        else:
+            raise ValueError('Not valid precision definition in dqt')
+        dc_offset = dqt_offset + 5
+        dc_length = calcsize(unpack_type)
+        dc_value = unpack(
+            unpack_type,
+            jpeg_data[dc_offset:dc_offset+dc_length]
+        )[0]
+        return dc_value
+
+    @classmethod
+    def __map_luminance_to_dc_dct_coefficient(
+        cls,
+        jpeg_data: bytes,
+        luminance: float
+    ) -> int:
+        luminance = min(max(luminance, 0), 1)
+        dc_dqt_coefficient = cls.__get_dc_dqt_coefficient(jpeg_data, 0)
+        return(
+            round((luminance * 2047 - 1024) / dc_dqt_coefficient)
         )

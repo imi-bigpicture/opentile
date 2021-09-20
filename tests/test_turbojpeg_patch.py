@@ -36,8 +36,7 @@ class TurboJpegTest(unittest.TestCase):
         self.assertFalse(
             self.jpeg._TurboJPEG_patch__need_fill_background(
                 crop_region,
-                image_size,
-                512
+                image_size
             )
         )
 
@@ -45,8 +44,7 @@ class TurboJpegTest(unittest.TestCase):
         self.assertFalse(
             self.jpeg._TurboJPEG_patch__need_fill_background(
                 crop_region,
-                image_size,
-                512
+                image_size
             )
         )
 
@@ -54,8 +52,7 @@ class TurboJpegTest(unittest.TestCase):
         self.assertFalse(
             self.jpeg._TurboJPEG_patch__need_fill_background(
                 crop_region,
-                image_size,
-                512
+                image_size
             )
         )
 
@@ -63,17 +60,7 @@ class TurboJpegTest(unittest.TestCase):
         self.assertTrue(
             self.jpeg._TurboJPEG_patch__need_fill_background(
                 crop_region,
-                image_size,
-                512
-            )
-        )
-
-        crop_region = CroppingRegion(0, 0, 2048, 2048)
-        self.assertFalse(
-            self.jpeg._TurboJPEG_patch__need_fill_background(
-                crop_region,
-                image_size,
-                0
+                image_size
             )
         )
 
@@ -115,7 +102,7 @@ class TurboJpegTest(unittest.TestCase):
         extended_width = 16
         extended_height = 16
         callback_row_heigth = 8
-        background_luminance = 508
+        background_luminance = 255
         gray = False
         componentID = 0
         transformID = 0
@@ -198,7 +185,6 @@ class TurboJpegTest(unittest.TestCase):
         )
         for index in range(0, extended_width*extended_height, mcu_size):
             expected_results[index] = background_luminance
-        print(expected_results)
         planeRegion = CroppingRegion(0, 0, extended_width, extended_width)
 
         transform_struct = TransformStruct(
