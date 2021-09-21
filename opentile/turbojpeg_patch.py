@@ -14,18 +14,12 @@ class BlankStruct(Structure):
 
     Parameters
     ----------
-    w: c_int
-        Width of the input image.
-    h: c_int
-        Height of the input image.
     subsample: c_int
         Subsample value of image.
     lum: c_int
         Luminance value to use as background when extending the image.
     """
     _fields_ = [
-        ("w", c_int),
-        ("h", c_int),
         ("subsample", c_int),
         ("lum", c_int),
     ]
@@ -184,8 +178,6 @@ class TurboJPEG_patch(TurboJPEG):
 
             # Use callback to fill in background post-transform
             callback_data = BlankStruct(
-                image_width,
-                image_height,
                 jpeg_subsample,
                 self.__map_luminance_to_dc_dct_coefficient(
                     jpeg_buf,

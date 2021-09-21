@@ -202,12 +202,7 @@ class TurboJpegTest(unittest.TestCase):
             crop_region,
             TJXOP_NONE,
             TJXOPT_PERFECT | TJXOPT_CROP | (gray and TJXOPT_GRAY),
-            pointer(BlankStruct(
-                original_width,
-                original_height,
-                0,
-                background_luminance
-            )),
+            pointer(BlankStruct(0, background_luminance)),
             CUSTOMFILTER(blank_image)
         )
 
