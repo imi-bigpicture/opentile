@@ -1,14 +1,12 @@
 import io
 from functools import cached_property
-from pathlib import Path
 
-
-from tifffile.tifffile import (FileHandle, TiffPage,
+from tifffile.tifffile import (FileHandle, TiffFile, TiffPage,
                                svs_description_metadata)
 
 from opentile.geometry import Size, SizeMm
-from opentile.interface import NativeTiledPage, Tiler
-from opentile.utils import calculate_pyramidal_index, calculate_mpp
+from opentile.common import NativeTiledPage, Tiler
+from opentile.utils import calculate_mpp, calculate_pyramidal_index
 
 
 class SvsTiledPage(NativeTiledPage):
@@ -80,7 +78,7 @@ class SvsTiledPage(NativeTiledPage):
 
 
 class SvsTiler(Tiler):
-    def __init__(self, filepath: Path):
+    def __init__(self, tiff_file: TiffFile):
         """Tiler for svs file.
 
         Parameters
@@ -88,7 +86,7 @@ class SvsTiler(Tiler):
         filepath: str
             File path to svs file.
         """
-        super().__init__(filepath)
+        super().__init__(tiff_file)
         self._fh = self._tiff_file.filehandle
 
         for series_index, series in enumerate(self.series):

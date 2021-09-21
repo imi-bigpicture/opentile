@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Dict
 from xml.etree import ElementTree as etree
 
-from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
+from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries, TiffFile
 
 from opentile.geometry import Size, SizeMm
-from opentile.interface import NativeTiledPage, Tiler
+from opentile.common import NativeTiledPage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 from opentile.utils import (calculate_mpp, calculate_pyramidal_index,
                             split_and_cast_text)
@@ -111,17 +111,17 @@ class PhillipsTiffTiledPage(NativeTiledPage):
 
 
 class PhillipsTiffTiler(Tiler):
-    def __init__(self, filepath: Path, turbo_path: Path):
+    def __init__(self, tiff_file: TiffFile, turbo_path: Path):
         """Tiler for Phillips tiff file.
 
         Parameters
         ----------
-        filepath: str
-            File path to Phillips tiff file.
+       tiff_file: TiffFile
+            A Phillips-TiffFile.
         turbo_path: Path
             Path to turbojpeg (dll or so).
         """
-        super().__init__(filepath)
+        super().__init__(tiff_file)
         self._fh = self._tiff_file.filehandle
 
         self._turbo_path = turbo_path

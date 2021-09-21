@@ -3,12 +3,10 @@ import unittest
 from hashlib import md5
 
 import pytest
-from opentile import NdpiTiler, __version__
 from opentile.geometry import Point, Size
 from opentile.ndpi_tiler import (NdpiCache, NdpiPage, NdpiStripedPage,
-                                 NdpiTile, NdpiTileJob, Tags)
+                                 NdpiTile, NdpiTileJob, NdpiTiler, Tags)
 from tifffile import TiffFile
-from tifffile.tifffile import TiffFile
 
 ndpi_test_data_dir = os.environ.get(
     "NDPI_TESTDIR",
@@ -30,7 +28,7 @@ class NdpiTilerTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tile_size = Size(1024, 1024)
         cls.tiler = NdpiTiler(
-            ndpi_file_path,
+            TiffFile(ndpi_file_path),
             (cls.tile_size.width, cls.tile_size.height),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )

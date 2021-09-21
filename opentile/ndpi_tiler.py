@@ -7,11 +7,11 @@ from pathlib import Path
 from struct import unpack
 from typing import Dict, Iterator, List, Optional, Tuple, Type
 
-from tifffile import FileHandle, TiffPage
+from tifffile import FileHandle, TiffPage, TiffFile
 from tifffile.tifffile import TIFF, TiffTag
 
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.interface import OpenTilePage, Tiler
+from opentile.common import OpenTilePage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 from opentile.utils import get_value_from_tiff_tags
 
@@ -943,7 +943,7 @@ class NdpiStripedPage(NdpiTiledPage):
 class NdpiTiler(Tiler):
     def __init__(
         self,
-        filepath: str,
+        tiff_file: TiffFile,
         tile_size: Tuple[int, int],
         turbo_path: Path
     ):
@@ -952,15 +952,15 @@ class NdpiTiler(Tiler):
 
         Parameters
         ----------
-        filepath: str
-            File path to ndpi file.
+        tiff_file: TiffFile
+            A ndpi-TiffFile.
         tile_size: Tuple[int, int]
             Tile size to cache and produce. Must be multiple of 8.
         turbo_path: Path
             Path to turbojpeg (dll or so).
 
         """
-        super().__init__(filepath)
+        super().__init__(tiff_file)
 
         self._fh = self._tiff_file.filehandle
         self._tile_size = Size(*tile_size)

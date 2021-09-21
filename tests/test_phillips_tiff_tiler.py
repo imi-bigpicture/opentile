@@ -3,10 +3,9 @@ import unittest
 from hashlib import md5
 
 import pytest
-from opentile import PhillipsTiffTiler, __version__
+from opentile.phillips_tiff_tiler import (PhillipsTiffTiledPage,
+                                          PhillipsTiffTiler)
 from tifffile import TiffFile
-from tifffile.tifffile import TiffFile
-from opentile.phillips_tiff_tiler import PhillipsTiffTiledPage
 
 phillips_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
@@ -27,7 +26,7 @@ class PhillipsTiffTilerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tiler = PhillipsTiffTiler(
-            phillips_file_path,
+            TiffFile(phillips_file_path),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
         cls.level: PhillipsTiffTiledPage = cls.tiler.get_level(0)
