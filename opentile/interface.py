@@ -14,9 +14,23 @@ class OpenTile:
     def open(
         self,
         filepath: str,
-        tile_size: Tuple[int, int],
-        turbo_path: Path
+        tile_size: Tuple[int, int] = None,
+        turbo_path: Path = None
     ) -> Tiler:
+        """Return a file type specific tiler for tiff file in filepath.
+        Tile size and turbo jpeg path are optional but required for some file
+        types.
+
+        Parameters
+        ----------
+        filepath: str
+            Path to tiff file.
+        tile_size: Tuple[int, int] = None
+            Tile size for creating tiles, if needed for file format.
+        turbo_path: Path = None
+            Path to turbo jpeg library, if needed for transforming tiles for
+            file format.
+        """
         tiff_file = TiffFile(filepath)
         if tiff_file.is_ndpi:
             if tile_size is None or turbo_path is None:
