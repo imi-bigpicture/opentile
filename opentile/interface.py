@@ -191,6 +191,9 @@ class NativeTiledPage(TiledPage, metaclass=ABCMeta):
             tables = self.page.jpegtables
         else:
             tables = None
+        data: np.ndarray
+        indices: tuple[int]
+        shape: tuple[int]
         data, indices, shape = self.page.decode(frame, frame_index, tables)
         data.shape = shape[1:]
         return data
