@@ -55,7 +55,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 
 [[package]]
 name = "more-itertools"
-version = "8.9.0"
+version = "8.10.0"
 description = "More routines for operating on iterables, beyond itertools"
 category = "dev"
 optional = false
@@ -148,15 +148,22 @@ pytest = ">=2.6.4"
 watchdog = ">=0.6.0"
 
 [[package]]
-name = "pyturbojpeg"
-version = "1.5.4"
-description = "A Python wrapper of libjpeg-turbo for decoding and encoding JPEG image."
+name = "PyTurboJPEG"
+version = "1.6.1"
+description = ""
 category = "main"
 optional = false
 python-versions = "*"
+develop = false
 
 [package.dependencies]
 numpy = "*"
+
+[package.source]
+type = "git"
+url = "https://github.com/lilohuang/PyTurboJPEG.git"
+reference = "master"
+resolved_reference = "a0adeb1254b827d10d76ad77b769a8a823c873e4"
 
 [[package]]
 name = "tifffile"
@@ -214,7 +221,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "0573f55e349dda1dbb9e891335eef918d41829ed1355ae1c5635fe130a6c2584"
+content-hash = "c55e40edb60eb37b41925914bfeb58810514296033c7857d55d177be9ef84174"
 
 [metadata.files]
 atomicwrites = [
@@ -237,8 +244,8 @@ importlib-metadata = [
     {file = "importlib_metadata-4.8.1.tar.gz", hash = "sha256:f284b3e11256ad1e5d03ab86bb2ccd6f5339688ff17a4d797a0fe7df326f23b1"},
 ]
 more-itertools = [
-    {file = "more-itertools-8.9.0.tar.gz", hash = "sha256:8c746e0d09871661520da4f1241ba6b908dc903839733c8203b552cffaf173bd"},
-    {file = "more_itertools-8.9.0-py3-none-any.whl", hash = "sha256:70401259e46e216056367a0a6034ee3d3f95e0bf59d3aa6a4eb77837171ed996"},
+    {file = "more-itertools-8.10.0.tar.gz", hash = "sha256:1debcabeb1df793814859d64a81ad7cb10504c24349368ccf214c664c474f41f"},
+    {file = "more_itertools-8.10.0-py3-none-any.whl", hash = "sha256:56ddac45541718ba332db05f464bebfb0768110111affd27f66e0051f276fa43"},
 ]
 numpy = [
     {file = "numpy-1.21.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:38e8648f9449a549a7dfe8d8755a5979b45b3538520d1e735637ef28e8c2dc50"},
@@ -293,9 +300,7 @@ pytest = [
 pytest-watch = [
     {file = "pytest-watch-4.2.0.tar.gz", hash = "sha256:06136f03d5b361718b8d0d234042f7b2f203910d8568f63df2f866b547b3d4b9"},
 ]
-pyturbojpeg = [
-    {file = "PyTurboJPEG-1.5.4.tar.gz", hash = "sha256:294db827a894db2f222f2c63262ba1e99ab1fadd4f541ae578e7ff9969df0382"},
-]
+PyTurboJPEG = []
 tifffile = [
     {file = "tifffile-2021.8.30-py3-none-any.whl", hash = "sha256:524f9f3a96ca91d12e5b5ddce80209d2b07769c1764ceecf505613668143f63c"},
     {file = "tifffile-2021.8.30.tar.gz", hash = "sha256:8760e61e30106ea0dab9ec42a238d70a3ff55dde9c54456e7b748fe717cb782d"},

@@ -3,13 +3,12 @@ from ctypes import *
 
 import numpy as np
 import pytest
-from opentile.turbojpeg_patch import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP,
-                                      TJXOPT_GRAY, TJXOPT_PERFECT,
-                                      BackgroundStruct, CroppingRegion,
-                                      TransformStruct)
+from opentile.turbojpeg_patch import BlankStruct, BlankTransformStruct
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.turbojpeg_patch import (fill_background,
-                                      fill_whole_image_with_background)
+from opentile.turbojpeg_patch import blank_image
+from turbojpeg import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP, TJXOPT_GRAY,
+                       TJXOPT_PERFECT, BackgroundStruct, CroppingRegion,
+                       TransformStruct, fill_background)
 
 turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
 test_file_path = 'C:/temp/opentile/turbojpeg/frame_1024x512.jpg'
@@ -34,7 +33,7 @@ class TurboJpegTest(unittest.TestCase):
         image_size = (2048, 1024)
         crop_region = CroppingRegion(0, 0, 512, 512)
         self.assertFalse(
-            self.jpeg._TurboJPEG_patch__need_fill_background(
+            self.jpeg._TurboJPEG__need_fill_background(
                 crop_region,
                 image_size,
                 1.0
@@ -43,7 +42,7 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(0, 0, 2048, 1024)
         self.assertFalse(
-            self.jpeg._TurboJPEG_patch__need_fill_background(
+            self.jpeg._TurboJPEG__need_fill_background(
                 crop_region,
                 image_size,
                 1.0
@@ -52,7 +51,7 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(1024, 0, 1024, 1024)
         self.assertFalse(
-            self.jpeg._TurboJPEG_patch__need_fill_background(
+            self.jpeg._TurboJPEG__need_fill_background(
                 crop_region,
                 image_size,
                 1.0
@@ -61,7 +60,7 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(0, 0, 2048, 2048)
         self.assertTrue(
-            self.jpeg._TurboJPEG_patch__need_fill_background(
+            self.jpeg._TurboJPEG__need_fill_background(
                 crop_region,
                 image_size,
                 1.0
@@ -70,7 +69,7 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(0, 0, 2048, 2048)
         self.assertFalse(
-            self.jpeg._TurboJPEG_patch__need_fill_background(
+            self.jpeg._TurboJPEG__need_fill_background(
                 crop_region,
                 image_size,
                 0.5
@@ -83,7 +82,7 @@ class TurboJpegTest(unittest.TestCase):
             CroppingRegion(0, 1, 2, 3),
             CroppingRegion(4, 5, 6, 7)
         ]
-        cropping_regions = self.jpeg._TurboJPEG_patch__define_cropping_regions(
+        cropping_regions = self.jpeg._TurboJPEG__define_cropping_regions(
                 crop_parameters
         )
         for index, region in enumerate(cropping_regions):
@@ -144,7 +143,6 @@ class TurboJpegTest(unittest.TestCase):
             pointer(BackgroundStruct(
                 original_width,
                 original_height,
-                0,
                 background_luminance
             )),
             CUSTOMFILTER(fill_background)
@@ -200,17 +198,17 @@ class TurboJpegTest(unittest.TestCase):
             expected_results[index] = background_luminance
         planeRegion = CroppingRegion(0, 0, extended_width, extended_width)
 
-        transform_struct = TransformStruct(
+        transform_struct = BlankTransformStruct(
             crop_region,
             TJXOP_NONE,
             TJXOPT_PERFECT | TJXOPT_CROP | (gray and TJXOPT_GRAY),
-            pointer(BackgroundStruct(
+            pointer(BlankStruct(
                 original_width,
                 original_height,
                 0,
                 background_luminance
             )),
-            CUSTOMFILTER(fill_whole_image_with_background)
+            CUSTOMFILTER(blank_image)
         )
 
         # Iterate the callback with one mcu-row of data.
@@ -223,7 +221,7 @@ class TurboJpegTest(unittest.TestCase):
                 extended_width,
                 callback_row_heigth
             )
-            callback_result = fill_whole_image_with_background(
+            callback_result = blank_image(
                 coeffs[data_start:data_end].ctypes.data,
                 arrayRegion,
                 planeRegion,
