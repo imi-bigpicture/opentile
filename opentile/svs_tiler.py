@@ -83,8 +83,8 @@ class SvsTiler(Tiler):
 
         Parameters
         ----------
-        filepath: str
-            File path to svs file.
+        tiff_file: TiffFile
+            A Svs-TiffFile.
         """
         super().__init__(tiff_file)
         self._fh = self._tiff_file.filehandle

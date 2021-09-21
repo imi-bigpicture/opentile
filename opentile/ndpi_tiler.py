@@ -399,6 +399,7 @@ class NdpiNonTiledPage(NdpiPage):
     def __str__(self) -> str:
         return f"{type(self).__name__} of page {self._page}"
 
+    @property
     def tile_size(self) -> Size:
         """The size of the tiles to generate."""
         return self.image_size
@@ -981,7 +982,8 @@ class NdpiTiler(Tiler):
 
     def __repr__(self) -> str:
         return (
-            f"NdpiTiler({self._filepath}, {self.tile_size.to_tuple}, "
+            f"NdpiTiler({self._tiff_file.filename}, "
+            f"{self.tile_size.to_tuple}, "
             f"{self._turbo_path})"
         )
 
