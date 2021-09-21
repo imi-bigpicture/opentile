@@ -1,19 +1,16 @@
 import io
-import math
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, Iterator, List, Tuple, Type
+from typing import Dict
 from xml.etree import ElementTree as etree
 
 from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
 
-from opentile.geometry import Point, Size, SizeMm
+from opentile.geometry import Size, SizeMm
 from opentile.interface import NativeTiledPage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-
-
-def split_and_cast_text(string: str, type: Type) -> List[any]:
-    return [type(element) for element in string.replace('"', '').split()]
+from opentile.utils import (calculate_mpp, calculate_pyramidal_index,
+                            split_and_cast_text)
 
 
 class PhillipsTiffTiledPage(NativeTiledPage):
@@ -42,10 +39,22 @@ class PhillipsTiffTiledPage(NativeTiledPage):
         """
         super().__init__(page, fh)
         self._jpeg = jpeg
-        self._pyramid_index = int(
-            math.log2(base_shape.width/self.image_size.width)
+        self._base_shape = base_shape
+        self._base_mpp = base_mpp
+        self._pyramid_index = calculate_pyramidal_index(
+            self._base_shape,
+            self.image_size
         )
-        self._mpp = base_mpp * pow(2, self.pyramid_index)
+        self._mpp = calculate_mpp(self._base_mpp, self.pyramid_index)
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}({self._page}, {self._fh}, "
+            f"{self._base_shape}, {self._base_mpp}, {self._jpeg})"
+        )
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__} of page {self._page}"
 
     @property
     def pyramid_index(self) -> int:
@@ -61,21 +70,10 @@ class PhillipsTiffTiledPage(NativeTiledPage):
         """Return pixel spacing in um per pixel."""
         return self._mpp
 
-    def _add_jpeg_tables(self, frame: bytes) -> bytes:
-        """Add jpeg tables to frame."""
-        # frame has jpeg header but no tables. Insert tables before start
-        # of scan tag.
-        start_of_scan = frame.find(bytes([0xFF, 0xDA]))
-        with io.BytesIO() as buffer:
-            buffer.write(frame[0:start_of_scan])
-            tables = self.page.jpegtables[2:-2]  # No start and end tags
-            buffer.write(tables)
-            buffer.write(frame[start_of_scan:None])
-            return buffer.getvalue()
-
     @cached_property
     def blank_tile(self) -> bytes:
         """Create a blank (white) tile from a valid tile."""
+        # Todo, figure out what color to fill with.
         try:
             valid_frame_index = next(
                 index
@@ -97,8 +95,19 @@ class PhillipsTiffTiledPage(NativeTiledPage):
         ):
             # Sparse tile
             return self.blank_tile
-        self._fh.seek(self.page.dataoffsets[frame_index])
-        return self._fh.read(self.page.databytecounts[frame_index])
+        return super()._read_frame(frame_index)
+
+    def _add_jpeg_tables(self, frame: bytes) -> bytes:
+        """Add jpeg tables to frame."""
+        # frame has jpeg header but no tables. Insert tables before start
+        # of scan tag.
+        start_of_scan = frame.find(bytes([0xFF, 0xDA]))
+        with io.BytesIO() as buffer:
+            buffer.write(frame[0:start_of_scan])
+            tables = self.page.jpegtables[2:-2]  # No start and end tags
+            buffer.write(tables)
+            buffer.write(frame[start_of_scan:None])
+            return buffer.getvalue()
 
 
 class PhillipsTiffTiler(Tiler):
@@ -118,7 +127,7 @@ class PhillipsTiffTiler(Tiler):
         self._turbo_path = turbo_path
         self._jpeg = TurboJPEG(self._turbo_path)
 
-        self._volume_series_index = 0
+        self._level_series_index = 0
         for series_index, series in enumerate(self.series):
             if self.is_label(series):
                 self._label_series_index = series_index

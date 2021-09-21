@@ -1,15 +1,14 @@
 import io
-import math
 from functools import cached_property
 from pathlib import Path
-from typing import Tuple
-import numpy as np
 
-from tifffile.tifffile import (TIFF, FileHandle, TiffPage,
+
+from tifffile.tifffile import (FileHandle, TiffPage,
                                svs_description_metadata)
 
-from opentile.geometry import Point, Size, SizeMm
+from opentile.geometry import Size, SizeMm
 from opentile.interface import NativeTiledPage, Tiler
+from opentile.utils import calculate_pyramidal_index, calculate_mpp
 
 
 class SvsTiledPage(NativeTiledPage):
@@ -20,7 +19,7 @@ class SvsTiledPage(NativeTiledPage):
         base_shape: Size,
         base_mpp: SizeMm
     ):
-        """TiledPage for Phillips Tiff-page.
+        """TiledPage for Svs Tiff-page.
 
         Parameters
         ----------
@@ -34,10 +33,22 @@ class SvsTiledPage(NativeTiledPage):
             Mpp (um/pixel) for base level in pyramid.
         """
         super().__init__(page, fh)
-        self._pyramid_index = int(
-            math.log2(base_shape.width/self.image_size.width)
+        self._base_shape = base_shape
+        self._base_mpp = base_mpp
+        self._pyramid_index = calculate_pyramidal_index(
+            self._base_shape,
+            self.image_size
         )
-        self._mpp = base_mpp * pow(2, self.pyramid_index)
+        self._mpp = calculate_mpp(self._base_mpp, self.pyramid_index)
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}({self._page}, {self._fh}, "
+            f"{self._base_shape}, {self._base_mpp})"
+        )
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__} of page {self._page}"
 
     @property
     def pyramid_index(self) -> int:
@@ -67,29 +78,6 @@ class SvsTiledPage(NativeTiledPage):
             buffer.write(frame[2:])
             return buffer.getvalue()
 
-    def get_tile(
-        self,
-        tile_position: Tuple[int, int]
-    ) -> bytes:
-        """Return tile for tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
-        frame_index = self._tile_position_to_frame_index(tile_position)
-        frame = self._read_frame(frame_index)
-
-        if self.compression == 'COMPRESSION.JPEG':
-            return self._add_jpeg_tables(frame)
-        return frame
-
 
 class SvsTiler(Tiler):
     def __init__(self, filepath: Path):
@@ -105,7 +93,7 @@ class SvsTiler(Tiler):
 
         for series_index, series in enumerate(self.series):
             if series.name == 'Baseline':
-                self._volume_series_index = series_index
+                self._level_series_index = series_index
             elif series.name == 'Label':
                 self._label_series_index = series_index
             elif series.name == 'Macro':

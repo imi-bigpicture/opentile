@@ -3,6 +3,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Dict, Iterator, List, Tuple
 import math
+import threading
 
 import numpy as np
 from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
@@ -10,7 +11,43 @@ from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 from opentile.geometry import Point, Region, Size, SizeMm
 
 
-class TiledPage(metaclass=ABCMeta):
+class LockableFileHandle:
+    """A lockable file handle for reading frames."""
+    def __init__(self, fh: FileHandle):
+        self._fh = fh
+        self._lock = threading.Lock()
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__} for FileHandle {self._fh}"
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self._fh})"
+
+    def read(self, offset: int, bytecount: int) -> bytes:
+        """Return bytes from filehandle.
+
+        Parameters
+        ----------
+        offset: int
+            Offset in bytes.
+        bytecount: int
+            Length in bytes.
+
+        Returns
+        ----------
+        bytes
+            Requested bytes.
+        """
+        with self._lock:
+            self._fh.seek(offset)
+            data = self._fh.read(bytecount)
+        return data
+
+    def close(self) -> None:
+        self._fh.close()
+
+
+class OpenTilePage(metaclass=ABCMeta):
     def __init__(
         self,
         page: TiffPage,
@@ -26,7 +63,15 @@ class TiledPage(metaclass=ABCMeta):
             FileHandle for reading data.
         """
         self._page = page
-        self._fh = fh
+        self._fh = LockableFileHandle(fh)
+
+    @abstractmethod
+    def __repr__(self) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __str__(self) -> str:
+        raise NotImplementedError
 
     @property
     def compression(self) -> str:
@@ -46,14 +91,14 @@ class TiledPage(metaclass=ABCMeta):
         # Not sure if there is optical paths in tiff files...
         return '0'
 
-    @property
-    @abstractmethod
-    def pyramid_index(self) -> int:
-        raise NotImplementedError
+    @cached_property
+    def image_size(self) -> Size:
+        """The size of the image."""
+        return Size(self._page.shape[1], self._page.shape[0])
 
     @property
     @abstractmethod
-    def image_size(self) -> Size:
+    def pyramid_index(self) -> int:
         raise NotImplementedError
 
     @property
@@ -105,7 +150,7 @@ class TiledPage(metaclass=ABCMeta):
 
     @cached_property
     def tiled_region(self) -> Region:
-        """Tile region covering the TiledPage."""
+        """Tile region covering the OpenTilePage."""
         return Region(position=Point(0, 0), size=self.tiled_size - 1)
 
     def valid_tiles(self, region: Region) -> bool:
@@ -119,8 +164,34 @@ class TiledPage(metaclass=ABCMeta):
         """
         return region.is_inside(self.tiled_region)
 
+    def _read_frame(self, index: int) -> bytes:
+        """Read frame bytes at index from file. Locks the filehandle while
+        reading.
 
-class NativeTiledPage(TiledPage, metaclass=ABCMeta):
+        Parameters
+        ----------
+        index: int
+            Index of frame to read.
+
+        Returns
+        ----------
+        bytes
+            Frame bytes.
+        """
+        return self._fh.read(
+            self._page.dataoffsets[index],
+            self._page.databytecounts[index]
+        )
+
+    def _check_if_tile_inside_image(self, tile_position: Point) -> bool:
+        """Return true if tile position is inside tiled image."""
+        return (
+            tile_position.x < self.tiled_size.width and
+            tile_position.y < self.tiled_size.height
+        )
+
+
+class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
     """Meta class for pages that are natively tiled (e.g. not ndpi)"""
     @cached_property
     def tile_size(self) -> Size:
@@ -138,16 +209,6 @@ class NativeTiledPage(TiledPage, metaclass=ABCMeta):
             )
         else:
             return Size(1, 1)
-
-    @cached_property
-    def image_size(self) -> Size:
-        """The size of the image."""
-        return Size(self.page.shape[1], self.page.shape[0])
-
-    def _read_frame(self, frame_index: int) -> bytes:
-        """Read frame at frame index from page."""
-        self._fh.seek(self.page.dataoffsets[frame_index])
-        return self._fh.read(self.page.databytecounts[frame_index])
 
     def _tile_position_to_frame_index(
         self,
@@ -203,7 +264,7 @@ class Tiler:
     def __init__(self, filepath: Path):
         self._filepath = filepath
         self._tiff_file = TiffFile(self._filepath)
-        self._volume_series_index: int = None
+        self._level_series_index: int = None
         self._overview_series_index: int = None
         self._label_series_index: int = None
 
@@ -214,7 +275,7 @@ class Tiler:
     @cached_property
     def base_page(self) -> TiffPage:
         """Return base pyramid level in volume series."""
-        return self.series[self._volume_series_index].pages[0]
+        return self.series[self._level_series_index].pages[0]
 
     @cached_property
     def base_size(self) -> Size:
@@ -227,20 +288,20 @@ class Tiler:
         return self._tiff_file.series
 
     @property
-    def levels(self) -> List[TiledPage]:
-        """Return list of volume level TiledPages."""
-        if self._volume_series_index is None:
+    def levels(self) -> List[OpenTilePage]:
+        """Return list of volume level OpenTilePages."""
+        if self._level_series_index is None:
             return []
         return [
             self.get_level(level_index, page_index)
             for level_index, level
-            in enumerate(self.series[self._volume_series_index].levels)
+            in enumerate(self.series[self._level_series_index].levels)
             for page_index, page in enumerate(level.pages)
         ]
 
     @property
-    def labels(self) -> List[TiledPage]:
-        """Return list of label TiledPages."""
+    def labels(self) -> List[OpenTilePage]:
+        """Return list of label OpenTilePage."""
         if self._label_series_index is None:
             return []
         return [
@@ -251,8 +312,8 @@ class Tiler:
         ]
 
     @property
-    def overviews(self) -> List[TiledPage]:
-        """Return list of overview TiledPages."""
+    def overviews(self) -> List[OpenTilePage]:
+        """Return list of overview OpenTilePage."""
         if self._overview_series_index is None:
             return []
         return [
@@ -263,7 +324,7 @@ class Tiler:
         ]
 
     @abstractmethod
-    def get_page(self, series: int, level: int, page: int) -> TiledPage:
+    def get_page(self, series: int, level: int, page: int) -> OpenTilePage:
         raise NotImplementedError
 
     def close(self) -> None:
@@ -302,8 +363,8 @@ class Tiler:
         self,
         level: int,
         page: int = 0
-    ) -> TiledPage:
-        """Return TiledPage for level in volume series.
+    ) -> OpenTilePage:
+        """Return OpenTilePage for level in volume series.
 
         Parameters
         ----------
@@ -314,17 +375,17 @@ class Tiler:
 
         Returns
         ----------
-        TiledPage
-            Level TiledPage.
+        OpenTilePage
+            Level OpenTilePage.
         """
-        return self.get_page(self._volume_series_index, level, page)
+        return self.get_page(self._level_series_index, level, page)
 
     def get_label(
         self,
         index: int = 0,
         page: int = 0
-    ) -> TiledPage:
-        """Return TiledPage for label in label series.
+    ) -> OpenTilePage:
+        """Return OpenTilePage for label in label series.
 
         Parameters
         ----------
@@ -335,8 +396,8 @@ class Tiler:
 
         Returns
         ----------
-        TiledPage
-            Label TiledPage.
+        OpenTilePage
+            Label OpenTilePage.
         """
         return self.get_page(self._label_series_index, index, page)
 
@@ -344,8 +405,8 @@ class Tiler:
         self,
         index: int = 0,
         page: int = 0
-    ) -> TiledPage:
-        """Return TiledPage for overview in overview series.
+    ) -> OpenTilePage:
+        """Return OpenTilePage for overview in overview series.
 
         Parameters
         ----------
@@ -356,7 +417,7 @@ class Tiler:
 
         Returns
         ----------
-        TiledPage
-            Overview TiledPage.
+        OpenTilePage
+            Overview OpenTilePage.
         """
         return self.get_page(self._overview_series_index, index, page)

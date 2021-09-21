@@ -4,7 +4,6 @@ from hashlib import md5
 
 import pytest
 from opentile import PhillipsTiffTiler, __version__
-from opentile.geometry import Point
 from tifffile import TiffFile
 from tifffile.tifffile import TiffFile
 from opentile.phillips_tiff_tiler import PhillipsTiffTiledPage

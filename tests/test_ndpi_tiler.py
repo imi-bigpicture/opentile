@@ -83,21 +83,26 @@ class NdpiTilerTest(unittest.TestCase):
         )
 
     def test_level_read(self):
-        data = self.level._read(50)
+        data = self.level._read_frame(50)
         self.assertEqual(
             'e2a7321a7d7032437f91df442b0182da',
             md5(data).hexdigest()
         )
 
-    def test_read_stripe(self):
-        stripe = self.level._read_stripe(Point(50, 0))
+    def test_read_frame(self):
+        index = self.level._get_stripe_position_to_index(Point(50, 0))
+
+        stripe = self.level._read_frame(index)
         self.assertEqual(
             'e2a7321a7d7032437f91df442b0182da',
             md5(stripe).hexdigest()
         )
 
     def test_get_frame(self):
-        image = self.level._read_frame(Point(10, 10), self.level.frame_size)
+        image = self.level._read_extended_frame(
+            Point(10, 10),
+            self.level.frame_size
+        )
         self.assertEqual(
             '25a908ef4b5340354e6d0d7771e18fcd',
             md5(image).hexdigest()
@@ -148,7 +153,7 @@ class NdpiTilerTest(unittest.TestCase):
             for x in range(4)
         }
         frame_size = self.level._get_frame_size_for_tile(tile_job.origin)
-        frame = self.level._read_frame(tile_job.origin, frame_size)
+        frame = self.level._read_extended_frame(tile_job.origin, frame_size)
         self.assertEqual(
             tiles_single,
             self.level._crop_to_tiles(tile_job, frame)
