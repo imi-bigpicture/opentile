@@ -5,7 +5,7 @@ from tifffile import TiffFile
 
 from opentile.common import Tiler
 from opentile.ndpi_tiler import NdpiTiler
-from opentile.phillips_tiff_tiler import PhillipsTiffTiler
+from opentile.philips_tiff_tiler import PhilipsTiffTiler
 from opentile.svs_tiler import SvsTiler
 
 
@@ -46,10 +46,10 @@ class OpenTile:
                 tiff_file
             )
 
-        if tiff_file.is_phillips:
+        if tiff_file.is_philips:
             if turbo_path is None:
-                raise ValueError("Turbo path needed for phillips tiff")
-            return PhillipsTiffTiler(
+                raise ValueError("Turbo path needed for philips tiff")
+            return PhilipsTiffTiler(
                 tiff_file,
                 turbo_path
             )

@@ -13,7 +13,7 @@ from opentile.utils import (calculate_mpp, calculate_pyramidal_index,
                             split_and_cast_text)
 
 
-class PhillipsTiffTiledPage(NativeTiledPage):
+class PhilipsTiffTiledPage(NativeTiledPage):
     def __init__(
         self,
         page: TiffPage,
@@ -22,7 +22,7 @@ class PhillipsTiffTiledPage(NativeTiledPage):
         base_mpp: SizeMm,
         jpeg: TurboJPEG
     ):
-        """TiledPage for Phillips Tiff-page.
+        """TiledPage for Philips Tiff-page.
 
         Parameters
         ----------
@@ -110,14 +110,14 @@ class PhillipsTiffTiledPage(NativeTiledPage):
             return buffer.getvalue()
 
 
-class PhillipsTiffTiler(Tiler):
+class PhilipsTiffTiler(Tiler):
     def __init__(self, tiff_file: TiffFile, turbo_path: Path):
-        """Tiler for Phillips tiff file.
+        """Tiler for Philips tiff file.
 
         Parameters
         ----------
        tiff_file: TiffFile
-            A Phillips-TiffFile.
+            A Philips-TiffFile.
         turbo_path: Path
             Path to turbojpeg (dll or so).
         """
@@ -141,7 +141,7 @@ class PhillipsTiffTiler(Tiler):
 
     @cached_property
     def properties(self) -> Dict[str, any]:
-        """Return dictionary with phillips tiff file properties."""
+        """Return dictionary with philips tiff file properties."""
         metadata = etree.fromstring(self._tiff_file.philips_metadata)
         pixel_spacing = None
         for element in metadata.iter():
@@ -195,11 +195,11 @@ class PhillipsTiffTiler(Tiler):
         series: int,
         level: int,
         page: int = 0
-    ) -> PhillipsTiffTiledPage:
-        """Return PhillipsTiffTiledPage for series, level, page.
+    ) -> PhilipsTiffTiledPage:
+        """Return PhilipsTiffTiledPage for series, level, page.
         """
         tiff_page = self.series[series].levels[level].pages[page]
-        return PhillipsTiffTiledPage(
+        return PhilipsTiffTiledPage(
             tiff_page,
             self._fh,
             self.base_size,

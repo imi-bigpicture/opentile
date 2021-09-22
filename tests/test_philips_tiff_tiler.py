@@ -3,33 +3,33 @@ import unittest
 from hashlib import md5
 
 import pytest
-from opentile.phillips_tiff_tiler import (PhillipsTiffTiledPage,
-                                          PhillipsTiffTiler)
+from opentile.philips_tiff_tiler import (PhilipsTiffTiledPage,
+                                          PhilipsTiffTiler)
 from tifffile import TiffFile
 
-phillips_test_data_dir = os.environ.get(
+philips_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
-    "C:/temp/opentile/phillips_tiff/"
+    "C:/temp/opentile/philips_tiff/"
 )
-sub_data_path = "phillips1/input.tif"
-phillips_file_path = phillips_test_data_dir + '/' + sub_data_path
+sub_data_path = "philips1/input.tif"
+philips_file_path = philips_test_data_dir + '/' + sub_data_path
 
 
 @pytest.mark.unittest
-class PhillipsTiffTilerTest(unittest.TestCase):
+class PhilipsTiffTilerTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tif: TiffFile
-        self.tiler: PhillipsTiffTiler
-        self.level: PhillipsTiffTiledPage
+        self.tiler: PhilipsTiffTiler
+        self.level: PhilipsTiffTiledPage
 
     @classmethod
     def setUpClass(cls):
-        cls.tiler = PhillipsTiffTiler(
-            TiffFile(phillips_file_path),
+        cls.tiler = PhilipsTiffTiler(
+            TiffFile(philips_file_path),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
-        cls.level: PhillipsTiffTiledPage = cls.tiler.get_level(0)
+        cls.level: PhilipsTiffTiledPage = cls.tiler.get_level(0)
 
     @classmethod
     def tearDownClass(cls):
