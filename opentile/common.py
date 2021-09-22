@@ -119,8 +119,8 @@ class OpenTilePage(metaclass=ABCMeta):
     def get_tile(self, tile: Tuple[int, int]) -> bytes:
         raise NotImplementedError
 
-    def get_tiles(self, tiles: List[Tuple[int, int]]) -> Iterator[List[bytes]]:
-        """Return iterator of list of bytes for tile positions.
+    def get_tiles(self, tile_positions: List[Tuple[int, int]]) -> List[bytes]:
+        """Return list of bytes for tile positions.
 
         Parameters
         ----------
@@ -129,11 +129,11 @@ class OpenTilePage(metaclass=ABCMeta):
 
         Returns
         ----------
-        bytes
-            Produced tile at position.
+        List[bytes]
+            List of tile bytes.
         """
         return (
-            [self.get_tile(tile)] for tile in tiles
+            self.get_tile(tile) for tile in tile_positions
         )
 
     def close(self) -> None:

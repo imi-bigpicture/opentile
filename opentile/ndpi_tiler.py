@@ -527,8 +527,8 @@ class NdpiTiledPage(NdpiPage):
             self._tile_cache.update(new_tiles)
         return self._tile_cache[tile_point]
 
-    def get_tiles(self, tiles: List[Tuple[int, int]]) -> Iterator[List[bytes]]:
-        """Return iterator of list of bytes for tile positions.
+    def get_tiles(self, tile_positions: List[Tuple[int, int]]) -> List[bytes]:
+        """Return list of bytes for tile positions.
 
         Parameters
         ----------
@@ -537,14 +537,15 @@ class NdpiTiledPage(NdpiPage):
 
         Returns
         ----------
-        bytes
-            Produced tile at position.
+        List[bytes]
+            List of tile bytes.
         """
-        tile_jobs = self._sort_into_tile_jobs(tiles)
-        with ThreadPoolExecutor() as pool:
-            def thread(tile_job: NdpiTileJob) -> List[bytes]:
-                return self._create_tiles(tile_job).values()
-            return pool.map(thread, tile_jobs)
+        tile_jobs = self._sort_into_tile_jobs(tile_positions)
+        return [
+            tile
+            for tile_job in tile_jobs
+            for tile in self._create_tiles(tile_job).values()
+        ]
 
     def _create_tiles(
         self,
