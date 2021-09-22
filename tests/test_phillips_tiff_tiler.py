@@ -11,7 +11,7 @@ phillips_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
     "C:/temp/opentile/phillips_tiff/"
 )
-sub_data_path = "input.tif"
+sub_data_path = "phillips1/input.tif"
 phillips_file_path = phillips_test_data_dir + '/' + sub_data_path
 
 

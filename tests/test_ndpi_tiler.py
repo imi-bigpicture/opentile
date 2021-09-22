@@ -12,7 +12,7 @@ ndpi_test_data_dir = os.environ.get(
     "NDPI_TESTDIR",
     "C:/temp/opentile/ndpi/"
 )
-sub_data_path = "ham/ndpi/input.ndpi"
+sub_data_path = "ndpi2/input.ndpi"
 ndpi_file_path = ndpi_test_data_dir + '/' + sub_data_path
 
 

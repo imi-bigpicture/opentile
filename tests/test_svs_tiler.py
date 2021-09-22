@@ -11,7 +11,7 @@ svs_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
     "C:/temp/opentile/svs/"
 )
-sub_data_path = "input.svs"
+sub_data_path = "svs1/input.svs"
 svs_file_path = svs_test_data_dir + '/' + sub_data_path
 
 
