@@ -11,11 +11,18 @@ Please note that this is an early release and the API is not frozen yet. Functio
 Files with z-stacks are currently not fully supported.
 
 ## File formats
+The following description of the workings of the supported file formats does not include the additional specifics for each format that is handled by tifffile.
+
 ***Hamamatsu Ndpi***
+The Ndpi-format uses non-rectangular tile size typically 8 pixels high, i.e. stripes. To form tiles, first multiple stripes are concatenated to form a frame covering the tile region. Second, if the stripes are longer than the tile width, the tile is croped out of the frame. The concatenation and crop transformations are performed losslessly.
+
+A ndpi-file can also contain non-tiled images. If these are part of a pyramidal series, *opentile* tiles the image.
 
 ***Phillips tiff***
+The Phillips tiff-format allows tiles to be sparse, i.e. missing. For such tiles, *opentile* instead provides a blank (currently white) tile image using the same jpeg header as the rest of the image.
 
 ***Aperio svs***
+Some Asperio svs-files have corrupt tile data at edges of non-base pyramidal levels. This is observed as tiles with 0-byte length and tiles with incorrect pixel data. *opentile* currently does not implement a way to handle this problem.
 
 ## Basic usage
 ***Load a Ndpi-file using tile size (1024, 1024) pixels.***
