@@ -43,10 +43,13 @@ class LockableFileHandle:
         return data
 
     def close(self) -> None:
+        """Close the file handle"""
         self._fh.close()
 
 
 class OpenTilePage(metaclass=ABCMeta):
+    _pyramid_index: int
+
     def __init__(
         self,
         page: TiffPage,
@@ -68,12 +71,12 @@ class OpenTilePage(metaclass=ABCMeta):
     def __repr__(self) -> str:
         raise NotImplementedError
 
-    @abstractmethod
     def __str__(self) -> str:
-        raise NotImplementedError
+        return f"{type(self).__name__} of page {self._page}"
 
     @property
     def compression(self) -> str:
+        """Return compression of page."""
         return str(self._page.compression)
 
     @property
@@ -83,6 +86,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def focal_plane(self) -> float:
+        """Return focal plane (in um)."""
         return 0.0
 
     @property
@@ -92,27 +96,33 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @cached_property
     def image_size(self) -> Size:
-        """The size of the image."""
+        """The pixel size of the image."""
         return Size(self._page.shape[1], self._page.shape[0])
 
-    @property
-    @abstractmethod
-    def pyramid_index(self) -> int:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
+    @cached_property
     def tile_size(self) -> Size:
-        raise NotImplementedError
+        if self.page.is_tiled:
+            return Size(
+                int(self.page.tilewidth),
+                int(self.page.tilelength)
+            )
+        return self.image_size
 
     @property
-    @abstractmethod
     def tiled_size(self) -> Size:
-        raise NotImplementedError
+        if self.tile_size != Size(0, 0):
+            return (self.image_size / self.tile_size).ceil()
+        else:
+            return Size(1, 1)
+
+    @property
+    def pyramid_index(self) -> int:
+        return self._pyramid_index
 
     @property
     @abstractmethod
     def pixel_spacing(self) -> SizeMm:
+        """Should return the pixel size in mm/pixel of the page."""
         raise NotImplementedError
 
     @abstractmethod
@@ -192,23 +202,6 @@ class OpenTilePage(metaclass=ABCMeta):
 
 class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
     """Meta class for pages that are natively tiled (e.g. not ndpi)"""
-    @cached_property
-    def tile_size(self) -> Size:
-        return Size(
-            int(self.page.tilewidth),
-            int(self.page.tilelength)
-        )
-
-    @cached_property
-    def tiled_size(self) -> Size:
-        if self.tile_size != Size(0, 0):
-            return Size(
-                math.ceil(self.image_size.width / self.tile_size.width),
-                math.ceil(self.image_size.height / self.tile_size.height)
-            )
-        else:
-            return Size(1, 1)
-
     def _tile_position_to_frame_index(
         self,
         tile_position: Tuple[int, int]

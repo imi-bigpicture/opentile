@@ -45,13 +45,6 @@ class SvsTiledPage(NativeTiledPage):
             f"{self._base_shape}, {self._base_mpp})"
         )
 
-    def __str__(self) -> str:
-        return f"{type(self).__name__} of page {self._page}"
-
-    @property
-    def pyramid_index(self) -> int:
-        return self._pyramid_index
-
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""

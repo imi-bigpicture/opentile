@@ -9,7 +9,7 @@ from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries, TiffFile
 from opentile.geometry import Size, SizeMm
 from opentile.common import NativeTiledPage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.utils import (calculate_mpp, calculate_pyramidal_index,
+from opentile.utils import (Jpeg, calculate_mpp, calculate_pyramidal_index,
                             split_and_cast_text)
 
 
@@ -53,13 +53,6 @@ class PhilipsTiffTiledPage(NativeTiledPage):
             f"{self._base_shape}, {self._base_mpp}, {self._jpeg})"
         )
 
-    def __str__(self) -> str:
-        return f"{type(self).__name__} of page {self._page}"
-
-    @property
-    def pyramid_index(self) -> int:
-        return self._pyramid_index
-
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
@@ -101,7 +94,7 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         """Add jpeg tables to frame."""
         # frame has jpeg header but no tables. Insert tables before start
         # of scan tag.
-        start_of_scan = frame.find(bytes([0xFF, 0xDA]))
+        start_of_scan = frame.find(Jpeg.start_of_scan())
         with io.BytesIO() as buffer:
             buffer.write(frame[0:start_of_scan])
             tables = self.page.jpegtables[2:-2]  # No start and end tags

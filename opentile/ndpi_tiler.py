@@ -13,7 +13,7 @@ from tifffile.tifffile import TIFF, TiffTag
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.common import OpenTilePage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.utils import get_value_from_tiff_tags
+from opentile.utils import get_value_from_tiff_tags, Jpeg
 
 
 def get_value_from_ndpi_comments(
@@ -25,37 +25,6 @@ def get_value_from_ndpi_comments(
         if value_name in line:
             value_string = line.split('=')[1]
             return(value_type(value_string))
-
-
-class Tags:
-    TAGS = {
-        'tag marker': 0xFF,
-        'start of image': 0xD8,
-        'application default header': 0xE0,
-        'quantization table': 0xDB,
-        'start of frame': 0xC0,
-        'huffman table': 0xC4,
-        'start of scan': 0xDA,
-        'end of image': 0xD9,
-        'restart interval': 0xDD,
-        'restart mark': 0xD0
-    }
-
-    @classmethod
-    def start_of_frame(cls) -> bytes:
-        """Return bytes representing a start of frame tag."""
-        return bytes([cls.TAGS['tag marker'], cls.TAGS['start of frame']])
-
-    @classmethod
-    def end_of_image(cls) -> bytes:
-        """Return bytes representing a end of image tag."""
-        return bytes([cls.TAGS['tag marker'], cls.TAGS['end of image']])
-
-    @classmethod
-    def restart_mark(cls, index: int) -> bytes:
-        """Return bytes representing a restart marker of index (0-7), without
-        the prefixing tag (0xFF)."""
-        return bytes([cls.TAGS['restart mark'] + index % 8])
 
 
 class NdpiCache():
@@ -320,16 +289,9 @@ class NdpiTileJob:
 
 class NdpiPage(OpenTilePage, metaclass=ABCMeta):
     """Meta class for ndpi file page."""
-    @property
-    def pyramid_index(self) -> int:
-        return 0
 
     @abstractmethod
     def __repr__(self) -> str:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __str__(self) -> str:
         raise NotImplementedError
 
     @cached_property
@@ -390,24 +352,12 @@ class NdpiPage(OpenTilePage, metaclass=ABCMeta):
 class NdpiNonTiledPage(NdpiPage):
     """Simple class for Ndpi page that should not be tiled (e.g. overview or
     label)"""
+    _pyramid_index = 0
 
     def __repr__(self) -> str:
         return (
             f"{type(self).__name__}({self._page}, {self._fh}"
         )
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__} of page {self._page}"
-
-    @property
-    def tile_size(self) -> Size:
-        """The size of the tiles to generate."""
-        return self.image_size
-
-    @cached_property
-    def tiled_size(self) -> Size:
-        """The level size when tiled (columns and rows of tiles)."""
-        return Size(1, 1)
 
     def get_tile(self, tile: Tuple[int, int]) -> bytes:
         if tile != (0, 0):
@@ -457,10 +407,6 @@ class NdpiTiledPage(NdpiPage):
         self._headers: Dict[Size, bytes] = {}
 
     @property
-    def pyramid_index(self) -> int:
-        return self._pyramid_index
-
-    @property
     def tile_size(self) -> Size:
         """The size of the tiles to generate."""
         return self._tile_size
@@ -469,11 +415,6 @@ class NdpiTiledPage(NdpiPage):
     def frame_size(self) -> Size:
         """The default read size used for reading frames."""
         return Size.max(self.tile_size, self._file_frame_size)
-
-    @cached_property
-    def tiled_size(self) -> Size:
-        """The level size when tiled (columns and rows of tiles)."""
-        return (self.image_size / self.tile_size).ceil()
 
     @abstractmethod
     def _read_extended_frame(
@@ -649,9 +590,6 @@ class NdpiOneFramePage(NdpiTiledPage):
             f"{self.tile_size}, {self._jpeg})"
         )
 
-    def __str__(self) -> str:
-        return f"{type(self).__name__} of page {self._page}"
-
     def _get_file_frame_size(self) -> Size:
         """Return size of the single frame in file. For single framed page
         this is equal to the level size.
@@ -712,9 +650,6 @@ class NdpiStripedPage(NdpiTiledPage):
             f"{type(self).__name__}({self._page}, {self._fh}, "
             f"{self.tile_size}, {self._jpeg})"
         )
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__} of page {self._page}"
 
     @property
     def stripe_size(self) -> Size:
@@ -866,9 +801,9 @@ class NdpiStripedPage(NdpiTiledPage):
         for stripe_coordiante in stripe_region.iterate_all():
             index = self._get_stripe_position_to_index(stripe_coordiante)
             jpeg_data += self._read_frame(index)[:-1]
-            jpeg_data += Tags.restart_mark(restart_marker_index)
+            jpeg_data += Jpeg.restart_mark(restart_marker_index)
             restart_marker_index += 1
-        jpeg_data += Tags.end_of_image()
+        jpeg_data += Jpeg.end_of_image()
         return jpeg_data
 
     @staticmethod
@@ -916,7 +851,7 @@ class NdpiStripedPage(NdpiTiledPage):
 
         header = bytearray(self._page.jpegheader)
         start_of_frame_index, length = self._find_tag(
-            header, Tags.start_of_frame()
+            header, Jpeg.start_of_frame()
         )
         if start_of_frame_index is None:
             raise ValueError("Start of scan tag not found in header")
