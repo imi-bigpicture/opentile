@@ -22,7 +22,7 @@ class LockableFileHandle:
         return f"{type(self).__name__}({self._fh})"
 
     def read(self, offset: int, bytecount: int) -> bytes:
-        """Return bytes from filehandle.
+        """Return bytes from file handle.
 
         Parameters
         ----------
@@ -47,6 +47,7 @@ class LockableFileHandle:
 
 
 class OpenTilePage(metaclass=ABCMeta):
+    """Abstract class for reading tiles from TiffPage."""
     _pyramid_index: int
 
     def __init__(
@@ -54,7 +55,7 @@ class OpenTilePage(metaclass=ABCMeta):
         page: TiffPage,
         fh: FileHandle
     ):
-        """Abstract class for getting tiles from TiffPage.
+        """Abstract class for reading tiles from TiffPage.
 
         Parameters
         ----------
@@ -90,7 +91,8 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def optical_path(self) -> str:
-        # Not sure if there is optical paths in tiff files...
+        """Return optical path identifier."""
+        # Not sure if optical paths are defined in tiff files...
         return '0'
 
     @cached_property
@@ -100,6 +102,8 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @cached_property
     def tile_size(self) -> Size:
+        """The pixel size of the tiles. Returns image size if not tiled page
+        """
         if self.page.is_tiled:
             return Size(
                 int(self.page.tilewidth),
@@ -109,6 +113,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def tiled_size(self) -> Size:
+        """The size of the image when tiled."""
         if self.tile_size != Size(0, 0):
             return (self.image_size / self.tile_size).ceil()
         else:
@@ -116,6 +121,8 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def pyramid_index(self) -> int:
+        """The pyramidal index in relation to the base layer. Returns 0 for
+        images not in pyramidal series."""
         return self._pyramid_index
 
     @property
@@ -125,11 +132,39 @@ class OpenTilePage(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def get_tile(self, tile: Tuple[int, int]) -> bytes:
+    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
+        """Should return image bytes for tile at tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
+        """Return decoded tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
         raise NotImplementedError
 
     def get_tiles(self, tile_positions: List[Tuple[int, int]]) -> List[bytes]:
-        """Return list of bytes for tile positions.
+        """Return list of image bytes for tiles at tile positions.
 
         Parameters
         ----------
@@ -143,6 +178,25 @@ class OpenTilePage(metaclass=ABCMeta):
         """
         return (
             self.get_tile(tile) for tile in tile_positions
+        )
+
+    def get_decoded_tiles(
+        self, tile_positions: List[Tuple[int, int]]
+    ) -> List[np.ndarray]:
+        """Return list of decoded tiles for tiles at tile positions.
+
+        Parameters
+        ----------
+        tile_positions: List[Tuple[int, int]]
+            Tile positions to get.
+
+        Returns
+        ----------
+        List[np.ndarray]
+            List of decoded tiles.
+        """
+        return (
+            self.get_decoded_tile(tile) for tile in tile_positions
         )
 
     def close(self) -> None:
@@ -173,8 +227,7 @@ class OpenTilePage(metaclass=ABCMeta):
         return region.is_inside(self.tiled_region)
 
     def _read_frame(self, index: int) -> bytes:
-        """Read frame bytes at index from file. Locks the filehandle while
-        reading.
+        """Read frame bytes at index from file.
 
         Parameters
         ----------
@@ -212,13 +265,14 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
 
     @abstractmethod
     def _add_jpeg_tables(self, frame) -> bytes:
+        """Should add needed jpeg tables to image bytes if needed."""
         raise NotImplementedError
 
     def get_tile(
         self,
         tile_position: Tuple[int, int]
     ) -> bytes:
-        """Return tile for tile position.
+        """Return image bytes for tile at tile position.
 
         Parameters
         ----------
@@ -236,8 +290,20 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
             return self._add_jpeg_tables(frame)
         return frame
 
-    def get_decoded_tile(self, tile: Tuple[int, int]) -> np.ndarray:
-        frame_index = self._tile_position_to_frame_index(tile)
+    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
+        """Return decoded tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        frame_index = self._tile_position_to_frame_index(tile_position)
         frame = self._read_frame(frame_index)
         if self.compression == 'COMPRESSION.JPEG':
             tables = self.page.jpegtables
@@ -252,24 +318,34 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
 
 
 class Tiler:
+    """Abstract class for reading pages from TiffFile."""
+    _level_series_index: int = None
+    _overview_series_index: int = None
+    _label_series_index: int = None
+
     def __init__(self, tiff_file: TiffFile):
+        """Abstract class for reading pages from TiffFile.
+
+        Parameters
+        ----------
+        tiff_file: TiffFile
+            TiffFile to read pages from
+        """
         self._tiff_file = tiff_file
-        self._level_series_index: int = None
-        self._overview_series_index: int = None
-        self._label_series_index: int = None
 
     @property
     def properties(self) -> Dict[str, any]:
+        """Dictionary of properties read from TiffFile."""
         return {}
 
     @cached_property
     def base_page(self) -> TiffPage:
-        """Return base pyramid level in volume series."""
+        """Return base pyramid level in pyramid series."""
         return self.series[self._level_series_index].pages[0]
 
     @cached_property
     def base_size(self) -> Size:
-        """Return size of base pyramid level in volume series."""
+        """Return size of base pyramid level in pyramid series."""
         return Size(self.base_page.shape[1], self.base_page.shape[0])
 
     @property
@@ -279,7 +355,7 @@ class Tiler:
 
     @property
     def levels(self) -> List[OpenTilePage]:
-        """Return list of volume level OpenTilePages."""
+        """Return list of pyramid level OpenTilePages."""
         if self._level_series_index is None:
             return []
         return [
@@ -315,6 +391,7 @@ class Tiler:
 
     @abstractmethod
     def get_page(self, series: int, level: int, page: int) -> OpenTilePage:
+        """Should return a OpenTilePage for series, level, page in file."""
         raise NotImplementedError
 
     def close(self) -> None:
@@ -328,7 +405,7 @@ class Tiler:
         page: int,
         tile_position: Tuple[int, int]
     ) -> bytes:
-        """Return tile for tile position x and y.
+        """Return list of image bytes for tiles at tile positions.
 
         Parameters
         ----------
@@ -354,7 +431,7 @@ class Tiler:
         level: int,
         page: int = 0
     ) -> OpenTilePage:
-        """Return OpenTilePage for level in volume series.
+        """Return OpenTilePage for level in pyramid series.
 
         Parameters
         ----------
@@ -372,15 +449,12 @@ class Tiler:
 
     def get_label(
         self,
-        index: int = 0,
         page: int = 0
     ) -> OpenTilePage:
         """Return OpenTilePage for label in label series.
 
         Parameters
         ----------
-        index: int
-            Index of label to get.
         page: int
             Index of page to get.
 
@@ -389,19 +463,16 @@ class Tiler:
         OpenTilePage
             Label OpenTilePage.
         """
-        return self.get_page(self._label_series_index, index, page)
+        return self.get_page(self._label_series_index, 0, page)
 
     def get_overview(
         self,
-        index: int = 0,
         page: int = 0
     ) -> OpenTilePage:
         """Return OpenTilePage for overview in overview series.
 
         Parameters
         ----------
-        index: int
-            Index of overview to get.
         page: int
             Index of page to get.
 
@@ -410,4 +481,4 @@ class Tiler:
         OpenTilePage
             Overview OpenTilePage.
         """
-        return self.get_page(self._overview_series_index, index, page)
+        return self.get_page(self._overview_series_index, 0, page)

@@ -189,8 +189,7 @@ class PhilipsTiffTiler(Tiler):
         level: int,
         page: int = 0
     ) -> PhilipsTiffTiledPage:
-        """Return PhilipsTiffTiledPage for series, level, page.
-        """
+        """Return PhilipsTiffTiledPage for series, level, page."""
         tiff_page = self.series[series].levels[level].pages[page]
         return PhilipsTiffTiledPage(
             tiff_page,

@@ -102,8 +102,7 @@ class SvsTiler(Tiler):
         level: int,
         page: int = 0
     ) -> SvsTiledPage:
-        """Return SvsTiledPage for series, level, page.
-        """
+        """Return SvsTiledPage for series, level, page."""
         tiff_page = self.series[series].levels[level].pages[page]
         return SvsTiledPage(
             tiff_page,

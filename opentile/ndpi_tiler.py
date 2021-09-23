@@ -13,6 +13,7 @@ from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.common import OpenTilePage, Tiler
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 from opentile.utils import get_value_from_tiff_tags, Jpeg
+import numpy as np
 
 
 def get_value_from_ndpi_comments(
@@ -20,6 +21,7 @@ def get_value_from_ndpi_comments(
     value_name: str,
     value_type: Type
 ) -> any:
+    """Read value from ndpi comment string."""
     for line in comments.split("\n"):
         if value_name in line:
             value_string = line.split('=')[1]
@@ -272,14 +274,17 @@ class NdpiTileJob:
 
     @property
     def frame_size(self) -> Size:
+        """Frame size required for reading tiles in NdpiTileJob."""
         return self._frame_size
 
     @property
     def tiles(self) -> List[NdpiTile]:
+        """Tiles in NdpiTileJob."""
         return self._tiles
 
     @property
     def crop_parameters(self) -> List[Tuple[int, int, int, int]]:
+        """Parameters for croping tiles in NdpiTileJob from frame."""
         return [
             (tile.left, tile.top, tile.width, tile.height)
             for tile in self._tiles
@@ -295,6 +300,7 @@ class NdpiPage(OpenTilePage, metaclass=ABCMeta):
 
     @cached_property
     def focal_plane(self) -> List[float]:
+        """Return focal plane (in um)."""
         # Return focal plane in um.
         try:
             # Defined in nm
@@ -349,8 +355,7 @@ class NdpiPage(OpenTilePage, metaclass=ABCMeta):
 
 
 class NdpiNonTiledPage(NdpiPage):
-    """Simple class for Ndpi page that should not be tiled (e.g. overview or
-    label)"""
+    """Ndpi page that should not be tiled (e.g. overview or label)"""
     _pyramid_index = 0
 
     def __repr__(self) -> str:
@@ -364,7 +369,7 @@ class NdpiNonTiledPage(NdpiPage):
         return self._read_frame(0)
 
 
-class NdpiTiledPage(NdpiPage):
+class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
     def __init__(
         self,
         page: TiffPage,
@@ -375,7 +380,7 @@ class NdpiTiledPage(NdpiPage):
         tile_cache: int = 10,
         frame_cache: int = 10
     ):
-        """Metaclass for a tiled ndpi page, should not be used.
+        """Metaclass for a tiled ndpi page.
 
         Parameters
         ----------
@@ -420,7 +425,7 @@ class NdpiTiledPage(NdpiPage):
         self, tile_position: Point,
         frame_size: Size
     ) -> bytes:
-        """Read frame of frame size covering tile position."""
+        """Read a frame of size frame_size covering tile_position."""
         raise NotImplementedError
 
     @abstractmethod
@@ -437,7 +442,8 @@ class NdpiTiledPage(NdpiPage):
         self,
         tile_position: Tuple[int, int]
     ) -> bytes:
-        """Return tile for tile position. Caches created frames and tiles.
+        """Return image bytes for tile at tile position. Caches created frames
+        and tiles.
 
         Parameters
         ----------
@@ -467,8 +473,24 @@ class NdpiTiledPage(NdpiPage):
             self._tile_cache.update(new_tiles)
         return self._tile_cache[tile_point]
 
+    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
+        """Return decoded tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        tile = self.get_tile(tile_position)
+        return TurboJPEG.decode(tile)
+
     def get_tiles(self, tile_positions: List[Tuple[int, int]]) -> List[bytes]:
-        """Return list of bytes for tile positions.
+        """Return list of image bytes for tile positions.
 
         Parameters
         ----------
@@ -483,6 +505,28 @@ class NdpiTiledPage(NdpiPage):
         tile_jobs = self._sort_into_tile_jobs(tile_positions)
         return [
             tile
+            for tile_job in tile_jobs
+            for tile in self._create_tiles(tile_job).values()
+        ]
+
+    def get_decoded_tiles(
+        self, tile_positions: List[Tuple[int, int]]
+    ) -> List[np.ndarray]:
+        """Return list of decoded tiles for tiles at tile positions.
+
+        Parameters
+        ----------
+        tile_positions: List[Tuple[int, int]]
+            Tile positions to get.
+
+        Returns
+        ----------
+        List[np.ndarray]
+            List of decoded tiles.
+        """
+        tile_jobs = self._sort_into_tile_jobs(tile_positions)
+        return [
+            TurboJPEG.decode(tile)
             for tile_job in tile_jobs
             for tile in self._create_tiles(tile_job).values()
         ]
