@@ -1,14 +1,13 @@
 import math
 import struct
 from abc import ABCMeta, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
 from pathlib import Path
 from struct import unpack
-from typing import Dict, Iterator, List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 from tifffile import FileHandle, TiffPage, TiffFile
-from tifffile.tifffile import TIFF, TiffTag
+from tifffile.tifffile import TIFF
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.common import OpenTilePage, Tiler

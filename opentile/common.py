@@ -1,7 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from functools import cached_property
-from typing import Dict, Iterator, List, Tuple
-import math
+from typing import Dict, List, Tuple
 import threading
 
 import numpy as np
