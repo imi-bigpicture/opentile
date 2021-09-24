@@ -30,7 +30,7 @@ def get_value_from_ndpi_comments(
 
 class NdpiCache():
     """Cache for bytes ordered by tile position. Oldest entry is removed when
-    size of conent is above set size."""
+    size of content is above set size."""
     def __init__(self, size: int):
         """Create cache for size items.
 
@@ -291,14 +291,17 @@ class NdpiTileJob:
         ]
 
 
-class NdpiPage(OpenTilePage, metaclass=ABCMeta):
+class NdpiPage(OpenTilePage):
+    _pyramid_index = 0
+
     def __init__(
         self,
         page: TiffPage,
         fh: FileHandle,
         jpeg: TurboJPEG
     ):
-        """Meta class for ndpi file page. Image data is assumed to be jpeg.
+        """Ndpi page that should not be tiled (e.g. overview or label).
+        Image data is assumed to be jpeg.
 
         Parameters
         ----------
@@ -317,9 +320,15 @@ class NdpiPage(OpenTilePage, metaclass=ABCMeta):
             )
         self._jpeg = jpeg
 
-    @abstractmethod
     def __repr__(self) -> str:
-        raise NotImplementedError
+        return (
+            f"{type(self).__name__}({self._page}, {self._fh}"
+        )
+
+    def get_tile(self, tile: Tuple[int, int]) -> bytes:
+        if tile != (0, 0):
+            raise ValueError
+        return self._read_frame(0)
 
     @cached_property
     def focal_plane(self) -> List[float]:
@@ -391,21 +400,6 @@ class NdpiPage(OpenTilePage, metaclass=ABCMeta):
         mpp_x = 1/x_resolution
         mpp_y = 1/y_resolution
         return SizeMm(mpp_x, mpp_y)
-
-
-class NdpiNonTiledPage(NdpiPage):
-    """Ndpi page that should not be tiled (e.g. overview or label)"""
-    _pyramid_index = 0
-
-    def __repr__(self) -> str:
-        return (
-            f"{type(self).__name__}({self._page}, {self._fh}"
-        )
-
-    def get_tile(self, tile: Tuple[int, int]) -> bytes:
-        if tile != (0, 0):
-            raise ValueError
-        return self._read_frame(0)
 
 
 class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
@@ -1053,7 +1047,7 @@ class NdpiTiler(Tiler):
                 self.tile_size,
                 self._jpeg
             )
-        return NdpiNonTiledPage(
+        return NdpiPage(
             page,
             self._fh,
             self._jpeg
