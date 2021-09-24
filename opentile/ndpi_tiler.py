@@ -97,7 +97,7 @@ class NdpiCache():
         bool
             True if key is in cache.
         """
-        return key in self._content.keys()
+        return key in self._content
 
     def update(self, items: Dict[Point, bytes]) -> None:
         """Update items in cache. Remove old items if needed.
@@ -636,7 +636,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
                 )
             frame_size = self._get_frame_size_for_tile(tile_point)
             tile = NdpiTile(tile_point, self.tile_size, frame_size)
-            if tile.origin in tile_jobs.keys():
+            if tile.origin in tile_jobs:
                 tile_jobs[tile.origin].append(tile)
             else:
                 tile_jobs[tile.origin] = NdpiTileJob([tile])
@@ -817,9 +817,9 @@ class NdpiStripedPage(NdpiTiledPage):
         bytes
             Concatenated frame as jpeg bytes.
         """
-        try:
+        if frame_size in self._headers:
             header = self._headers[frame_size]
-        except KeyError:
+        else:
             header = self._create_header(frame_size)
             self._headers[frame_size] = header
         jpeg_data = header
