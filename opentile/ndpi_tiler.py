@@ -498,13 +498,14 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             )
         # If tile not in cached
         if tile_point not in self._tile_cache:
-            # Create a tile job
+            # Get frame size for reading out tile at tile point
             frame_size = self._get_frame_size_for_tile(tile_point)
+            # Create a NdpiTile and add the single tile to a NdtiTileJob
             tile = NdpiTile(tile_point, self.tile_size, frame_size)
             tile_job = NdpiTileJob([tile])
-            # Create tile
+            # Create the tile from the single NdpiTile in the NdpiTileJob
             new_tiles = self._create_tiles(tile_job)
-            # Add to tile cache
+            # Add the tile to tile cache
             self._tile_cache.update(new_tiles)
         return self._tile_cache[tile_point]
 
@@ -860,8 +861,8 @@ class NdpiStripedPage(NdpiTiledPage):
             (origin * self.tile_size) // self.stripe_size,
             Size.max(frame_size // self.stripe_size, Size(1, 1))
         )
-        for stripe_coordiante in stripe_region.iterate_all():
-            index = self._get_stripe_position_to_index(stripe_coordiante)
+        for stripe_coordinate in stripe_region.iterate_all():
+            index = self._get_stripe_position_to_index(stripe_coordinate)
             jpeg_data += self._read_frame(index)[:-1]
             jpeg_data += Jpeg.restart_mark(restart_marker_index)
             restart_marker_index += 1
