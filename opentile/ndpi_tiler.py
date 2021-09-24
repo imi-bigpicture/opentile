@@ -298,7 +298,7 @@ class NdpiPage(OpenTilePage, metaclass=ABCMeta):
         fh: FileHandle,
         jpeg: TurboJPEG
     ):
-        """Meta class for ndpi file page.
+        """Meta class for ndpi file page. Image data is assumed to be jpeg.
 
         Parameters
         ----------
@@ -310,6 +310,11 @@ class NdpiPage(OpenTilePage, metaclass=ABCMeta):
             TurboJpeg instance to use.
         """
         super().__init__(page, fh)
+        if self.compression != 'COMPRESSION.JPEG':
+            raise NotImplementedError(
+                f'{self.compression} is unsupported for ndpi '
+                '(Only jpeg is supported)'
+            )
         self._jpeg = jpeg
 
     @abstractmethod
@@ -414,7 +419,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         tile_cache: int = 10,
         frame_cache: int = 10
     ):
-        """Metaclass for a tiled ndpi page. Image data is assumed to be jpeg.
+        """Metaclass for a tiled ndpi page.
 
         Parameters
         ----------
@@ -434,11 +439,6 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             Number of read frames to cache.
         """
         super().__init__(page, fh, jpeg)
-        if self.compression != 'COMPRESSION.JPEG':
-            raise NotImplementedError(
-                f'{self.compression} is unsupported for ndpi '
-                '(Only jpeg is supported)'
-            )
         self._pyramid_index = int(
             math.log2(base_shape.width/self.image_size.width)
         )
