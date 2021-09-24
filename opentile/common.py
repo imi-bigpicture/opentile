@@ -371,10 +371,9 @@ class Tiler:
         if self._label_series_index is None:
             return []
         return [
-            self.get_label(level_index, page_index)
-            for level_index, level
-            in enumerate(self.series[self._label_series_index].levels)
-            for page_index, page in enumerate(level.pages)
+            self.get_label(page_index)
+            for page_index, page
+            in enumerate(self.series[self._label_series_index].pages)
         ]
 
     @property
@@ -383,10 +382,9 @@ class Tiler:
         if self._overview_series_index is None:
             return []
         return [
-            self.get_overview(level_index, page_index)
-            for level_index, level
-            in enumerate(self.series[self._overview_series_index].levels)
-            for page_index, page in enumerate(level.pages)
+            self.get_overview(page_index)
+            for page_index, page
+            in enumerate(self.series[self._overview_series_index].pages)
         ]
 
     @abstractmethod
