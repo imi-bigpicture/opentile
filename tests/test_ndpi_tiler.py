@@ -258,7 +258,7 @@ class NdpiTilerTest(unittest.TestCase):
 
         self.assertEqual(
             [Point(index, index) for index in range(10, 20)],
-            list(cache.keys())
+            list(cache._content.keys())
         )
 
     def test_stripe_size(self):

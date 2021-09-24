@@ -80,20 +80,23 @@ class NdpiCache():
         ----------
         bytes
             Value for key.
-
         """
         return self._content[key]
 
-    def keys(self) -> List[Point]:
-        """Returns keys in cache.
+    def __contains__(self, key: Point) -> bool:
+        """Return true if key in cache.
+
+        Parameters
+        ----------
+        key: Point
+            Key to check for.
 
         Returns
         ----------
-        List[Point]
-            Keys in cache.
-
+        bool
+            True if key is in cache.
         """
-        return self._content.keys()
+        return key in self._content.keys()
 
     def update(self, items: Dict[Point, bytes]) -> None:
         """Update items in cache. Remove old items if needed.
@@ -494,7 +497,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
                 f"tiled size {self.tiled_size}"
             )
         # If tile not in cached
-        if tile_point not in self._tile_cache.keys():
+        if tile_point not in self._tile_cache:
             # Create a tile job
             frame_size = self._get_frame_size_for_tile(tile_point)
             tile = NdpiTile(tile_point, self.tile_size, frame_size)
