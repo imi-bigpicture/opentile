@@ -9,7 +9,7 @@ from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.utils import (Jpeg, calculate_mpp, calculate_pyramidal_index)
+from opentile.utils import Jpeg
 
 
 class PhilipsTiffTiledPage(NativeTiledPage):
@@ -40,11 +40,8 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         self._jpeg = jpeg
         self._base_shape = base_shape
         self._base_mpp = base_mpp
-        self._pyramid_index = calculate_pyramidal_index(
-            self._base_shape,
-            self.image_size
-        )
-        self._mpp = calculate_mpp(self._base_mpp, self.pyramid_index)
+        self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
+        self._mpp = self._calculate_mpp(self._base_mpp)
 
     def __repr__(self) -> str:
         return (

@@ -13,8 +13,7 @@ from tifffile.tifffile import TIFF
 from opentile.common import OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.utils import (Jpeg, calculate_pyramidal_index,
-                            get_value_from_tiff_tags)
+from opentile.utils import Jpeg
 
 
 def get_value_from_ndpi_comments(
@@ -326,7 +325,7 @@ class NdpiPage(OpenTilePage):
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._page}, {self._fh}"
+            f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
         )
 
     def get_tile(self, tile: Tuple[int, int]) -> bytes:
@@ -362,10 +361,10 @@ class NdpiPage(OpenTilePage):
         model = ndpi_tags['Model']
         software_versions = [ndpi_tags['Software']]
         device_serial_number = ndpi_tags['ScannerSerialNumber']
-        aquisition_datatime = get_value_from_tiff_tags(
+        aquisition_datatime = self._get_value_from_tiff_tags(
             self.page.tags, 'DateTime'
         )
-        photometric_interpretation = get_value_from_tiff_tags(
+        photometric_interpretation = self._get_value_from_tiff_tags(
             self.page.tags, 'PhotometricInterpretation'
         )
         return {
@@ -437,15 +436,20 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             Number of read frames to cache.
         """
         super().__init__(page, fh, jpeg)
-        self._pyramid_index = calculate_pyramidal_index(
-            base_shape,
-            self.image_size
-        )
+        self._base_shape = base_shape
         self._tile_size = tile_size
         self._file_frame_size = self._get_file_frame_size()
+        self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
         self._tile_cache = NdpiCache(tile_cache)
         self._frame_cache = NdpiCache(frame_cache)
         self._headers: Dict[Size, bytes] = {}
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}({self._page}, {self._fh}, "
+            f"{self._base_shape}, {self.tile_size}, {self._jpeg}, "
+            f"{self._tile_cache._size}, {self._frame_cache._size})"
+        )
 
     @property
     def tile_size(self) -> Size:
@@ -649,12 +653,6 @@ class NdpiOneFramePage(NdpiTiledPage):
     The frame is padded to an even multipe of tile size.
     """
 
-    def __repr__(self) -> str:
-        return (
-            f"{type(self).__name__}({self._page}, {self._fh}, "
-            f"{self.tile_size}, {self._jpeg})"
-        )
-
     def _get_file_frame_size(self) -> Size:
         """Return size of the single frame in file. For single framed page
         this is equal to the level size.
@@ -709,12 +707,6 @@ class NdpiStripedPage(NdpiTiledPage):
     concatenating multiple stripes, and from the frame one or more tiles can be
     produced by lossless cropping.
     """
-
-    def __repr__(self) -> str:
-        return (
-            f"{type(self).__name__}({self._page}, {self._fh}, "
-            f"{self.tile_size}, {self._jpeg})"
-        )
 
     @property
     def stripe_size(self) -> Size:

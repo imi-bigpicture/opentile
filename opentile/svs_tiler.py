@@ -6,7 +6,6 @@ from tifffile.tifffile import (FileHandle, TiffFile, TiffPage,
 
 from opentile.geometry import Size, SizeMm
 from opentile.common import NativeTiledPage, Tiler
-from opentile.utils import calculate_mpp, calculate_pyramidal_index
 
 
 class SvsTiledPage(NativeTiledPage):
@@ -33,11 +32,8 @@ class SvsTiledPage(NativeTiledPage):
         super().__init__(page, fh)
         self._base_shape = base_shape
         self._base_mpp = base_mpp
-        self._pyramid_index = calculate_pyramidal_index(
-            self._base_shape,
-            self.image_size
-        )
-        self._mpp = calculate_mpp(self._base_mpp, self.pyramid_index)
+        self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
+        self._mpp = self._calculate_mpp(self._base_mpp)
 
     def __repr__(self) -> str:
         return (

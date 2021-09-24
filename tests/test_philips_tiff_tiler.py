@@ -3,8 +3,7 @@ import unittest
 from hashlib import md5
 
 import pytest
-from opentile.philips_tiff_tiler import (PhilipsTiffTiledPage,
-                                          PhilipsTiffTiler)
+from opentile.philips_tiff_tiler import PhilipsTiffTiledPage, PhilipsTiffTiler
 from tifffile import TiffFile
 
 philips_test_data_dir = os.environ.get(

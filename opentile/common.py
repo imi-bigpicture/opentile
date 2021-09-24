@@ -1,10 +1,12 @@
+import math
+import threading
 from abc import ABCMeta, abstractmethod
 from functools import cached_property
 from typing import Dict, List, Tuple
-import threading
 
 import numpy as np
-from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
+from tifffile.tifffile import (FileHandle, TiffFile, TiffPage, TiffPageSeries,
+                               TiffTag)
 
 from opentile.geometry import Point, Region, Size, SizeMm
 
@@ -263,6 +265,29 @@ class OpenTilePage(metaclass=ABCMeta):
             tile_position.x < self.tiled_size.width and
             tile_position.y < self.tiled_size.height
         )
+
+    @staticmethod
+    def _get_value_from_tiff_tags(
+        tiff_tags: List[TiffTag],
+        value_name: str
+    ) -> str:
+        for tag in tiff_tags:
+            if tag.name == value_name:
+                return tag.value
+
+    def _calculate_pyramidal_index(
+        self,
+        base_shape: Size,
+    ) -> int:
+        return int(
+            math.log2(base_shape.width/self.image_size.width)
+        )
+
+    def _calculate_mpp(
+        self,
+        base_mpp: SizeMm
+    ) -> SizeMm:
+        return base_mpp * pow(2, self.pyramid_index)
 
 
 class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
