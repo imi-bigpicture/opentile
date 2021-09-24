@@ -6,14 +6,15 @@ from pathlib import Path
 from struct import unpack
 from typing import Dict, List, Optional, Tuple, Type
 
-from tifffile import FileHandle, TiffPage, TiffFile
+import numpy as np
+from tifffile import FileHandle, TiffFile, TiffPage
 from tifffile.tifffile import TIFF
 
-from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.common import OpenTilePage, Tiler
+from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.utils import get_value_from_tiff_tags, Jpeg
-import numpy as np
+from opentile.utils import (Jpeg, calculate_pyramidal_index,
+                            get_value_from_tiff_tags)
 
 
 def get_value_from_ndpi_comments(
@@ -436,8 +437,9 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             Number of read frames to cache.
         """
         super().__init__(page, fh, jpeg)
-        self._pyramid_index = int(
-            math.log2(base_shape.width/self.image_size.width)
+        self._pyramid_index = calculate_pyramidal_index(
+            base_shape,
+            self.image_size
         )
         self._tile_size = tile_size
         self._file_frame_size = self._get_file_frame_size()
