@@ -1,16 +1,15 @@
 import io
 from functools import cached_property
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Type
 from xml.etree import ElementTree as etree
 
-from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries, TiffFile
+from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 
-from opentile.geometry import Size, SizeMm
 from opentile.common import NativeTiledPage, Tiler
+from opentile.geometry import Size, SizeMm
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.utils import (Jpeg, calculate_mpp, calculate_pyramidal_index,
-                            split_and_cast_text)
+from opentile.utils import (Jpeg, calculate_mpp, calculate_pyramidal_index)
 
 
 class PhilipsTiffTiledPage(NativeTiledPage):
@@ -166,7 +165,10 @@ class PhilipsTiffTiler(Tiler):
             if element.tag == 'Attribute':
                 name = element.attrib['Name']
                 if name == 'DICOM_PIXEL_SPACING' and pixel_spacing is None:
-                    pixel_spacing = split_and_cast_text(element.text, float)
+                    pixel_spacing = self._split_and_cast_text(
+                        element.text,
+                        float
+                    )
                 elif name == 'DICOM_ACQUISITION_DATETIME':
                     aquisition_datatime = element.text
                 elif name == 'DICOM_DEVICE_SERIAL_NUMBER':
@@ -174,14 +176,19 @@ class PhilipsTiffTiler(Tiler):
                 elif name == 'DICOM_MANUFACTURER':
                     manufacturer = element.text
                 elif name == 'DICOM_SOFTWARE_VERSIONS':
-                    software_versions = split_and_cast_text(element.text, str)
+                    software_versions = self._split_and_cast_text(
+                        element.text,
+                        str
+                    )
                 elif name == 'DICOM_LOSSY_IMAGE_COMPRESSION_METHOD':
-                    lossy_image_compression_method = split_and_cast_text(
-                        element.text, str
+                    lossy_image_compression_method = self._split_and_cast_text(
+                        element.text,
+                        str
                     )
                 elif name == 'DICOM_LOSSY_IMAGE_COMPRESSION_RATIO':
-                    lossy_image_compression_ratio = split_and_cast_text(
-                        element.text, float
+                    lossy_image_compression_ratio = self._split_and_cast_text(
+                        element.text,
+                        float
                     )
                 elif name == 'DICOM_PHOTOMETRIC_INTERPRETATION':
                     photometric_interpretation = element.text
@@ -235,7 +242,7 @@ class PhilipsTiffTiler(Tiler):
         return series.pages[0].description.find('Label') > - 1
 
     @staticmethod
-    def get_associated_mpp_from_page(page: TiffPage):
+    def _get_associated_mpp_from_page(page: TiffPage):
         """Return mpp (um/pixel) for associated image (label or
         macro) from page."""
         pixel_size_start_string = 'pixelsize=('
@@ -248,3 +255,9 @@ class PhilipsTiffTiler(Tiler):
             [float(v) for v in pixel_size_string.replace('"', '').split(',')]
         )
         return pixel_spacing / 1000.0
+
+    @staticmethod
+    def _split_and_cast_text(string: str, cast_type: Type) -> List[any]:
+        return [
+            cast_type(element) for element in string.replace('"', '').split()
+        ]

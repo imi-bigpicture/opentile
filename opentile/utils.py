@@ -1,13 +1,9 @@
 import math
-from typing import List, Type
+from typing import List
 
 from tifffile.tifffile import TiffTag
 
 from opentile.geometry import Size, SizeMm
-
-
-def split_and_cast_text(string: str, cast_type: Type) -> List[any]:
-    return [cast_type(element) for element in string.replace('"', '').split()]
 
 
 def get_value_from_tiff_tags(
