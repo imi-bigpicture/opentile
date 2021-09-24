@@ -569,9 +569,9 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordiante.
         """
-        try:
+        if tile_job.origin in self._frame_cache:
             frame = self._frame_cache[tile_job.origin]
-        except KeyError:
+        else:
             frame = self._read_extended_frame(
                 tile_job.origin,
                 tile_job.frame_size
