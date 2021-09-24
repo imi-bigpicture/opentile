@@ -292,7 +292,25 @@ class NdpiTileJob:
 
 
 class NdpiPage(OpenTilePage, metaclass=ABCMeta):
-    """Meta class for ndpi file page."""
+    def __init__(
+        self,
+        page: TiffPage,
+        fh: FileHandle,
+        jpeg: TurboJPEG
+    ):
+        """Meta class for ndpi file page.
+
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        fh: FileHandle
+            Filehandler to read data from.
+        jpeg: TurboJpeg
+            TurboJpeg instance to use.
+        """
+        super().__init__(page, fh)
+        self._jpeg = jpeg
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -341,6 +359,22 @@ class NdpiPage(OpenTilePage, metaclass=ABCMeta):
             'photometric_interpretation': photometric_interpretation
         }
 
+    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
+        """Return decoded tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        tile = self.get_tile(tile_position)
+        return self._jpeg.decode(tile)
+
     def _get_mpp_from_page(self) -> SizeMm:
         """Return pixel spacing in um/pixel."""
         x_resolution = self.page.tags['XResolution'].value[0]
@@ -380,7 +414,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         tile_cache: int = 10,
         frame_cache: int = 10
     ):
-        """Metaclass for a tiled ndpi page.
+        """Metaclass for a tiled ndpi page. Image data is assumed to be jpeg.
 
         Parameters
         ----------
@@ -399,12 +433,16 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         frame_cache: int:
             Number of read frames to cache.
         """
-        super().__init__(page, fh)
+        super().__init__(page, fh, jpeg)
+        if self.compression != 'COMPRESSION.JPEG':
+            raise NotImplementedError(
+                f'{self.compression} is unsupported for ndpi '
+                '(Only jpeg is supported)'
+            )
         self._pyramid_index = int(
             math.log2(base_shape.width/self.image_size.width)
         )
         self._tile_size = tile_size
-        self._jpeg = jpeg
         self._file_frame_size = self._get_file_frame_size()
         self._tile_cache = NdpiCache(tile_cache)
         self._frame_cache = NdpiCache(frame_cache)
@@ -473,22 +511,6 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             self._tile_cache.update(new_tiles)
         return self._tile_cache[tile_point]
 
-    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
-        """Return decoded tile for tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
-        tile = self.get_tile(tile_position)
-        return TurboJPEG.decode(tile)
-
     def get_tiles(self, tile_positions: List[Tuple[int, int]]) -> List[bytes]:
         """Return list of image bytes for tile positions.
 
@@ -526,7 +548,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         """
         tile_jobs = self._sort_into_tile_jobs(tile_positions)
         return [
-            TurboJPEG.decode(tile)
+            self._jpeg.decode(tile)
             for tile_job in tile_jobs
             for tile in self._create_tiles(tile_job).values()
         ]
@@ -1031,4 +1053,8 @@ class NdpiTiler(Tiler):
                 self.tile_size,
                 self._jpeg
             )
-        return NdpiNonTiledPage(page, self._fh)  # Single, do not tile
+        return NdpiNonTiledPage(
+            page,
+            self._fh,
+            self._jpeg
+        )  # Single frame, do not tile
