@@ -8,7 +8,7 @@ Please note that this is an early release and the API is not frozen yet. Functio
 *opentile* uses tifffile and PyTurboJPEG.
 
 ## Limitations
-Files with z-stacks are currently not fully supported.
+Files with z-stacks are currently not fully supported. Pages that are chunked but not tiled are not read correctly.
 
 ## File formats
 The following description of the workings of the supported file formats does not include the additional specifics for each format that is handled by tifffile.
