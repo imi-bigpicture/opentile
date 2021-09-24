@@ -47,7 +47,20 @@ class LockableFileHandle:
 
 
 class OpenTilePage(metaclass=ABCMeta):
-    """Abstract class for reading tiles from TiffPage."""
+    """Abstract class for reading tiles from TiffPage. Should be inherited to
+    support different tiff formats:
+
+    OpenTilePage
+        NativeTiledPage - Meta class for pages that are natively tiled
+            PhilipsTiffTiledPage - OpenTiledPage for Philips Tiff-page
+            SvsTiledPage - OpenTiledPage for Svs Tiff-page
+        NdpiPage - Meta class for Ndpi file page
+            NdpiNonTiledPage - Ndpi page that should not be tiled
+            NdpiTiledPage - Metaclass for a tiled Ndpi page
+                NdpiOneFramePage - Tiled Ndpi page of only one frame
+                NdpiStripedPage - Tiled Ndpi page of striped frames
+
+    """
     _pyramid_index: int
 
     def __init__(

@@ -22,7 +22,7 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         base_mpp: SizeMm,
         jpeg: TurboJPEG
     ):
-        """TiledPage for Philips Tiff-page.
+        """OpenTiledPage for Philips Tiff-page.
 
         Parameters
         ----------

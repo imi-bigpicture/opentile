@@ -17,7 +17,7 @@ class SvsTiledPage(NativeTiledPage):
         base_shape: Size,
         base_mpp: SizeMm
     ):
-        """TiledPage for Svs Tiff-page.
+        """OpenTiledPage for Svs Tiff-page.
 
         Parameters
         ----------
