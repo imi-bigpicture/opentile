@@ -68,13 +68,14 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         """Create a blank (white) tile from a valid tile."""
         # Todo, figure out what color to fill with.
         try:
+            # Get first frame in page that is not 0 bytes
             valid_frame_index = next(
                 index
                 for index, datalength in enumerate(self.page.databytecounts)
                 if datalength != 0
             )
         except StopIteration:
-            raise ValueError
+            raise ValueError("Could not find valid frame in page.")
         valid_frame = self._read_frame(valid_frame_index)
         valid_tile = self._add_jpeg_tables(valid_frame)
         return self._jpeg.fill_image(valid_tile)
