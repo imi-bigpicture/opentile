@@ -477,8 +477,8 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         self,
         tile_position: Tuple[int, int]
     ) -> bytes:
-        """Return image bytes for tile at tile position. Caches created frames
-        and tiles.
+        """Return image bytes for tile at tile position. Caches created frame
+        and tile.
 
         Parameters
         ----------
