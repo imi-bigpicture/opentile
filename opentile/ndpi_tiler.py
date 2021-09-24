@@ -971,9 +971,9 @@ class NdpiTiler(Tiler):
         """Return NdpiPage for series, level, page. NdpiPages holds a cache, so
         store created pages.
         """
-        try:
+        if (series, level, page) in self._pages:
             ndpi_page = self._pages[series, level, page]
-        except KeyError:
+        else:
             ndpi_page = self._create_page(series, level, page)
             self._pages[series, level, page] = ndpi_page
         return ndpi_page
