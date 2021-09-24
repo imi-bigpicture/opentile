@@ -82,7 +82,20 @@ class PhilipsTiffTiledPage(NativeTiledPage):
 
     def _read_frame(self, frame_index: int) -> bytes:
         """Read frame at frame index from page. Return blank tile if tile is
-        sparse."""
+        sparse (length of frame is zero or frame indexis outside length of
+        frames)
+
+        Parameters
+        ----------
+        frame_index: int
+            Frame index to read from page.
+
+        Returns
+        ----------
+        bytes:
+            Frame bytes from frame index or blank tile.
+
+        """
         if (
             frame_index >= len(self.page.databytecounts) or
             self.page.databytecounts[frame_index] == 0
@@ -92,14 +105,25 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         return super()._read_frame(frame_index)
 
     def _add_jpeg_tables(self, frame: bytes) -> bytes:
-        """Add jpeg tables to frame."""
-        # frame has jpeg header but no tables. Insert tables before start
-        # of scan tag.
+        """Add jpeg tables to frame. Tables are insterted before 'start of
+        scan'-tag, and leading 'start of image' and ending 'end of image' tags
+        are removed from the header prior to insertion.
+
+        Parameters
+        ----------
+        frame: bytes
+            'Abbreviated' jpeg frame lacking jpeg tables.
+
+        Returns
+        ----------
+        bytes:
+            'Interchange' jpeg frame containg jpeg tables.
+
+        """
         start_of_scan = frame.find(Jpeg.start_of_scan())
         with io.BytesIO() as buffer:
             buffer.write(frame[0:start_of_scan])
-            tables = self.page.jpegtables[2:-2]  # No start and end tags
-            buffer.write(tables)
+            buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
             buffer.write(frame[start_of_scan:None])
             return buffer.getvalue()
 
@@ -110,7 +134,7 @@ class PhilipsTiffTiler(Tiler):
 
         Parameters
         ----------
-       tiff_file: TiffFile
+        tiff_file: TiffFile
             A Philips-TiffFile.
         turbo_path: Path
             Path to turbojpeg (dll or so).
