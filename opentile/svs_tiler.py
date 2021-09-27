@@ -6,6 +6,7 @@ from tifffile.tifffile import (FileHandle, TiffFile, TiffPage,
 
 from opentile.geometry import Size, SizeMm
 from opentile.common import NativeTiledPage, Tiler
+from opentile.utils import Jpeg
 
 
 class SvsTiledPage(NativeTiledPage):
@@ -55,14 +56,32 @@ class SvsTiledPage(NativeTiledPage):
         self,
         frame: bytes
     ) -> bytes:
-        """Add jpeg tables to frame."""
+        """Add jpeg tables to frame. Tables are insterted before 'start of
+        scan'-tag, and leading 'start of image' and ending 'end of image' tags
+        are removed from the header prior to insertion. Adds colorspace fix at
+        end of header.
+
+        Parameters
+        ----------
+        frame: bytes
+            'Abbreviated' jpeg frame lacking jpeg tables.
+
+        Returns
+        ----------
+        bytes:
+            'Interchange' jpeg frame containg jpeg tables.
+
+        """
+        start_of_scan = frame.find(Jpeg.start_of_scan())
         with io.BytesIO() as buffer:
-            buffer.write(self.page.jpegtables[:-2])
+            buffer.write(frame[0:start_of_scan])
+            buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
+
             buffer.write(
                 b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
                 b"\x65\x00\x64\x80\x00\x00\x00\x00"
             )  # colorspace fix
-            buffer.write(frame[2:])
+            buffer.write(frame[start_of_scan:None])
             return buffer.getvalue()
 
 
