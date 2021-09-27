@@ -76,7 +76,6 @@ class SvsTiledPage(NativeTiledPage):
         with io.BytesIO() as buffer:
             buffer.write(frame[0:start_of_scan])
             buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
-
             buffer.write(
                 b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
                 b"\x65\x00\x64\x80\x00\x00\x00\x00"
