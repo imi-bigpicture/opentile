@@ -163,8 +163,8 @@ class NdpiTilerTest(unittest.TestCase):
         tile = NdpiTile(Point(5, 5), self.tile_size, self.level.frame_size)
 
         self.assertEqual(
-            Point(1024, 0),
-            tile._map_tile_to_frame((Point(5, 5)))
+            (1024, 0, 1024, 1024),
+            (tile.left, tile.top, tile.width, tile.height)
         )
 
     def test_frame_position_tile(self):

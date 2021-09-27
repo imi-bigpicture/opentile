@@ -125,7 +125,7 @@ class NdpiTile:
     out frame."""
     def __init__(
         self,
-        tile_position: Point,
+        position: Point,
         tile_size: Size,
         frame_size: Size
     ) -> None:
@@ -133,7 +133,7 @@ class NdpiTile:
 
         Parameters
         ----------
-        tile_position: Point
+        position: Point
             Tile position.
         tile_size
             Tile size.
@@ -141,24 +141,25 @@ class NdpiTile:
             Frame size.
 
         """
-        self._tile_position = tile_position
+        self._position = position
         self._tile_size = tile_size
         self._frame_size = frame_size
 
         self._tiles_per_frame = Size.max(
-            self.frame_size // self._tile_size,
+            self._frame_size // self._tile_size,
             Size(1, 1)
         )
-        frame_position = self._map_tile_to_frame(tile_position)
-        self._left = frame_position.x
-        self._top = frame_position.y
-        self._width = tile_size.width
-        self._height = tile_size.height
+        position_inside_frame = (
+            (self.position * self._tile_size)
+            % Size.max(self._frame_size, self._tile_size)
+        )
+        self._left = position_inside_frame.x
+        self._top = position_inside_frame.y
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, NdpiTile):
             return (
-                self._tile_position == other._tile_position and
+                self.position == other.position and
                 self._tile_size == other._tile_size and
                 self._frame_size == other._frame_size
             )
@@ -175,61 +176,38 @@ class NdpiTile:
 
     @property
     def position(self) -> Point:
-        return self._tile_position
+        """Return position of tile."""
+        return self._position
 
     @cached_property
     def frame_position(self) -> Point:
-        """Return frame position for tile.
-
-        Returns
-        ----------
-        Point
-            Frame position for tile.
-
-        """
-        return (self.position // self.tiles_per_frame) * self.tiles_per_frame
+        """Return frame position for tile."""
+        return (self.position // self._tiles_per_frame) * self._tiles_per_frame
 
     @property
     def left(self) -> int:
+        """Return left coordinate for tile inside frame."""
         return self._left
 
     @property
     def top(self) -> int:
+        """Return top coordinate for tile inside frame."""
         return self._top
 
     @property
     def width(self) -> int:
-        return self._width
+        """Return width for tile inside frame."""
+        return self._tile_size.width
 
     @property
     def height(self) -> int:
-        return self._height
+        """Return height for tile inside frame."""
+        return self._tile_size.height
 
     @property
     def frame_size(self) -> Size:
+        """Return frame size."""
         return self._frame_size
-
-    @property
-    def tiles_per_frame(self) -> Size:
-        return self._tiles_per_frame
-
-    def _map_tile_to_frame(self, tile_position: Point) -> Point:
-        """Map a tile position to position in frame.
-
-        Parameters
-        ----------
-        tile_position: Point
-            Tile position that should be map to frame.
-
-        Returns
-        ----------
-        Point
-            Frame position for tile.
-        """
-        return (
-            (tile_position * self._tile_size)
-            % Size.max(self._frame_size, self._tile_size)
-        )
 
 
 class NdpiFrameJob:
