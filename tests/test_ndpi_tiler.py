@@ -153,6 +153,7 @@ class NdpiTilerTest(unittest.TestCase):
         }
         frame_size = self.level._get_frame_size_for_tile(frame_job.position)
         frame = self.level._read_extended_frame(frame_job.position, frame_size)
+
         self.assertEqual(
             tiles_single,
             self.level._crop_to_tiles(frame_job, frame)
