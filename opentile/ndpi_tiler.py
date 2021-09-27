@@ -1,10 +1,9 @@
-import math
 import struct
 from abc import ABCMeta, abstractmethod
 from functools import cached_property
 from pathlib import Path
 from struct import unpack
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 from tifffile import FileHandle, TiffFile, TiffPage
@@ -48,10 +47,13 @@ class NdpiCache():
         return len(self._history)
 
     def __str__(self) -> str:
-        return f"NdpiCache of size {len(self)} and max size {self._size}"
+        return (
+            f"{type(self).__name__} of size {len(self)} "
+            f"and max size {self._size}"
+        )
 
     def __repr__(self) -> str:
-        return f"NdpiCache({self._size})"
+        return f"{type(self).__name__}({self._size})"
 
     def __setitem__(self, key: Point, value: bytes) -> None:
         """Set item in cache. Remove old items if needed.
@@ -144,7 +146,7 @@ class NdpiTile:
         self._frame_size = frame_size
 
         self._tiles_per_frame = Size.max(
-            self._frame_size // self._tile_size,
+            self.frame_size // self._tile_size,
             Size(1, 1)
         )
         frame_position = self._map_tile_to_frame(tile_position)
@@ -164,26 +166,25 @@ class NdpiTile:
 
     def __repr__(self) -> str:
         return (
-            f"NdpiTile({self.position}, {self._tile_size}, "
+            f"{type(self).__name__}({self.position}, {self._tile_size}, "
             f"{self._frame_size})"
         )
 
     def __str__(self) -> str:
-        return f"NdpiTile of position {self.position}"
+        return f"{type(self).__name__} of position {self.position}"
 
     @property
     def position(self) -> Point:
         return self._tile_position
 
     @cached_property
-    def origin(self) -> Point:
-        """Return origin tile position for tile. The origin tile is the first
-        tile (upper left) of the frame that containts the tile.
+    def frame_position(self) -> Point:
+        """Return frame position for tile.
 
         Returns
         ----------
         Point
-            The origin tile position for tile.
+            Frame position for tile.
 
         """
         return (self.position // self.tiles_per_frame) * self.tiles_per_frame
@@ -231,67 +232,69 @@ class NdpiTile:
         )
 
 
-class NdpiTileJob:
-    """A list of tiles for a thread to parse. Tiles need to have the same
-    origin."""
+class NdpiFrameJob:
+    """A list of tiles to create from a frame. Tiles need to have the same
+    frame position."""
     def __init__(
         self,
-        tiles: List[NdpiTile]
+        tiles: Union[NdpiTile, List[NdpiTile]]
     ) -> None:
-        """Create a tile job from given tile.
+        """Create a frame job from given tile(s).
 
         Parameters
         ----------
-        tile: NdpiTile
-            Tile to base the tile job on.
+        tiles: Union[NdpiTile, List[NdpiTile]]
+            Tile(s) to base the frame job on.
 
         """
+        if isinstance(tiles, NdpiTile):
+            tiles = [tiles]
         first_tile = tiles.pop(0)
-        self._origin = first_tile.origin
+        self._position = first_tile.frame_position
         self._frame_size = first_tile.frame_size
         self._tiles: List[NdpiTile] = [first_tile]
         for tile in tiles:
             self.append(tile)
 
     def __repr__(self) -> str:
-        return f"NdpiTileJob({self.tiles})"
+        return f"{type(self).__name__}{self.tiles})"
 
     def __str__(self) -> str:
-        return f"NdpiTileJob of tiles {self.tiles}"
+        return f"{type(self).__name__} of tiles {self.tiles}"
 
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, NdpiTileJob):
+        if isinstance(other, NdpiFrameJob):
             return self.tiles == other.tiles
         return NotImplemented
 
     @property
-    def origin(self) -> Point:
-        """The origin position of the tile job."""
-        return self._origin
-
-    def append(self, tile: NdpiTile) -> None:
-        """Add a tile to the tile job."""
-        if tile.origin != self.origin:
-            raise ValueError(f"{tile} does not match {self} origin")
-        self._tiles.append(tile)
+    def position(self) -> Point:
+        """The frame position of the frame job."""
+        return self._position
 
     @property
     def frame_size(self) -> Size:
-        """Frame size required for reading tiles in NdpiTileJob."""
+        """Frame size required for reading tiles in NdpiFrameJob."""
         return self._frame_size
 
     @property
     def tiles(self) -> List[NdpiTile]:
-        """Tiles in NdpiTileJob."""
+        """Tiles in NdpiFrameJob."""
         return self._tiles
 
     @property
     def crop_parameters(self) -> List[Tuple[int, int, int, int]]:
-        """Parameters for croping tiles in NdpiTileJob from frame."""
+        """Parameters for croping tiles from frame in NdpiFrameJob."""
         return [
             (tile.left, tile.top, tile.width, tile.height)
             for tile in self._tiles
         ]
+
+    def append(self, tile: NdpiTile) -> None:
+        """Add a tile to the tile job."""
+        if tile.frame_position != self.position:
+            raise ValueError(f"{tile} does not match {self} frame position")
+        self._tiles.append(tile)
 
 
 class NdpiPage(OpenTilePage):
@@ -327,11 +330,6 @@ class NdpiPage(OpenTilePage):
         return (
             f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
         )
-
-    def get_tile(self, tile: Tuple[int, int]) -> bytes:
-        if tile != (0, 0):
-            raise ValueError
-        return self._read_frame(0)
 
     @cached_property
     def focal_plane(self) -> List[float]:
@@ -376,6 +374,23 @@ class NdpiPage(OpenTilePage):
             'photometric_interpretation': photometric_interpretation
         }
 
+    def get_tile(self, tile: Tuple[int, int]) -> bytes:
+        """Return tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        if tile != (0, 0):
+            raise ValueError
+        return self._read_frame(0)
+
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         """Return decoded tile for tile position.
 
@@ -413,8 +428,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         base_shape: Size,
         tile_size: Size,
         jpeg: TurboJPEG,
-        tile_cache: int = 10,
-        frame_cache: int = 10
+        frame_cache: int = 1
     ):
         """Metaclass for a tiled ndpi page.
 
@@ -430,8 +444,6 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             Requested tile size.
         jpeg: TurboJpeg
             TurboJpeg instance to use.
-        tile_cache: int:
-            Number of created tiles to cache.
         frame_cache: int:
             Number of read frames to cache.
         """
@@ -440,7 +452,6 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         self._tile_size = tile_size
         self._file_frame_size = self._get_file_frame_size()
         self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
-        self._tile_cache = NdpiCache(tile_cache)
         self._frame_cache = NdpiCache(frame_cache)
         self._headers: Dict[Size, bytes] = {}
 
@@ -448,7 +459,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         return (
             f"{type(self).__name__}({self._page}, {self._fh}, "
             f"{self._base_shape}, {self.tile_size}, {self._jpeg}, "
-            f"{self._tile_cache._size}, {self._frame_cache._size})"
+            f"{self._frame_cache._size})"
         )
 
     @property
@@ -463,10 +474,11 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
 
     @abstractmethod
     def _read_extended_frame(
-        self, tile_position: Point,
+        self,
+        position: Point,
         frame_size: Size
     ) -> bytes:
-        """Read a frame of size frame_size covering tile_position."""
+        """Read a frame of size frame_size covering position."""
         raise NotImplementedError
 
     @abstractmethod
@@ -483,8 +495,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         self,
         tile_position: Tuple[int, int]
     ) -> bytes:
-        """Return image bytes for tile at tile position. Caches created frame
-        and tile.
+        """Return image bytes for tile at tile position.
 
         Parameters
         ----------
@@ -496,24 +507,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         bytes
             Produced tile at position.
         """
-        tile_point = Point.from_tuple(tile_position)
-        if not self._check_if_tile_inside_image(tile_point):
-            raise ValueError(
-                f"Tile {tile_point} is outside "
-                f"tiled size {self.tiled_size}"
-            )
-        # If tile not in cached
-        if tile_point not in self._tile_cache:
-            # Get frame size for reading out tile at tile point
-            frame_size = self._get_frame_size_for_tile(tile_point)
-            # Create a NdpiTile and add the single tile to a NdtiTileJob
-            tile = NdpiTile(tile_point, self.tile_size, frame_size)
-            tile_job = NdpiTileJob([tile])
-            # Create the tile from the single NdpiTile in the NdpiTileJob
-            new_tiles = self._create_tiles(tile_job)
-            # Add the tile to tile cache
-            self._tile_cache.update(new_tiles)
-        return self._tile_cache[tile_point]
+        return self.get_tiles([tile_position])[0]
 
     def get_tiles(self, tile_positions: List[Tuple[int, int]]) -> List[bytes]:
         """Return list of image bytes for tile positions.
@@ -528,11 +522,11 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         List[bytes]
             List of tile bytes.
         """
-        tile_jobs = self._sort_into_tile_jobs(tile_positions)
+        frame_jobs = self._sort_into_frame_jobs(tile_positions)
         return [
             tile
-            for tile_job in tile_jobs
-            for tile in self._create_tiles(tile_job).values()
+            for frame_job in frame_jobs
+            for tile in self._create_tiles(frame_job).values()
         ]
 
     def get_decoded_tiles(
@@ -550,74 +544,74 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         List[np.ndarray]
             List of decoded tiles.
         """
-        tile_jobs = self._sort_into_tile_jobs(tile_positions)
+        frame_jobs = self._sort_into_frame_jobs(tile_positions)
         return [
             self._jpeg.decode(tile)
-            for tile_job in tile_jobs
-            for tile in self._create_tiles(tile_job).values()
+            for frame_job in frame_jobs
+            for tile in self._create_tiles(frame_job).values()
         ]
 
     def _create_tiles(
         self,
-        tile_job: NdpiTileJob
+        frame_job: NdpiFrameJob
     ) -> Dict[Point, bytes]:
-        """Return tiles defined by tile job.
+        """Return tiles defined by frame job. Read frames are cached by
+        frame position.
 
         Parameters
         ----------
-        tile_job: NdpiTileJob
+        frame_job: NdpiFrameJob
             Tile job containing tiles that should be created.
 
         Returns
         ----------
         Dict[Point, bytes]:
-            Created tiles ordered by tile coordiante.
+            Created tiles ordered by tile coordinate.
         """
-        if tile_job.origin in self._frame_cache:
-            frame = self._frame_cache[tile_job.origin]
+        if frame_job.position in self._frame_cache:
+            frame = self._frame_cache[frame_job.position]
         else:
             frame = self._read_extended_frame(
-                tile_job.origin,
-                tile_job.frame_size
+                frame_job.position,
+                frame_job.frame_size
             )
-            self._frame_cache[tile_job.origin] = frame
-        tiles = self._crop_to_tiles(tile_job, frame)
+            self._frame_cache[frame_job.position] = frame
+        tiles = self._crop_to_tiles(frame_job, frame)
         return tiles
 
     def _crop_to_tiles(
         self,
-        tile_job: NdpiTileJob,
+        frame_job: NdpiFrameJob,
         frame: bytes
     ) -> Dict[Point, bytes]:
         """Crop jpeg data to tiles.
 
         Parameters
         ----------
-        tile_job: NdpiTileJob
-            Tile job defining the tiles to produce by cropping jpeg data.
+        frame_job: NdpiFrameJob
+            Frame job defining the tiles to produce by cropping jpeg data.
         frame: bytes
             Data to crop from.
 
         Returns
         ----------
         Dict[Point, bytes]:
-            Created tiles ordered by tile coordiante.
+            Created tiles ordered by tile coordinate.
         """
         tiles = self._jpeg.crop_multiple(
             frame,
-            tile_job.crop_parameters
+            frame_job.crop_parameters
         )
         return {
             tile.position: tiles[i]
-            for i, tile in enumerate(tile_job.tiles)
+            for i, tile in enumerate(frame_job.tiles)
         }
 
-    def _sort_into_tile_jobs(
+    def _sort_into_frame_jobs(
         self,
         tile_positions: List[Tuple[int, int]]
-    ) -> List[NdpiTileJob]:
-        """Sorts tile positions into tile jobs with commmon tile origin (i.e.
-        from the same frame.)
+    ) -> List[NdpiFrameJob]:
+        """Sorts tile positions into frame jobs (i.e. from the same frame.)
 
         Parameters
         ----------
@@ -626,11 +620,11 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
 
         Returns
         ----------
-        List[NdpiTileJob]
-            List of created tile jobs.
+        List[NdpiFrameJob]
+            List of created frame jobs.
 
         """
-        tile_jobs: Dict[Point, NdpiTileJob] = {}
+        frame_jobs: Dict[Point, NdpiFrameJob] = {}
         for tile_position in tile_positions:
             tile_point = Point.from_tuple(tile_position)
             if not self._check_if_tile_inside_image(tile_point):
@@ -640,11 +634,11 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
                 )
             frame_size = self._get_frame_size_for_tile(tile_point)
             tile = NdpiTile(tile_point, self.tile_size, frame_size)
-            if tile.origin in tile_jobs:
-                tile_jobs[tile.origin].append(tile)
+            if tile.frame_position in frame_jobs:
+                frame_jobs[tile.frame_position].append(tile)
             else:
-                tile_jobs[tile.origin] = NdpiTileJob([tile])
-        return list(tile_jobs.values())
+                frame_jobs[tile.frame_position] = NdpiFrameJob(tile)
+        return list(frame_jobs.values())
 
 
 class NdpiOneFramePage(NdpiTiledPage):
@@ -676,12 +670,16 @@ class NdpiOneFramePage(NdpiTiledPage):
         """
         return ((self.frame_size) // self.tile_size + 1) * self.tile_size
 
-    def _read_extended_frame(self, origin: Point, frame_size: Size) -> bytes:
-        """Return padded image covering tile coordiante as valid jpeg bytes.
+    def _read_extended_frame(
+        self,
+        position: Point,
+        frame_size: Size
+    ) -> bytes:
+        """Return padded image covering tile coordinate as valid jpeg bytes.
 
         Parameters
         ----------
-        origin: Point
+        frame_position: Point
             Upper left tile position that should be covered by the frame.
         frame_size: Size
             Size of the frame to read.
@@ -691,8 +689,8 @@ class NdpiOneFramePage(NdpiTiledPage):
         bytes
             Frame
         """
-        if origin != Point(0, 0):
-            raise ValueError("Origin not (0, 0) for one frame level.")
+        if position != Point(0, 0):
+            raise ValueError("Frame osition not (0, 0) for one frame level.")
         frame = self._read_frame(0)
         # Use crop_multiple as it allows extending frame
         tile = self._jpeg.crop_multiple(
@@ -791,15 +789,19 @@ class NdpiStripedPage(NdpiTiledPage):
             height = self.frame_size.height
         return Size(width, height)
 
-    def _read_extended_frame(self, origin: Point, frame_size: Size) -> bytes:
-        """Return extended frame of frame size starting at origin tile.
+    def _read_extended_frame(
+        self,
+        position: Point,
+        frame_size: Size
+    ) -> bytes:
+        """Return extended frame of frame size starting at frame position.
         Returned frame is jpeg bytes including header with correct image size.
         Original restart markers are updated to get the proper incrementation.
         End of image tag is appended.
 
         Parameters
         ----------
-        origin: Point
+        position: Point
             Upper left tile position that should be covered by the frame.
         frame_size: Size
             Size of the frame to get.
@@ -818,7 +820,7 @@ class NdpiStripedPage(NdpiTiledPage):
         restart_marker_index = 0
 
         stripe_region = Region(
-            (origin * self.tile_size) // self.stripe_size,
+            (position * self.tile_size) // self.stripe_size,
             Size.max(frame_size // self.stripe_size, Size(1, 1))
         )
         for stripe_coordinate in stripe_region.iterate_all():
@@ -941,13 +943,13 @@ class NdpiTiler(Tiler):
 
     def __repr__(self) -> str:
         return (
-            f"NdpiTiler({self._tiff_file.filename}, "
+            f"{type(self).__name__}({self._tiff_file.filename}, "
             f"{self.tile_size.to_tuple}, "
             f"{self._turbo_path})"
         )
 
     def __str__(self) -> str:
-        return f"NdpiTiler of Tifffile {self._tiff_file}"
+        return f"{type(self).__name__} of Tifffile {self._tiff_file}"
 
     @property
     def tile_size(self) -> Size:

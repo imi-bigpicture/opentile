@@ -5,7 +5,7 @@ from hashlib import md5
 import pytest
 from opentile.geometry import Point, Size
 from opentile.ndpi_tiler import (NdpiCache, NdpiPage, NdpiStripedPage,
-                                 NdpiTile, NdpiTileJob, NdpiTiler)
+                                 NdpiTile, NdpiFrameJob, NdpiTiler)
 from opentile.utils import Jpeg
 from tifffile import TiffFile
 
@@ -120,7 +120,7 @@ class NdpiTilerTest(unittest.TestCase):
         )
 
     def test_create_tiles(self):
-        tile_job = NdpiTileJob(
+        frame_job = NdpiFrameJob(
             [
                 NdpiTile(
                     Point(x, 0),
@@ -133,11 +133,11 @@ class NdpiTilerTest(unittest.TestCase):
         tiles_single = [self.level.get_tile((x, 0)) for x in range(4)]
         self.assertEqual(
             tiles_single,
-            list(self.level._create_tiles(tile_job).values())
+            list(self.level._create_tiles(frame_job).values())
         )
 
     def test_crop_to_tiles(self):
-        tile_job = NdpiTileJob(
+        frame_job = NdpiFrameJob(
             [
                 NdpiTile(
                     Point(x, 0),
@@ -151,11 +151,11 @@ class NdpiTilerTest(unittest.TestCase):
             Point(x, 0): self.level.get_tile((x, 0))
             for x in range(4)
         }
-        frame_size = self.level._get_frame_size_for_tile(tile_job.origin)
-        frame = self.level._read_extended_frame(tile_job.origin, frame_size)
+        frame_size = self.level._get_frame_size_for_tile(frame_job.position)
+        frame = self.level._read_extended_frame(frame_job.position, frame_size)
         self.assertEqual(
             tiles_single,
-            self.level._crop_to_tiles(tile_job, frame)
+            self.level._crop_to_tiles(frame_job, frame)
         )
 
     def test_map_tile_to_frame(self):
@@ -166,40 +166,40 @@ class NdpiTilerTest(unittest.TestCase):
             tile._map_tile_to_frame((Point(5, 5)))
         )
 
-    def test_origin_tile(self):
+    def test_frame_position_tile(self):
         tile = NdpiTile(Point(3, 0), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(0, 0),
-            tile.origin
+            tile.frame_position
         )
         tile = NdpiTile(Point(7, 0), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(4, 0),
-            tile.origin
+            tile.frame_position
         )
         tile = NdpiTile(Point(5, 2), self.tile_size, self.level.frame_size)
         self.assertEqual(
             Point(4, 2),
-            tile.origin
+            tile.frame_position
         )
 
-    def test_tile_jobs(self):
+    def test_frame_jobs(self):
         tile0 = NdpiTile(Point(3, 0), self.tile_size, self.level.frame_size)
-        tile_job = NdpiTileJob([tile0])
-        self.assertEqual(Point(0, 0), tile_job.origin)
+        frame_job = NdpiFrameJob([tile0])
+        self.assertEqual(Point(0, 0), frame_job.position)
 
         tile1 = NdpiTile(Point(2, 0), self.tile_size, self.level.frame_size)
-        tile_job.append(tile1)
-        self.assertEqual([tile0, tile1], tile_job.tiles)
+        frame_job.append(tile1)
+        self.assertEqual([tile0, tile1], frame_job.tiles)
 
         tile2 = NdpiTile(Point(2, 1), self.tile_size, self.level.frame_size)
         with self.assertRaises(ValueError):
-            tile_job.append(tile2)
+            frame_job.append(tile2)
 
-    def test_sort_into_tile_jobs(self):
+    def test_sort_into_frame_jobs(self):
         self.assertEqual(
             [
-                NdpiTileJob(
+                NdpiFrameJob(
                     [
                         NdpiTile(
                             Point(index_x_0+index_x_1, index_y),
@@ -213,7 +213,7 @@ class NdpiTilerTest(unittest.TestCase):
                 for index_x_0 in range(0, 8, 4)
                 for index_y in range(2)
             ],
-            self.level._sort_into_tile_jobs(
+            self.level._sort_into_frame_jobs(
                 [
                     (index_x, index_y)
                     for index_x in range(8)
