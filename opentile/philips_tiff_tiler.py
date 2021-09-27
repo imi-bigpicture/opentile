@@ -61,7 +61,16 @@ class PhilipsTiffTiledPage(NativeTiledPage):
 
     @cached_property
     def blank_tile(self) -> bytes:
-        """Create a blank (white) tile from a valid tile."""
+        """Create a blank (white) tile from a valid tile. Uses the first found
+        valid frame (first frame with non-zero value in databytescounts) and
+        fills that image with white.
+
+        Returns
+        ----------
+        bytes:
+            Frame bytes from blank tile.
+
+        """
         # Todo, figure out what color to fill with.
         try:
             # Get first frame in page that is not 0 bytes
