@@ -1,6 +1,5 @@
 import struct
 from abc import ABCMeta, abstractmethod
-from functools import cached_property
 from pathlib import Path
 from struct import unpack
 from typing import Dict, List, Optional, Tuple, Type, Union
@@ -155,6 +154,9 @@ class NdpiTile:
         )
         self._left = position_inside_frame.x
         self._top = position_inside_frame.y
+        self._frame_position = (
+            (self.position // self._tiles_per_frame) * self._tiles_per_frame
+        )
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, NdpiTile):
@@ -179,10 +181,10 @@ class NdpiTile:
         """Return position of tile."""
         return self._position
 
-    @cached_property
+    @property
     def frame_position(self) -> Point:
         """Return frame position for tile."""
-        return (self.position // self._tiles_per_frame) * self._tiles_per_frame
+        return self._frame_position
 
     @property
     def left(self) -> int:
@@ -303,54 +305,41 @@ class NdpiPage(OpenTilePage):
                 '(Only jpeg is supported)'
             )
         self._jpeg = jpeg
+        try:
+            # Defined in nm
+            self._focal_plane = (
+                self.page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
+            )
+        except KeyError:
+            self._focal_plane = 0.0
+
+        self._mpp = self._get_mpp_from_page()
+        self._properties = self._get_properties()
 
     def __repr__(self) -> str:
         return (
             f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
         )
 
-    @cached_property
+    @property
     def focal_plane(self) -> List[float]:
         """Return focal plane (in um)."""
-        # Return focal plane in um.
-        try:
-            # Defined in nm
-            return self.page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
-        except KeyError:
-            return 0.0
+        return self._focal_plane
 
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
         return self.mpp * 1000.0
 
-    @cached_property
+    @property
     def mpp(self) -> SizeMm:
         """Return pixel spacing in um per pixel."""
         return self._get_mpp_from_page()
 
-    @cached_property
+    @property
     def properties(self) -> Dict[str, any]:
         """Return dictionary with ndpifile properties."""
-        ndpi_tags = self.page.ndpi_tags
-        manufacturer = ndpi_tags['Make']
-        model = ndpi_tags['Model']
-        software_versions = [ndpi_tags['Software']]
-        device_serial_number = ndpi_tags['ScannerSerialNumber']
-        aquisition_datatime = self._get_value_from_tiff_tags(
-            self.page.tags, 'DateTime'
-        )
-        photometric_interpretation = self._get_value_from_tiff_tags(
-            self.page.tags, 'PhotometricInterpretation'
-        )
-        return {
-            'aquisition_datatime': aquisition_datatime,
-            'device_serial_number': device_serial_number,
-            'manufacturer': manufacturer,
-            'model': model,
-            'software_versions': software_versions,
-            'photometric_interpretation': photometric_interpretation
-        }
+        return self._properties
 
     def get_tile(self, tile: Tuple[int, int]) -> bytes:
         """Return tile for tile position.
@@ -397,6 +386,28 @@ class NdpiPage(OpenTilePage):
         mpp_y = 1/y_resolution
         return SizeMm(mpp_x, mpp_y)
 
+    def _get_properties(self) -> Dict[str, any]:
+        """Return dictionary with ndpifile properties."""
+        ndpi_tags = self.page.ndpi_tags
+        manufacturer = ndpi_tags['Make']
+        model = ndpi_tags['Model']
+        software_versions = [ndpi_tags['Software']]
+        device_serial_number = ndpi_tags['ScannerSerialNumber']
+        aquisition_datatime = self._get_value_from_tiff_tags(
+            self.page.tags, 'DateTime'
+        )
+        photometric_interpretation = self._get_value_from_tiff_tags(
+            self.page.tags, 'PhotometricInterpretation'
+        )
+        return {
+            'aquisition_datatime': aquisition_datatime,
+            'device_serial_number': device_serial_number,
+            'manufacturer': manufacturer,
+            'model': model,
+            'software_versions': software_versions,
+            'photometric_interpretation': photometric_interpretation
+        }
+
 
 class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
     def __init__(
@@ -429,6 +440,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         self._base_shape = base_shape
         self._tile_size = tile_size
         self._file_frame_size = self._get_file_frame_size()
+        self._frame_size = Size.max(self.tile_size, self._file_frame_size)
         self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
         self._frame_cache = NdpiCache(frame_cache)
         self._headers: Dict[Size, bytes] = {}
@@ -445,10 +457,10 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         """The size of the tiles to generate."""
         return self._tile_size
 
-    @cached_property
+    @property
     def frame_size(self) -> Size:
         """The default read size used for reading frames."""
-        return Size.max(self.tile_size, self._file_frame_size)
+        return self._frame_size
 
     @abstractmethod
     def _read_extended_frame(
@@ -683,16 +695,44 @@ class NdpiStripedPage(NdpiTiledPage):
     concatenating multiple stripes, and from the frame one or more tiles can be
     produced by lossless cropping.
     """
+    def __init__(
+        self,
+        page: TiffPage,
+        fh: FileHandle,
+        base_shape: Size,
+        tile_size: Size,
+        jpeg: TurboJPEG,
+        frame_cache: int = 1
+    ):
+        """Ndpi page with striped image data.
+
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        fh: FileHandle
+            Filehandler to read data from.
+        base_shape: Size
+            Size of base level in pyramid.
+        tile_size: Size
+            Requested tile size.
+        jpeg: TurboJpeg
+            TurboJpeg instance to use.
+        frame_cache: int:
+            Number of read frames to cache.
+        """
+        super().__init__(page, fh, base_shape, tile_size, jpeg, frame_cache)
+        self._striped_size = Size(self._page.chunked[1], self._page.chunked[0])
 
     @property
     def stripe_size(self) -> Size:
         """Size of stripes."""
         return self._file_frame_size
 
-    @cached_property
+    @property
     def striped_size(self) -> Size:
         """Number of stripes in columns and rows."""
-        return Size(self._page.chunked[1], self._page.chunked[0])
+        return self._striped_size
 
     def _get_file_frame_size(self) -> Size:
         """Return size of stripes in file. For striped levels this is parsed

@@ -1,7 +1,6 @@
 import math
 import threading
 from abc import ABCMeta, abstractmethod
-from functools import cached_property
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -81,6 +80,18 @@ class OpenTilePage(metaclass=ABCMeta):
         """
         self._page = page
         self._fh = LockableFileHandle(fh)
+        self._image_size = Size(self._page.shape[1], self._page.shape[0])
+        if self.page.is_tiled:
+            self._tile_size = Size(
+                int(self.page.tilewidth),
+                int(self.page.tilelength)
+            )
+        else:
+            self._tile_size = self.image_size
+        self._tiled_region = Region(
+            position=Point(0, 0),
+            size=self.tiled_size - 1
+        )
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -110,21 +121,16 @@ class OpenTilePage(metaclass=ABCMeta):
         # Not sure if optical paths are defined in tiff files...
         return '0'
 
-    @cached_property
+    @property
     def image_size(self) -> Size:
         """The pixel size of the image."""
-        return Size(self._page.shape[1], self._page.shape[0])
+        return self._image_size
 
-    @cached_property
+    @property
     def tile_size(self) -> Size:
         """The pixel size of the tiles. Returns image size if not tiled page
         """
-        if self.page.is_tiled:
-            return Size(
-                int(self.page.tilewidth),
-                int(self.page.tilelength)
-            )
-        return self.image_size
+        return self._tile_size
 
     @property
     def tiled_size(self) -> Size:
@@ -225,10 +231,10 @@ class OpenTilePage(metaclass=ABCMeta):
     ) -> str:
         return str(self)
 
-    @cached_property
+    @property
     def tiled_region(self) -> Region:
         """Tile region covering the OpenTilePage."""
-        return Region(position=Point(0, 0), size=self.tiled_size - 1)
+        return self._tiled_region
 
     def valid_tiles(self, region: Region) -> bool:
         """Check if tile region is inside tile geometry and z coordinate and
@@ -357,7 +363,7 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
 
 class Tiler:
     """Abstract class for reading pages from TiffFile."""
-    _level_series_index: int = None
+    _level_series_index: int = 0
     _overview_series_index: int = None
     _label_series_index: int = None
 
@@ -370,21 +376,26 @@ class Tiler:
             TiffFile to read pages from
         """
         self._tiff_file = tiff_file
+        self._base_page = self.series[self._level_series_index].pages[0]
+        self._base_size = Size(
+            self.base_page.shape[1],
+            self.base_page.shape[0]
+        )
 
     @property
     def properties(self) -> Dict[str, any]:
         """Dictionary of properties read from TiffFile."""
         return {}
 
-    @cached_property
+    @property
     def base_page(self) -> TiffPage:
         """Return base pyramid level in pyramid series."""
-        return self.series[self._level_series_index].pages[0]
+        return self._base_page
 
-    @cached_property
+    @property
     def base_size(self) -> Size:
         """Return size of base pyramid level in pyramid series."""
-        return Size(self.base_page.shape[1], self.base_page.shape[0])
+        return self._base_size
 
     @property
     def series(self) -> List[TiffPageSeries]:

@@ -1,5 +1,4 @@
 import io
-from functools import cached_property
 
 from tifffile.tifffile import (FileHandle, TiffFile, TiffPage,
                                svs_description_metadata)
@@ -103,12 +102,13 @@ class SvsTiler(Tiler):
                 self._label_series_index = series_index
             elif series.name == 'Macro':
                 self._overview_series_index = series_index
+        mpp = svs_description_metadata(self.base_page.description)['MPP']
+        self._base_mpp = SizeMm(mpp, mpp)
 
-    @cached_property
+    @property
     def base_mpp(self) -> SizeMm:
         """Return pixel spacing in um/pixel for base level."""
-        mpp = svs_description_metadata(self.base_page.description)['MPP']
-        return SizeMm(mpp, mpp)
+        return self._base_mpp
 
     def get_page(
         self,
