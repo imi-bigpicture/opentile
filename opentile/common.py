@@ -55,8 +55,7 @@ class OpenTilePage(metaclass=ABCMeta):
         NativeTiledPage - Meta class for pages that are natively tiled
             PhilipsTiffTiledPage - OpenTiledPage for Philips Tiff-page
             SvsTiledPage - OpenTiledPage for Svs Tiff-page
-        NdpiPage - Meta class for Ndpi file page
-            NdpiNonTiledPage - Ndpi page that should not be tiled
+        NdpiPage - Ndpi page that should not be tiled
             NdpiTiledPage - Metaclass for a tiled Ndpi page
                 NdpiOneFramePage - Tiled Ndpi page of only one frame
                 NdpiStripedPage - Tiled Ndpi page of striped frames
