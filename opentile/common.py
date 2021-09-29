@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 import threading
 from abc import ABCMeta, abstractmethod
 from typing import Dict, List, Tuple
@@ -374,15 +375,15 @@ class Tiler:
     _overview_series_index: int = None
     _label_series_index: int = None
 
-    def __init__(self, tiff_file: TiffFile):
+    def __init__(self, filepath: Path):
         """Abstract class for reading pages from TiffFile.
 
         Parameters
         ----------
-        tiff_file: TiffFile
-            TiffFile to read pages from
+        filepath: Path
+            Filepath to a TiffFile.
         """
-        self._tiff_file = tiff_file
+        self._tiff_file = TiffFile(filepath)
         self._base_page = self.series[self._level_series_index].pages[0]
         self._base_size = Size(
             self.base_page.shape[1],

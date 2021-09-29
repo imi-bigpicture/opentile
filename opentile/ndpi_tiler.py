@@ -5,7 +5,7 @@ from struct import unpack
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
-from tifffile import FileHandle, TiffFile, TiffPage
+from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TIFF
 
 from opentile.common import OpenTilePage, Tiler
@@ -930,7 +930,7 @@ class NdpiStripedPage(NdpiTiledPage):
 class NdpiTiler(Tiler):
     def __init__(
         self,
-        tiff_file: TiffFile,
+        filepath: Path,
         tile_size: Tuple[int, int],
         turbo_path: Path
     ):
@@ -939,15 +939,15 @@ class NdpiTiler(Tiler):
 
         Parameters
         ----------
-        tiff_file: TiffFile
-            A ndpi-TiffFile.
+        filepath: Path
+            Filepath to a ndpi TiffFile.
         tile_size: Tuple[int, int]
             Tile size to cache and produce. Must be multiple of 8.
         turbo_path: Path
             Path to turbojpeg (dll or so).
 
         """
-        super().__init__(tiff_file)
+        super().__init__(filepath)
 
         self._fh = self._tiff_file.filehandle
         self._tile_size = Size(*tile_size)

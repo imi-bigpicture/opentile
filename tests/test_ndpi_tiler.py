@@ -7,7 +7,6 @@ from opentile.geometry import Point, Size
 from opentile.ndpi_tiler import (NdpiCache, NdpiPage, NdpiStripedPage,
                                  NdpiTile, NdpiFrameJob, NdpiTiler)
 from opentile.utils import Jpeg
-from tifffile import TiffFile
 
 ndpi_test_data_dir = os.environ.get(
     "NDPI_TESTDIR",
@@ -21,7 +20,6 @@ ndpi_file_path = ndpi_test_data_dir + '/' + sub_data_path
 class NdpiTilerTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.tif: TiffFile
         self.tiler: NdpiTiler
         self.level: NdpiPage
 
@@ -29,7 +27,7 @@ class NdpiTilerTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tile_size = Size(1024, 1024)
         cls.tiler = NdpiTiler(
-            TiffFile(ndpi_file_path),
+            ndpi_file_path,
             (cls.tile_size.width, cls.tile_size.height),
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )

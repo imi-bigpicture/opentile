@@ -143,17 +143,17 @@ class PhilipsTiffTiledPage(NativeTiledPage):
 
 
 class PhilipsTiffTiler(Tiler):
-    def __init__(self, tiff_file: TiffFile, turbo_path: Path):
+    def __init__(self, filepath: Path, turbo_path: Path):
         """Tiler for Philips tiff file.
 
         Parameters
         ----------
-        tiff_file: TiffFile
-            A Philips-TiffFile.
+        filepath: Path
+            Filepath to a Philips-TiffFile.
         turbo_path: Path
             Path to turbojpeg (dll or so).
         """
-        super().__init__(tiff_file)
+        super().__init__(filepath)
         self._fh = self._tiff_file.filehandle
 
         self._turbo_path = turbo_path

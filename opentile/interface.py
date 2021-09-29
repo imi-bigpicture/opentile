@@ -54,21 +54,19 @@ class OpenTile:
             if tile_size is None or turbo_path is None:
                 raise ValueError("Tile size and turbo path needed for ndpi")
             return NdpiTiler(
-                TiffFile(filepath),
+                filepath,
                 tile_size,
                 turbo_path
             )
 
         if file_format == 'svs':
-            return SvsTiler(
-                TiffFile(filepath)
-            )
+            return SvsTiler(filepath)
 
         if file_format == 'philips_tiff':
             if turbo_path is None:
                 raise ValueError("Turbo path needed for philips tiff")
             return PhilipsTiffTiler(
-                TiffFile(filepath),
+                filepath,
                 turbo_path
             )
 
