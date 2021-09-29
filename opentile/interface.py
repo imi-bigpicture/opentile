@@ -1,7 +1,7 @@
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Optional
 
-from tifffile import TiffFile
+from tifffile import TiffFile, TiffFileError
 
 from opentile.common import Tiler
 from opentile.ndpi_tiler import NdpiTiler
@@ -10,10 +10,28 @@ from opentile.svs_tiler import SvsTiler
 
 
 class OpenTile:
+    @staticmethod
+    def detect_format(filepath: Path) -> Optional[str]:
+        """Return string describing tiff file format in file, or None
+        if not supported."""
+        try:
+            tiff_file = TiffFile(filepath)
+            if tiff_file.is_ndpi:
+                file_format = 'ndpi'
+            elif tiff_file.is_svs:
+                file_format = 'svs'
+            elif tiff_file.is_philips:
+                file_format = 'philips_tiff'
+            else:
+                file_format = None
+        except TiffFileError:
+            file_format = None
+        return file_format
+
     @classmethod
     def open(
-        self,
-        filepath: str,
+        cls,
+        filepath: Path,
         tile_size: Tuple[int, int] = None,
         turbo_path: Path = None
     ) -> Tiler:
@@ -31,26 +49,26 @@ class OpenTile:
             Path to turbo jpeg library, if needed for transforming tiles for
             file format.
         """
-        tiff_file = TiffFile(filepath)
-        if tiff_file.is_ndpi:
+        file_format = cls.detect_format(filepath)
+        if file_format == 'ndpi':
             if tile_size is None or turbo_path is None:
                 raise ValueError("Tile size and turbo path needed for ndpi")
             return NdpiTiler(
-                tiff_file,
+                TiffFile(filepath),
                 tile_size,
                 turbo_path
             )
 
-        if tiff_file.is_svs:
+        if file_format == 'svs':
             return SvsTiler(
-                tiff_file
+                TiffFile(filepath)
             )
 
-        if tiff_file.is_philips:
+        if file_format == 'philips_tiff':
             if turbo_path is None:
                 raise ValueError("Turbo path needed for philips tiff")
             return PhilipsTiffTiler(
-                tiff_file,
+                TiffFile(filepath),
                 turbo_path
             )
 
