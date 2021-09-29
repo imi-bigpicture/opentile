@@ -187,14 +187,16 @@ class PhilipsTiffTiler(Tiler):
         page: int = 0
     ) -> PhilipsTiffTiledPage:
         """Return PhilipsTiffTiledPage for series, level, page."""
-        tiff_page = self.series[series].levels[level].pages[page]
-        return PhilipsTiffTiledPage(
-            tiff_page,
-            self._fh,
-            self.base_size,
-            self.base_mpp,
-            self._jpeg
-        )
+        if not (series, level, page) in self._pages:
+            tiff_page = self.series[series].levels[level].pages[page]
+            self._pages[series, level, page] = PhilipsTiffTiledPage(
+                tiff_page,
+                self._fh,
+                self.base_size,
+                self.base_mpp,
+                self._jpeg
+            )
+        return self._pages[series, level, page]
 
     @staticmethod
     def is_overview(series: TiffPageSeries) -> bool:

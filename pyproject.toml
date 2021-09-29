@@ -8,6 +8,8 @@ authors = ["Erik O Gabrielsson <erik.o.gabrielsson@sectra.com>"]
 python = "^3.7"
 tifffile = "^2021.6.14"
 PyTurboJPEG = { git = "https://github.com/lilohuang/PyTurboJPEG.git" }
+Pillow = "^8.3.2"
+imagecodecs = "^2021.8.26"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

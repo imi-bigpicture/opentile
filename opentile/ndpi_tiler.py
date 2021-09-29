@@ -453,6 +453,13 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         )
 
     @property
+    def suggested_minimum_chunk_size(self) -> int:
+        return Size.max(
+            self._frame_size.width // self._tile_size.width,
+            Size(1, 1)
+        )
+
+    @property
     def tile_size(self) -> Size:
         """The size of the tiles to generate."""
         return self._tile_size
@@ -949,8 +956,6 @@ class NdpiTiler(Tiler):
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
         self._turbo_path = turbo_path
         self._jpeg = TurboJPEG(self._turbo_path)
-        # Keys are series, level, page
-        self._pages: Dict[(int, int, int), NdpiPage] = {}
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
@@ -983,12 +988,10 @@ class NdpiTiler(Tiler):
         """Return NdpiPage for series, level, page. NdpiPages holds a cache, so
         store created pages.
         """
-        if (series, level, page) in self._pages:
-            ndpi_page = self._pages[series, level, page]
-        else:
+        if not (series, level, page) in self._pages:
             ndpi_page = self._create_page(series, level, page)
             self._pages[series, level, page] = ndpi_page
-        return ndpi_page
+        return self._pages[series, level, page]
 
     def _create_page(
         self,
