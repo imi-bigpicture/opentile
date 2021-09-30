@@ -5,9 +5,10 @@ description = ""
 authors = ["Erik O Gabrielsson <erik.o.gabrielsson@sectra.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = ">=3.7,<3.11"
 tifffile = "^2021.6.14"
-PyTurboJPEG = { git = "https://github.com/lilohuang/PyTurboJPEG.git" }
+numpy = "^1.21.2"
+PyTurboJPEG = "^1.6.1"
 Pillow = "^8.3.2"
 imagecodecs = "^2021.8.26"
 
