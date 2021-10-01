@@ -1,5 +1,6 @@
+import os
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 from tifffile import TiffFile, TiffFileError
 
@@ -33,7 +34,6 @@ class OpenTile:
         cls,
         filepath: Path,
         tile_size: Tuple[int, int] = None,
-        turbo_path: Path = None
     ) -> Tiler:
         """Return a file type specific tiler for tiff file in filepath.
         Tile size and turbo jpeg path are optional but required for some file
@@ -45,29 +45,34 @@ class OpenTile:
             Path to tiff file.
         tile_size: Tuple[int, int] = None
             Tile size for creating tiles, if needed for file format.
-        turbo_path: Path = None
-            Path to turbo jpeg library, if needed for transforming tiles for
-            file format.
         """
         file_format = cls.detect_format(filepath)
         if file_format == 'ndpi':
-            if tile_size is None or turbo_path is None:
-                raise ValueError("Tile size and turbo path needed for ndpi")
+            if tile_size is None:
+                raise ValueError("Tile size needed for ndpi")
             return NdpiTiler(
                 filepath,
                 tile_size,
-                turbo_path
+                cls.find_turbojpeg_path()
             )
 
         if file_format == 'svs':
             return SvsTiler(filepath)
 
         if file_format == 'philips_tiff':
-            if turbo_path is None:
-                raise ValueError("Turbo path needed for philips tiff")
             return PhilipsTiffTiler(
                 filepath,
-                turbo_path
+                cls.find_turbojpeg_path()
             )
 
         raise NotImplementedError('Non supported tiff file')
+
+    @staticmethod
+    def find_turbojpeg_path() -> Path:
+        try:
+            return os.environ['TURBOJPEG']
+        except KeyError:
+            raise ValueError(
+                "Enviroment variable 'TURBOJPEG'"
+                "needs to be set to turbojpeg dll/so"
+            )
