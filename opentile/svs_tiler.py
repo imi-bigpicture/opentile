@@ -150,10 +150,13 @@ class SvsTiledPage(NativeTiledPage):
         with io.BytesIO() as buffer:
             buffer.write(frame[0:start_of_scan])
             buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
+            # colorspace fix: Adobe APP14 marker with transform flag 0
+            # indicating image is encoded as RGB (not YCbCr)
             buffer.write(
                 b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
                 b"\x65\x00\x64\x80\x00\x00\x00\x00"
-            )  # colorspace fix
+            )  
+
             buffer.write(frame[start_of_scan:None])
             return buffer.getvalue()
 
