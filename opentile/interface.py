@@ -1,6 +1,5 @@
-import os
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from tifffile import TiffFile, TiffFileError
 
@@ -9,6 +8,7 @@ from opentile.ndpi_tiler import NdpiTiler
 from opentile.philips_tiff_tiler import PhilipsTiffTiler
 from opentile.svs_tiler import SvsTiler
 from opentile.turbojpeg_patch import find_turbojpeg_path
+
 
 class OpenTile:
     @staticmethod
@@ -33,7 +33,7 @@ class OpenTile:
     def open(
         cls,
         filepath: Path,
-        tile_size: Tuple[int, int] = None,
+        tile_size: Union[int, Tuple[int, int]] = None,
     ) -> Tiler:
         """Return a file type specific tiler for tiff file in filepath.
         Tile size and turbo jpeg path are optional but required for some file
@@ -46,6 +46,8 @@ class OpenTile:
         tile_size: Tuple[int, int] = None
             Tile size for creating tiles, if needed for file format.
         """
+        if not isinstance(tile_size, tuple):
+            tile_size = (tile_size, tile_size)
         file_format = cls.detect_format(filepath)
         if file_format == 'ndpi':
             if tile_size is None:
@@ -68,4 +70,3 @@ class OpenTile:
             )
 
         raise NotImplementedError('Non supported tiff file')
-

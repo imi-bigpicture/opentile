@@ -134,9 +134,9 @@ class NdpiTile:
         ----------
         position: Point
             Tile position.
-        tile_size
+        tile_size: Size
             Tile size.
-        frame_size
+        frame_size: Size
             Frame size.
 
         """
