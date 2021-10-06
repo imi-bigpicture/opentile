@@ -157,7 +157,7 @@ class PhilipsTiffTiler(Tiler):
         self._fh = self._tiff_file.filehandle
 
         self._turbo_path = turbo_path
-        self._jpeg = TurboJPEG(self._turbo_path)
+        self._jpeg = TurboJPEG(str(self._turbo_path))
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):

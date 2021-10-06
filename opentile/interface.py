@@ -57,7 +57,9 @@ class OpenTile:
             )
 
         if file_format == 'svs':
-            return SvsTiler(filepath)
+            return SvsTiler(
+                filepath
+            )
 
         if file_format == 'philips_tiff':
             return PhilipsTiffTiler(
@@ -68,11 +70,31 @@ class OpenTile:
         raise NotImplementedError('Non supported tiff file')
 
     @staticmethod
-    def find_turbojpeg_path() -> Path:
+    def find_turbojpeg_path() -> Optional[Path]:
+        # Only windows installs libraries on strange places
+        if os.name != 'nt':
+            return None
         try:
-            return os.environ['TURBOJPEG']
+            bin_path = Path(os.environ['TURBOJPEG'])
         except KeyError:
             raise ValueError(
-                "Enviroment variable 'TURBOJPEG'"
-                "needs to be set to turbojpeg dll/so"
+                "Enviroment variable 'TURBOJPEG' "
+                "needs to be set to turbojpeg bin path."
             )
+        if not bin_path.is_dir():
+            raise ValueError(
+                "Enviroment variable 'TURBOJPEG' "
+                "is not set to a directory."
+            )
+        try:
+            dll_file = [
+                file for file in bin_path.iterdir()
+                if file.is_file()
+                and 'turbojpeg' in file.name
+                and file.suffix == '.dll'
+            ][0]
+        except IndexError:
+            raise ValueError(
+                f'Could not find turbojpeg dll in {bin_path}.'
+            )
+        return dll_file

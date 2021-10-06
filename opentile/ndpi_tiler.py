@@ -955,7 +955,7 @@ class NdpiTiler(Tiler):
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
         self._turbo_path = turbo_path
-        self._jpeg = TurboJPEG(self._turbo_path)
+        self._jpeg = TurboJPEG(str(self._turbo_path))
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
