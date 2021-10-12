@@ -5,7 +5,7 @@ from struct import unpack
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
-from tifffile import FileHandle, TiffFile, TiffPage
+from tifffile import FileHandle, TiffPage
 from tifffile.tifffile import TIFF
 
 from opentile.common import OpenTilePage, Tiler
@@ -134,9 +134,9 @@ class NdpiTile:
         ----------
         position: Point
             Tile position.
-        tile_size
+        tile_size: Size
             Tile size.
-        frame_size
+        frame_size: Size
             Frame size.
 
         """
@@ -450,6 +450,13 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             f"{type(self).__name__}({self._page}, {self._fh}, "
             f"{self._base_shape}, {self.tile_size}, {self._jpeg}, "
             f"{self._frame_cache._size})"
+        )
+
+    @property
+    def suggested_minimum_chunk_size(self) -> int:
+        return Size.max(
+            self._frame_size.width // self._tile_size.width,
+            Size(1, 1)
         )
 
     @property
@@ -923,7 +930,7 @@ class NdpiStripedPage(NdpiTiledPage):
 class NdpiTiler(Tiler):
     def __init__(
         self,
-        tiff_file: TiffFile,
+        filepath: Path,
         tile_size: Tuple[int, int],
         turbo_path: Path
     ):
@@ -932,15 +939,15 @@ class NdpiTiler(Tiler):
 
         Parameters
         ----------
-        tiff_file: TiffFile
-            A ndpi-TiffFile.
+        filepath: Path
+            Filepath to a ndpi TiffFile.
         tile_size: Tuple[int, int]
             Tile size to cache and produce. Must be multiple of 8.
         turbo_path: Path
             Path to turbojpeg (dll or so).
 
         """
-        super().__init__(tiff_file)
+        super().__init__(filepath)
 
         self._fh = self._tiff_file.filehandle
         self._tile_size = Size(*tile_size)
@@ -948,9 +955,7 @@ class NdpiTiler(Tiler):
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
         self._turbo_path = turbo_path
-        self._jpeg = TurboJPEG(self._turbo_path)
-        # Keys are series, level, page
-        self._pages: Dict[(int, int, int), NdpiPage] = {}
+        self._jpeg = TurboJPEG(str(self._turbo_path))
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
@@ -983,12 +988,10 @@ class NdpiTiler(Tiler):
         """Return NdpiPage for series, level, page. NdpiPages holds a cache, so
         store created pages.
         """
-        if (series, level, page) in self._pages:
-            ndpi_page = self._pages[series, level, page]
-        else:
+        if not (series, level, page) in self._pages:
             ndpi_page = self._create_page(series, level, page)
             self._pages[series, level, page] = ndpi_page
-        return ndpi_page
+        return self._pages[series, level, page]
 
     def _create_page(
         self,

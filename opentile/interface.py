@@ -1,21 +1,39 @@
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
-from tifffile import TiffFile
+from tifffile import TiffFile, TiffFileError
 
 from opentile.common import Tiler
 from opentile.ndpi_tiler import NdpiTiler
 from opentile.philips_tiff_tiler import PhilipsTiffTiler
 from opentile.svs_tiler import SvsTiler
+from opentile.turbojpeg_patch import find_turbojpeg_path
 
 
 class OpenTile:
+    @staticmethod
+    def detect_format(filepath: Path) -> Optional[str]:
+        """Return string describing tiff file format in file, or None
+        if not supported."""
+        try:
+            tiff_file = TiffFile(filepath)
+            if tiff_file.is_ndpi:
+                file_format = 'ndpi'
+            elif tiff_file.is_svs:
+                file_format = 'svs'
+            elif tiff_file.is_philips:
+                file_format = 'philips_tiff'
+            else:
+                file_format = None
+        except TiffFileError:
+            file_format = None
+        return file_format
+
     @classmethod
     def open(
-        self,
-        filepath: str,
-        tile_size: Tuple[int, int] = None,
-        turbo_path: Path = None
+        cls,
+        filepath: Path,
+        tile_size: Union[int, Tuple[int, int]] = None,
     ) -> Tiler:
         """Return a file type specific tiler for tiff file in filepath.
         Tile size and turbo jpeg path are optional but required for some file
@@ -27,31 +45,28 @@ class OpenTile:
             Path to tiff file.
         tile_size: Tuple[int, int] = None
             Tile size for creating tiles, if needed for file format.
-        turbo_path: Path = None
-            Path to turbo jpeg library, if needed for transforming tiles for
-            file format.
         """
-        tiff_file = TiffFile(filepath)
-        if tiff_file.is_ndpi:
-            if tile_size is None or turbo_path is None:
-                raise ValueError("Tile size and turbo path needed for ndpi")
+        if not isinstance(tile_size, tuple):
+            tile_size = (tile_size, tile_size)
+        file_format = cls.detect_format(filepath)
+        if file_format == 'ndpi':
+            if tile_size is None:
+                raise ValueError("Tile size needed for ndpi")
             return NdpiTiler(
-                tiff_file,
+                filepath,
                 tile_size,
-                turbo_path
+                find_turbojpeg_path()
             )
 
-        if tiff_file.is_svs:
+        if file_format == 'svs':
             return SvsTiler(
-                tiff_file
+                filepath
             )
 
-        if tiff_file.is_philips:
-            if turbo_path is None:
-                raise ValueError("Turbo path needed for philips tiff")
+        if file_format == 'philips_tiff':
             return PhilipsTiffTiler(
-                tiff_file,
-                turbo_path
+                filepath,
+                find_turbojpeg_path()
             )
 
         raise NotImplementedError('Non supported tiff file')

@@ -4,7 +4,6 @@ from hashlib import md5
 
 import pytest
 from opentile.philips_tiff_tiler import PhilipsTiffTiledPage, PhilipsTiffTiler
-from tifffile import TiffFile
 
 philips_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
@@ -18,14 +17,13 @@ philips_file_path = philips_test_data_dir + '/' + sub_data_path
 class PhilipsTiffTilerTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.tif: TiffFile
         self.tiler: PhilipsTiffTiler
         self.level: PhilipsTiffTiledPage
 
     @classmethod
     def setUpClass(cls):
         cls.tiler = PhilipsTiffTiler(
-            TiffFile(philips_file_path),
+            philips_file_path,
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
         cls.level: PhilipsTiffTiledPage = cls.tiler.get_level(0)

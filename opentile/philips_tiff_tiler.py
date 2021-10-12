@@ -143,21 +143,21 @@ class PhilipsTiffTiledPage(NativeTiledPage):
 
 
 class PhilipsTiffTiler(Tiler):
-    def __init__(self, tiff_file: TiffFile, turbo_path: Path):
+    def __init__(self, filepath: Path, turbo_path: Path):
         """Tiler for Philips tiff file.
 
         Parameters
         ----------
-        tiff_file: TiffFile
-            A Philips-TiffFile.
+        filepath: Path
+            Filepath to a Philips-TiffFile.
         turbo_path: Path
             Path to turbojpeg (dll or so).
         """
-        super().__init__(tiff_file)
+        super().__init__(filepath)
         self._fh = self._tiff_file.filehandle
 
         self._turbo_path = turbo_path
-        self._jpeg = TurboJPEG(self._turbo_path)
+        self._jpeg = TurboJPEG(str(self._turbo_path))
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
@@ -187,14 +187,16 @@ class PhilipsTiffTiler(Tiler):
         page: int = 0
     ) -> PhilipsTiffTiledPage:
         """Return PhilipsTiffTiledPage for series, level, page."""
-        tiff_page = self.series[series].levels[level].pages[page]
-        return PhilipsTiffTiledPage(
-            tiff_page,
-            self._fh,
-            self.base_size,
-            self.base_mpp,
-            self._jpeg
-        )
+        if not (series, level, page) in self._pages:
+            tiff_page = self.series[series].levels[level].pages[page]
+            self._pages[series, level, page] = PhilipsTiffTiledPage(
+                tiff_page,
+                self._fh,
+                self.base_size,
+                self.base_mpp,
+                self._jpeg
+            )
+        return self._pages[series, level, page]
 
     @staticmethod
     def is_overview(series: TiffPageSeries) -> bool:

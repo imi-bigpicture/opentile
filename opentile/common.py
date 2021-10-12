@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 import threading
 from abc import ABCMeta, abstractmethod
 from typing import Dict, List, Tuple
@@ -55,8 +56,7 @@ class OpenTilePage(metaclass=ABCMeta):
         NativeTiledPage - Meta class for pages that are natively tiled
             PhilipsTiffTiledPage - OpenTiledPage for Philips Tiff-page
             SvsTiledPage - OpenTiledPage for Svs Tiff-page
-        NdpiPage - Meta class for Ndpi file page
-            NdpiNonTiledPage - Ndpi page that should not be tiled
+        NdpiPage - Ndpi page that should not be tiled
             NdpiTiledPage - Metaclass for a tiled Ndpi page
                 NdpiOneFramePage - Tiled Ndpi page of only one frame
                 NdpiStripedPage - Tiled Ndpi page of striped frames
@@ -99,6 +99,12 @@ class OpenTilePage(metaclass=ABCMeta):
 
     def __str__(self) -> str:
         return f"{type(self).__name__} of page {self._page}"
+
+    @property
+    def suggested_minimum_chunk_size(self) -> int:
+        """Suggested minimum chunk size regarding performance for reading
+        multiple tiles (get_tiles())."""
+        return 1
 
     @property
     def compression(self) -> str:
@@ -170,7 +176,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @abstractmethod
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
-        """Return decoded tile for tile position.
+        """Should return decoded tile for tile position.
 
         Parameters
         ----------
@@ -216,9 +222,7 @@ class OpenTilePage(metaclass=ABCMeta):
         List[np.ndarray]
             List of decoded tiles.
         """
-        return (
-            self.get_decoded_tile(tile) for tile in tile_positions
-        )
+        return [self.get_decoded_tile(tile) for tile in tile_positions]
 
     def close(self) -> None:
         """Close filehandle."""
@@ -298,12 +302,11 @@ class OpenTilePage(metaclass=ABCMeta):
 
 class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
     """Meta class for pages that are natively tiled (e.g. not ndpi)"""
-    def _tile_position_to_frame_index(
+    def _tile_point_to_frame_index(
         self,
-        tile_position: Tuple[int, int]
+        tile_point: Point
     ) -> Point:
         """Return linear frame index for tile position."""
-        tile_point = Point.from_tuple(tile_position)
         frame_index = tile_point.y * self.tiled_size.width + tile_point.x
         return frame_index
 
@@ -328,14 +331,16 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         bytes
             Produced tile at position.
         """
-        frame_index = self._tile_position_to_frame_index(tile_position)
+        tile_point = Point.from_tuple(tile_position)
+        frame_index = self._tile_point_to_frame_index(tile_point)
         frame = self._read_frame(frame_index)
         if self.compression == 'COMPRESSION.JPEG':
             return self._add_jpeg_tables(frame)
         return frame
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
-        """Return decoded tile for tile position.
+        """Return decoded tile for tile position. Returns a white tile if tile
+        is outside of image.
 
         Parameters
         ----------
@@ -347,16 +352,19 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         bytes
             Produced tile at position.
         """
-        frame_index = self._tile_position_to_frame_index(tile_position)
-        frame = self._read_frame(frame_index)
-        if self.compression == 'COMPRESSION.JPEG':
-            tables = self.page.jpegtables
-        else:
-            tables = None
+        tile_point = Point.from_tuple(tile_position)
+        if not self._check_if_tile_inside_image(tile_point):
+            return np.full(
+                self.tile_size.to_tuple() + (3,),
+                255,
+                dtype=np.uint8
+            )
+
         data: np.ndarray
-        indices: tuple[int]
-        shape: tuple[int]
-        data, indices, shape = self.page.decode(frame, frame_index, tables)
+        shape: tuple[int, int, int, int]
+        frame = self.get_tile(tile_position)
+        frame_index = self._tile_point_to_frame_index(tile_point)
+        data, _, shape = self.page.decode(frame, frame_index)
         data.shape = shape[1:]
         return data
 
@@ -367,20 +375,21 @@ class Tiler:
     _overview_series_index: int = None
     _label_series_index: int = None
 
-    def __init__(self, tiff_file: TiffFile):
+    def __init__(self, filepath: Path):
         """Abstract class for reading pages from TiffFile.
 
         Parameters
         ----------
-        tiff_file: TiffFile
-            TiffFile to read pages from
+        filepath: Path
+            Filepath to a TiffFile.
         """
-        self._tiff_file = tiff_file
+        self._tiff_file = TiffFile(filepath)
         self._base_page = self.series[self._level_series_index].pages[0]
         self._base_size = Size(
             self.base_page.shape[1],
             self.base_page.shape[0]
         )
+        self._pages: Dict[Tuple[int, int, int], OpenTilePage] = {}
 
     @property
     def properties(self) -> Dict[str, any]:

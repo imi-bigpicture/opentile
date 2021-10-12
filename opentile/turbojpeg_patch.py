@@ -1,12 +1,44 @@
 from ctypes import *
 from struct import calcsize, unpack
 from typing import Optional, Tuple
+import os
+from pathlib import Path
 
 import numpy as np
 from turbojpeg import (CUSTOMFILTER, TJFLAG_ACCURATEDCT, TJXOP_NONE,
                        TJXOPT_PERFECT,
                        CroppingRegion,
                        TurboJPEG, tjMCUHeight, tjMCUWidth)
+
+
+def find_turbojpeg_path() -> Optional[Path]:
+    # Only windows installs libraries on strange places
+    if os.name != 'nt':
+        return None
+    try:
+        bin_path = Path(os.environ['TURBOJPEG'])
+    except KeyError:
+        raise ValueError(
+            "Enviroment variable 'TURBOJPEG' "
+            "needs to be set to turbojpeg bin path."
+        )
+    if not bin_path.is_dir():
+        raise ValueError(
+            "Enviroment variable 'TURBOJPEG' "
+            "is not set to a directory."
+        )
+    try:
+        dll_file = [
+            file for file in bin_path.iterdir()
+            if file.is_file()
+            and 'turbojpeg' in file.name
+            and file.suffix == '.dll'
+        ][0]
+    except IndexError:
+        raise ValueError(
+            f'Could not find turbojpeg dll in {bin_path}.'
+        )
+    return dll_file
 
 
 class BlankStruct(Structure):
