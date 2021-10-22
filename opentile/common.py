@@ -2,7 +2,7 @@ import math
 from pathlib import Path
 import threading
 from abc import ABCMeta, abstractmethod
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 from tifffile.tifffile import (FileHandle, TiffFile, TiffPage, TiffPageSeries,
@@ -280,10 +280,11 @@ class OpenTilePage(metaclass=ABCMeta):
     def _get_value_from_tiff_tags(
         tiff_tags: List[TiffTag],
         value_name: str
-    ) -> str:
+    ) -> Optional[str]:
         for tag in tiff_tags:
             if tag.name == value_name:
                 return tag.value
+        return None
 
     def _calculate_pyramidal_index(
         self,
