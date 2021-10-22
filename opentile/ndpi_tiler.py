@@ -2,7 +2,7 @@ import struct
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from struct import unpack
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 from tifffile import FileHandle, TiffPage
@@ -386,13 +386,17 @@ class NdpiPage(OpenTilePage):
         mpp_y = 1/y_resolution
         return SizeMm(mpp_x, mpp_y)
 
-    def _get_properties(self) -> Dict[str, any]:
+    def _get_properties(self) -> Dict[str, Any]:
         """Return dictionary with ndpifile properties."""
         ndpi_tags = self.page.ndpi_tags
-        manufacturer = ndpi_tags['Make']
-        model = ndpi_tags['Model']
-        software_versions = [ndpi_tags['Software']]
-        device_serial_number = ndpi_tags['ScannerSerialNumber']
+        manufacturer = getattr(ndpi_tags, 'Make', None)
+        model = getattr(ndpi_tags, 'Model', None)
+        software_version = getattr(ndpi_tags, 'Software', None)
+        if software_version is not None:
+            software_versions = [software_version]
+        else:
+            software_versions = None
+        device_serial_number = getattr(ndpi_tags, 'ScannerSerialNumber', None)
         aquisition_datatime = self._get_value_from_tiff_tags(
             self.page.tags, 'DateTime'
         )
