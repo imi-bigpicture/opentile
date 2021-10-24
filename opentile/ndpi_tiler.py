@@ -599,10 +599,17 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordinate.
         """
-        tiles = self._jpeg.crop_multiple(
-            frame,
-            frame_job.crop_parameters
-        )
+        try:
+            tiles = self._jpeg.crop_multiple(
+                frame,
+                frame_job.crop_parameters
+            )
+        except OSError:
+            raise ValueError(
+                f"Crop of {frame_job} failed "
+                f"with parameters {frame_job.crop_parameters} "
+                f"for frame {frame.hex()}"
+            )
         return {
             tile.position: tiles[i]
             for i, tile in enumerate(frame_job.tiles)
