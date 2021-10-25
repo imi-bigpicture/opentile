@@ -607,8 +607,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         except OSError:
             raise ValueError(
                 f"Crop of {frame_job} failed "
-                f"with parameters {frame_job.crop_parameters} "
-                f"for frame {frame.hex()}"
+                f"with parameters {frame_job.crop_parameters}"
             )
         return {
             tile.position: tiles[i]
