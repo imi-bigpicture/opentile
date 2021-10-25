@@ -28,7 +28,7 @@ class NdpiTilerTest(unittest.TestCase):
         cls.tile_size = Size(1024, 1024)
         cls.tiler = NdpiTiler(
             ndpi_file_path,
-            (cls.tile_size.width, cls.tile_size.height),
+            cls.tile_size.width,
             'C:/libjpeg-turbo64/bin/turbojpeg.dll'
         )
         cls.level: NdpiStripedPage = cls.tiler.get_level(0)

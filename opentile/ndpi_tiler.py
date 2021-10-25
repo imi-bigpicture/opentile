@@ -599,10 +599,16 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordinate.
         """
-        tiles = self._jpeg.crop_multiple(
-            frame,
-            frame_job.crop_parameters
-        )
+        try:
+            tiles = self._jpeg.crop_multiple(
+                frame,
+                frame_job.crop_parameters
+            )
+        except OSError:
+            raise ValueError(
+                f"Crop of {frame_job} failed "
+                f"with parameters {frame_job.crop_parameters}"
+            )
         return {
             tile.position: tiles[i]
             for i, tile in enumerate(frame_job.tiles)
@@ -754,11 +760,7 @@ class NdpiStripedPage(NdpiTiledPage):
         Size
             The size of stripes in the file.
         """
-        (
-            stripe_width,
-            stripe_height,
-            _, _
-        ) = self._jpeg.decode_header(self._page.jpegheader)
+        stripe_height, stripe_width, _ = self.page.chunks
         return Size(stripe_width, stripe_height)
 
     def _is_partial_frame(self, tile_position: Point) -> Tuple[bool, bool]:
@@ -935,7 +937,7 @@ class NdpiTiler(Tiler):
     def __init__(
         self,
         filepath: Path,
-        tile_size: Tuple[int, int],
+        tile_size: int,
         turbo_path: Path
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
@@ -945,8 +947,10 @@ class NdpiTiler(Tiler):
         ----------
         filepath: Path
             Filepath to a ndpi TiffFile.
-        tile_size: Tuple[int, int]
-            Tile size to cache and produce. Must be multiple of 8.
+        tile_size: int
+            Tile size to cache and produce. Must be multiple of 8 and will be
+            adjusted to be an even multipler or divider of the smallest strip
+            width in the file.
         turbo_path: Path
             Path to turbojpeg (dll or so).
 
@@ -954,8 +958,8 @@ class NdpiTiler(Tiler):
         super().__init__(filepath)
 
         self._fh = self._tiff_file.filehandle
-        self._tile_size = Size(*tile_size)
-        # Subsampling not accounted for!
+
+        self._tile_size = self._adjust_tile_size(tile_size)
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
         self._turbo_path = turbo_path
@@ -996,6 +1000,59 @@ class NdpiTiler(Tiler):
             ndpi_page = self._create_page(series, level, page)
             self._pages[series, level, page] = ndpi_page
         return self._pages[series, level, page]
+
+    def _adjust_tile_size(self, requested_tile_width: int) -> Size:
+        """Return adjusted tile size. If file contains striped pages the
+        tile size must be an even multipler or divider of the smallest stripe
+        width in the file.
+
+        Parameters
+        ----------
+        requested_tile_width: int
+            Requested tile width.
+
+        Returns
+        ----------
+        Size
+            Adjusted tile size.
+        """
+        smallest_stripe_width = self._get_smallest_stripe_width()
+        if (
+            smallest_stripe_width is None or
+            smallest_stripe_width == requested_tile_width
+        ):
+            # No striped pages or requested is equald to smallest
+            return Size(requested_tile_width, requested_tile_width)
+
+        if requested_tile_width > smallest_stripe_width:
+            factor = requested_tile_width // smallest_stripe_width
+        elif requested_tile_width < smallest_stripe_width:
+            factor = smallest_stripe_width // requested_tile_width
+        adjusted_width = factor * smallest_stripe_width
+        return Size(adjusted_width, adjusted_width)
+
+    def _get_smallest_stripe_width(self) -> Optional[int]:
+        """Return smallest stripe width in file, or None if no page in the
+        file is striped.
+
+        Returns
+        ----------
+        Optional[int]
+            The smallest stripe width in the file, or None if no page in the
+            file is striped.
+        """
+        smallest_stripe_width: int = None
+        for page in self._tiff_file.pages:
+            stripe_width = page.chunks[1]
+            if (
+                page.is_tiled and
+                (
+                    smallest_stripe_width is None or
+                    smallest_stripe_width > stripe_width
+                )
+            ):
+                smallest_stripe_width = stripe_width
+        return smallest_stripe_width
 
     def _create_page(
         self,
