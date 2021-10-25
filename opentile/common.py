@@ -370,7 +370,7 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         return data
 
 
-class Tiler:
+class Tiler(metaclass=ABCMeta):
     """Abstract class for reading pages from TiffFile."""
     _level_series_index: int = 0
     _overview_series_index: int = None
