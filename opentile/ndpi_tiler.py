@@ -1,3 +1,4 @@
+import math
 import struct
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
@@ -958,8 +959,11 @@ class NdpiTiler(Tiler):
         super().__init__(filepath)
 
         self._fh = self._tiff_file.filehandle
-
-        self._tile_size = self._adjust_tile_size(tile_size)
+        smallest_stripe_width = self._get_smallest_stripe_width()
+        self._tile_size = self._adjust_tile_size(
+            tile_size,
+            smallest_stripe_width
+        )
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
         self._turbo_path = turbo_path
@@ -1001,22 +1005,28 @@ class NdpiTiler(Tiler):
             self._pages[series, level, page] = ndpi_page
         return self._pages[series, level, page]
 
-    def _adjust_tile_size(self, requested_tile_width: int) -> Size:
+    @staticmethod
+    def _adjust_tile_size(
+        requested_tile_width: int,
+        smallest_stripe_width: int
+    ) -> Size:
         """Return adjusted tile size. If file contains striped pages the
-        tile size must be an even multipler or divider of the smallest stripe
-        width in the file.
+        tile size must be an n * smallest stripe width in the file, where n
+        is the closest square factor of the ratio between requested tile width
+        and smallest stripe width.
 
         Parameters
         ----------
         requested_tile_width: int
             Requested tile width.
+        smallest_stripe_width: int
+            Smallest stripe width in file.
 
         Returns
         ----------
         Size
             Adjusted tile size.
         """
-        smallest_stripe_width = self._get_smallest_stripe_width()
         if (
             smallest_stripe_width is None or
             smallest_stripe_width == requested_tile_width
@@ -1025,10 +1035,12 @@ class NdpiTiler(Tiler):
             return Size(requested_tile_width, requested_tile_width)
 
         if requested_tile_width > smallest_stripe_width:
-            factor = requested_tile_width // smallest_stripe_width
+            factor = requested_tile_width / smallest_stripe_width
         elif requested_tile_width < smallest_stripe_width:
-            factor = smallest_stripe_width // requested_tile_width
-        adjusted_width = factor * smallest_stripe_width
+            factor = smallest_stripe_width / requested_tile_width
+        # Factor should be a square number (in the series 2^n)
+        factor_2 = pow(2, round(math.log2(factor)))
+        adjusted_width = factor_2 * smallest_stripe_width
         return Size(adjusted_width, adjusted_width)
 
     def _get_smallest_stripe_width(self) -> Optional[int]:
