@@ -294,3 +294,31 @@ class NdpiTilerTest(unittest.TestCase):
 
     def test_tiled_size(self):
         self.assertEqual(Size(156, 102), self.level.tiled_size)
+
+    def test_get_smallest_stripe_width(self):
+        self.assertEqual(64, self.tiler._get_smallest_stripe_width())
+
+    def test_adjust_tile_size(self):
+        self.assertEqual(
+            Size(512, 512),
+            self.tiler._adjust_tile_size(
+                512,
+                self.tiler._get_smallest_stripe_width()
+            )
+        )
+
+        self.assertEqual(
+            Size(448, 448),
+            self.tiler._adjust_tile_size(
+                512,
+                56
+            )
+        )
+
+        self.assertEqual(
+            Size(496, 496),
+            self.tiler._adjust_tile_size(
+                512,
+                248
+            )
+        )
