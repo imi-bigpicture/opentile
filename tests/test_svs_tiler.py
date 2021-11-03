@@ -33,12 +33,12 @@ class SvsTilerTest(unittest.TestCase):
     def test_get_tile(self):
         tile = self.level.get_tile((0, 0))
         self.assertEqual(
-            'bfc67c0c88684c96f605324649949c31',
+            '96929a3e57204aed3d66fdc13a0ad056',
             md5(tile).hexdigest()
         )
         tile = self.level.get_tile((20, 20))
         self.assertEqual(
-            '7997893f529fc4f940751ef4bf2b6407',
+            '8e95f6b8103c60458412832a4d9969fc',
             md5(tile).hexdigest()
         )
 
