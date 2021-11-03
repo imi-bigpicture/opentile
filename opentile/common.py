@@ -1,14 +1,16 @@
+import io
 import math
-from pathlib import Path
 import threading
 from abc import ABCMeta, abstractmethod
-from typing import Dict, List, Tuple, Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from tifffile.tifffile import (FileHandle, TiffFile, TiffPage, TiffPageSeries,
                                TiffTag)
 
 from opentile.geometry import Point, Region, Size, SizeMm
+from opentile.utils import Jpeg
 
 
 class LockableFileHandle:
@@ -303,19 +305,6 @@ class OpenTilePage(metaclass=ABCMeta):
 
 class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
     """Meta class for pages that are natively tiled (e.g. not ndpi)"""
-    def _tile_point_to_frame_index(
-        self,
-        tile_point: Point
-    ) -> Point:
-        """Return linear frame index for tile position."""
-        frame_index = tile_point.y * self.tiled_size.width + tile_point.x
-        return frame_index
-
-    @abstractmethod
-    def _add_jpeg_tables(self, frame) -> bytes:
-        """Should add needed jpeg tables to image bytes if needed."""
-        raise NotImplementedError
-
     def get_tile(
         self,
         tile_position: Tuple[int, int]
@@ -335,7 +324,7 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         tile_point = Point.from_tuple(tile_position)
         frame_index = self._tile_point_to_frame_index(tile_point)
         frame = self._read_frame(frame_index)
-        if self.compression == 'COMPRESSION.JPEG':
+        if self.page.jpegtables is not None:
             return self._add_jpeg_tables(frame)
         return frame
 
@@ -368,6 +357,37 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         data, _, shape = self.page.decode(frame, frame_index)
         data.shape = shape[1:]
         return data
+
+    def _tile_point_to_frame_index(
+        self,
+        tile_point: Point
+    ) -> Point:
+        """Return linear frame index for tile position."""
+        frame_index = tile_point.y * self.tiled_size.width + tile_point.x
+        return frame_index
+
+    def _add_jpeg_tables(self, frame: bytes) -> bytes:
+        """Add jpeg tables to frame. Tables are insterted before 'start of
+        scan'-tag, and leading 'start of image' and ending 'end of image' tags
+        are removed from the header prior to insertion.
+
+        Parameters
+        ----------
+        frame: bytes
+            'Abbreviated' jpeg frame lacking jpeg tables.
+
+        Returns
+        ----------
+        bytes:
+            'Interchange' jpeg frame containg jpeg tables.
+
+        """
+        start_of_scan = frame.find(Jpeg.start_of_scan())
+        with io.BytesIO() as buffer:
+            buffer.write(frame[0:start_of_scan])
+            buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
+            buffer.write(frame[start_of_scan:None])
+            return buffer.getvalue()
 
 
 class Tiler(metaclass=ABCMeta):

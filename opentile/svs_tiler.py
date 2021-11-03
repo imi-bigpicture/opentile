@@ -71,6 +71,29 @@ class SvsTiledPage(NativeTiledPage):
     def bottom_edge_corrupt(self) -> bool:
         return self._bottom_edge_corrupt
 
+    def get_tile(
+        self,
+        tile_position: Tuple[int, int]
+    ) -> bytes:
+        """Return image bytes for tile at tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        tile_point = Point.from_tuple(tile_position)
+        frame_index = self._tile_point_to_frame_index(tile_point)
+        frame = self._read_frame(frame_index)
+        if self.page.jpegtables is not None:
+            frame = self._add_jpeg_tables(frame)
+        return self._add_colorspace_fix(frame)
+
     def _detect_corrupt_edge(self, edge: Region) -> bool:
         """Return true if tiles at edge are corrupt (any tile has a frame
         that has 0 data length)
@@ -126,36 +149,19 @@ class SvsTiledPage(NativeTiledPage):
         """Return true if tile is at bottom edge of tiled image."""
         return tile_point.y == self.tiled_size.height - 1
 
-    def _add_jpeg_tables(
-        self,
-        frame: bytes
+    @staticmethod
+    def _add_colorspace_fix(
+        frame: bytes,
     ) -> bytes:
-        """Add jpeg tables to frame. Tables are insterted before 'start of
-        scan'-tag, and leading 'start of image' and ending 'end of image' tags
-        are removed from the header prior to insertion. Adds colorspace fix at
-        end of header.
-
-        Parameters
-        ----------
-        frame: bytes
-            'Abbreviated' jpeg frame lacking jpeg tables.
-
-        Returns
-        ----------
-        bytes:
-            'Interchange' jpeg frame containg jpeg tables.
-
-        """
         start_of_scan = frame.find(Jpeg.start_of_scan())
         with io.BytesIO() as buffer:
             buffer.write(frame[0:start_of_scan])
-            buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
             # colorspace fix: Adobe APP14 marker with transform flag 0
             # indicating image is encoded as RGB (not YCbCr)
             buffer.write(
                 b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
                 b"\x65\x00\x64\x80\x00\x00\x00\x00"
-            )  
+            )
 
             buffer.write(frame[start_of_scan:None])
             return buffer.getvalue()

@@ -118,29 +118,6 @@ class PhilipsTiffTiledPage(NativeTiledPage):
             return self.blank_tile
         return super()._read_frame(frame_index)
 
-    def _add_jpeg_tables(self, frame: bytes) -> bytes:
-        """Add jpeg tables to frame. Tables are insterted before 'start of
-        scan'-tag, and leading 'start of image' and ending 'end of image' tags
-        are removed from the header prior to insertion.
-
-        Parameters
-        ----------
-        frame: bytes
-            'Abbreviated' jpeg frame lacking jpeg tables.
-
-        Returns
-        ----------
-        bytes:
-            'Interchange' jpeg frame containg jpeg tables.
-
-        """
-        start_of_scan = frame.find(Jpeg.start_of_scan())
-        with io.BytesIO() as buffer:
-            buffer.write(frame[0:start_of_scan])
-            buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
-            buffer.write(frame[start_of_scan:None])
-            return buffer.getvalue()
-
 
 class PhilipsTiffTiler(Tiler):
     def __init__(self, filepath: Path, turbo_path: Path):
