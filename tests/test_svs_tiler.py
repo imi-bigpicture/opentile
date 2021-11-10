@@ -3,7 +3,7 @@ import unittest
 from hashlib import md5
 
 import pytest
-from opentile.geometry import Point, Size
+from opentile.geometry import Point
 from opentile.svs_tiler import SvsTiler, SvsTiledPage
 
 svs_test_data_dir = os.environ.get(
@@ -33,12 +33,12 @@ class SvsTilerTest(unittest.TestCase):
     def test_get_tile(self):
         tile = self.level.get_tile((0, 0))
         self.assertEqual(
-            '96929a3e57204aed3d66fdc13a0ad056',
+            'bfc67c0c88684c96f605324649949c31',
             md5(tile).hexdigest()
         )
         tile = self.level.get_tile((20, 20))
         self.assertEqual(
-            '8e95f6b8103c60458412832a4d9969fc',
+            '7997893f529fc4f940751ef4bf2b6407',
             md5(tile).hexdigest()
         )
 

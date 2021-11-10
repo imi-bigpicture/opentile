@@ -245,7 +245,7 @@ class SvsTiledPage(NativeTiledPage):
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return image bytes for tile at tile position. If tile is marked as
-        corrupt, return a fixed tile.
+        corrupt, return a fixed tile. Add color space fix if jpeg compression.
 
         Parameters
         ----------
@@ -258,13 +258,20 @@ class SvsTiledPage(NativeTiledPage):
             Produced tile at position.
         """
         tile_point = Point.from_tuple(tile_position)
-        if self.right_edge_corrupt and self._tile_is_at_right_edge(tile_point):
-            return self._get_fixed_tile(tile_point)
-        if self.bottom_edge_corrupt and self._tile_is_at_bottom_edge(
-            tile_point
+        # Check if tile is corrupted
+        if (
+            self.right_edge_corrupt and
+            self._tile_is_at_right_edge(tile_point)
+        ) or (
+            self.bottom_edge_corrupt and
+            self._tile_is_at_bottom_edge(tile_point)
         ):
             return self._get_fixed_tile(tile_point)
-        return super().get_tile(tile_position)
+
+        tile = super().get_tile(tile_position)
+        if self.compression == 'COMPRESSION.JPEG':
+            tile = self._add_colorspace_fix(tile)
+        return tile
 
 
 class SvsTiler(Tiler):
