@@ -1,14 +1,12 @@
-import io
 from pathlib import Path
 from typing import Dict, List, Type
 from xml.etree import ElementTree as etree
 
-from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
+from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.utils import Jpeg
 
 
 class PhilipsTiffTiledPage(NativeTiledPage):
