@@ -1,6 +1,7 @@
 import os
 import unittest
 from hashlib import md5
+from pathlib import Path
 
 import pytest
 from opentile.philips_tiff_tiler import PhilipsTiffTiledPage, PhilipsTiffTiler
@@ -10,7 +11,8 @@ philips_test_data_dir = os.environ.get(
     "C:/temp/opentile/philips_tiff/"
 )
 sub_data_path = "philips1/input.tif"
-philips_file_path = philips_test_data_dir + '/' + sub_data_path
+philips_file_path = Path(philips_test_data_dir + '/' + sub_data_path)
+turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
 
 
 @pytest.mark.unittest
@@ -24,7 +26,7 @@ class PhilipsTiffTilerTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tiler = PhilipsTiffTiler(
             philips_file_path,
-            'C:/libjpeg-turbo64/bin/turbojpeg.dll'
+            turbojpeg_path
         )
         cls.level: PhilipsTiffTiledPage = cls.tiler.get_level(0)
 

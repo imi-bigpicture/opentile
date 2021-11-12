@@ -3,7 +3,7 @@ import struct
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from struct import unpack
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, Any
 
 import numpy as np
 from tifffile import FileHandle, TiffPage
@@ -19,7 +19,7 @@ def get_value_from_ndpi_comments(
     comments: str,
     value_name: str,
     value_type: Type
-) -> any:
+) -> Any:
     """Read value from ndpi comment string."""
     for line in comments.split("\n"):
         if value_name in line:
@@ -338,7 +338,7 @@ class NdpiPage(OpenTilePage):
         return self._get_mpp_from_page()
 
     @property
-    def properties(self) -> Dict[str, any]:
+    def properties(self) -> Dict[str, Any]:
         """Return dictionary with ndpifile properties."""
         return self._properties
 
@@ -459,10 +459,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
 
     @property
     def suggested_minimum_chunk_size(self) -> int:
-        return Size.max(
-            self._frame_size.width // self._tile_size.width,
-            Size(1, 1)
-        )
+        return max(self._frame_size.width // self._tile_size.width, 1)
 
     @property
     def tile_size(self) -> Size:
@@ -939,7 +936,7 @@ class NdpiTiler(Tiler):
         self,
         filepath: Path,
         tile_size: int,
-        turbo_path: Path
+        turbo_path: Path = None
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
         size.
@@ -952,7 +949,7 @@ class NdpiTiler(Tiler):
             Tile size to cache and produce. Must be multiple of 8 and will be
             adjusted to be an even multipler or divider of the smallest strip
             width in the file.
-        turbo_path: Path
+        turbo_path: Path = None
             Path to turbojpeg (dll or so).
 
         """
@@ -967,7 +964,7 @@ class NdpiTiler(Tiler):
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
         self._turbo_path = turbo_path
-        self._jpeg = TurboJPEG(str(self._turbo_path))
+        self._jpeg = TurboJPEG(self._turbo_path)
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
@@ -1036,7 +1033,7 @@ class NdpiTiler(Tiler):
 
         if requested_tile_width > smallest_stripe_width:
             factor = requested_tile_width / smallest_stripe_width
-        elif requested_tile_width < smallest_stripe_width:
+        else:
             factor = smallest_stripe_width / requested_tile_width
         # Factor should be a square number (in the series 2^n)
         factor_2 = pow(2, round(math.log2(factor)))
@@ -1053,7 +1050,7 @@ class NdpiTiler(Tiler):
             The smallest stripe width in the file, or None if no page in the
             file is striped.
         """
-        smallest_stripe_width: int = None
+        smallest_stripe_width: Optional[int] = None
         for page in self._tiff_file.pages:
             stripe_width = page.chunks[1]
             if (
@@ -1088,12 +1085,12 @@ class NdpiTiler(Tiler):
         NdpiLevel
             Created level.
         """
-        page: TiffPage = (
+        tiff_page: TiffPage = (
             self._tiff_file.series[series].levels[level].pages[page]
         )
-        if page.is_tiled:  # Striped ndpi page
+        if tiff_page.is_tiled:  # Striped ndpi page
             return NdpiStripedPage(
-                page,
+                tiff_page,
                 self._fh,
                 self.base_size,
                 self.tile_size,
@@ -1101,14 +1098,14 @@ class NdpiTiler(Tiler):
             )
         if series == self._level_series_index:  # Single frame, force tiling
             return NdpiOneFramePage(
-                page,
+                tiff_page,
                 self._fh,
                 self.base_size,
                 self.tile_size,
                 self._jpeg
             )
         return NdpiPage(
-            page,
+            tiff_page,
             self._fh,
             self._jpeg
         )  # Single frame, do not tile

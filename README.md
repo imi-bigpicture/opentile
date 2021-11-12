@@ -5,7 +5,7 @@
 Please note that this is an early release and the API is not frozen yet. Function names and functionality is prone to change.
 
 ## Requirements
-*opentile* requires python >=3.7 and uses numpy, Pillow, TiffFile and PyTurboJPEG.
+*opentile* requires python >=3.7 and uses numpy, Pillow, TiffFile and PyTurboJPEG (with lib-turbojpeg >= 2.1 ).
 
 ## Limitations
 Files with z-stacks are currently not fully supported.

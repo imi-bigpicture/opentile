@@ -126,36 +126,19 @@ class SvsTiledPage(NativeTiledPage):
         """Return true if tile is at bottom edge of tiled image."""
         return tile_point.y == self.tiled_size.height - 1
 
-    def _add_jpeg_tables(
-        self,
-        frame: bytes
+    @staticmethod
+    def _add_colorspace_fix(
+        frame: bytes,
     ) -> bytes:
-        """Add jpeg tables to frame. Tables are insterted before 'start of
-        scan'-tag, and leading 'start of image' and ending 'end of image' tags
-        are removed from the header prior to insertion. Adds colorspace fix at
-        end of header.
-
-        Parameters
-        ----------
-        frame: bytes
-            'Abbreviated' jpeg frame lacking jpeg tables.
-
-        Returns
-        ----------
-        bytes:
-            'Interchange' jpeg frame containg jpeg tables.
-
-        """
         start_of_scan = frame.find(Jpeg.start_of_scan())
         with io.BytesIO() as buffer:
             buffer.write(frame[0:start_of_scan])
-            buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
             # colorspace fix: Adobe APP14 marker with transform flag 0
             # indicating image is encoded as RGB (not YCbCr)
             buffer.write(
                 b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
                 b"\x65\x00\x64\x80\x00\x00\x00\x00"
-            )  
+            )
 
             buffer.write(frame[start_of_scan:None])
             return buffer.getvalue()
@@ -178,12 +161,14 @@ class SvsTiledPage(NativeTiledPage):
             Scaled tile bytes.
 
         """
+        if self._parent is None:
+            raise ValueError("No parent level to get tiles from")
         scale = int(pow(2, self.pyramid_index - self._parent.pyramid_index))
         scaled_tile_region = Region(tile_point, Size(1, 1)) * scale
 
         # Get decoded tiles
         decoded_tiles = self._parent.get_decoded_tiles(
-            tile.to_tuple() for tile in scaled_tile_region.iterate_all()
+            [tile.to_tuple() for tile in scaled_tile_region.iterate_all()]
         )
         image_data = np.zeros(
             (self.tile_size*scale).to_tuple() + (3,),
@@ -239,7 +224,7 @@ class SvsTiledPage(NativeTiledPage):
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return image bytes for tile at tile position. If tile is marked as
-        corrupt, return a fixed tile.
+        corrupt, return a fixed tile. Add color space fix if jpeg compression.
 
         Parameters
         ----------
@@ -252,13 +237,22 @@ class SvsTiledPage(NativeTiledPage):
             Produced tile at position.
         """
         tile_point = Point.from_tuple(tile_position)
-        if self.right_edge_corrupt and self._tile_is_at_right_edge(tile_point):
+        # Check if tile is corrupted
+        tile_corrupt = (
+            self.right_edge_corrupt and
+            self._tile_is_at_right_edge(tile_point)
+        ) or (
+            self.bottom_edge_corrupt and
+            self._tile_is_at_bottom_edge(tile_point)
+        )
+        if tile_corrupt:
             return self._get_fixed_tile(tile_point)
-        if self.bottom_edge_corrupt and self._tile_is_at_bottom_edge(
-            tile_point
-        ):
-            return self._get_fixed_tile(tile_point)
-        return super().get_tile(tile_position)
+
+        tile = super().get_tile(tile_position)
+        if self.compression == 'COMPRESSION.JPEG':
+            tile = self._add_jpeg_tables(tile)
+            tile = self._add_colorspace_fix(tile)
+        return tile
 
 
 class SvsTiler(Tiler):

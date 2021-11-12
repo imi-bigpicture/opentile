@@ -1,14 +1,12 @@
-import io
 from pathlib import Path
-from typing import Dict, List, Type
+from typing import Any, Dict, List, Type
 from xml.etree import ElementTree as etree
 
-from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
+from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.utils import Jpeg
 
 
 class PhilipsTiffTiledPage(NativeTiledPage):
@@ -118,46 +116,23 @@ class PhilipsTiffTiledPage(NativeTiledPage):
             return self.blank_tile
         return super()._read_frame(frame_index)
 
-    def _add_jpeg_tables(self, frame: bytes) -> bytes:
-        """Add jpeg tables to frame. Tables are insterted before 'start of
-        scan'-tag, and leading 'start of image' and ending 'end of image' tags
-        are removed from the header prior to insertion.
-
-        Parameters
-        ----------
-        frame: bytes
-            'Abbreviated' jpeg frame lacking jpeg tables.
-
-        Returns
-        ----------
-        bytes:
-            'Interchange' jpeg frame containg jpeg tables.
-
-        """
-        start_of_scan = frame.find(Jpeg.start_of_scan())
-        with io.BytesIO() as buffer:
-            buffer.write(frame[0:start_of_scan])
-            buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
-            buffer.write(frame[start_of_scan:None])
-            return buffer.getvalue()
-
 
 class PhilipsTiffTiler(Tiler):
-    def __init__(self, filepath: Path, turbo_path: Path):
+    def __init__(self, filepath: Path, turbo_path: Path = None):
         """Tiler for Philips tiff file.
 
         Parameters
         ----------
         filepath: Path
             Filepath to a Philips-TiffFile.
-        turbo_path: Path
+        turbo_path: Path = None
             Path to turbojpeg (dll or so).
         """
         super().__init__(filepath)
         self._fh = self._tiff_file.filehandle
 
         self._turbo_path = turbo_path
-        self._jpeg = TurboJPEG(str(self._turbo_path))
+        self._jpeg = TurboJPEG(self._turbo_path)
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
@@ -176,7 +151,7 @@ class PhilipsTiffTiler(Tiler):
         return self._base_mpp
 
     @property
-    def properties(self) -> Dict[str, any]:
+    def properties(self) -> Dict[str, Any]:
         """Return dictionary with philips tiff file properties."""
         return self._properties
 
@@ -224,12 +199,12 @@ class PhilipsTiffTiler(Tiler):
         return pixel_spacing / 1000.0
 
     @staticmethod
-    def _split_and_cast_text(string: str, cast_type: Type) -> List[any]:
+    def _split_and_cast_text(string: str, cast_type: Type) -> List[Any]:
         return [
             cast_type(element) for element in string.replace('"', '').split()
         ]
 
-    def _read_properties(self) -> Dict[str, any]:
+    def _read_properties(self) -> Dict[str, Any]:
         """Return dictionary with philips tiff file properties."""
         metadata = etree.fromstring(self._tiff_file.philips_metadata)
         pixel_spacing = None

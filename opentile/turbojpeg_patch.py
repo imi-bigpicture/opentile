@@ -1,4 +1,4 @@
-from ctypes import *
+from ctypes import Structure, c_int, POINTER, cast, c_short, c_void_p, c_ubyte, cdll, c_ulong, byref, pointer, create_string_buffer, memmove
 from struct import calcsize, unpack
 from typing import Optional, Tuple
 import os
@@ -92,7 +92,7 @@ def get_np_coeffs(coeffs_ptr, arrayRegion):
 
 
 def blank_image(
-    coeffs_ptr: POINTER(c_short),
+    coeffs_ptr: c_void_p,
     arrayRegion: CroppingRegion,
     planeRegion: CroppingRegion,
     componentID: c_int,
@@ -103,7 +103,7 @@ def blank_image(
 
     Parameters
     ----------
-    coeffs_ptr: POINTER(c_short)
+    coeffs_ptr: c_void_p
         Pointer to the coefficient array for the callback.
     arrayRegion: CroppingRegion
         The width and height coefficient array and its offset relative to
@@ -139,7 +139,7 @@ def blank_image(
             coeffs[y][x][0] = dc_component
             coeffs[y][x][1:] = 0
 
-    return 1
+    return c_int(1)
 
 
 def split_byte_into_nibbles(value: int) -> Tuple[int, int]:
@@ -149,10 +149,15 @@ def split_byte_into_nibbles(value: int) -> Tuple[int, int]:
 
 
 class TurboJPEG_patch(TurboJPEG):
-    def __init__(self, lib_path=None):
-        super().__init__(lib_path)
-        turbo_jpeg = cdll.LoadLibrary(
-            self.__find_turbojpeg() if lib_path is None else lib_path)
+    def __init__(
+        self, lib_turbojpeg_path: Path = None
+    ):
+        if lib_turbojpeg_path is not None:
+            lib_turbojpeg_str_path = str(lib_turbojpeg_path)
+        else:
+            lib_turbojpeg_str_path = self._TurboJPEG__find_turbojpeg()
+        super().__init__(lib_turbojpeg_str_path)
+        turbo_jpeg = cdll.LoadLibrary(lib_turbojpeg_str_path)
         self.__transform = turbo_jpeg.tjTransform
         self.__transform.argtypes = [
             c_void_p,

@@ -1,17 +1,19 @@
 import os
 import unittest
 from hashlib import md5
+from pathlib import Path
 
 import pytest
-from opentile.geometry import Point, Size
-from opentile.svs_tiler import SvsTiler, SvsTiledPage
+from opentile.geometry import Point
+from opentile.svs_tiler import SvsTiledPage, SvsTiler
 
 svs_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
     "C:/temp/opentile/svs/"
 )
 sub_data_path = "svs1/input.svs"
-svs_file_path = svs_test_data_dir + '/' + sub_data_path
+svs_file_path = Path(svs_test_data_dir + '/' + sub_data_path)
+
 
 
 @pytest.mark.unittest
@@ -31,14 +33,14 @@ class SvsTilerTest(unittest.TestCase):
         cls.tiler.close()
 
     def test_get_tile(self):
-        tile = self.level.get_tile((0, 0))
+        tile = self.level.get_tile((15, 25))
         self.assertEqual(
-            'bfc67c0c88684c96f605324649949c31',
+            '042c56a5a8f989278750b0b89a9e3586',
             md5(tile).hexdigest()
         )
-        tile = self.level.get_tile((20, 20))
+        tile = self.level.get_tile((35, 30))
         self.assertEqual(
-            '7997893f529fc4f940751ef4bf2b6407',
+            '0b716fecf5cb80a72454ebc8bb15a72c',
             md5(tile).hexdigest()
         )
 
