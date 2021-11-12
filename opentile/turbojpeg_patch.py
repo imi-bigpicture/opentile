@@ -152,7 +152,9 @@ class TurboJPEG_patch(TurboJPEG):
     def __init__(self, lib_path=None):
         super().__init__(lib_path)
         turbo_jpeg = cdll.LoadLibrary(
-            self.__find_turbojpeg() if lib_path is None else lib_path)
+            self._TurboJPEG__find_turbojpeg()
+            if lib_path is None else lib_path
+        )
         self.__transform = turbo_jpeg.tjTransform
         self.__transform.argtypes = [
             c_void_p,
