@@ -1,6 +1,7 @@
 import os
 import unittest
 from hashlib import md5
+from pathlib import Path
 
 import pytest
 from opentile.geometry import Point, Size
@@ -13,7 +14,8 @@ ndpi_test_data_dir = os.environ.get(
     "C:/temp/opentile/ndpi/"
 )
 sub_data_path = "ndpi2/input.ndpi"
-ndpi_file_path = ndpi_test_data_dir + '/' + sub_data_path
+ndpi_file_path = Path(ndpi_test_data_dir + '/' + sub_data_path)
+turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
 
 
 @pytest.mark.unittest
@@ -29,7 +31,7 @@ class NdpiTilerTest(unittest.TestCase):
         cls.tiler = NdpiTiler(
             ndpi_file_path,
             cls.tile_size.width,
-            'C:/libjpeg-turbo64/bin/turbojpeg.dll'
+            turbojpeg_path
         )
         cls.level: NdpiStripedPage = cls.tiler.get_level(0)
 

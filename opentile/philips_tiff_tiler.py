@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List, Type
+from typing import Any, Dict, List, Type
 from xml.etree import ElementTree as etree
 
 from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
@@ -151,7 +151,7 @@ class PhilipsTiffTiler(Tiler):
         return self._base_mpp
 
     @property
-    def properties(self) -> Dict[str, any]:
+    def properties(self) -> Dict[str, Any]:
         """Return dictionary with philips tiff file properties."""
         return self._properties
 
@@ -199,12 +199,12 @@ class PhilipsTiffTiler(Tiler):
         return pixel_spacing / 1000.0
 
     @staticmethod
-    def _split_and_cast_text(string: str, cast_type: Type) -> List[any]:
+    def _split_and_cast_text(string: str, cast_type: Type) -> List[Any]:
         return [
             cast_type(element) for element in string.replace('"', '').split()
         ]
 
-    def _read_properties(self) -> Dict[str, any]:
+    def _read_properties(self) -> Dict[str, Any]:
         """Return dictionary with philips tiff file properties."""
         metadata = etree.fromstring(self._tiff_file.philips_metadata)
         pixel_spacing = None

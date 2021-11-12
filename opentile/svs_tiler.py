@@ -71,29 +71,6 @@ class SvsTiledPage(NativeTiledPage):
     def bottom_edge_corrupt(self) -> bool:
         return self._bottom_edge_corrupt
 
-    def get_tile(
-        self,
-        tile_position: Tuple[int, int]
-    ) -> bytes:
-        """Return image bytes for tile at tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
-        tile_point = Point.from_tuple(tile_position)
-        frame_index = self._tile_point_to_frame_index(tile_point)
-        frame = self._read_frame(frame_index)
-        if self.page.jpegtables is not None:
-            frame = self._add_jpeg_tables(frame)
-        return self._add_colorspace_fix(frame)
-
     def _detect_corrupt_edge(self, edge: Region) -> bool:
         """Return true if tiles at edge are corrupt (any tile has a frame
         that has 0 data length)
@@ -184,12 +161,14 @@ class SvsTiledPage(NativeTiledPage):
             Scaled tile bytes.
 
         """
+        if self._parent is None:
+            raise ValueError("No parent level to get tiles from")
         scale = int(pow(2, self.pyramid_index - self._parent.pyramid_index))
         scaled_tile_region = Region(tile_point, Size(1, 1)) * scale
 
         # Get decoded tiles
         decoded_tiles = self._parent.get_decoded_tiles(
-            tile.to_tuple() for tile in scaled_tile_region.iterate_all()
+            [tile.to_tuple() for tile in scaled_tile_region.iterate_all()]
         )
         image_data = np.zeros(
             (self.tile_size*scale).to_tuple() + (3,),
@@ -259,17 +238,19 @@ class SvsTiledPage(NativeTiledPage):
         """
         tile_point = Point.from_tuple(tile_position)
         # Check if tile is corrupted
-        if (
+        tile_corrupt = (
             self.right_edge_corrupt and
             self._tile_is_at_right_edge(tile_point)
         ) or (
             self.bottom_edge_corrupt and
             self._tile_is_at_bottom_edge(tile_point)
-        ):
+        )
+        if tile_corrupt:
             return self._get_fixed_tile(tile_point)
 
         tile = super().get_tile(tile_position)
         if self.compression == 'COMPRESSION.JPEG':
+            tile = self._add_jpeg_tables(tile)
             tile = self._add_colorspace_fix(tile)
         return tile
 

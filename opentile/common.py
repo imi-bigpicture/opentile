@@ -3,7 +3,7 @@ import math
 import threading
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 import numpy as np
 from tifffile.tifffile import (FileHandle, TiffFile, TiffPage, TiffPageSeries,
@@ -205,9 +205,9 @@ class OpenTilePage(metaclass=ABCMeta):
         List[bytes]
             List of tile bytes.
         """
-        return (
+        return [
             self.get_tile(tile) for tile in tile_positions
-        )
+        ]
 
     def get_decoded_tiles(
         self, tile_positions: List[Tuple[int, int]]
@@ -324,9 +324,7 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         tile_point = Point.from_tuple(tile_position)
         frame_index = self._tile_point_to_frame_index(tile_point)
         frame = self._read_frame(frame_index)
-        if self.page.jpegtables is not None:
-            return self._add_jpeg_tables(frame)
-        return frame
+        return self._add_jpeg_tables(frame)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         """Return decoded tile for tile position. Returns a white tile if tile
@@ -347,7 +345,7 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
             return np.full(
                 self.tile_size.to_tuple() + (3,),
                 255,
-                dtype=np.uint8
+                dtype=np.dtype(np.uint8)
             )
 
         data: np.ndarray
@@ -361,7 +359,7 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
     def _tile_point_to_frame_index(
         self,
         tile_point: Point
-    ) -> Point:
+    ) -> int:
         """Return linear frame index for tile position."""
         frame_index = tile_point.y * self.tiled_size.width + tile_point.x
         return frame_index
@@ -382,19 +380,22 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
             'Interchange' jpeg frame containg jpeg tables.
 
         """
+        if self.page.jpegtables is None:
+            return frame
+
         start_of_scan = frame.find(Jpeg.start_of_scan())
         with io.BytesIO() as buffer:
             buffer.write(frame[0:start_of_scan])
             buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
-            buffer.write(frame[start_of_scan:None])
+            buffer.write(frame[start_of_scan:])
             return buffer.getvalue()
 
 
 class Tiler(metaclass=ABCMeta):
     """Abstract class for reading pages from TiffFile."""
     _level_series_index: int = 0
-    _overview_series_index: int = None
-    _label_series_index: int = None
+    _overview_series_index: int
+    _label_series_index: int
 
     def __init__(self, filepath: Path):
         """Abstract class for reading pages from TiffFile.
@@ -413,7 +414,7 @@ class Tiler(metaclass=ABCMeta):
         self._pages: Dict[Tuple[int, int, int], OpenTilePage] = {}
 
     @property
-    def properties(self) -> Dict[str, any]:
+    def properties(self) -> Dict[str, Any]:
         """Dictionary of properties read from TiffFile."""
         return {}
 
