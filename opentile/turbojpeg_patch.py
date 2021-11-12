@@ -149,12 +149,15 @@ def split_byte_into_nibbles(value: int) -> Tuple[int, int]:
 
 
 class TurboJPEG_patch(TurboJPEG):
-    def __init__(self, lib_path=None):
-        super().__init__(lib_path)
-        turbo_jpeg = cdll.LoadLibrary(
-            self._TurboJPEG__find_turbojpeg()
-            if lib_path is None else lib_path
-        )
+    def __init__(
+        self, lib_turbojpeg_path: Path = None
+    ):
+        if lib_turbojpeg_path is not None:
+            lib_turbojpeg_path = str(lib_turbojpeg_path)
+        else:
+            lib_turbojpeg_path = self._TurboJPEG__find_turbojpeg()
+        super().__init__(lib_turbojpeg_path)
+        turbo_jpeg = cdll.LoadLibrary(lib_turbojpeg_path)
         self.__transform = turbo_jpeg.tjTransform
         self.__transform.argtypes = [
             c_void_p,

@@ -939,7 +939,7 @@ class NdpiTiler(Tiler):
         self,
         filepath: Path,
         tile_size: int,
-        turbo_path: Path
+        turbo_path: Path = None
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
         size.
@@ -952,7 +952,7 @@ class NdpiTiler(Tiler):
             Tile size to cache and produce. Must be multiple of 8 and will be
             adjusted to be an even multipler or divider of the smallest strip
             width in the file.
-        turbo_path: Path
+        turbo_path: Path = None
             Path to turbojpeg (dll or so).
 
         """
