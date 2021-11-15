@@ -15,18 +15,18 @@ sub_data_path = "svs1/input.svs"
 svs_file_path = Path(svs_test_data_dir + '/' + sub_data_path)
 
 
-
 @pytest.mark.unittest
 class SvsTilerTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tiler: SvsTiler
-        self.level: SvsTiledPage
 
     @classmethod
     def setUpClass(cls):
         cls.tiler = SvsTiler(svs_file_path)
-        cls.level: SvsTiledPage = cls.tiler.get_level(0)
+        level = cls.tiler.get_level(0)
+        assert(isinstance(level, SvsTiledPage))
+        cls.level = level
 
     @classmethod
     def tearDownClass(cls):
@@ -45,7 +45,8 @@ class SvsTilerTest(unittest.TestCase):
         )
 
     def test_get_scaled_tile(self):
-        level: SvsTiledPage = self.tiler.get_level(1)
+        level = self.tiler.get_level(1)
+        assert(isinstance(level, SvsTiledPage))
         tile = level._get_scaled_tile(Point(0, 0))
         self.assertEqual(
             '87c887f735772a934f84674fa63a4a10',
@@ -71,9 +72,9 @@ class SvsTilerTest(unittest.TestCase):
     def test_detect_corrupt_edges(self):
         self.assertEqual(
             (False, False),
-            self.tiler.get_level(0)._detect_corrupt_edges()
+            self.level._detect_corrupt_edges()
         )
         self.assertEqual(
             (False, False),
-            self.tiler.get_level(1)._detect_corrupt_edges()
+            self.level._detect_corrupt_edges()
         )

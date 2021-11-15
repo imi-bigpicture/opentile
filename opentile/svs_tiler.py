@@ -1,11 +1,10 @@
 import io
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 
 import numpy as np
 from PIL import Image
-from tifffile.tifffile import (FileHandle, TiffPage,
-                               svs_description_metadata)
+from tifffile.tifffile import (FileHandle, TiffPage, svs_description_metadata)
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
@@ -256,15 +255,15 @@ class SvsTiledPage(NativeTiledPage):
 
 
 class SvsTiler(Tiler):
-    def __init__(self, filepath: Path):
+    def __init__(self, filepath: Union[str, Path]):
         """Tiler for svs file.
 
         Parameters
         ----------
-        filepath: Path
+        filepath: Union[str, Path]
             Filepath to a svs TiffFile.
         """
-        super().__init__(filepath)
+        super().__init__(Path(filepath))
         self._fh = self._tiff_file.filehandle
 
         for series_index, series in enumerate(self.series):
@@ -276,6 +275,7 @@ class SvsTiler(Tiler):
                 self._overview_series_index = series_index
         mpp = svs_description_metadata(self.base_page.description)['MPP']
         self._base_mpp = SizeMm(mpp, mpp)
+        self._pages: Dict[Tuple[int, int, int], SvsTiledPage] = {}
 
     @property
     def base_mpp(self) -> SizeMm:

@@ -23,7 +23,6 @@ class NdpiTilerTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tiler: NdpiTiler
-        self.level: NdpiPage
 
     @classmethod
     def setUpClass(cls):
@@ -33,7 +32,9 @@ class NdpiTilerTest(unittest.TestCase):
             cls.tile_size.width,
             turbojpeg_path
         )
-        cls.level: NdpiStripedPage = cls.tiler.get_level(0)
+        level = cls.tiler.get_level(0)
+        assert(isinstance(level, NdpiStripedPage))
+        cls.level = level
 
     @classmethod
     def tearDownClass(cls):

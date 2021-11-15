@@ -1,6 +1,6 @@
 from pathlib import Path
-from typing import Any, Dict, List, Type
-from xml.etree import ElementTree as etree
+from typing import Any, Dict, List, Tuple, Type, Union, Optional
+import xml.etree.ElementTree as ET
 
 from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
 
@@ -118,17 +118,21 @@ class PhilipsTiffTiledPage(NativeTiledPage):
 
 
 class PhilipsTiffTiler(Tiler):
-    def __init__(self, filepath: Path, turbo_path: Path = None):
+    def __init__(
+        self,
+        filepath: Union[str, Path],
+        turbo_path: Union[str, Path] = None
+    ):
         """Tiler for Philips tiff file.
 
         Parameters
         ----------
-        filepath: Path
+        filepath: Union[str, Path]
             Filepath to a Philips-TiffFile.
-        turbo_path: Path = None
+        turbo_path: Union[str, Path] = None
             Path to turbojpeg (dll or so).
         """
-        super().__init__(filepath)
+        super().__init__(Path(filepath))
         self._fh = self._tiff_file.filehandle
 
         self._turbo_path = turbo_path
@@ -141,9 +145,9 @@ class PhilipsTiffTiler(Tiler):
             elif self.is_overview(series):
                 self._overview_series_index = series_index
         self._properties = self._read_properties()
-        self._base_mpp = SizeMm.from_tuple(
-            self.properties['pixel_spacing']
-        ) / 1000.0
+        mpp = self.properties['pixel_spacing'] / 1000.0
+        self._base_mpp = SizeMm(mpp, mpp)
+        self._pages: Dict[Tuple[int, int, int], PhilipsTiffTiledPage] = {}
 
     @property
     def base_mpp(self) -> SizeMm:
@@ -206,16 +210,27 @@ class PhilipsTiffTiler(Tiler):
 
     def _read_properties(self) -> Dict[str, Any]:
         """Return dictionary with philips tiff file properties."""
-        metadata = etree.fromstring(self._tiff_file.philips_metadata)
-        pixel_spacing = None
+        metadata = ET.fromstring(str(self._tiff_file.philips_metadata))
+        pixel_spacing: Optional[float] = None
+        aquisition_datatime: Optional[str] = None
+        device_serial_number: Optional[str] = None
+        manufacturer: Optional[str] = None
+        software_versions: Optional[str] = None
+        lossy_image_compression_method: Optional[str] = None
+        lossy_image_compression_ratio: Optional[str] = None
+        photometric_interpretation: Optional[str] = None
+        bits_allocated: Optional[int] = None
+        bits_stored: Optional[int] = None
+        high_bit: Optional[int] = None
+        pixel_representation: Optional[str] = None
         for element in metadata.iter():
-            if element.tag == 'Attribute':
+            if element.tag == 'Attribute' and element.text is not None:
                 name = element.attrib['Name']
                 if name == 'DICOM_PIXEL_SPACING' and pixel_spacing is None:
                     pixel_spacing = self._split_and_cast_text(
                         element.text,
                         float
-                    )
+                    )[0]
                 elif name == 'DICOM_ACQUISITION_DATETIME':
                     aquisition_datatime = element.text
                 elif name == 'DICOM_DEVICE_SERIAL_NUMBER':
@@ -226,17 +241,17 @@ class PhilipsTiffTiler(Tiler):
                     software_versions = self._split_and_cast_text(
                         element.text,
                         str
-                    )
+                    )[0]
                 elif name == 'DICOM_LOSSY_IMAGE_COMPRESSION_METHOD':
                     lossy_image_compression_method = self._split_and_cast_text(
                         element.text,
                         str
-                    )
+                    )[0]
                 elif name == 'DICOM_LOSSY_IMAGE_COMPRESSION_RATIO':
                     lossy_image_compression_ratio = self._split_and_cast_text(
                         element.text,
                         float
-                    )
+                    )[0]
                 elif name == 'DICOM_PHOTOMETRIC_INTERPRETATION':
                     photometric_interpretation = element.text
                 elif name == 'DICOM_BITS_ALLOCATED':

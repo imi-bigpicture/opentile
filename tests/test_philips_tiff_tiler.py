@@ -20,7 +20,6 @@ class PhilipsTiffTilerTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tiler: PhilipsTiffTiler
-        self.level: PhilipsTiffTiledPage
 
     @classmethod
     def setUpClass(cls):
@@ -28,7 +27,9 @@ class PhilipsTiffTilerTest(unittest.TestCase):
             philips_file_path,
             turbojpeg_path
         )
-        cls.level: PhilipsTiffTiledPage = cls.tiler.get_level(0)
+        level = cls.tiler.get_level(0)
+        assert(isinstance(level, PhilipsTiffTiledPage))
+        cls.level = level
 
     @classmethod
     def tearDownClass(cls):

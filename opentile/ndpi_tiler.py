@@ -3,11 +3,11 @@ import struct
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from struct import unpack
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, Any
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, Any, cast
 
 import numpy as np
 from tifffile import FileHandle, TiffPage
-from tifffile.tifffile import TIFF
+from tifffile.tifffile import TIFF, TiffTag
 
 from opentile.common import OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
@@ -149,7 +149,7 @@ class NdpiTile:
             self._frame_size // self._tile_size,
             Size(1, 1)
         )
-        position_inside_frame = (
+        position_inside_frame: Point = (
             (self.position * self._tile_size)
             % Size.max(self._frame_size, self._tile_size)
         )
@@ -308,8 +308,8 @@ class NdpiPage(OpenTilePage):
         self._jpeg = jpeg
         try:
             # Defined in nm
-            self._focal_plane = (
-                self.page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
+            self._focal_plane = float(
+                page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
             )
         except KeyError:
             self._focal_plane = 0.0
@@ -323,7 +323,7 @@ class NdpiPage(OpenTilePage):
         )
 
     @property
-    def focal_plane(self) -> List[float]:
+    def focal_plane(self) -> float:
         """Return focal plane (in um)."""
         return self._focal_plane
 
@@ -396,7 +396,7 @@ class NdpiPage(OpenTilePage):
         if software_version is not None:
             software_versions = [software_version]
         else:
-            software_versions = None
+            software_versions = []
         device_serial_number = getattr(ndpi_tags, 'ScannerSerialNumber', None)
         aquisition_datatime = self._get_value_from_tiff_tags(
             self.page.tags, 'DateTime'
@@ -737,7 +737,7 @@ class NdpiStripedPage(NdpiTiledPage):
             Number of read frames to cache.
         """
         super().__init__(page, fh, base_shape, tile_size, jpeg, frame_cache)
-        self._striped_size = Size(self._page.chunked[1], self._page.chunked[0])
+        self._striped_size = Size(self.page.chunked[1], self.page.chunked[0])
 
     @property
     def stripe_size(self) -> Size:
@@ -902,7 +902,8 @@ class NdpiStripedPage(NdpiTiledPage):
         bytes:
             Manupulated header.
         """
-
+        if self._page.jpegheader is None:
+            raise ValueError("No header found")
         header = bytearray(self._page.jpegheader)
         start_of_frame_index, length = self._find_tag(
             header, Jpeg.start_of_frame()
@@ -934,32 +935,32 @@ class NdpiStripedPage(NdpiTiledPage):
 class NdpiTiler(Tiler):
     def __init__(
         self,
-        filepath: Path,
+        filepath: Union[str, Path],
         tile_size: int,
-        turbo_path: Path = None
+        turbo_path: Union[str, Path] = None
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
         size.
 
         Parameters
         ----------
-        filepath: Path
+        filepath: Union[str, Path]
             Filepath to a ndpi TiffFile.
         tile_size: int
             Tile size to cache and produce. Must be multiple of 8 and will be
             adjusted to be an even multipler or divider of the smallest strip
             width in the file.
-        turbo_path: Path = None
+        turbo_path: Union[str, Path] = None
             Path to turbojpeg (dll or so).
 
         """
-        super().__init__(filepath)
+        super().__init__(Path(filepath))
 
         self._fh = self._tiff_file.filehandle
-        smallest_stripe_width = self._get_smallest_stripe_width()
+        self._tile_size = Size(tile_size, tile_size)
         self._tile_size = self._adjust_tile_size(
             tile_size,
-            smallest_stripe_width
+            self._get_smallest_stripe_width()
         )
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
@@ -972,6 +973,7 @@ class NdpiTiler(Tiler):
                 self._label_series_index = series_index
             elif series.name == 'Macro':
                 self._overview_series_index = series_index
+        self._pages: Dict[Tuple[int, int, int], NdpiPage] = {}
 
     def __repr__(self) -> str:
         return (
@@ -1005,7 +1007,7 @@ class NdpiTiler(Tiler):
     @staticmethod
     def _adjust_tile_size(
         requested_tile_width: int,
-        smallest_stripe_width: int
+        smallest_stripe_width: Optional[int] = None
     ) -> Size:
         """Return adjusted tile size. If file contains striped pages the
         tile size must be an n * smallest stripe width in the file, where n
@@ -1016,7 +1018,7 @@ class NdpiTiler(Tiler):
         ----------
         requested_tile_width: int
             Requested tile width.
-        smallest_stripe_width: int
+        smallest_stripe_width: Optional[int] = None
             Smallest stripe width in file.
 
         Returns

@@ -1,14 +1,15 @@
-from ctypes import Structure, c_int, POINTER, cast, c_short, c_void_p, c_ubyte, cdll, c_ulong, byref, pointer, create_string_buffer, memmove
-from struct import calcsize, unpack
-from typing import Optional, Tuple
 import os
+from ctypes import (POINTER, Structure, byref, c_int, c_short, c_ubyte,
+                    c_ulong, c_void_p, cast, cdll, create_string_buffer,
+                    memmove, pointer)
 from pathlib import Path
+from struct import calcsize, unpack
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from turbojpeg import (CUSTOMFILTER, TJFLAG_ACCURATEDCT, TJXOP_NONE,
-                       TJXOPT_PERFECT,
-                       CroppingRegion,
-                       TurboJPEG, tjMCUHeight, tjMCUWidth)
+                       TJXOPT_PERFECT, CroppingRegion, TurboJPEG, tjMCUHeight,
+                       tjMCUWidth)
 
 
 def find_turbojpeg_path() -> Optional[Path]:
@@ -150,7 +151,8 @@ def split_byte_into_nibbles(value: int) -> Tuple[int, int]:
 
 class TurboJPEG_patch(TurboJPEG):
     def __init__(
-        self, lib_turbojpeg_path: Path = None
+        self,
+        lib_turbojpeg_path: Union[str, Path] = None
     ):
         if lib_turbojpeg_path is not None:
             lib_turbojpeg_str_path = str(lib_turbojpeg_path)
@@ -246,8 +248,9 @@ class TurboJPEG_patch(TurboJPEG):
                 TJFLAG_ACCURATEDCT
             )
 
-            # Copy the transform results int python bytes
+            # Copy the transform results into python bytes
             dest_buf = create_string_buffer(dest_size.value)
+            assert dest_array.value is not None
             memmove(dest_buf, dest_array.value, dest_size.value)
 
             # Free the output image buffers
@@ -336,7 +339,7 @@ class TurboJPEG_patch(TurboJPEG):
             raise ValueError('Not valid precision definition in dqt')
         dc_offset = dqt_offset + 5
         dc_length = calcsize(unpack_type)
-        dc_value = unpack(
+        dc_value: int = unpack(
             unpack_type,
             jpeg_data[dc_offset:dc_offset+dc_length]
         )[0]
