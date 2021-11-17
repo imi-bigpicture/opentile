@@ -152,7 +152,7 @@ class OpenTilePage(metaclass=ABCMeta):
     def tiled_size(self) -> Size:
         """The size of the image when tiled."""
         if self.tile_size != Size(0, 0):
-            return (self.image_size / self.tile_size).ceil()
+            return self.image_size / self.tile_size
         else:
             return Size(1, 1)
 
@@ -241,7 +241,7 @@ class OpenTilePage(metaclass=ABCMeta):
     def pretty_str(
         self,
         indent: int = 0,
-        depth: int = None
+        depth: Optional[int] = None
     ) -> str:
         return str(self)
 

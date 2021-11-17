@@ -3,11 +3,11 @@ import struct
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from struct import unpack
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, Any, cast
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from tifffile import FileHandle, TiffPage
-from tifffile.tifffile import TIFF, TiffTag
+from tifffile.tifffile import TIFF
 
 from opentile.common import OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
@@ -18,7 +18,7 @@ from opentile.utils import Jpeg
 def get_value_from_ndpi_comments(
     comments: str,
     value_name: str,
-    value_type: Type
+    value_type: Any
 ) -> Any:
     """Read value from ndpi comment string."""
     for line in comments.split("\n"):
@@ -99,6 +99,10 @@ class NdpiCache():
             True if key is in cache.
         """
         return key in self._content
+
+    @property
+    def size(self) -> int:
+        return self._size
 
     def update(self, items: Dict[Point, bytes]) -> None:
         """Update items in cache. Remove old items if needed.
@@ -342,7 +346,7 @@ class NdpiPage(OpenTilePage):
         """Return dictionary with ndpifile properties."""
         return self._properties
 
-    def get_tile(self, tile: Tuple[int, int]) -> bytes:
+    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return tile for tile position.
 
         Parameters
@@ -355,7 +359,7 @@ class NdpiPage(OpenTilePage):
         bytes
             Produced tile at position.
         """
-        if tile != (0, 0):
+        if tile_position != (0, 0):
             raise ValueError
         return self._read_frame(0)
 
@@ -454,7 +458,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         return (
             f"{type(self).__name__}({self._page}, {self._fh}, "
             f"{self._base_shape}, {self.tile_size}, {self._jpeg}, "
-            f"{self._frame_cache._size})"
+            f"{self._frame_cache.size})"
         )
 
     @property
@@ -598,7 +602,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             Created tiles ordered by tile coordinate.
         """
         try:
-            tiles = self._jpeg.crop_multiple(
+            tiles: List[bytes] = self._jpeg.crop_multiple(
                 frame,
                 frame_job.crop_parameters
             )
@@ -698,7 +702,7 @@ class NdpiOneFramePage(NdpiTiledPage):
             raise ValueError("Frame osition not (0, 0) for one frame level.")
         frame = self._read_frame(0)
         # Use crop_multiple as it allows extending frame
-        tile = self._jpeg.crop_multiple(
+        tile: bytes = self._jpeg.crop_multiple(
             frame,
             [(0, 0, frame_size.width, frame_size.height)]
         )[0]
@@ -937,7 +941,7 @@ class NdpiTiler(Tiler):
         self,
         filepath: Union[str, Path],
         tile_size: int,
-        turbo_path: Union[str, Path] = None
+        turbo_path: Optional[Union[str, Path]] = None
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
         size.
@@ -950,7 +954,7 @@ class NdpiTiler(Tiler):
             Tile size to cache and produce. Must be multiple of 8 and will be
             adjusted to be an even multipler or divider of the smallest strip
             width in the file.
-        turbo_path: Union[str, Path] = None
+        turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
 
         """

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Type, Union, Optional
+from typing import Any, Dict, List, Tuple, Union, Optional
 import xml.etree.ElementTree as ET
 
 from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
@@ -92,14 +92,14 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         valid_tile = self._add_jpeg_tables(valid_frame)
         return self._jpeg.fill_image(valid_tile, luminance)
 
-    def _read_frame(self, frame_index: int) -> bytes:
+    def _read_frame(self, index: int) -> bytes:
         """Read frame at frame index from page. Return blank tile if tile is
         sparse (length of frame is zero or frame indexis outside length of
         frames)
 
         Parameters
         ----------
-        frame_index: int
+        index: int
             Frame index to read from page.
 
         Returns
@@ -109,19 +109,19 @@ class PhilipsTiffTiledPage(NativeTiledPage):
 
         """
         if (
-            frame_index >= len(self.page.databytecounts) or
-            self.page.databytecounts[frame_index] == 0
+            index >= len(self.page.databytecounts) or
+            self.page.databytecounts[index] == 0
         ):
             # Sparse tile
             return self.blank_tile
-        return super()._read_frame(frame_index)
+        return super()._read_frame(index)
 
 
 class PhilipsTiffTiler(Tiler):
     def __init__(
         self,
         filepath: Union[str, Path],
-        turbo_path: Union[str, Path] = None
+        turbo_path: Optional[Union[str, Path]] = None
     ):
         """Tiler for Philips tiff file.
 
@@ -129,7 +129,7 @@ class PhilipsTiffTiler(Tiler):
         ----------
         filepath: Union[str, Path]
             Filepath to a Philips-TiffFile.
-        turbo_path: Union[str, Path] = None
+        turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
         """
         super().__init__(Path(filepath))
@@ -203,7 +203,7 @@ class PhilipsTiffTiler(Tiler):
         return pixel_spacing / 1000.0
 
     @staticmethod
-    def _split_and_cast_text(string: str, cast_type: Type) -> List[Any]:
+    def _split_and_cast_text(string: str, cast_type: Any) -> List[Any]:
         return [
             cast_type(element) for element in string.replace('"', '').split()
         ]

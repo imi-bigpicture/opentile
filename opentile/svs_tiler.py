@@ -1,6 +1,6 @@
 import io
 from pathlib import Path
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, Optional
 
 import numpy as np
 from PIL import Image
@@ -18,7 +18,7 @@ class SvsTiledPage(NativeTiledPage):
         fh: FileHandle,
         base_shape: Size,
         base_mpp: SizeMm,
-        parent: 'SvsTiledPage' = None
+        parent: Optional['SvsTiledPage'] = None
     ):
         """OpenTiledPage for Svs Tiff-page.
 
@@ -32,7 +32,7 @@ class SvsTiledPage(NativeTiledPage):
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
-        parent: 'SvsTiledPage' = None
+        parent: Optional['SvsTiledPage'] = None
             Parent SvsTiledPage
         """
         super().__init__(page, fh)
@@ -183,7 +183,7 @@ class SvsTiledPage(NativeTiledPage):
                 ] = decoded_tiles[image_data_index]
 
         # Resize image_data using Pillow
-        image = Image.fromarray(image_data)
+        image: Image.Image = Image.fromarray(image_data)
         image = image.resize(
             self.tile_size.to_tuple(),
             resample=Image.BILINEAR

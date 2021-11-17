@@ -2,11 +2,6 @@ dist*
 Pipfile.lock*
 .mypy_cache*
 .pytest_cache*
-poetry.lock
 .vscode
-.ipynb_checkpoints
-*.ipynb
-*.dcm
-*.jpeg
 */__pycache__/
-*.jpg
+typings

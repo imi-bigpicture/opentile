@@ -34,7 +34,7 @@ class OpenTile:
     def open(
         cls,
         filepath: Union[str, Path],
-        tile_size: int = None,
+        tile_size: Optional[int] = None,
     ) -> Tiler:
         """Return a file type specific tiler for tiff file in filepath.
         Tile size and turbo jpeg path are optional but required for some file
@@ -44,7 +44,7 @@ class OpenTile:
         ----------
         filepath: Union[str, Path]
             Path to tiff file.
-        tile_size: int = None
+        tile_size: Optional[int] = None
             Tile size for creating tiles, if needed for file format.
         """
         file_format = cls.detect_format(filepath)

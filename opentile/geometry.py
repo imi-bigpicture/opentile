@@ -8,10 +8,10 @@ class SizeMm:
     width: float
     height: float
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'{self.width}x{self.height}'
 
-    def __mul__(self, factor):
+    def __mul__(self, factor: Union[int, float, 'Size', 'Point']) -> 'SizeMm':
         if isinstance(factor, (int, float)):
             return SizeMm(factor*self.width, factor*self.height)
         elif isinstance(factor, Size):
@@ -20,17 +20,17 @@ class SizeMm:
             return SizeMm(factor.x*self.width, factor.y*self.height)
         return NotImplemented
 
-    def __truediv__(self, divider):
+    def __truediv__(self, divider: Union[int, float, 'SizeMm']) -> 'SizeMm':
         if isinstance(divider, (int, float)):
             return SizeMm(self.width/divider, self.height/divider)
-        if isinstance(divider, SizeMm):
+        elif isinstance(divider, SizeMm):
             return SizeMm(
                 self.width/divider.width,
                 self.height/divider.height
             )
         return NotImplemented
 
-    def __floordiv__(self, divider):
+    def __floordiv__(self, divider: Union[int, float, 'SizeMm']) -> 'SizeMm':
         if isinstance(divider, (int, float)):
             return SizeMm(int(self.width/divider), int(self.height/divider))
         if isinstance(divider, SizeMm):
@@ -47,7 +47,10 @@ class SizeMm:
         return self.width, self.height
 
     @classmethod
-    def from_tuple(cls, input: Union[Tuple, List]) -> 'SizeMm':
+    def from_tuple(
+        cls,
+        input: Union[Tuple[float, float], List[float]]
+    ) -> 'SizeMm':
         try:
             return cls(input[0], input[1])
         except IndexError:
@@ -59,12 +62,15 @@ class PointMm:
     x: float
     y: float
 
-    def __floordiv__(self, divider):
+    def __floordiv__(self, divider: SizeMm) -> 'Point':
         if isinstance(divider, SizeMm):
             return Point(int(self.x/divider.width), int(self.y/divider.height))
         return NotImplemented
 
-    def __add__(self, value):
+    def __add__(
+        self,
+        value: Union[int, float, SizeMm, 'PointMm']
+    ) -> 'PointMm':
         if isinstance(value, (int, float)):
             return PointMm(self.x + value, self.y + value)
         elif isinstance(value, SizeMm):
@@ -74,7 +80,10 @@ class PointMm:
         return NotImplemented
 
     @classmethod
-    def from_tuple(cls, input: Union[Tuple, List]) -> 'PointMm':
+    def from_tuple(
+        cls,
+        input: Union[Tuple[float, float], List[float]]
+    ) -> 'PointMm':
         try:
             return cls(input[0], input[1])
         except IndexError:
@@ -86,31 +95,31 @@ class Size:
     width: int
     height: int
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'{self.width}x{self.height}'
 
-    def __neg__(self):
+    def __neg__(self) -> 'Size':
         return Size(-self.width, - self.height)
 
-    def __sub__(self, value):
+    def __sub__(self, value: Union[int, 'Size', 'Point']) -> 'Size':
         if isinstance(value, int):
             return Size(self.width - value, self.height - value)
-        if isinstance(value, Size):
+        elif isinstance(value, Size):
             return Size(self.width - value.width, self.height - value.height)
-        if isinstance(value, Point):
+        elif isinstance(value, Point):
             return Size(self.width - value.x, self.height - value.y)
         return NotImplemented
 
-    def __add__(self, value):
+    def __add__(self, value: Union[int, 'Size', 'Point']) -> 'Size':
         if isinstance(value, int):
             return Size(self.width + value, self.height + value)
-        if isinstance(value, Size):
+        elif isinstance(value, Size):
             return Size(self.width + value.width, self.height + value.height)
-        if isinstance(value, Point):
+        elif isinstance(value, Point):
             return Size(self.width + value.x, self.height + value.y)
         return NotImplemented
 
-    def __mul__(self, factor):
+    def __mul__(self, factor: Union[int, float, 'Size', 'Point']) -> 'Size':
         if isinstance(factor, (int, float)):
             return Size(int(factor*self.width), int(factor*self.height))
         elif isinstance(factor, Size):
@@ -119,36 +128,42 @@ class Size:
             return Size(factor.x*self.width, factor.y*self.height)
         return NotImplemented
 
-    def __floordiv__(self, divider):
+    def __floordiv__(
+        self,
+        divider: Union[int, float, 'Size', SizeMm]
+    ) -> 'Size':
         if isinstance(divider, (int, float)):
             return Size(int(self.width/divider), int(self.height/divider))
-
-        if isinstance(divider, (Size, SizeMm)):
+        elif isinstance(divider, (Size, SizeMm)):
             return Size(
                 int(self.width/divider.width),
                 int(self.height/divider.height)
             )
         return NotImplemented
 
-    def __truediv__(self, divider):
+    def __truediv__(
+        self,
+        divider: Tuple[int, float, 'Size', SizeMm]
+    ) -> 'Size':
         if isinstance(divider, (int, float)):
             return Size(
                 math.ceil(self.width/divider),
                 math.ceil(self.height/divider)
             )
-        if isinstance(divider, (Size, SizeMm)):
+        elif isinstance(divider, (Size, SizeMm)):
             return Size(
                 math.ceil(self.width/divider.width),
                 math.ceil(self.height/divider.height)
             )
         return NotImplemented
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.width, self.height))
 
-    def __lt__(self, item):
+    def __lt__(self, item: 'Size') -> bool:
         if isinstance(item, Size):
             return self.width < item.width
+        return NotImplemented
 
     @classmethod
     def from_points(cls, point_1: 'Point', point_2: 'Point') -> 'Size':
@@ -158,7 +173,7 @@ class Size:
         return (self.width, self.height)
 
     @classmethod
-    def from_tuple(cls, input: Union[Tuple, List]) -> 'Size':
+    def from_tuple(cls, input: Union[Tuple[int, int], List[int]]) -> 'Size':
         try:
             return cls(input[0], input[1])
         except IndexError:
@@ -187,13 +202,13 @@ class Point:
     x: int
     y: int
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'{self.x},{self.y}'
 
     def __hash__(self) -> int:
         return hash((self.x, self.y))
 
-    def __mul__(self, factor):
+    def __mul__(self, factor: Union[int, float, Size, 'Point']) -> 'Point':
         if isinstance(factor, (int, float)):
             return Point(int(factor*self.x), int(factor*self.y))
         elif isinstance(factor, Size):
@@ -202,36 +217,39 @@ class Point:
             return Point(factor.x*self.x, factor.y*self.y)
         return NotImplemented
 
-    def __floordiv__(self, divider):
+    def __floordiv__(
+        self,
+        divider: Union[int, float, Size, SizeMm, 'Point']
+    ) -> 'Point':
         if isinstance(divider, (int, float)):
             return Point(int(self.x/divider), int(self.y/divider))
-        if isinstance(divider, Point):
+        elif isinstance(divider, Point):
             return Point(int(self.x/divider.x), int(self.y/divider.y))
-        if isinstance(divider, (Size, SizeMm)):
+        elif isinstance(divider, (Size, SizeMm)):
             return Point(int(self.x/divider.width), int(self.y/divider.height))
         return NotImplemented
 
-    def __truediv__(self, divider):
+    def __truediv__(self, divider: Union[int, float, Size, SizeMm]) -> 'Point':
         if isinstance(divider, (int, float)):
             return Point(
                 math.ceil(self.x/divider),
                 math.ceil(self.y/divider)
             )
-        if isinstance(divider, (Size, SizeMm)):
+        elif isinstance(divider, (Size, SizeMm)):
             return Point(
                 math.ceil(self.x/divider.width),
                 math.ceil(self.y/divider.height)
             )
         return NotImplemented
 
-    def __mod__(self, divider):
+    def __mod__(self, divider: Union[Size, 'Point']) -> 'Point':
         if isinstance(divider, Size):
             return Point(self.x % divider.width, self.y % divider.height)
         elif isinstance(divider, Point):
             return Point(self.x % divider.x, self.y % divider.y)
         return NotImplemented
 
-    def __add__(self, value):
+    def __add__(self, value: Union[int, float, Size, 'Point']) -> 'Point':
         if isinstance(value, (int, float)):
             return Point(int(self.x + value), int(self.y + value))
         elif isinstance(value, Size):
@@ -240,7 +258,7 @@ class Point:
             return Point(self.x + value.x, self.y + value.y)
         return NotImplemented
 
-    def __sub__(self, value):
+    def __sub__(self, value: Union[int, float, Size, 'Point']) -> 'Point':
         if isinstance(value, (int, float)):
             return Point(int(self.x - value), int(self.y - value))
         elif isinstance(value, Size):
@@ -250,18 +268,18 @@ class Point:
         return NotImplemented
 
     @classmethod
-    def max(cls, point_1: 'Point', point_2: 'Point'):
+    def max(cls, point_1: 'Point', point_2: 'Point') -> 'Point':
         return cls(x=max(point_1.x, point_2.x), y=max(point_1.y, point_2.y))
 
     @classmethod
-    def min(cls, point_1: 'Point', point_2: 'Point'):
+    def min(cls, point_1: 'Point', point_2: 'Point') -> 'Point':
         return cls(x=min(point_1.x, point_2.x), y=min(point_1.y, point_2.y))
 
     def to_tuple(self) -> Tuple[int, int]:
         return (self.x, self.y)
 
     @classmethod
-    def from_tuple(cls, input: Union[Tuple, List]) -> 'Point':
+    def from_tuple(cls, input: Union[Tuple[int, int], List[int]]) -> 'Point':
         try:
             return cls(input[0], input[1])
         except IndexError:
@@ -273,7 +291,7 @@ class Region:
     position: Point
     size: Size
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'from {self.start} to {self.end}'
 
     @property
@@ -285,7 +303,7 @@ class Region:
         end: Point = self.position + self.size
         return end
 
-    def __mul__(self, value):
+    def __mul__(self, value: int) -> 'Region':
         if isinstance(value, int):
             return Region(
                 position=self.position * value,
@@ -301,7 +319,10 @@ class Region:
     def box_from_origin(self) -> Tuple[int, int, int, int]:
         return 0, 0, self.size.width, self.size.height
 
-    def iterate_all(self, include_end=False) -> Generator[Point, None, None]:
+    def iterate_all(
+        self,
+        include_end: bool = False
+    ) -> Generator[Point, None, None]:
         offset = 1 if include_end else 0
         return (
             Point(x, y)

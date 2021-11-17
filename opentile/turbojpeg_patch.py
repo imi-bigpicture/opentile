@@ -96,9 +96,9 @@ def blank_image(
     coeffs_ptr: c_void_p,
     arrayRegion: CroppingRegion,
     planeRegion: CroppingRegion,
-    componentID: c_int,
-    transformID: c_int,
-    transform_ptr: c_void_p
+    componentID: int,
+    transformID: int,
+    transform_ptr: pointer
 ) -> c_int:
     """Callback function for filling whole image with background color.
 
@@ -111,12 +111,12 @@ def blank_image(
         the component plane.
     planeRegion: CroppingRegion
         The width and height of the component plane of the coefficient array.
-    componentID: c_int
+    componentID: int
         The component number (i.e. 0, 1, or 2)
-    transformID: c_int
+    transformID: int
         The index of the transformation in the array of transformation given to
         the transform function.
-    transform_ptr: c_voipd_p
+    transform_ptr: pointer
         Pointer to the transform structure used for the transformation.
 
     Returns
@@ -124,7 +124,6 @@ def blank_image(
     c_int
         CFUNCTYPE function must return an int.
     """
-
     background_data = get_transform_data(transform_ptr)
 
     if componentID == 0:
@@ -152,12 +151,12 @@ def split_byte_into_nibbles(value: int) -> Tuple[int, int]:
 class TurboJPEG_patch(TurboJPEG):
     def __init__(
         self,
-        lib_turbojpeg_path: Union[str, Path] = None
+        lib_turbojpeg_path: Optional[Union[str, Path]] = None
     ):
         if lib_turbojpeg_path is not None:
             lib_turbojpeg_str_path = str(lib_turbojpeg_path)
         else:
-            lib_turbojpeg_str_path = self._TurboJPEG__find_turbojpeg()
+            lib_turbojpeg_str_path = str(self._TurboJPEG__find_turbojpeg())
         super().__init__(lib_turbojpeg_str_path)
         turbo_jpeg = cdll.LoadLibrary(lib_turbojpeg_str_path)
         self.__transform = turbo_jpeg.tjTransform
