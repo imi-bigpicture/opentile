@@ -2,6 +2,6 @@ dist*
 Pipfile.lock*
 .mypy_cache*
 .pytest_cache*
+*__pycache__**
 .vscode
-*/__pycache__/
 typings

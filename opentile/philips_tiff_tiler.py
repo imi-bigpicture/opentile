@@ -212,7 +212,7 @@ class PhilipsTiffTiler(Tiler):
         """Return dictionary with philips tiff file properties."""
         metadata = ET.fromstring(str(self._tiff_file.philips_metadata))
         pixel_spacing: Optional[float] = None
-        aquisition_datatime: Optional[str] = None
+        aquisition_datetime: Optional[str] = None
         device_serial_number: Optional[str] = None
         manufacturer: Optional[str] = None
         software_versions: Optional[str] = None
@@ -232,7 +232,7 @@ class PhilipsTiffTiler(Tiler):
                         float
                     )[0]
                 elif name == 'DICOM_ACQUISITION_DATETIME':
-                    aquisition_datatime = element.text
+                    aquisition_datetime = element.text
                 elif name == 'DICOM_DEVICE_SERIAL_NUMBER':
                     device_serial_number = element.text
                 elif name == 'DICOM_MANUFACTURER':
@@ -264,7 +264,7 @@ class PhilipsTiffTiler(Tiler):
                     pixel_representation = element.text
         return {
             'pixel_spacing': pixel_spacing,
-            'aquisition_datatime': aquisition_datatime,
+            'aquisition_datetime': aquisition_datetime,
             'device_serial_number': device_serial_number,
             'manufacturer': manufacturer,
             'software_versions': software_versions,

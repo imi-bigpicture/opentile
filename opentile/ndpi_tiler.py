@@ -402,14 +402,14 @@ class NdpiPage(OpenTilePage):
         else:
             software_versions = []
         device_serial_number = getattr(ndpi_tags, 'ScannerSerialNumber', None)
-        aquisition_datatime = self._get_value_from_tiff_tags(
+        aquisition_datetime = self._get_value_from_tiff_tags(
             self.page.tags, 'DateTime'
         )
         photometric_interpretation = self._get_value_from_tiff_tags(
             self.page.tags, 'PhotometricInterpretation'
         )
         return {
-            'aquisition_datatime': aquisition_datatime,
+            'aquisition_datetime': aquisition_datetime,
             'device_serial_number': device_serial_number,
             'manufacturer': manufacturer,
             'model': model,
