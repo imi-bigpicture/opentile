@@ -143,7 +143,7 @@ class Size:
 
     def __truediv__(
         self,
-        divider: Tuple[int, float, 'Size', SizeMm]
+        divider: Union[int, float, 'Size', SizeMm]
     ) -> 'Size':
         if isinstance(divider, (int, float)):
             return Size(
@@ -229,11 +229,19 @@ class Point:
             return Point(int(self.x/divider.width), int(self.y/divider.height))
         return NotImplemented
 
-    def __truediv__(self, divider: Union[int, float, Size, SizeMm]) -> 'Point':
+    def __truediv__(
+        self,
+        divider: Union[int, float, 'Point', Size, SizeMm]
+    ) -> 'Point':
         if isinstance(divider, (int, float)):
             return Point(
                 math.ceil(self.x/divider),
                 math.ceil(self.y/divider)
+            )
+        elif isinstance(divider, Point):
+            return Point(
+                math.ceil(self.x/divider.x),
+                math.ceil(self.y/divider.y)
             )
         elif isinstance(divider, (Size, SizeMm)):
             return Point(
