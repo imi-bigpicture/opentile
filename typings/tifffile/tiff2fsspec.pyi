@@ -1,3 +1,0 @@
-from tifffile import tiff2fsspec as tiff2fsspec
-
-def main() -> None: ...
