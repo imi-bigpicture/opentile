@@ -9,8 +9,10 @@ import numpy as np
 from tifffile.tifffile import (FileHandle, TiffFile, TiffPage, TiffPageSeries,
                                TiffTags)
 
+from imagecodecs import jpeg8_encode
+
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.utils import Jpeg
+from opentile.jpeg import Jpeg
 
 
 class LockableFileHandle:
@@ -332,7 +334,9 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         tile_point = Point.from_tuple(tile_position)
         frame_index = self._tile_point_to_frame_index(tile_point)
         frame = self._read_frame(frame_index)
-        return self._add_jpeg_tables(frame)
+        if self.page.jpegtables is None:
+            return frame
+        return Jpeg.add_jpeg_tables(frame, self.page.jpegtables)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         """Return decoded tile for tile position. Returns a white tile if tile

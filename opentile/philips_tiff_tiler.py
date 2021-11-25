@@ -1,12 +1,12 @@
-from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union, Optional
 import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
-from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
+from opentile.jpeg import Jpeg
 
 
 class PhilipsTiffTiledPage(NativeTiledPage):
@@ -16,7 +16,7 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         fh: FileHandle,
         base_shape: Size,
         base_mpp: SizeMm,
-        jpeg: TurboJPEG
+        jpeg: Jpeg
     ):
         """OpenTiledPage for Philips Tiff-page.
 
@@ -30,8 +30,8 @@ class PhilipsTiffTiledPage(NativeTiledPage):
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
-        jpeg: TurboJpeg
-            TurboJpeg instance to use.
+        jpeg: Jpeg
+            Jpeg instance to use.
         """
         super().__init__(page, fh)
         self._jpeg = jpeg
@@ -89,8 +89,8 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         except StopIteration:
             raise ValueError("Could not find valid frame in page.")
         valid_frame = self._read_frame(valid_frame_index)
-        valid_tile = self._add_jpeg_tables(valid_frame)
-        return self._jpeg.fill_image(valid_tile, luminance)
+        valid_tile = Jpeg.add_jpeg_tables(valid_frame, self.page.jpegtables)
+        return self._jpeg.fill_frame(valid_tile, luminance)
 
     def _read_frame(self, index: int) -> bytes:
         """Read frame at frame index from page. Return blank tile if tile is
@@ -136,7 +136,7 @@ class PhilipsTiffTiler(Tiler):
         self._fh = self._tiff_file.filehandle
 
         self._turbo_path = turbo_path
-        self._jpeg = TurboJPEG(self._turbo_path)
+        self._jpeg = Jpeg(self._turbo_path)
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
