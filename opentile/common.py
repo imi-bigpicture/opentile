@@ -9,8 +9,6 @@ import numpy as np
 from tifffile.tifffile import (FileHandle, TiffFile, TiffPage, TiffPageSeries,
                                TiffTags)
 
-from imagecodecs import jpeg8_encode
-
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
 
