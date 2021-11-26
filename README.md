@@ -1,6 +1,12 @@
 # *opentile*
 *opentile* is a Python library for reading tiles from wsi tiff-files. Specifically, it allows tiles to be read using 2d coordinates (tile position x, y) and returns complete image data (e.g. including header for jpeg). Supported file formats are listed and descriped under *Supported file formats*.
 
+## Installing *opentile*
+*opentile* is available on PyPI:
+```console
+$ python -m pip opentile
+```
+
 ## Important note
 Please note that this is an early release and the API is not frozen yet. Function names and functionality is prone to change.
 
