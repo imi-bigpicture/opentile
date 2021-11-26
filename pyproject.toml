@@ -11,7 +11,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "Operating System :: OS Independent".
+    "Operating System :: OS Independent",
 ]
 
 [tool.poetry.dependencies]
