@@ -3,10 +3,10 @@ name = "opentile"
 version = "0.1.0"
 description = "[Read tiles from wsi-TIFF files]"
 authors = ["Erik O Gabrielsson <erik.o.gabrielsson@sectra.com>"]
-licence = "Apache-2.0"
+license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/imi-bigpicture/opentile"
-keywords = "whole slide image, digital pathology,, tiff"
+keywords = ["whole slide image", "digital pathology", "tiff"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
