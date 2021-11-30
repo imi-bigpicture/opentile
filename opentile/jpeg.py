@@ -134,9 +134,9 @@ class Jpeg:
     def add_jpeg_tables(
         cls,
         frame: bytes,
-        jpeg_Tables: bytes
+        jpeg_tables: bytes
     ) -> bytes:
-        return bytes(cls._add_jpeg_tables(bytearray(frame), jpeg_Tables))
+        return bytes(cls._add_jpeg_tables(bytearray(frame), jpeg_tables))
 
     @classmethod
     def add_color_space_fix(
