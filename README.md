@@ -4,7 +4,7 @@
 - Provide unified interface for relevant metadata.
 - Support all file formats supported by tifffile that has a non-overlapping tile structure.
 
-Crrently supported file formats are listed and descriped under *Supported file formats*.
+Crrently supported file formats are listed and described under *Supported file formats*.
 
 ## Installing *opentile*
 *opentile* is available on PyPI:
