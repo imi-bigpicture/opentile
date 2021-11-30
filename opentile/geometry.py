@@ -14,7 +14,7 @@
 
 import math
 from dataclasses import dataclass
-from typing import Generator, List, Tuple, Union
+from typing import Generator, Tuple, Union, Sequence
 
 
 @dataclass
@@ -35,6 +35,7 @@ class SizeMm:
         return NotImplemented
 
     def __truediv__(self, divider: Union[int, float, 'SizeMm']) -> 'SizeMm':
+        """Return divided SizeMm without rounding."""
         if isinstance(divider, (int, float)):
             return SizeMm(self.width/divider, self.height/divider)
         elif isinstance(divider, SizeMm):
@@ -45,6 +46,9 @@ class SizeMm:
         return NotImplemented
 
     def __floordiv__(self, divider: Union[int, float, 'SizeMm']) -> 'SizeMm':
+        """Return divided SizeMm rounded down to closest integer width and
+        height.
+        """
         if isinstance(divider, (int, float)):
             return SizeMm(int(self.width/divider), int(self.height/divider))
         if isinstance(divider, SizeMm):
@@ -63,7 +67,7 @@ class SizeMm:
     @classmethod
     def from_tuple(
         cls,
-        input: Union[Tuple[float, float], List[float]]
+        input: Union[Tuple[float, float], Sequence[float]]
     ) -> 'SizeMm':
         try:
             return cls(input[0], input[1])
@@ -77,6 +81,8 @@ class PointMm:
     y: float
 
     def __floordiv__(self, divider: SizeMm) -> 'Point':
+        """Return divided PointMm rounded down to closest integer x and y.
+        """
         if isinstance(divider, SizeMm):
             return Point(int(self.x/divider.width), int(self.y/divider.height))
         return NotImplemented
@@ -96,7 +102,7 @@ class PointMm:
     @classmethod
     def from_tuple(
         cls,
-        input: Union[Tuple[float, float], List[float]]
+        input: Union[Tuple[float, float], Sequence[float]]
     ) -> 'PointMm':
         try:
             return cls(input[0], input[1])
@@ -146,6 +152,9 @@ class Size:
         self,
         divider: Union[int, float, 'Size', SizeMm]
     ) -> 'Size':
+        """Return divided Size rounded down to closest integer width and
+        height.
+        """
         if isinstance(divider, (int, float)):
             return Size(int(self.width/divider), int(self.height/divider))
         elif isinstance(divider, (Size, SizeMm)):
@@ -159,6 +168,8 @@ class Size:
         self,
         divider: Union[int, float, 'Size', SizeMm]
     ) -> 'Size':
+        """Return divided Size rounded up to closest integer width and height.
+        """
         if isinstance(divider, (int, float)):
             return Size(
                 math.ceil(self.width/divider),
@@ -187,7 +198,10 @@ class Size:
         return (self.width, self.height)
 
     @classmethod
-    def from_tuple(cls, input: Union[Tuple[int, int], List[int]]) -> 'Size':
+    def from_tuple(
+        cls,
+        input: Union[Tuple[int, int], Sequence[int]]
+    ) -> 'Size':
         try:
             return cls(input[0], input[1])
         except IndexError:
@@ -235,6 +249,7 @@ class Point:
         self,
         divider: Union[int, float, Size, SizeMm, 'Point']
     ) -> 'Point':
+        """Return divided Point rounded down to closest integer x and y."""
         if isinstance(divider, (int, float)):
             return Point(int(self.x/divider), int(self.y/divider))
         elif isinstance(divider, Point):
@@ -247,6 +262,7 @@ class Point:
         self,
         divider: Union[int, float, 'Point', Size, SizeMm]
     ) -> 'Point':
+        """Return divided Point rounded down up closest integer x and y."""
         if isinstance(divider, (int, float)):
             return Point(
                 math.ceil(self.x/divider),
@@ -301,7 +317,10 @@ class Point:
         return (self.x, self.y)
 
     @classmethod
-    def from_tuple(cls, input: Union[Tuple[int, int], List[int]]) -> 'Point':
+    def from_tuple(
+        cls,
+        input: Union[Tuple[int, int], Sequence[int]]
+    ) -> 'Point':
         try:
             return cls(input[0], input[1])
         except IndexError:

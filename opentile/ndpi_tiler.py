@@ -15,7 +15,7 @@
 import math
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from tifffile import FileHandle, TiffPage
@@ -323,7 +323,7 @@ class NdpiPage(OpenTilePage):
         self._jpeg = jpeg
         try:
             # Defined in nm
-            self._focal_plane = float(
+            self._focal_plane = (
                 page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
             )
         except KeyError:
@@ -523,12 +523,15 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         """
         return self.get_tiles([tile_position])[0]
 
-    def get_tiles(self, tile_positions: List[Tuple[int, int]]) -> List[bytes]:
+    def get_tiles(
+        self,
+        tile_positions: Sequence[Tuple[int, int]]
+    ) -> List[bytes]:
         """Return list of image bytes for tile positions.
 
         Parameters
         ----------
-        tile_positions: List[Tuple[int, int]]
+        tile_positions: Sequence[Tuple[int, int]]
             Tile positions to get.
 
         Returns
@@ -544,13 +547,13 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         ]
 
     def get_decoded_tiles(
-        self, tile_positions: List[Tuple[int, int]]
+        self, tile_positions: Sequence[Tuple[int, int]]
     ) -> List[np.ndarray]:
         """Return list of decoded tiles for tiles at tile positions.
 
         Parameters
         ----------
-        tile_positions: List[Tuple[int, int]]
+        tile_positions: Sequence[Tuple[int, int]]
             Tile positions to get.
 
         Returns
@@ -623,13 +626,13 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
 
     def _sort_into_frame_jobs(
         self,
-        tile_positions: List[Tuple[int, int]]
+        tile_positions: Sequence[Tuple[int, int]]
     ) -> List[NdpiFrameJob]:
         """Sorts tile positions into frame jobs (i.e. from the same frame.)
 
         Parameters
         ----------
-        tile_positions: List[Point]
+        tile_positions: Sequence[Point]
             List of position to sort.
 
         Returns

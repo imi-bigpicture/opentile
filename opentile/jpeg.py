@@ -14,7 +14,7 @@
 
 from pathlib import Path
 from struct import pack, unpack
-from typing import Iterator, List, Optional, Tuple, Union
+from typing import Iterator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -134,7 +134,7 @@ class Jpeg:
     def crop_multiple(
         self,
         frame: bytes,
-        crop_parameters: List[Tuple[int, int, int, int]]
+        crop_parameters: Sequence[Tuple[int, int, int, int]]
     ) -> List[bytes]:
         try:
             return self._turbo_jpeg.crop_multiple(frame, crop_parameters)
