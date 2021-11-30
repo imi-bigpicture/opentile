@@ -8,7 +8,7 @@ from tifffile.tifffile import (FileHandle, TiffPage, svs_description_metadata)
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.utils import Jpeg
+from opentile.jpeg import Jpeg
 
 
 class SvsTiledPage(NativeTiledPage):
@@ -125,23 +125,6 @@ class SvsTiledPage(NativeTiledPage):
         """Return true if tile is at bottom edge of tiled image."""
         return tile_point.y == self.tiled_size.height - 1
 
-    @staticmethod
-    def _add_colorspace_fix(
-        frame: bytes,
-    ) -> bytes:
-        start_of_scan = frame.find(Jpeg.start_of_scan())
-        with io.BytesIO() as buffer:
-            buffer.write(frame[0:start_of_scan])
-            # colorspace fix: Adobe APP14 marker with transform flag 0
-            # indicating image is encoded as RGB (not YCbCr)
-            buffer.write(
-                b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
-                b"\x65\x00\x64\x80\x00\x00\x00\x00"
-            )
-
-            buffer.write(frame[start_of_scan:None])
-            return buffer.getvalue()
-
     def _get_scaled_tile(
         self,
         tile_point: Point
@@ -249,8 +232,8 @@ class SvsTiledPage(NativeTiledPage):
 
         tile = super().get_tile(tile_position)
         if self.compression == 'COMPRESSION.JPEG':
-            tile = self._add_jpeg_tables(tile)
-            tile = self._add_colorspace_fix(tile)
+            tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables)
+            tile = Jpeg.add_color_space_fix(tile)
         return tile
 
 

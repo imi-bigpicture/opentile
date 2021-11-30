@@ -4,12 +4,12 @@ from ctypes import (POINTER, Structure, byref, c_int, c_short, c_ubyte,
                     memmove, pointer)
 from pathlib import Path
 from struct import calcsize, unpack
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 from turbojpeg import (CUSTOMFILTER, TJFLAG_ACCURATEDCT, TJXOP_NONE,
                        TJXOPT_PERFECT, CroppingRegion, TurboJPEG, tjMCUHeight,
-                       tjMCUWidth)
+                       tjMCUWidth, split_byte_into_nibbles)
 
 
 def find_turbojpeg_path() -> Optional[Path]:
@@ -99,7 +99,7 @@ def blank_image(
     componentID: int,
     transformID: int,
     transform_ptr: pointer
-) -> c_int:
+) -> int:
     """Callback function for filling whole image with background color.
 
     Parameters
@@ -121,7 +121,7 @@ def blank_image(
 
     Returns
     ----------
-    c_int
+    int
         CFUNCTYPE function must return an int.
     """
     background_data = get_transform_data(transform_ptr)
@@ -139,13 +139,7 @@ def blank_image(
             coeffs[y][x][0] = dc_component
             coeffs[y][x][1:] = 0
 
-    return c_int(1)
-
-
-def split_byte_into_nibbles(value: int) -> Tuple[int, int]:
-    first = value >> 4
-    second = value & 0x0F
-    return first, second
+    return 1
 
 
 class TurboJPEG_patch(TurboJPEG):
@@ -163,7 +157,8 @@ class TurboJPEG_patch(TurboJPEG):
         self.__transform.argtypes = [
             c_void_p,
             POINTER(c_ubyte),
-            c_ulong, c_int,
+            c_ulong,
+            c_int,
             POINTER(c_void_p),
             POINTER(c_ulong),
             POINTER(BlankTransformStruct),
@@ -201,7 +196,7 @@ class TurboJPEG_patch(TurboJPEG):
             jpeg_colorspace = c_int()
 
             # Decompress header to get input image size and subsample value
-            decompress_header_status: int = self._TurboJPEG__decompress_header(
+            decompress_header_status = self._TurboJPEG__decompress_header(
                 handle,
                 src_addr,
                 jpeg_array.size,
