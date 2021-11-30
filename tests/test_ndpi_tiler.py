@@ -2,6 +2,7 @@ import os
 import unittest
 from hashlib import md5
 from pathlib import Path
+from typing import cast
 
 import pytest
 from opentile.geometry import Point, Size
@@ -32,9 +33,7 @@ class NdpiTilerTest(unittest.TestCase):
             cls.tile_size.width,
             turbojpeg_path
         )
-        level = cls.tiler.get_level(0)
-        assert(isinstance(level, NdpiStripedPage))
-        cls.level = level
+        cls.level = cast(NdpiStripedPage, cls.tiler.get_level(0))
 
     @classmethod
     def tearDownClass(cls):

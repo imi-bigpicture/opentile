@@ -2,6 +2,7 @@ import os
 import unittest
 from hashlib import md5
 from pathlib import Path
+from typing import cast
 
 import pytest
 from opentile.geometry import Point
@@ -24,9 +25,7 @@ class SvsTilerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tiler = SvsTiler(svs_file_path)
-        level = cls.tiler.get_level(0)
-        assert(isinstance(level, SvsTiledPage))
-        cls.level = level
+        cls.level = cast(SvsTiledPage, cls.tiler.get_level(0))
 
     @classmethod
     def tearDownClass(cls):
@@ -45,8 +44,7 @@ class SvsTilerTest(unittest.TestCase):
         )
 
     def test_get_scaled_tile(self):
-        level = self.tiler.get_level(1)
-        assert(isinstance(level, SvsTiledPage))
+        level = cast(SvsTiledPage, self.tiler.get_level(1))
         tile = level._get_scaled_tile(Point(0, 0))
         self.assertEqual(
             '87c887f735772a934f84674fa63a4a10',
