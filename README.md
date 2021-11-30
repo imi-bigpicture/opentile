@@ -1,6 +1,12 @@
 # *opentile*
 *opentile* is a Python library for reading tiles from wsi tiff-files. Specifically, it allows tiles to be read using 2d coordinates (tile position x, y) and returns complete image data (e.g. including header for jpeg). Supported file formats are listed and descriped under *Supported file formats*.
 
+## Installing *opentile*
+*opentile* is available on PyPI:
+```console
+$ pip opentile
+```
+
 ## Important note
 Please note that this is an early release and the API is not frozen yet. Function names and functionality is prone to change.
 
@@ -43,6 +49,18 @@ tile = tiler.get_tile(0, (0, 0))
 ```python
 tiler.close()
 ```
+## Other TIFF python tools
+- [tifffile](https://github.com/cgohlke/tifffile)
+- [tiffslide](https://github.com/bayer-science-for-a-better-life/tiffslide)
+
+## Contributing
+We welcome any contributions to help improve this tool for the WSI community!
+
+We recommend first creating an issue before creating potential contributions to check that the contribution is in line with the goals of the project. To submit your contribution, please issue a pull request on the imi-bigpicture/opentile repository with your changes for review.
+
+Our aim is to provide constructive and positive code reviews for all submissions. The project relies on gradual typing and roughly follows PEP8. However, we are not dogmatic. Most important is that the code is easy to read and understand.
 
 ## Acknowledgement
+*opentile*: Copyright 2021 Sectra AB, licensed under Apache 2.0.
+
 This project is part of a project that has received funding from the Innovative Medicines Initiative 2 Joint Undertaking under grant agreement No 945358. This Joint Undertaking receives support from the European Union’s Horizon 2020 research and innovation programme and EFPIA. IMI website: www.imi.europa.eu

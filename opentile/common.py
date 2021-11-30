@@ -1,15 +1,27 @@
+#    Copyright 2021 SECTRA AB
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
 import io
 import math
 import threading
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Sequence, Tuple, Any
 
 import numpy as np
 from tifffile.tifffile import (FileHandle, TiffFile, TiffPage, TiffPageSeries,
                                TiffTags)
-
-from imagecodecs import jpeg8_encode
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
@@ -91,8 +103,8 @@ class OpenTilePage(metaclass=ABCMeta):
         self._image_size = Size(self._page.shape[1], self._page.shape[0])
         if self.page.is_tiled:
             self._tile_size = Size(
-                int(self.page.tilewidth),
-                int(self.page.tilelength)
+                self.page.tilewidth,
+                self.page.tilelength
             )
         else:
             self._tile_size = self.image_size
@@ -202,12 +214,15 @@ class OpenTilePage(metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def get_tiles(self, tile_positions: List[Tuple[int, int]]) -> List[bytes]:
+    def get_tiles(
+        self,
+        tile_positions: Sequence[Tuple[int, int]]
+    ) -> List[bytes]:
         """Return list of image bytes for tiles at tile positions.
 
         Parameters
         ----------
-        tile_positions: List[Tuple[int, int]]
+        tile_positions: Sequence[Tuple[int, int]]
             Tile positions to get.
 
         Returns
@@ -220,13 +235,13 @@ class OpenTilePage(metaclass=ABCMeta):
         ]
 
     def get_decoded_tiles(
-        self, tile_positions: List[Tuple[int, int]]
+        self, tile_positions: Sequence[Tuple[int, int]]
     ) -> List[np.ndarray]:
         """Return list of decoded tiles for tiles at tile positions.
 
         Parameters
         ----------
-        tile_positions: List[Tuple[int, int]]
+        tile_positions: Sequence[Tuple[int, int]]
             Tile positions to get.
 
         Returns
@@ -302,15 +317,13 @@ class OpenTilePage(metaclass=ABCMeta):
         self,
         base_shape: Size,
     ) -> int:
-        return int(
-            math.log2(base_shape.width/self.image_size.width)
-        )
+        return int(math.log2(base_shape.width/self.image_size.width))
 
     def _calculate_mpp(
         self,
         base_mpp: SizeMm
     ) -> SizeMm:
-        return base_mpp * float(pow(2, self.pyramid_index))
+        return base_mpp * pow(2, self.pyramid_index)
 
 
 class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
@@ -554,7 +567,7 @@ class Tiler(metaclass=ABCMeta):
             Label OpenTilePage.
         """
         if self._label_series_index is None:
-            raise ValueError("No (know) label in file")
+            raise ValueError("No label detected in file")
         return self.get_page(self._label_series_index, 0, page)
 
     def get_overview(
@@ -574,5 +587,5 @@ class Tiler(metaclass=ABCMeta):
             Overview OpenTilePage.
         """
         if self._overview_series_index is None:
-            raise ValueError("No (know) overview in file")
+            raise ValueError("No overview detected in file")
         return self.get_page(self._overview_series_index, 0, page)
