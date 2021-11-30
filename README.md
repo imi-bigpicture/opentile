@@ -17,8 +17,8 @@ Please note that this is an early release and the API is not frozen yet. Functio
 Files with z-stacks are currently not fully supported.
 Striped pages with stripes divided in frames are not supported for other file except for Ndpi. This is common for overview and label images.
 
-## File formats
-The following description of the workings of the supported file formats does not include the additional specifics for each format that is handled by tifffile.
+## Supported file formats
+The following description of the workings of the supported file formats does not include the additional specifics for each format that is handled by tifffile. Additional formats supported by tifffile and that have non-overlapping tile layout are likely to be added in future release.
 
 ***Hamamatsu Ndpi***
 The Ndpi-format uses non-rectangular tile size typically 8 pixels high, i.e. stripes. To form tiles, first multiple stripes are concatenated to form a frame covering the tile region. Second, if the stripes are longer than the tile width, the tile is croped out of the frame. The concatenation and crop transformations are performed losslessly.
