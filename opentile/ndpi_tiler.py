@@ -1,8 +1,6 @@
 import math
-import struct
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from struct import unpack
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -11,8 +9,7 @@ from tifffile.tifffile import TIFF
 
 from opentile.common import OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.utils import Jpeg
+from opentile.jpeg import Jpeg
 
 
 def get_value_from_ndpi_comments(
@@ -289,7 +286,7 @@ class NdpiPage(OpenTilePage):
         self,
         page: TiffPage,
         fh: FileHandle,
-        jpeg: TurboJPEG
+        jpeg: Jpeg
     ):
         """Ndpi page that should not be tiled (e.g. overview or label).
         Image data is assumed to be jpeg.
@@ -300,8 +297,8 @@ class NdpiPage(OpenTilePage):
             TiffPage defining the page.
         fh: FileHandle
             Filehandler to read data from.
-        jpeg: TurboJpeg
-            TurboJpeg instance to use.
+        jpeg: Jpeg
+            Jpeg instance to use.
         """
         super().__init__(page, fh)
         if self.compression != 'COMPRESSION.JPEG':
@@ -425,7 +422,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         fh: FileHandle,
         base_shape: Size,
         tile_size: Size,
-        jpeg: TurboJPEG,
+        jpeg: Jpeg,
         frame_cache: int = 1
     ):
         """Metaclass for a tiled ndpi page.
@@ -440,8 +437,8 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             Size of base level in pyramid.
         tile_size: Size
             Requested tile size.
-        jpeg: TurboJpeg
-            TurboJpeg instance to use.
+        jpeg: Jpeg
+            Jpeg instance to use.
         frame_cache: int:
             Number of read frames to cache.
         """
@@ -601,16 +598,10 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordinate.
         """
-        try:
-            tiles: List[bytes] = self._jpeg.crop_multiple(
-                frame,
-                frame_job.crop_parameters
-            )
-        except OSError:
-            raise ValueError(
-                f"Crop of {frame_job} failed "
-                f"with parameters {frame_job.crop_parameters}"
-            )
+        tiles: List[bytes] = self._jpeg.crop_multiple(
+            frame,
+            frame_job.crop_parameters
+        )
         return {
             tile.position: tiles[i]
             for i, tile in enumerate(frame_job.tiles)
@@ -720,7 +711,7 @@ class NdpiStripedPage(NdpiTiledPage):
         fh: FileHandle,
         base_shape: Size,
         tile_size: Size,
-        jpeg: TurboJPEG,
+        jpeg: Jpeg,
         frame_cache: int = 1
     ):
         """Ndpi page with striped image data.
@@ -735,8 +726,8 @@ class NdpiStripedPage(NdpiTiledPage):
             Size of base level in pyramid.
         tile_size: Size
             Requested tile size.
-        jpeg: TurboJpeg
-            TurboJpeg instance to use.
+        jpeg: Jpeg
+            Jpeg instance to use.
         frame_cache: int:
             Number of read frames to cache.
         """
@@ -847,78 +838,25 @@ class NdpiStripedPage(NdpiTiledPage):
         if frame_size in self._headers:
             header = self._headers[frame_size]
         else:
-            header = self._create_header(frame_size)
+            header = self._jpeg.manipulate_header(
+                self.page.jpegheader,
+                frame_size
+            )
             self._headers[frame_size] = header
-        jpeg_data = header
-        restart_marker_index = 0
 
         stripe_region = Region(
             (position * self.tile_size) // self.stripe_size,
             Size.max(frame_size // self.stripe_size, Size(1, 1))
         )
-        for stripe_coordinate in stripe_region.iterate_all():
-            index = self._get_stripe_position_to_index(stripe_coordinate)
-            jpeg_data += self._read_frame(index)[:-1]
-            jpeg_data += Jpeg.restart_mark(restart_marker_index)
-            restart_marker_index += 1
-        jpeg_data += Jpeg.end_of_image()
-        return jpeg_data
-
-    @staticmethod
-    def _find_tag(
-        header: bytes,
-        tag: bytes
-    ) -> Tuple[Optional[int], Optional[int]]:
-        """Return first index and length of payload of tag in header.
-
-        Parameters
-        ----------
-        heaer: bytes
-            Header to search.
-        tag: bytes
-            Tag to search for.
-
-        Returns
-        ----------
-        Tuple[Optional[int], Optional[int]]:
-            Position of tag in header and length of payload.
-        """
-        index = header.find(tag)
-        if index != -1:
-            (length, ) = unpack('>H', header[index+2:index+4])
-            return index, length
-        return None, None
-
-    def _create_header(
-        self,
-        size: Size,
-    ) -> bytes:
-        """Return manipulated header with changed pixel size (width, height).
-
-        Parameters
-        ----------
-
-        size: Size
-            Pixel size to insert into header.
-
-        Returns
-        ----------
-        bytes:
-            Manupulated header.
-        """
-        if self._page.jpegheader is None:
-            raise ValueError("No header found")
-        header = bytearray(self._page.jpegheader)
-        start_of_frame_index, length = self._find_tag(
-            header, Jpeg.start_of_frame()
+        indices = [
+            self._get_stripe_position_to_index(stripe_coordinate)
+            for stripe_coordinate in stripe_region.iterate_all()
+        ]
+        frame = self._jpeg.concatenate_fragments(
+            (self._read_frame(index) for index in indices),
+            header
         )
-        if start_of_frame_index is None:
-            raise ValueError("Start of scan tag not found in header")
-        size_index = start_of_frame_index+5
-        header[size_index:size_index+2] = struct.pack(">H", size.height)
-        header[size_index+2:size_index+4] = struct.pack(">H", size.width)
-
-        return bytes(header)
+        return frame
 
     def _get_stripe_position_to_index(self, position: Point) -> int:
         """Return stripe index from position.
@@ -969,7 +907,7 @@ class NdpiTiler(Tiler):
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
         self._turbo_path = turbo_path
-        self._jpeg = TurboJPEG(self._turbo_path)
+        self._jpeg = Jpeg(self._turbo_path)
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):

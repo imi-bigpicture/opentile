@@ -5,9 +5,8 @@ from pathlib import Path
 
 import pytest
 from opentile.geometry import Point, Size
-from opentile.ndpi_tiler import (NdpiCache, NdpiPage, NdpiStripedPage,
-                                 NdpiTile, NdpiFrameJob, NdpiTiler)
-from opentile.utils import Jpeg
+from opentile.ndpi_tiler import (NdpiCache, NdpiFrameJob, NdpiStripedPage,
+                                 NdpiTile, NdpiTiler)
 
 ndpi_test_data_dir = os.environ.get(
     "NDPI_TESTDIR",
@@ -39,29 +38,6 @@ class NdpiTilerTest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.tiler.close()
-
-    def test_tags(self):
-        self.assertEqual(Jpeg.start_of_frame(), bytes([0xFF, 0xC0]))
-        self.assertEqual(Jpeg.end_of_image(), bytes([0xFF, 0xD9]))
-        self.assertEqual(Jpeg.restart_mark(0), bytes([0xD0]))
-        self.assertEqual(Jpeg.restart_mark(7), bytes([0xD7]))
-        self.assertEqual(Jpeg.restart_mark(9), bytes([0xD1]))
-
-    def test_find_tag(self):
-        header = self.level._page.jpegheader
-        index, length = self.level._find_tag(header, Jpeg.start_of_frame())
-        self.assertEqual(621, index)
-        self.assertEqual(17, length)
-
-    def test_update_header(self):
-        target_size = Size(512, 200)
-        updated_header = self.level._create_header(target_size)
-        (
-            stripe_width,
-            stripe_height,
-            _, _
-        ) = self.tiler._jpeg.decode_header(updated_header)
-        self.assertEqual(target_size, Size(stripe_width, stripe_height))
 
     def test_get_stripe_position_to_index(self):
         self.assertEqual(
