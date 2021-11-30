@@ -4,7 +4,7 @@ from hashlib import md5
 from pathlib import Path
 
 import pytest
-from opentile.philips_tiff_tiler import PhilipsTiffTiledPage, PhilipsTiffTiler
+from opentile.philips_tiff_tiler import PhilipsTiffTiler
 
 philips_test_data_dir = os.environ.get(
     "OPEN_TILER_TESTDIR",
@@ -20,7 +20,6 @@ class PhilipsTiffTilerTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tiler: PhilipsTiffTiler
-        self.level: PhilipsTiffTiledPage
 
     @classmethod
     def setUpClass(cls):
@@ -28,7 +27,7 @@ class PhilipsTiffTilerTest(unittest.TestCase):
             philips_file_path,
             turbojpeg_path
         )
-        cls.level: PhilipsTiffTiledPage = cls.tiler.get_level(0)
+        cls.level = cls.tiler.get_level(0)
 
     @classmethod
     def tearDownClass(cls):

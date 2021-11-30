@@ -1,5 +1,5 @@
 import unittest
-from ctypes import *
+from ctypes import c_short, pointer
 
 import numpy as np
 import pytest
@@ -172,8 +172,6 @@ class TurboJpegTest(unittest.TestCase):
 
     def test_blank_background(self):
         mcu_size = 64
-        original_width = 0
-        original_height = 0
         extended_width = 16
         extended_height = 16
         callback_row_heigth = 8

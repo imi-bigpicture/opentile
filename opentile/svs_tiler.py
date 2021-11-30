@@ -1,15 +1,14 @@
 import io
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union, Optional
 
 import numpy as np
 from PIL import Image
-from tifffile.tifffile import (FileHandle, TiffPage,
-                               svs_description_metadata)
+from tifffile.tifffile import (FileHandle, TiffPage, svs_description_metadata)
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.utils import Jpeg
+from opentile.jpeg import Jpeg
 
 
 class SvsTiledPage(NativeTiledPage):
@@ -19,7 +18,7 @@ class SvsTiledPage(NativeTiledPage):
         fh: FileHandle,
         base_shape: Size,
         base_mpp: SizeMm,
-        parent: 'SvsTiledPage' = None
+        parent: Optional['SvsTiledPage'] = None
     ):
         """OpenTiledPage for Svs Tiff-page.
 
@@ -33,7 +32,7 @@ class SvsTiledPage(NativeTiledPage):
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
-        parent: 'SvsTiledPage' = None
+        parent: Optional['SvsTiledPage'] = None
             Parent SvsTiledPage
         """
         super().__init__(page, fh)
@@ -126,23 +125,6 @@ class SvsTiledPage(NativeTiledPage):
         """Return true if tile is at bottom edge of tiled image."""
         return tile_point.y == self.tiled_size.height - 1
 
-    @staticmethod
-    def _add_colorspace_fix(
-        frame: bytes,
-    ) -> bytes:
-        start_of_scan = frame.find(Jpeg.start_of_scan())
-        with io.BytesIO() as buffer:
-            buffer.write(frame[0:start_of_scan])
-            # colorspace fix: Adobe APP14 marker with transform flag 0
-            # indicating image is encoded as RGB (not YCbCr)
-            buffer.write(
-                b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
-                b"\x65\x00\x64\x80\x00\x00\x00\x00"
-            )
-
-            buffer.write(frame[start_of_scan:None])
-            return buffer.getvalue()
-
     def _get_scaled_tile(
         self,
         tile_point: Point
@@ -184,7 +166,7 @@ class SvsTiledPage(NativeTiledPage):
                 ] = decoded_tiles[image_data_index]
 
         # Resize image_data using Pillow
-        image = Image.fromarray(image_data)
+        image: Image.Image = Image.fromarray(image_data)
         image = image.resize(
             self.tile_size.to_tuple(),
             resample=Image.BILINEAR
@@ -250,21 +232,21 @@ class SvsTiledPage(NativeTiledPage):
 
         tile = super().get_tile(tile_position)
         if self.compression == 'COMPRESSION.JPEG':
-            tile = self._add_jpeg_tables(tile)
-            tile = self._add_colorspace_fix(tile)
+            tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables)
+            tile = Jpeg.add_color_space_fix(tile)
         return tile
 
 
 class SvsTiler(Tiler):
-    def __init__(self, filepath: Path):
+    def __init__(self, filepath: Union[str, Path]):
         """Tiler for svs file.
 
         Parameters
         ----------
-        filepath: Path
+        filepath: Union[str, Path]
             Filepath to a svs TiffFile.
         """
-        super().__init__(filepath)
+        super().__init__(Path(filepath))
         self._fh = self._tiff_file.filehandle
 
         for series_index, series in enumerate(self.series):
@@ -276,6 +258,7 @@ class SvsTiler(Tiler):
                 self._overview_series_index = series_index
         mpp = svs_description_metadata(self.base_page.description)['MPP']
         self._base_mpp = SizeMm(mpp, mpp)
+        self._pages: Dict[Tuple[int, int, int], SvsTiledPage] = {}
 
     @property
     def base_mpp(self) -> SizeMm:

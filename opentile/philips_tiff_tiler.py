@@ -1,12 +1,12 @@
+import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Dict, List, Type
-from xml.etree import ElementTree as etree
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
-from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
+from opentile.jpeg import Jpeg
 
 
 class PhilipsTiffTiledPage(NativeTiledPage):
@@ -16,7 +16,7 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         fh: FileHandle,
         base_shape: Size,
         base_mpp: SizeMm,
-        jpeg: TurboJPEG
+        jpeg: Jpeg
     ):
         """OpenTiledPage for Philips Tiff-page.
 
@@ -30,8 +30,8 @@ class PhilipsTiffTiledPage(NativeTiledPage):
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
-        jpeg: TurboJpeg
-            TurboJpeg instance to use.
+        jpeg: Jpeg
+            Jpeg instance to use.
         """
         super().__init__(page, fh)
         self._jpeg = jpeg
@@ -89,17 +89,17 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         except StopIteration:
             raise ValueError("Could not find valid frame in page.")
         valid_frame = self._read_frame(valid_frame_index)
-        valid_tile = self._add_jpeg_tables(valid_frame)
-        return self._jpeg.fill_image(valid_tile, luminance)
+        valid_tile = Jpeg.add_jpeg_tables(valid_frame, self.page.jpegtables)
+        return self._jpeg.fill_frame(valid_tile, luminance)
 
-    def _read_frame(self, frame_index: int) -> bytes:
+    def _read_frame(self, index: int) -> bytes:
         """Read frame at frame index from page. Return blank tile if tile is
         sparse (length of frame is zero or frame indexis outside length of
         frames)
 
         Parameters
         ----------
-        frame_index: int
+        index: int
             Frame index to read from page.
 
         Returns
@@ -109,30 +109,34 @@ class PhilipsTiffTiledPage(NativeTiledPage):
 
         """
         if (
-            frame_index >= len(self.page.databytecounts) or
-            self.page.databytecounts[frame_index] == 0
+            index >= len(self.page.databytecounts) or
+            self.page.databytecounts[index] == 0
         ):
             # Sparse tile
             return self.blank_tile
-        return super()._read_frame(frame_index)
+        return super()._read_frame(index)
 
 
 class PhilipsTiffTiler(Tiler):
-    def __init__(self, filepath: Path, turbo_path: Path = None):
+    def __init__(
+        self,
+        filepath: Union[str, Path],
+        turbo_path: Optional[Union[str, Path]] = None
+    ):
         """Tiler for Philips tiff file.
 
         Parameters
         ----------
-        filepath: Path
+        filepath: Union[str, Path]
             Filepath to a Philips-TiffFile.
-        turbo_path: Path = None
+        turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
         """
-        super().__init__(filepath)
+        super().__init__(Path(filepath))
         self._fh = self._tiff_file.filehandle
 
         self._turbo_path = turbo_path
-        self._jpeg = TurboJPEG(self._turbo_path)
+        self._jpeg = Jpeg(self._turbo_path)
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
@@ -141,9 +145,9 @@ class PhilipsTiffTiler(Tiler):
             elif self.is_overview(series):
                 self._overview_series_index = series_index
         self._properties = self._read_properties()
-        self._base_mpp = SizeMm.from_tuple(
-            self.properties['pixel_spacing']
-        ) / 1000.0
+        mpp = self.properties['pixel_spacing'] / 1000.0
+        self._base_mpp = SizeMm(mpp, mpp)
+        self._pages: Dict[Tuple[int, int, int], PhilipsTiffTiledPage] = {}
 
     @property
     def base_mpp(self) -> SizeMm:
@@ -199,25 +203,36 @@ class PhilipsTiffTiler(Tiler):
         return pixel_spacing / 1000.0
 
     @staticmethod
-    def _split_and_cast_text(string: str, cast_type: Type) -> List[Any]:
+    def _split_and_cast_text(string: str, cast_type: Any) -> List[Any]:
         return [
             cast_type(element) for element in string.replace('"', '').split()
         ]
 
     def _read_properties(self) -> Dict[str, Any]:
         """Return dictionary with philips tiff file properties."""
-        metadata = etree.fromstring(self._tiff_file.philips_metadata)
-        pixel_spacing = None
+        metadata = ET.fromstring(str(self._tiff_file.philips_metadata))
+        pixel_spacing: Optional[float] = None
+        aquisition_datetime: Optional[str] = None
+        device_serial_number: Optional[str] = None
+        manufacturer: Optional[str] = None
+        software_versions: Optional[str] = None
+        lossy_image_compression_method: Optional[str] = None
+        lossy_image_compression_ratio: Optional[str] = None
+        photometric_interpretation: Optional[str] = None
+        bits_allocated: Optional[int] = None
+        bits_stored: Optional[int] = None
+        high_bit: Optional[int] = None
+        pixel_representation: Optional[str] = None
         for element in metadata.iter():
-            if element.tag == 'Attribute':
+            if element.tag == 'Attribute' and element.text is not None:
                 name = element.attrib['Name']
                 if name == 'DICOM_PIXEL_SPACING' and pixel_spacing is None:
                     pixel_spacing = self._split_and_cast_text(
                         element.text,
                         float
-                    )
+                    )[0]
                 elif name == 'DICOM_ACQUISITION_DATETIME':
-                    aquisition_datatime = element.text
+                    aquisition_datetime = element.text
                 elif name == 'DICOM_DEVICE_SERIAL_NUMBER':
                     device_serial_number = element.text
                 elif name == 'DICOM_MANUFACTURER':
@@ -226,17 +241,17 @@ class PhilipsTiffTiler(Tiler):
                     software_versions = self._split_and_cast_text(
                         element.text,
                         str
-                    )
+                    )[0]
                 elif name == 'DICOM_LOSSY_IMAGE_COMPRESSION_METHOD':
                     lossy_image_compression_method = self._split_and_cast_text(
                         element.text,
                         str
-                    )
+                    )[0]
                 elif name == 'DICOM_LOSSY_IMAGE_COMPRESSION_RATIO':
                     lossy_image_compression_ratio = self._split_and_cast_text(
                         element.text,
                         float
-                    )
+                    )[0]
                 elif name == 'DICOM_PHOTOMETRIC_INTERPRETATION':
                     photometric_interpretation = element.text
                 elif name == 'DICOM_BITS_ALLOCATED':
@@ -249,7 +264,7 @@ class PhilipsTiffTiler(Tiler):
                     pixel_representation = element.text
         return {
             'pixel_spacing': pixel_spacing,
-            'aquisition_datatime': aquisition_datatime,
+            'aquisition_datetime': aquisition_datetime,
             'device_serial_number': device_serial_number,
             'manufacturer': manufacturer,
             'software_versions': software_versions,

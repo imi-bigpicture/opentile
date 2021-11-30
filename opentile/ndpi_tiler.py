@@ -1,9 +1,7 @@
 import math
-import struct
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from struct import unpack
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from tifffile import FileHandle, TiffPage
@@ -11,14 +9,13 @@ from tifffile.tifffile import TIFF
 
 from opentile.common import OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.utils import Jpeg
+from opentile.jpeg import Jpeg
 
 
 def get_value_from_ndpi_comments(
     comments: str,
     value_name: str,
-    value_type: Type
+    value_type: Any
 ) -> Any:
     """Read value from ndpi comment string."""
     for line in comments.split("\n"):
@@ -100,6 +97,10 @@ class NdpiCache():
         """
         return key in self._content
 
+    @property
+    def size(self) -> int:
+        return self._size
+
     def update(self, items: Dict[Point, bytes]) -> None:
         """Update items in cache. Remove old items if needed.
 
@@ -149,7 +150,7 @@ class NdpiTile:
             self._frame_size // self._tile_size,
             Size(1, 1)
         )
-        position_inside_frame = (
+        position_inside_frame: Point = (
             (self.position * self._tile_size)
             % Size.max(self._frame_size, self._tile_size)
         )
@@ -285,7 +286,7 @@ class NdpiPage(OpenTilePage):
         self,
         page: TiffPage,
         fh: FileHandle,
-        jpeg: TurboJPEG
+        jpeg: Jpeg
     ):
         """Ndpi page that should not be tiled (e.g. overview or label).
         Image data is assumed to be jpeg.
@@ -296,8 +297,8 @@ class NdpiPage(OpenTilePage):
             TiffPage defining the page.
         fh: FileHandle
             Filehandler to read data from.
-        jpeg: TurboJpeg
-            TurboJpeg instance to use.
+        jpeg: Jpeg
+            Jpeg instance to use.
         """
         super().__init__(page, fh)
         if self.compression != 'COMPRESSION.JPEG':
@@ -308,8 +309,8 @@ class NdpiPage(OpenTilePage):
         self._jpeg = jpeg
         try:
             # Defined in nm
-            self._focal_plane = (
-                self.page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
+            self._focal_plane = float(
+                page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
             )
         except KeyError:
             self._focal_plane = 0.0
@@ -323,7 +324,7 @@ class NdpiPage(OpenTilePage):
         )
 
     @property
-    def focal_plane(self) -> List[float]:
+    def focal_plane(self) -> float:
         """Return focal plane (in um)."""
         return self._focal_plane
 
@@ -342,7 +343,7 @@ class NdpiPage(OpenTilePage):
         """Return dictionary with ndpifile properties."""
         return self._properties
 
-    def get_tile(self, tile: Tuple[int, int]) -> bytes:
+    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return tile for tile position.
 
         Parameters
@@ -355,7 +356,7 @@ class NdpiPage(OpenTilePage):
         bytes
             Produced tile at position.
         """
-        if tile != (0, 0):
+        if tile_position != (0, 0):
             raise ValueError
         return self._read_frame(0)
 
@@ -396,16 +397,16 @@ class NdpiPage(OpenTilePage):
         if software_version is not None:
             software_versions = [software_version]
         else:
-            software_versions = None
+            software_versions = []
         device_serial_number = getattr(ndpi_tags, 'ScannerSerialNumber', None)
-        aquisition_datatime = self._get_value_from_tiff_tags(
+        aquisition_datetime = self._get_value_from_tiff_tags(
             self.page.tags, 'DateTime'
         )
         photometric_interpretation = self._get_value_from_tiff_tags(
             self.page.tags, 'PhotometricInterpretation'
         )
         return {
-            'aquisition_datatime': aquisition_datatime,
+            'aquisition_datetime': aquisition_datetime,
             'device_serial_number': device_serial_number,
             'manufacturer': manufacturer,
             'model': model,
@@ -421,7 +422,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         fh: FileHandle,
         base_shape: Size,
         tile_size: Size,
-        jpeg: TurboJPEG,
+        jpeg: Jpeg,
         frame_cache: int = 1
     ):
         """Metaclass for a tiled ndpi page.
@@ -436,8 +437,8 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             Size of base level in pyramid.
         tile_size: Size
             Requested tile size.
-        jpeg: TurboJpeg
-            TurboJpeg instance to use.
+        jpeg: Jpeg
+            Jpeg instance to use.
         frame_cache: int:
             Number of read frames to cache.
         """
@@ -454,7 +455,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         return (
             f"{type(self).__name__}({self._page}, {self._fh}, "
             f"{self._base_shape}, {self.tile_size}, {self._jpeg}, "
-            f"{self._frame_cache._size})"
+            f"{self._frame_cache.size})"
         )
 
     @property
@@ -597,16 +598,10 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordinate.
         """
-        try:
-            tiles = self._jpeg.crop_multiple(
-                frame,
-                frame_job.crop_parameters
-            )
-        except OSError:
-            raise ValueError(
-                f"Crop of {frame_job} failed "
-                f"with parameters {frame_job.crop_parameters}"
-            )
+        tiles: List[bytes] = self._jpeg.crop_multiple(
+            frame,
+            frame_job.crop_parameters
+        )
         return {
             tile.position: tiles[i]
             for i, tile in enumerate(frame_job.tiles)
@@ -698,7 +693,7 @@ class NdpiOneFramePage(NdpiTiledPage):
             raise ValueError("Frame osition not (0, 0) for one frame level.")
         frame = self._read_frame(0)
         # Use crop_multiple as it allows extending frame
-        tile = self._jpeg.crop_multiple(
+        tile: bytes = self._jpeg.crop_multiple(
             frame,
             [(0, 0, frame_size.width, frame_size.height)]
         )[0]
@@ -716,7 +711,7 @@ class NdpiStripedPage(NdpiTiledPage):
         fh: FileHandle,
         base_shape: Size,
         tile_size: Size,
-        jpeg: TurboJPEG,
+        jpeg: Jpeg,
         frame_cache: int = 1
     ):
         """Ndpi page with striped image data.
@@ -731,13 +726,13 @@ class NdpiStripedPage(NdpiTiledPage):
             Size of base level in pyramid.
         tile_size: Size
             Requested tile size.
-        jpeg: TurboJpeg
-            TurboJpeg instance to use.
+        jpeg: Jpeg
+            Jpeg instance to use.
         frame_cache: int:
             Number of read frames to cache.
         """
         super().__init__(page, fh, base_shape, tile_size, jpeg, frame_cache)
-        self._striped_size = Size(self._page.chunked[1], self._page.chunked[0])
+        self._striped_size = Size(self.page.chunked[1], self.page.chunked[0])
 
     @property
     def stripe_size(self) -> Size:
@@ -843,77 +838,25 @@ class NdpiStripedPage(NdpiTiledPage):
         if frame_size in self._headers:
             header = self._headers[frame_size]
         else:
-            header = self._create_header(frame_size)
+            header = self._jpeg.manipulate_header(
+                self.page.jpegheader,
+                frame_size
+            )
             self._headers[frame_size] = header
-        jpeg_data = header
-        restart_marker_index = 0
 
         stripe_region = Region(
             (position * self.tile_size) // self.stripe_size,
             Size.max(frame_size // self.stripe_size, Size(1, 1))
         )
-        for stripe_coordinate in stripe_region.iterate_all():
-            index = self._get_stripe_position_to_index(stripe_coordinate)
-            jpeg_data += self._read_frame(index)[:-1]
-            jpeg_data += Jpeg.restart_mark(restart_marker_index)
-            restart_marker_index += 1
-        jpeg_data += Jpeg.end_of_image()
-        return jpeg_data
-
-    @staticmethod
-    def _find_tag(
-        header: bytes,
-        tag: bytes
-    ) -> Tuple[Optional[int], Optional[int]]:
-        """Return first index and length of payload of tag in header.
-
-        Parameters
-        ----------
-        heaer: bytes
-            Header to search.
-        tag: bytes
-            Tag to search for.
-
-        Returns
-        ----------
-        Tuple[Optional[int], Optional[int]]:
-            Position of tag in header and length of payload.
-        """
-        index = header.find(tag)
-        if index != -1:
-            (length, ) = unpack('>H', header[index+2:index+4])
-            return index, length
-        return None, None
-
-    def _create_header(
-        self,
-        size: Size,
-    ) -> bytes:
-        """Return manipulated header with changed pixel size (width, height).
-
-        Parameters
-        ----------
-
-        size: Size
-            Pixel size to insert into header.
-
-        Returns
-        ----------
-        bytes:
-            Manupulated header.
-        """
-
-        header = bytearray(self._page.jpegheader)
-        start_of_frame_index, length = self._find_tag(
-            header, Jpeg.start_of_frame()
+        indices = [
+            self._get_stripe_position_to_index(stripe_coordinate)
+            for stripe_coordinate in stripe_region.iterate_all()
+        ]
+        frame = self._jpeg.concatenate_fragments(
+            (self._read_frame(index) for index in indices),
+            header
         )
-        if start_of_frame_index is None:
-            raise ValueError("Start of scan tag not found in header")
-        size_index = start_of_frame_index+5
-        header[size_index:size_index+2] = struct.pack(">H", size.height)
-        header[size_index+2:size_index+4] = struct.pack(">H", size.width)
-
-        return bytes(header)
+        return frame
 
     def _get_stripe_position_to_index(self, position: Point) -> int:
         """Return stripe index from position.
@@ -934,37 +877,37 @@ class NdpiStripedPage(NdpiTiledPage):
 class NdpiTiler(Tiler):
     def __init__(
         self,
-        filepath: Path,
+        filepath: Union[str, Path],
         tile_size: int,
-        turbo_path: Path = None
+        turbo_path: Optional[Union[str, Path]] = None
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
         size.
 
         Parameters
         ----------
-        filepath: Path
+        filepath: Union[str, Path]
             Filepath to a ndpi TiffFile.
         tile_size: int
             Tile size to cache and produce. Must be multiple of 8 and will be
             adjusted to be an even multipler or divider of the smallest strip
             width in the file.
-        turbo_path: Path = None
+        turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
 
         """
-        super().__init__(filepath)
+        super().__init__(Path(filepath))
 
         self._fh = self._tiff_file.filehandle
-        smallest_stripe_width = self._get_smallest_stripe_width()
+        self._tile_size = Size(tile_size, tile_size)
         self._tile_size = self._adjust_tile_size(
             tile_size,
-            smallest_stripe_width
+            self._get_smallest_stripe_width()
         )
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
         self._turbo_path = turbo_path
-        self._jpeg = TurboJPEG(self._turbo_path)
+        self._jpeg = Jpeg(self._turbo_path)
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
@@ -972,6 +915,7 @@ class NdpiTiler(Tiler):
                 self._label_series_index = series_index
             elif series.name == 'Macro':
                 self._overview_series_index = series_index
+        self._pages: Dict[Tuple[int, int, int], NdpiPage] = {}
 
     def __repr__(self) -> str:
         return (
@@ -1005,7 +949,7 @@ class NdpiTiler(Tiler):
     @staticmethod
     def _adjust_tile_size(
         requested_tile_width: int,
-        smallest_stripe_width: int
+        smallest_stripe_width: Optional[int] = None
     ) -> Size:
         """Return adjusted tile size. If file contains striped pages the
         tile size must be an n * smallest stripe width in the file, where n
@@ -1016,7 +960,7 @@ class NdpiTiler(Tiler):
         ----------
         requested_tile_width: int
             Requested tile width.
-        smallest_stripe_width: int
+        smallest_stripe_width: Optional[int] = None
             Smallest stripe width in file.
 
         Returns

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from tifffile import TiffFile, TiffFileError
 
@@ -12,9 +12,10 @@ from opentile.turbojpeg_patch import find_turbojpeg_path
 
 class OpenTile:
     @staticmethod
-    def detect_format(filepath: Path) -> Optional[str]:
+    def detect_format(filepath: Union[str, Path]) -> Optional[str]:
         """Return string describing tiff file format in file, or None
         if not supported."""
+        file_format: Optional[str]
         try:
             tiff_file = TiffFile(filepath)
             if tiff_file.is_ndpi:
@@ -32,8 +33,8 @@ class OpenTile:
     @classmethod
     def open(
         cls,
-        filepath: Path,
-        tile_size: int = None,
+        filepath: Union[str, Path],
+        tile_size: Optional[int] = None,
     ) -> Tiler:
         """Return a file type specific tiler for tiff file in filepath.
         Tile size and turbo jpeg path are optional but required for some file
@@ -41,9 +42,9 @@ class OpenTile:
 
         Parameters
         ----------
-        filepath: str
+        filepath: Union[str, Path]
             Path to tiff file.
-        tile_size: int = None
+        tile_size: Optional[int] = None
             Tile size for creating tiles, if needed for file format.
         """
         file_format = cls.detect_format(filepath)
