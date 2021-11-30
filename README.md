@@ -4,7 +4,7 @@
 ## Installing *opentile*
 *opentile* is available on PyPI:
 ```console
-$ pip opentile
+$ pip install opentile
 ```
 
 ## Important note
