@@ -345,7 +345,7 @@ class NdpiPage(OpenTilePage):
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
-        return self.mpp * 1000.0
+        return self.mpp / 1000.0
 
     @property
     def mpp(self) -> SizeMm:
@@ -397,9 +397,9 @@ class NdpiPage(OpenTilePage):
         resolution_unit = self.page.tags['ResolutionUnit'].value
         if resolution_unit != TIFF.RESUNIT.CENTIMETER:
             raise ValueError("Unkown resolution unit")
-
-        mpp_x = 1/x_resolution
-        mpp_y = 1/y_resolution
+        # 10*1000 um per cm
+        mpp_x = 10*1000/x_resolution
+        mpp_y = 10*1000/y_resolution
         return SizeMm(mpp_x, mpp_y)
 
     def _get_properties(self) -> Dict[str, Any]:

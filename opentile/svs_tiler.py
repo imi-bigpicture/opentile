@@ -69,7 +69,7 @@ class SvsTiledPage(NativeTiledPage):
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
-        return self.mpp * 1000
+        return self.mpp / 1000
 
     @property
     def mpp(self) -> SizeMm:
