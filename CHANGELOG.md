@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [0.1.1] - 2021-12-02
+### Changed
+- Fix calculations of pixel spacing and mpp.
+
 ## [0.1.0] - 2021-11-30
 ### Added
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/0.1.0..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/0.1.1..HEAD
+[0.1.1]: https://github.com/imi-bigpicture/opentile/compare/0.1.0..0.1.1
 [0.1.0]: https://github.com/imi-bigpicture/opentile/tree/v0.1.0

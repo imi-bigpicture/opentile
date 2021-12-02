@@ -12,7 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import xml.etree.ElementTree as ET
+from xml.etree import ElementTree
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -159,7 +159,7 @@ class PhilipsTiffTiler(Tiler):
             elif self.is_overview(series):
                 self._overview_series_index = series_index
         self._properties = self._read_properties()
-        mpp = self.properties['pixel_spacing'] / 1000.0
+        mpp = self.properties['pixel_spacing'] * 1000.0
         self._base_mpp = SizeMm(mpp, mpp)
         self._pages: Dict[Tuple[int, int, int], PhilipsTiffTiledPage] = {}
 
@@ -224,7 +224,9 @@ class PhilipsTiffTiler(Tiler):
 
     def _read_properties(self) -> Dict[str, Any]:
         """Return dictionary with philips tiff file properties."""
-        metadata = ET.fromstring(str(self._tiff_file.philips_metadata))
+        metadata = ElementTree.fromstring(
+            str(self._tiff_file.philips_metadata)
+        )
         pixel_spacing: Optional[float] = None
         aquisition_datetime: Optional[str] = None
         device_serial_number: Optional[str] = None
