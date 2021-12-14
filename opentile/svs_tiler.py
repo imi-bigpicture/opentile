@@ -197,7 +197,14 @@ class SvsTiledPage(NativeTiledPage):
             raise NotImplementedError("Not supported compression")
         with io.BytesIO() as buffer:
             image.save(buffer, format=image_format, **image_options)
-            return buffer.getvalue()
+            frame = buffer.getvalue()
+
+        if self.compression == 'COMPRESSION.APERIO_JP2000_RGB':
+            # PIL encodes in jp2, find start of j2k and return from there.
+            START_TAGS = bytes([0xFF, 0x4F, 0xFF, 0x51])
+            start_index = frame.find(START_TAGS)
+            return frame[start_index:]
+        return frame
 
     def _get_fixed_tile(self, tile_point: Point) -> bytes:
         """Get or create a fixed tile inplace for a corrupt tile.
