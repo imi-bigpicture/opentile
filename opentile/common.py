@@ -166,9 +166,8 @@ class OpenTilePage(metaclass=ABCMeta):
     def tiled_size(self) -> Size:
         """The size of the image when tiled."""
         if self.tile_size != Size(0, 0):
-            return self.image_size / self.tile_size
-        else:
-            return Size(1, 1)
+            return self.image_size.ceil_div(self.tile_size)
+        return Size(1, 1)
 
     @property
     def pyramid_index(self) -> int:
