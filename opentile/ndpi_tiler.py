@@ -371,7 +371,7 @@ class NdpiPage(OpenTilePage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError
+            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:

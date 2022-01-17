@@ -28,6 +28,7 @@ svs_test_data_dir = os.environ.get(
 )
 sub_data_path = "svs1/input.svs"
 svs_file_path = Path(svs_test_data_dir + '/' + sub_data_path)
+turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
 
 
 @pytest.mark.unittest
@@ -38,7 +39,7 @@ class SvsTilerTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tiler = SvsTiler(svs_file_path)
+        cls.tiler = SvsTiler(svs_file_path, turbojpeg_path)
         cls.level = cast(SvsTiledPage, cls.tiler.get_level(0))
 
     @classmethod
