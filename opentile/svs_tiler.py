@@ -26,6 +26,8 @@ from opentile.jpeg import Jpeg
 
 
 class SvsStripedPage(OpenTilePage):
+    _pyramid_index = 0
+
     def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
         """OpenTiledPage for jpeg striped Svs page, e.g. overview page.
 
@@ -47,6 +49,7 @@ class SvsStripedPage(OpenTilePage):
             f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
         )
 
+    @property
     def pixel_spacing(self) -> Optional[SizeMm]:
         return None
 
@@ -92,6 +95,8 @@ class SvsStripedPage(OpenTilePage):
 
 
 class SvsLZWPage(OpenTilePage):
+    _pyramid_index = 0
+
     def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
         """OpenTiledPage for lzw striped Svs page, e.g. label page.
 
@@ -118,6 +123,7 @@ class SvsLZWPage(OpenTilePage):
         """Return compression of page."""
         return 'COMPRESSION.JPEG'
 
+    @property
     def pixel_spacing(self) -> Optional[SizeMm]:
         return None
 
@@ -392,7 +398,6 @@ class SvsTiledPage(NativeTiledPage):
 
         tile = super().get_tile(tile_position)
         if self.compression == 'COMPRESSION.JPEG':
-            tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables)
             tile = Jpeg.add_color_space_fix(tile)
         return tile
 
