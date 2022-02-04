@@ -150,6 +150,23 @@ class Jpeg:
         frame: bytes,
         jpeg_tables: bytes
     ) -> bytes:
+        """Add jpeg tables to frame. Tables are insterted before 'start of
+        scan'-tag, and leading 'start of image' and ending 'end of image' tags
+        are removed from the header prior to insertion.
+
+        Parameters
+        ----------
+        frame: bytes
+            'Abbreviated' jpeg frame lacking jpeg tables.
+        jpeg_tables: bytes
+            Jpeg tables to add
+
+        Returns
+        ----------
+        bytes:
+            'Interchange' jpeg frame containg jpeg tables.
+
+        """
         return bytes(cls._add_jpeg_tables(bytearray(frame), jpeg_tables))
 
     @classmethod

@@ -345,10 +345,10 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         """
         tile_point = Point.from_tuple(tile_position)
         frame_index = self._tile_point_to_frame_index(tile_point)
-        frame = self._read_frame(frame_index)
-        if self.page.jpegtables is None:
-            return frame
-        return Jpeg.add_jpeg_tables(frame, self.page.jpegtables)
+        tile = self._read_frame(frame_index)
+        if self.page.jpegtables is not None:
+            tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables)
+        return tile
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         """Return decoded tile for tile position. Returns a white tile if tile
@@ -387,32 +387,6 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         """Return linear frame index for tile position."""
         frame_index = tile_point.y * self.tiled_size.width + tile_point.x
         return frame_index
-
-    def _add_jpeg_tables(self, frame: bytes) -> bytes:
-        """Add jpeg tables to frame. Tables are insterted before 'start of
-        scan'-tag, and leading 'start of image' and ending 'end of image' tags
-        are removed from the header prior to insertion.
-
-        Parameters
-        ----------
-        frame: bytes
-            'Abbreviated' jpeg frame lacking jpeg tables.
-
-        Returns
-        ----------
-        bytes:
-            'Interchange' jpeg frame containg jpeg tables.
-
-        """
-        if self.page.jpegtables is None:
-            return frame
-
-        start_of_scan = frame.find(Jpeg.start_of_scan())
-        with io.BytesIO() as buffer:
-            buffer.write(frame[0:start_of_scan])
-            buffer.write(self.page.jpegtables[2:-2])  # No start and end tags
-            buffer.write(frame[start_of_scan:])
-            return buffer.getvalue()
 
 
 class Tiler(metaclass=ABCMeta):

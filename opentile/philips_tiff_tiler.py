@@ -105,7 +105,8 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         tile = self._read_frame(valid_frame_index)
         if self.page.jpegtables is not None:
             tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables)
-        return self._jpeg.fill_frame(tile, luminance)
+        tile = self._jpeg.fill_frame(tile, luminance)
+        return tile
 
     def _read_frame(self, index: int) -> bytes:
         """Read frame at frame index from page. Return blank tile if tile is

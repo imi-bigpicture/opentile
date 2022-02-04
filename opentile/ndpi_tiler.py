@@ -707,7 +707,7 @@ class NdpiOneFramePage(NdpiTiledPage):
             Frame
         """
         if position != Point(0, 0):
-            raise ValueError("Frame osition not (0, 0) for one frame level.")
+            raise ValueError("Frame position not (0, 0) for one frame level.")
         frame = self._read_frame(0)
         # Use crop_multiple as it allows extending frame
         tile: bytes = self._jpeg.crop_multiple(
