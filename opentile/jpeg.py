@@ -74,7 +74,10 @@ class Jpeg:
         """
         frame = header
         for fragment_index, fragment in enumerate(fragments):
-            if fragment[-2] != Jpeg.TAGS['tag marker']:
+            if not (
+                fragment[-2] == Jpeg.TAGS['tag marker']
+                and fragment[-1] != b'0'
+            ):
                 raise JpegTagNotFound(
                     "Tag for end of scan or restart marker not found in scan"
                 )
