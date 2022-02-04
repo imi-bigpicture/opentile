@@ -23,12 +23,15 @@ from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 from opentile.turbojpeg_patch import tjMCUHeight, tjMCUWidth
 
 
-class JpegRestartMarkerError(Exception):
+class JpegTagNotFound(Exception):
+    """Raised when expected Jpeg tag was not found."""
     pass
 
 
 class JpegCropError(Exception):
+    """Raised when crop operation fails."""
     pass
+
 
 class Jpeg:
     TAGS = {
@@ -72,7 +75,9 @@ class Jpeg:
         frame = header
         for fragment_index, fragment in enumerate(fragments):
             if fragment[-2] != Jpeg.TAGS['tag marker']:
-                raise JpegRestartMarkerError()
+                raise JpegTagNotFound(
+                    "Tag for end of scan or restart marker not found in scan"
+                )
             frame += fragment[:-1]  # Do not include restart mark index
             frame += self.restart_mark(fragment_index)
         frame += self.end_of_image()
@@ -120,7 +125,9 @@ class Jpeg:
                     self.start_of_scan()
                 )
                 if start_of_scan is None or length is None:
-                    raise ValueError()
+                    raise JpegTagNotFound(
+                        'Start of scan not found in header'
+                    )
                 scan_start = start_of_scan + length + 2
 
             frame += scan[scan_start:-2]
@@ -386,7 +393,7 @@ class Jpeg:
                 frame, cls.start_of_frame()
             )
             if start_of_frame_index is None:
-                raise ValueError("Start of frame tag not found in header")
+                raise JpegTagNotFound("Start of frame tag not found in header")
             size_index = start_of_frame_index+5
             frame[size_index:size_index+2] = cls.code_short(size.height)
             frame[size_index+2:size_index+4] = cls.code_short(size.width)
@@ -404,7 +411,9 @@ class Jpeg:
                     frame, cls.start_of_scan()
                 )
                 if start_of_scan_index is None:
-                    raise ValueError("Start of scan tag not found in header")
+                    raise JpegTagNotFound(
+                        "Start of scan tag not found in header"
+                    )
                 frame[start_of_scan_index:start_of_scan_index] = (
                     cls.restart_interval()
                     + cls.code_short(4)

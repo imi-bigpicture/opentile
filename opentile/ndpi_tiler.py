@@ -23,7 +23,7 @@ from tifffile.tifffile import TIFF
 
 from opentile.common import OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.jpeg import Jpeg
+from opentile.jpeg import Jpeg, JpegCropError
 
 
 def get_value_from_ndpi_comments(
@@ -615,10 +615,16 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordinate.
         """
-        tiles: List[bytes] = self._jpeg.crop_multiple(
-            frame,
-            frame_job.crop_parameters
-        )
+        try:
+            tiles: List[bytes] = self._jpeg.crop_multiple(
+                frame,
+                frame_job.crop_parameters
+            )
+        except JpegCropError:
+            raise ValueError(
+                f'Failed to crop at position {frame_job.position} with '
+                f'parameters {frame_job.crop_parameters}.'
+            )
         return {
             tile.position: tiles[i]
             for i, tile in enumerate(frame_job.tiles)
