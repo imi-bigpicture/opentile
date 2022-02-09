@@ -177,7 +177,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def pixel_spacing(self) -> SizeMm:
+    def pixel_spacing(self) -> Optional[SizeMm]:
         """Should return the pixel size in mm/pixel of the page."""
         raise NotImplementedError
 
