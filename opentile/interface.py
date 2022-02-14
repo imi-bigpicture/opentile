@@ -73,7 +73,8 @@ class OpenTile:
 
         if file_format == 'svs':
             return SvsTiler(
-                filepath
+                filepath,
+                find_turbojpeg_path()
             )
 
         if file_format == 'philips_tiff':

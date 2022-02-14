@@ -109,11 +109,11 @@ class JpegTest(unittest.TestCase):
                 self.read_frame(self.svs_tiff, self.svs_overview, index)
                 for index in range(len(self.svs_overview.databytecounts))
             ),
-            self.ndpi_level.jpegtables,
+            self.svs_overview.jpegtables,
             True
         )
         self.assertEqual(
-            '6fa2f7a79c69ca6f91322937bd728f04',
+            '75bb45ee9c3135b0ade2427c6f673609',
             md5(frame).hexdigest()
         )
 

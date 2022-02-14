@@ -80,6 +80,9 @@ class PointMm:
     x: float
     y: float
 
+    def __str__(self) -> str:
+        return f'{self.x},{self.y}'
+
     def __floordiv__(self, divider: SizeMm) -> 'Point':
         """Return divided PointMm rounded down to closest integer x and y.
         """
@@ -164,7 +167,7 @@ class Size:
             )
         return NotImplemented
 
-    def __truediv__(
+    def ceil_div(
         self,
         divider: Union[int, float, 'Size', SizeMm]
     ) -> 'Size':
@@ -258,11 +261,11 @@ class Point:
             return Point(int(self.x/divider.width), int(self.y/divider.height))
         return NotImplemented
 
-    def __truediv__(
+    def ceil_div(
         self,
         divider: Union[int, float, 'Point', Size, SizeMm]
     ) -> 'Point':
-        """Return divided Point rounded down up closest integer x and y."""
+        """Return divided Point rounded up closest integer x and y."""
         if isinstance(divider, (int, float)):
             return Point(
                 math.ceil(self.x/divider),
@@ -413,6 +416,9 @@ class Region:
 class RegionMm:
     position: PointMm
     size: SizeMm
+
+    def __str__(self) -> str:
+        return f'from {self.start} to {self.end}'
 
     @property
     def start(self) -> PointMm:

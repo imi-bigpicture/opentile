@@ -23,6 +23,16 @@ from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 from opentile.turbojpeg_patch import tjMCUHeight, tjMCUWidth
 
 
+class JpegTagNotFound(Exception):
+    """Raised when expected Jpeg tag was not found."""
+    pass
+
+
+class JpegCropError(Exception):
+    """Raised when crop operation fails."""
+    pass
+
+
 class Jpeg:
     TAGS = {
         'tag marker': 0xFF,
@@ -48,8 +58,29 @@ class Jpeg:
         fragments: Iterator[bytes],
         header: bytes
     ) -> bytes:
+        """Return frame created by vertically concatenating fragments.
+
+        Parameters
+        ----------
+        fragments: Iterator[bytes]
+            Iterator providing fragments to concatenate.
+        header: bytes
+            Heaeder for the frame.
+
+        Returns
+        ----------
+        bytes:
+            Concatenated frame in bytes.
+        """
         frame = header
         for fragment_index, fragment in enumerate(fragments):
+            if not (
+                fragment[-2] == Jpeg.TAGS['tag marker']
+                and fragment[-1] != b'0'
+            ):
+                raise JpegTagNotFound(
+                    "Tag for end of scan or restart marker not found in scan"
+                )
             frame += fragment[:-1]  # Do not include restart mark index
             frame += self.restart_mark(fragment_index)
         frame += self.end_of_image()
@@ -97,7 +128,9 @@ class Jpeg:
                     self.start_of_scan()
                 )
                 if start_of_scan is None or length is None:
-                    raise ValueError()
+                    raise JpegTagNotFound(
+                        'Start of scan not found in header'
+                    )
                 scan_start = start_of_scan + length + 2
 
             frame += scan[scan_start:-2]
@@ -123,12 +156,50 @@ class Jpeg:
         return bytes(frame)
 
     def fill_frame(self, frame: bytes, luminance: float) -> bytes:
+        """Return frame filled with color from luminance.
+
+        Parameters
+        ----------
+        frame: bytes
+            Frame to fill.
+        luminance: float
+            Luminance to fill (0: black - 1: white).
+
+        Returns
+        ----------
+        bytes:
+            Frame with constant color from luminance.
+        """
         return self._turbo_jpeg.fill_image(frame, luminance)
 
     def decode(self, frame: bytes) -> np.ndarray:
+        """Decode frame to np array.
+
+        Parameters
+        ----------
+        frame: bytes
+            Frame to decode.
+
+        Returns
+        ----------
+        np.ndarray:
+            Decoded frame as np array.
+        """
         return self._turbo_jpeg.decode(frame)
 
     def encode(self, data: np.ndarray) -> bytes:
+        """Encode np array to bytes.
+
+        Parameters
+        ----------
+        data: np.ndarray
+            Numpy array to encode.
+
+        Returns
+        ----------
+        bytes:
+            Encoded frame of data.
+        """
         return self._turbo_jpeg.encode(data)
 
     def crop_multiple(
@@ -136,10 +207,25 @@ class Jpeg:
         frame: bytes,
         crop_parameters: Sequence[Tuple[int, int, int, int]]
     ) -> List[bytes]:
+        """Crop multipe frames out of frame.
+
+        Parameters
+        ----------
+        frame: bytes
+            Frame to crop from.
+        crop_parameters: Sequence[Tuple[int, int, int, int]]
+            Parameters for each crop, specified as left position, top position,
+            widht, height.
+
+        Returns
+        ----------
+        List[bytes]:
+            Croped frames.
+        """
         try:
             return self._turbo_jpeg.crop_multiple(frame, crop_parameters)
         except OSError:
-            raise ValueError(
+            raise JpegCropError(
                 f"Crop of frame failed "
                 f"with parameters {crop_parameters}"
             )
@@ -150,6 +236,23 @@ class Jpeg:
         frame: bytes,
         jpeg_tables: bytes
     ) -> bytes:
+        """Add jpeg tables to frame. Tables are insterted before 'start of
+        scan'-tag, and leading 'start of image' and ending 'end of image' tags
+        are removed from the header prior to insertion.
+
+        Parameters
+        ----------
+        frame: bytes
+            'Abbreviated' jpeg frame lacking jpeg tables.
+        jpeg_tables: bytes
+            Jpeg tables to add
+
+        Returns
+        ----------
+        bytes:
+            'Interchange' jpeg frame containg jpeg tables.
+
+        """
         return bytes(cls._add_jpeg_tables(bytearray(frame), jpeg_tables))
 
     @classmethod
@@ -157,6 +260,19 @@ class Jpeg:
         cls,
         frame: bytes
     ) -> bytes:
+        """Add color space fix to frame (for svs).
+
+        Parameters
+        ----------
+        frame: bytes
+            Frame to add color space fix to.
+
+        Returns
+        ----------
+        bytes:
+            Frame with color fix.
+
+        """
         return bytes(cls._add_color_space_fix(bytearray(frame)))
 
     @classmethod
@@ -166,6 +282,24 @@ class Jpeg:
         image_size: Optional[Size] = None,
         restart_interval: Optional[int] = None
     ) -> bytes:
+        """Return frame with changed header to reflect changed image size
+        or restart interval.
+
+        Parameters
+        ----------
+        frame: bytes
+            Frame with header to update.
+        image_size: Optional[Size] = None
+            Image size to update header with.
+        restart_interval: Optional[int] = None
+            Restart interval to update header with.
+
+        Returns
+        ----------
+        bytes:
+            Frame with updated header.
+
+        """
         return bytes(cls._manipulate_header(
             bytearray(frame),
             image_size,
@@ -262,7 +396,7 @@ class Jpeg:
                 frame, cls.start_of_frame()
             )
             if start_of_frame_index is None:
-                raise ValueError("Start of frame tag not found in header")
+                raise JpegTagNotFound("Start of frame tag not found in header")
             size_index = start_of_frame_index+5
             frame[size_index:size_index+2] = cls.code_short(size.height)
             frame[size_index+2:size_index+4] = cls.code_short(size.width)
@@ -280,7 +414,9 @@ class Jpeg:
                     frame, cls.start_of_scan()
                 )
                 if start_of_scan_index is None:
-                    raise ValueError("Start of scan tag not found in header")
+                    raise JpegTagNotFound(
+                        "Start of scan tag not found in header"
+                    )
                 frame[start_of_scan_index:start_of_scan_index] = (
                     cls.restart_interval()
                     + cls.code_short(4)
