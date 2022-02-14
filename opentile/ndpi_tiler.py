@@ -23,7 +23,7 @@ from tifffile.tifffile import TIFF
 
 from opentile.common import OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.jpeg import Jpeg
+from opentile.jpeg import Jpeg, JpegCropError
 
 
 def get_value_from_ndpi_comments(
@@ -371,7 +371,7 @@ class NdpiPage(OpenTilePage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError
+            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
@@ -615,10 +615,16 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordinate.
         """
-        tiles: List[bytes] = self._jpeg.crop_multiple(
-            frame,
-            frame_job.crop_parameters
-        )
+        try:
+            tiles: List[bytes] = self._jpeg.crop_multiple(
+                frame,
+                frame_job.crop_parameters
+            )
+        except JpegCropError:
+            raise ValueError(
+                f'Failed to crop at position {frame_job.position} with '
+                f'parameters {frame_job.crop_parameters}.'
+            )
         return {
             tile.position: tiles[i]
             for i, tile in enumerate(frame_job.tiles)
@@ -707,7 +713,7 @@ class NdpiOneFramePage(NdpiTiledPage):
             Frame
         """
         if position != Point(0, 0):
-            raise ValueError("Frame osition not (0, 0) for one frame level.")
+            raise ValueError("Frame position not (0, 0) for one frame level.")
         frame = self._read_frame(0)
         # Use crop_multiple as it allows extending frame
         tile: bytes = self._jpeg.crop_multiple(

@@ -14,15 +14,160 @@
 
 import io
 from pathlib import Path
-from typing import Dict, Tuple, Union, Optional
+from typing import Dict, Optional, Tuple, Union, cast
 
 import numpy as np
 from PIL import Image
-from tifffile.tifffile import (FileHandle, TiffPage, svs_description_metadata)
+from tifffile.tifffile import FileHandle, TiffPage, svs_description_metadata
 
-from opentile.common import NativeTiledPage, Tiler
+from opentile.common import NativeTiledPage, OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
+
+
+class SvsStripedPage(OpenTilePage):
+    _pyramid_index = 0
+
+    def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
+        """OpenTiledPage for jpeg striped Svs page, e.g. overview page.
+
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        fh: FileHandle
+            Filehandler to read data from.
+        jpeg: Jpeg
+            Jpeg instance to use.
+
+        """
+        super().__init__(page, fh)
+        self._jpeg = jpeg
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
+        )
+
+    @property
+    def pixel_spacing(self) -> Optional[SizeMm]:
+        return None
+
+    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
+        """Return tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+        indices = range(len(self.page.dataoffsets))
+        scans = (self._read_frame(index) for index in indices)
+        jpeg_tables = self.page.jpegtables
+        frame = self._jpeg.concatenate_scans(
+            scans,
+            jpeg_tables,
+            True
+        )
+        return frame
+
+    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
+        """Return decoded tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        return self._jpeg.decode(self.get_tile(tile_position))
+
+
+class SvsLZWPage(OpenTilePage):
+    _pyramid_index = 0
+
+    def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
+        """OpenTiledPage for lzw striped Svs page, e.g. label page.
+
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        fh: FileHandle
+            Filehandler to read data from.
+        jpeg: Jpeg
+            Jpeg instance to use.
+
+        """
+        super().__init__(page, fh)
+        self._jpeg = jpeg
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
+        )
+
+    @property
+    def compression(self) -> str:
+        """Return compression of page."""
+        return 'COMPRESSION.JPEG'
+
+    @property
+    def pixel_spacing(self) -> Optional[SizeMm]:
+        return None
+
+    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
+        """Return tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        return self._jpeg.encode(self.get_decoded_tile(tile_position))
+
+    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
+        """Return decoded tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+        data = None
+        for index in range(len(self.page.dataoffsets)):
+            new_row = self.page.decode(
+                self._read_frame(index),
+                index
+            )[0]
+            if data is None:
+                data = new_row
+            else:
+                data = np.append(data, new_row, axis=1)
+        return np.squeeze(data)
 
 
 class SvsTiledPage(NativeTiledPage):
@@ -40,7 +185,7 @@ class SvsTiledPage(NativeTiledPage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: NdpiFileHandle
+        fh: FileHandle
             Filehandler to read data from.
         base_shape: Size
             Size of base level in pyramid.
@@ -197,7 +342,14 @@ class SvsTiledPage(NativeTiledPage):
             raise NotImplementedError("Not supported compression")
         with io.BytesIO() as buffer:
             image.save(buffer, format=image_format, **image_options)
-            return buffer.getvalue()
+            frame = buffer.getvalue()
+
+        if self.compression == 'COMPRESSION.APERIO_JP2000_RGB':
+            # PIL encodes in jp2, find start of j2k and return from there.
+            START_TAGS = bytes([0xFF, 0x4F, 0xFF, 0x51])
+            start_index = frame.find(START_TAGS)
+            return frame[start_index:]
+        return frame
 
     def _get_fixed_tile(self, tile_point: Point) -> bytes:
         """Get or create a fixed tile inplace for a corrupt tile.
@@ -246,13 +398,16 @@ class SvsTiledPage(NativeTiledPage):
 
         tile = super().get_tile(tile_position)
         if self.compression == 'COMPRESSION.JPEG':
-            tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables)
             tile = Jpeg.add_color_space_fix(tile)
         return tile
 
 
 class SvsTiler(Tiler):
-    def __init__(self, filepath: Union[str, Path]):
+    def __init__(
+        self,
+        filepath: Union[str, Path],
+        turbo_path: Optional[Union[str, Path]] = None
+    ):
         """Tiler for svs file.
 
         Parameters
@@ -262,6 +417,8 @@ class SvsTiler(Tiler):
         """
         super().__init__(Path(filepath))
         self._fh = self._tiff_file.filehandle
+        self._turbo_path = turbo_path
+        self._jpeg = Jpeg(self._turbo_path)
 
         for series_index, series in enumerate(self.series):
             if series.name == 'Baseline':
@@ -272,32 +429,63 @@ class SvsTiler(Tiler):
                 self._overview_series_index = series_index
         mpp = svs_description_metadata(self.base_page.description)['MPP']
         self._base_mpp = SizeMm(mpp, mpp)
-        self._pages: Dict[Tuple[int, int, int], SvsTiledPage] = {}
+        self._pages: Dict[
+            Tuple[int, int, int], OpenTilePage
+        ] = {}
 
     @property
     def base_mpp(self) -> SizeMm:
         """Return pixel spacing in um/pixel for base level."""
         return self._base_mpp
 
+    def _get_level_page(
+        self,
+        level: int,
+        page: int = 0
+    ) -> SvsTiledPage:
+        series = self._level_series_index
+
+        tiff_page = self.series[series].levels[level].pages[page]
+        if level > 0:
+            parent = self.get_page(series, level-1, page)
+            parent = cast(SvsTiledPage, parent)
+        else:
+            parent = None
+        svs_page = SvsTiledPage(
+            tiff_page,
+            self._fh,
+            self.base_size,
+            self.base_mpp,
+            parent
+        )
+        return svs_page
+
     def get_page(
         self,
         series: int,
         level: int,
         page: int = 0
-    ) -> SvsTiledPage:
+    ) -> OpenTilePage:
         """Return SvsTiledPage for series, level, page."""
         if not (series, level, page) in self._pages:
             tiff_page = self.series[series].levels[level].pages[page]
-            if level > 0:
-                parent = self.get_page(series, level-1, page)
-            else:
-                parent = None
 
-            self._pages[series, level, page] = SvsTiledPage(
-                tiff_page,
-                self._fh,
-                self.base_size,
-                self.base_mpp,
-                parent
-            )
+            if series == self._overview_series_index:
+                svs_page = SvsStripedPage(
+                    tiff_page,
+                    self._fh,
+                    self._jpeg
+                )
+            elif series == self._label_series_index:
+                svs_page = SvsLZWPage(
+                    tiff_page,
+                    self._fh,
+                    self._jpeg
+                )
+            elif series == self._level_series_index:
+                svs_page = self._get_level_page(level, page)
+            else:
+                raise NotImplementedError()
+
+            self._pages[series, level, page] = svs_page
         return self._pages[series, level, page]
