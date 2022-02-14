@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Jpeg tables are not duplicated.
+- Return j2k and not jp2 when encoding jpeg2000.
 
 ## [0.1.1] - 2021-12-02
 ### Changed
