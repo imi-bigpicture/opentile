@@ -59,22 +59,17 @@ tiler.close()
 Requires poetry and pytest and pytest-watch installed in the virtual environment.
 
 ```console
-$ git clone https://github.com/imi-bigpicture/wsidicom.git
+$ git clone https://github.com/imi-bigpicture/opentile.git
 $ poetry install
 ```
+
+Set the OPENTILE_TESTDIR environment variable to your test data directory. The tests for svs and ndpi uses [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/). The test data for philips tiff is currently not publically avaiable.
 
 To watch unit tests use:
 
 ```console
 $ poetry run pytest-watch -- -m unittest
 ```
-
-To run integration tests, set the WSIDICOM_TESTDIR environment varible to your test data directory and then use:
-
-```console
-$ poetry run pytest -m integration
-```
-Unfortunately due to data sharing restrictions the default WSI DICOM test files can't be shared. We are working on a solution, please disregard the integration tests at the moment.
 
 ## Other TIFF python tools
 - [tifffile](https://github.com/cgohlke/tifffile)
