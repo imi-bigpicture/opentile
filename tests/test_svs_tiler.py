@@ -23,10 +23,10 @@ from opentile.geometry import Point
 from opentile.svs_tiler import SvsTiledPage, SvsTiler
 
 svs_test_data_dir = os.environ.get(
-    "OPEN_TILER_TESTDIR",
-    "C:/temp/opentile/svs/"
+    "OPENTILE_TESTDIR",
+    "C:/temp/opentile/"
 )
-sub_data_path = "svs1/input.svs"
+sub_data_path = "svs/CMU-1/CMU-1.svs"
 svs_file_path = Path(svs_test_data_dir + '/' + sub_data_path)
 turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
 
@@ -39,7 +39,10 @@ class SvsTilerTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tiler = SvsTiler(svs_file_path, turbojpeg_path)
+        try:
+            cls.tiler = SvsTiler(svs_file_path, turbojpeg_path)
+        except FileNotFoundError:
+            raise unittest.SkipTest('Svs test file not found, skipping')
         cls.level = cast(SvsTiledPage, cls.tiler.get_level(0))
 
     @classmethod
@@ -49,12 +52,12 @@ class SvsTilerTest(unittest.TestCase):
     def test_get_tile(self):
         tile = self.level.get_tile((15, 25))
         self.assertEqual(
-            'ce326182efc59eb0f0da4db214d75cda',
+            'dd8402d5a7250ebfe9e33b3dfee3c1e1',
             md5(tile).hexdigest()
         )
         tile = self.level.get_tile((35, 30))
         self.assertEqual(
-            '69abcdf0dec9dea69430167b3c589a6d',
+            '50f885cd7299bd3fff22743bfb4a4930',
             md5(tile).hexdigest()
         )
 
@@ -62,25 +65,26 @@ class SvsTilerTest(unittest.TestCase):
         level = cast(SvsTiledPage, self.tiler.get_level(1))
         tile = level._get_scaled_tile(Point(0, 0))
         self.assertEqual(
-            '87c887f735772a934f84674fa63a4a10',
+            'd9135db3b0bcc0d9e785754e760f80c4',
             md5(tile).hexdigest()
         )
         tile = level._get_scaled_tile(Point(50, 50))
         self.assertEqual(
-            '77e81998d3cb9d1e105cc27c396abd2a',
+            'bd0599aa1becf3511fa122582ecc7e3d',
             md5(tile).hexdigest()
         )
 
     def test_tile_is_at_edge(self):
-        self.assertFalse(self.level._tile_is_at_right_edge(Point(198, 145)))
-        self.assertFalse(self.level._tile_is_at_right_edge(Point(198, 146)))
-        self.assertTrue(self.level._tile_is_at_right_edge(Point(199, 145)))
-        self.assertTrue(self.level._tile_is_at_right_edge(Point(199, 146)))
+        print(self.level.tiled_size)
+        self.assertFalse(self.level._tile_is_at_right_edge(Point(178, 127)))
+        self.assertFalse(self.level._tile_is_at_right_edge(Point(178, 128)))
+        self.assertTrue(self.level._tile_is_at_right_edge(Point(179, 127)))
+        self.assertTrue(self.level._tile_is_at_right_edge(Point(179, 128)))
 
-        self.assertFalse(self.level._tile_is_at_bottom_edge(Point(198, 145)))
-        self.assertFalse(self.level._tile_is_at_bottom_edge(Point(199, 145)))
-        self.assertTrue(self.level._tile_is_at_bottom_edge(Point(198, 146)))
-        self.assertTrue(self.level._tile_is_at_bottom_edge(Point(199, 146)))
+        self.assertFalse(self.level._tile_is_at_bottom_edge(Point(178, 127)))
+        self.assertFalse(self.level._tile_is_at_bottom_edge(Point(179, 127)))
+        self.assertTrue(self.level._tile_is_at_bottom_edge(Point(178, 128)))
+        self.assertTrue(self.level._tile_is_at_bottom_edge(Point(179, 128)))
 
     def test_detect_corrupt_edges(self):
         self.assertEqual(

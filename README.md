@@ -54,6 +54,28 @@ tile = tiler.get_tile(0, (0, 0))
 ```python
 tiler.close()
 ```
+
+## Setup environment for development
+Requires poetry and pytest and pytest-watch installed in the virtual environment.
+
+```console
+$ git clone https://github.com/imi-bigpicture/wsidicom.git
+$ poetry install
+```
+
+To watch unit tests use:
+
+```console
+$ poetry run pytest-watch -- -m unittest
+```
+
+To run integration tests, set the WSIDICOM_TESTDIR environment varible to your test data directory and then use:
+
+```console
+$ poetry run pytest -m integration
+```
+Unfortunately due to data sharing restrictions the default WSI DICOM test files can't be shared. We are working on a solution, please disregard the integration tests at the moment.
+
 ## Other TIFF python tools
 - [tifffile](https://github.com/cgohlke/tifffile)
 - [tiffslide](https://github.com/bayer-science-for-a-better-life/tiffslide)
