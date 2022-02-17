@@ -3,8 +3,27 @@ name: opentile pytest
 on: [push, pull_request]
 
 jobs:
+  cache_test_images:
+    name: cache test images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load test images from cache
+        id: cache-test-images
+        uses: actions/cache@v2
+        with:
+          key: test-image-cache-v1.0.1
+          path: OPEN_TILER_TEST
+      - name: Load test images
+        if: steps.cache-test-images.outputs.cache-hit != 'true'
+        # we should call a script provided in the repo
+        run: |
+          mkdir -p OPEN_TILER_TEST
+          wget https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs -P OPEN_TILER_TEST/svs/CMU-1/
+          wget https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi -P OPEN_TILER_TEST/ndpi/CMU-1/
+
   # RUN PYTEST
   tests:
+    needs: [ cache_test_images ]
     name: pytest ${{ matrix.os }}::py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -30,6 +49,24 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # cross os caching support, see: https://github.com/actions/cache/issues/591
+      - name: "Use GNU tar instead BSD tar"
+        if: matrix.os == 'windows-latest'
+        shell: cmd
+        run: echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
+      - name: Load test images from cache
+        id: cache-test-images
+        uses: actions/cache@v2
+        with:
+          key: test-image-cache-v1.0.1
+          path: OPEN_TILER_TEST
+      - name: Check test images are loaded
+        if: steps.cache-test-images.outputs.cache-hit != 'true'
+        uses: actions/github-script@v3
+        with:
+          script: |
+            core.setFailed('test images were not cached')
+
       - name: Set up libjpegturbo Ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get install -y libturbojpeg
@@ -52,4 +89,6 @@ jobs:
         run: python -m pip install .
 
       - name: Run tests
+        env:
+          OPEN_TILER_TESTDIR: OPEN_TILER_TEST
         run: pytest -v tests/
