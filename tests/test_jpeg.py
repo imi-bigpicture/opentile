@@ -22,20 +22,13 @@ from opentile.geometry import Size
 from opentile.jpeg import Jpeg
 from tifffile import TiffFile, TiffPage
 
-ndpi_test_data_dir = os.environ.get(
-    "NDPI_TESTDIR",
-    "C:/temp/opentile/ndpi/"
+test_data_dir = os.environ.get(
+    "OPENTILE_TESTDIR",
+    "C:/temp/opentile/"
 )
-sub_data_path = "ndpi2/input.ndpi"
-ndpi_file_path = Path(ndpi_test_data_dir + '/' + sub_data_path)
 
-svs_test_data_dir = os.environ.get(
-    "OPEN_TILER_TESTDIR",
-    "C:/temp/opentile/svs/"
-)
-sub_data_path = "svs1/input.svs"
-svs_file_path = Path(svs_test_data_dir + '/' + sub_data_path)
-
+ndpi_file_path = Path(test_data_dir).joinpath("ndpi/CMU-1/CMU-1.ndpi")
+svs_file_path = Path(test_data_dir).joinpath("svs/CMU-1/CMU-1.svs")
 turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
 
 
@@ -47,10 +40,15 @@ class JpegTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ndpi_tiff = TiffFile(ndpi_file_path)
-        cls.ndpi_level = cls.ndpi_tiff.series[0].levels[0].pages[0]
-        cls.svs_tiff = TiffFile(svs_file_path)
-        cls.svs_overview = cls.svs_tiff.series[3].pages[0]
+        try:
+            cls.ndpi_tiff = TiffFile(ndpi_file_path)
+            cls.ndpi_level = cls.ndpi_tiff.series[0].levels[0].pages[0]
+            cls.svs_tiff = TiffFile(svs_file_path)
+            cls.svs_overview = cls.svs_tiff.series[3].pages[0]
+        except FileNotFoundError:
+            raise unittest.SkipTest(
+                'Svs or ndpi test file not found, skipping'
+            )
 
     @classmethod
     def tearDownClass(cls):
@@ -99,7 +97,7 @@ class JpegTest(unittest.TestCase):
             self.ndpi_level.jpegheader
         )
         self.assertEqual(
-            '3b13a2a65a8f0b026eb1822864b0af6a',
+            'ea40e78b081c42a6aabf8da81f976f11',
             md5(frame).hexdigest()
         )
 
@@ -113,7 +111,7 @@ class JpegTest(unittest.TestCase):
             True
         )
         self.assertEqual(
-            '75bb45ee9c3135b0ade2427c6f673609',
+            'fdde19f6d10994c5b866b43027ff94ed',
             md5(frame).hexdigest()
         )
 

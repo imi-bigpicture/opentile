@@ -20,12 +20,13 @@ from pathlib import Path
 import pytest
 from opentile.philips_tiff_tiler import PhilipsTiffTiler
 
-philips_test_data_dir = os.environ.get(
+test_data_dir = os.environ.get(
     "OPENTILE_TESTDIR",
     "C:/temp/opentile/"
 )
-sub_data_path = "philips_tiff/philips1/input.tif"
-philips_file_path = Path(philips_test_data_dir + '/' + sub_data_path)
+philips_file_path = Path(test_data_dir).joinpath(
+    "philips_tiff/philips1/input.tif"
+)
 turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
 
 

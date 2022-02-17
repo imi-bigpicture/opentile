@@ -23,12 +23,12 @@ from opentile.geometry import Point, Size
 from opentile.ndpi_tiler import (NdpiCache, NdpiFrameJob, NdpiStripedPage,
                                  NdpiTile, NdpiTiler)
 
-ndpi_test_data_dir = os.environ.get(
+test_data_dir = os.environ.get(
     "OPENTILE_TESTDIR",
     "C:/temp/opentile/"
 )
-sub_data_path = "ndpi/CMU-1/CMU-1.ndpi"
-ndpi_file_path = Path(ndpi_test_data_dir + '/' + sub_data_path)
+
+ndpi_file_path = Path(test_data_dir).joinpath("ndpi/CMU-1/CMU-1.ndpi")
 turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
 
 

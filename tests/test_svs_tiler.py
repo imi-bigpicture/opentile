@@ -22,12 +22,11 @@ import pytest
 from opentile.geometry import Point
 from opentile.svs_tiler import SvsTiledPage, SvsTiler
 
-svs_test_data_dir = os.environ.get(
+test_data_dir = os.environ.get(
     "OPENTILE_TESTDIR",
     "C:/temp/opentile/"
 )
-sub_data_path = "svs/CMU-1/CMU-1.svs"
-svs_file_path = Path(svs_test_data_dir + '/' + sub_data_path)
+svs_file_path = Path(test_data_dir).joinpath("svs/CMU-1/CMU-1.svs")
 turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
 
 
