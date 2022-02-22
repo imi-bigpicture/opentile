@@ -23,13 +23,8 @@ from opentile.geometry import Point, Size
 from opentile.ndpi_tiler import (NdpiCache, NdpiFrameJob, NdpiStripedPage,
                                  NdpiTile, NdpiTiler)
 
-test_data_dir = os.environ.get(
-    "OPENTILE_TESTDIR",
-    "C:/temp/opentile/"
-)
-
-ndpi_file_path = Path(test_data_dir).joinpath("ndpi/CMU-1/CMU-1.ndpi")
-turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
+test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
+ndpi_file_path = Path(test_data_dir).joinpath("slides/ndpi/CMU-1/CMU-1.ndpi")
 
 
 @pytest.mark.unittest
@@ -44,8 +39,7 @@ class NdpiTilerTest(unittest.TestCase):
         try:
             cls.tiler = NdpiTiler(
                 ndpi_file_path,
-                cls.tile_size.width,
-                turbojpeg_path
+                cls.tile_size.width
             )
         except FileNotFoundError:
             raise unittest.SkipTest('ndpi test file not found, skipping')

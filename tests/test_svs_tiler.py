@@ -22,12 +22,8 @@ import pytest
 from opentile.geometry import Point
 from opentile.svs_tiler import SvsTiledPage, SvsTiler
 
-test_data_dir = os.environ.get(
-    "OPENTILE_TESTDIR",
-    "C:/temp/opentile/"
-)
-svs_file_path = Path(test_data_dir).joinpath("svs/CMU-1/CMU-1.svs")
-turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
+test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
+svs_file_path = Path(test_data_dir).joinpath("slides/svs/CMU-1/CMU-1.svs")
 
 
 @pytest.mark.unittest
@@ -39,7 +35,7 @@ class SvsTilerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            cls.tiler = SvsTiler(svs_file_path, turbojpeg_path)
+            cls.tiler = SvsTiler(svs_file_path)
         except FileNotFoundError:
             raise unittest.SkipTest('Svs test file not found, skipping')
         cls.level = cast(SvsTiledPage, cls.tiler.get_level(0))

@@ -63,7 +63,11 @@ $ git clone https://github.com/imi-bigpicture/opentile.git
 $ poetry install
 ```
 
-Set the OPENTILE_TESTDIR environment variable to your test data directory. The tests for svs and ndpi uses [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/). The test data for philips tiff is currently not publically avaiable.
+By default the tests looks for slides in 'tests/testdata'. This can be overriden by setting the OPENTILE_TESTDIR environment variable. The script 'tests/download_test_images.py' can be used to download publically available [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/) into the set testdata folder:
+```console
+$ python tests/download_test_images.py
+```
+The test data for philips tiff is currently not publically available.
 
 To watch unit tests use:
 

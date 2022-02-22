@@ -22,21 +22,16 @@ from opentile.geometry import Size
 from opentile.jpeg import Jpeg
 from tifffile import TiffFile, TiffPage
 
-test_data_dir = os.environ.get(
-    "OPENTILE_TESTDIR",
-    "C:/temp/opentile/"
-)
-
-ndpi_file_path = Path(test_data_dir).joinpath("ndpi/CMU-1/CMU-1.ndpi")
-svs_file_path = Path(test_data_dir).joinpath("svs/CMU-1/CMU-1.svs")
-turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
+test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
+ndpi_file_path = Path(test_data_dir).joinpath("slides/ndpi/CMU-1/CMU-1.ndpi")
+svs_file_path = Path(test_data_dir).joinpath("slides/svs/CMU-1/CMU-1.svs")
 
 
 @pytest.mark.unittest
 class JpegTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.jpeg = Jpeg(turbojpeg_path)
+        self.jpeg = Jpeg()
 
     @classmethod
     def setUpClass(cls):
