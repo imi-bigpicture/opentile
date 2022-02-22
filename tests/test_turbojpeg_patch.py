@@ -191,7 +191,6 @@ class TurboJpegTest(unittest.TestCase):
         callback_row_heigth = 8
         background_luminance = 508
         gray = False
-        componentID = 0
         transformID = 0
 
         crop_region = CroppingRegion(0, 0, extended_width, extended_height)
@@ -203,11 +202,7 @@ class TurboJpegTest(unittest.TestCase):
 
         # The expected result is fileld with 0:s and luminance dc component
         # changed
-        expected_results = np.zeros(
-            extended_width*extended_height, dtype=c_short
-        )
-        for index in range(0, extended_width*extended_height, mcu_size):
-            expected_results[index] = background_luminance
+
         planeRegion = CroppingRegion(0, 0, extended_width, extended_width)
 
         transform_struct = BlankTransformStruct(
@@ -218,24 +213,36 @@ class TurboJpegTest(unittest.TestCase):
             CUSTOMFILTER(blank_image)
         )
 
-        # Iterate the callback with one mcu-row of data.
-        for row in range(extended_height//callback_row_heigth):
-            data_start = row * callback_row_heigth * extended_width
-            data_end = (row+1) * callback_row_heigth * extended_width
-            arrayRegion = CroppingRegion(
-                0,
-                row*callback_row_heigth,
-                extended_width,
-                callback_row_heigth
+        # Iterate through components
+        for componentID in range(3):
+            # Expected result is array with 0
+            expected_results = np.zeros(
+                extended_width*extended_height, dtype=c_short
             )
-            callback_result = blank_image(
-                coeffs[data_start:data_end].ctypes.data,
-                arrayRegion,
-                planeRegion,
-                componentID,
-                transformID,
-                pointer(transform_struct)
-            )
+            # For luminance add background luminance to expected result
+            if componentID == 0:
+                for index in range(0, extended_width*extended_height, mcu_size):
+                    expected_results[index] = background_luminance
+            # Iterate the callback with one mcu-row of data.
+            for row in range(extended_height//callback_row_heigth):
+                data_start = row * callback_row_heigth * extended_width
+                data_end = (row+1) * callback_row_heigth * extended_width
+                arrayRegion = CroppingRegion(
+                    0,
+                    row*callback_row_heigth,
+                    extended_width,
+                    callback_row_heigth
+                )
+                callback_result = blank_image(
+                    coeffs[data_start:data_end].ctypes.data,
+                    arrayRegion,
+                    planeRegion,
+                    componentID,
+                    transformID,
+                    pointer(transform_struct)
+                )
 
-        # Compare the modified data with the expected result
-        self.assertTrue(np.array_equal(expected_results, coeffs))
+            # Compare the modified component with the expected result
+            self.assertTrue(np.array_equal(expected_results, coeffs))
+
+
