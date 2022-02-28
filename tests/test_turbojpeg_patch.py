@@ -17,15 +17,14 @@ from ctypes import c_short, pointer
 
 import numpy as np
 import pytest
-from opentile.turbojpeg_patch import BlankStruct, BlankTransformStruct
+from opentile.turbojpeg_patch import BlankStruct, BlankTransformStruct, find_turbojpeg_path
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
 from opentile.turbojpeg_patch import blank_image
 from turbojpeg import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP, TJXOPT_GRAY,
                        TJXOPT_PERFECT, BackgroundStruct, CroppingRegion,
                        TransformStruct, fill_background)
 
-turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
-test_file_path = 'C:/temp/opentile/turbojpeg/frame_1024x512.jpg'
+test_file_path = 'tests/testdata/turbojpeg/frame_2048x512.jpg'
 
 
 @pytest.mark.turbojpeg
@@ -35,7 +34,7 @@ class TurboJpegTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.jpeg = TurboJPEG(turbo_path)
+        cls.jpeg = TurboJPEG(find_turbojpeg_path())
         cls.test_file = open(test_file_path, 'rb')
         cls.buffer = cls.test_file.read()
 
