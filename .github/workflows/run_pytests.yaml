@@ -7,21 +7,23 @@ jobs:
     name: cache test images
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
       - name: Load test images from cache
         id: cache-test-images
         uses: actions/cache@v2
         with:
-          key: test-image-cache-v1.0.1
-          path: OPEN_TILER_TEST
+          key: test-images-cache-${{ hashFiles('tests/download_test_images.py') }}
+          path: OPENTILE_TESTDATA
       - name: Load test images
         if: steps.cache-test-images.outputs.cache-hit != 'true'
-        # we should call a script provided in the repo
+        env:
+          OPENTILE_TESTDIR: OPENTILE_TESTDATA
         run: |
-          mkdir -p OPEN_TILER_TEST
-          wget https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs -P OPEN_TILER_TEST/svs/CMU-1/
-          wget https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi -P OPEN_TILER_TEST/ndpi/CMU-1/
+          python -m pip install -U pip
+          python -m pip install requests
+          python tests/download_test_images.py
 
-  # RUN PYTEST
   tests:
     needs: [ cache_test_images ]
     name: pytest ${{ matrix.os }}::py${{ matrix.python-version }}
@@ -50,7 +52,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       # cross os caching support, see: https://github.com/actions/cache/issues/591
-      - name: "Use GNU tar instead BSD tar"
+      - name: Use GNU tar instead BSD tar
         if: matrix.os == 'windows-latest'
         shell: cmd
         run: echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
@@ -58,8 +60,8 @@ jobs:
         id: cache-test-images
         uses: actions/cache@v2
         with:
-          key: test-image-cache-v1.0.1
-          path: OPEN_TILER_TEST
+          key: test-images-cache-${{ hashFiles('tests/download_test_images.py') }}
+          path: OPENTILE_TESTDATA
       - name: Check test images are loaded
         if: steps.cache-test-images.outputs.cache-hit != 'true'
         uses: actions/github-script@v3
@@ -90,5 +92,5 @@ jobs:
 
       - name: Run tests
         env:
-          OPEN_TILER_TESTDIR: OPEN_TILER_TEST
+          OPENTILE_TESTDIR: OPENTILE_TESTDATA
         run: pytest -v tests/
