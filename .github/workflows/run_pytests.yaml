@@ -107,4 +107,5 @@ jobs:
       - name: Run tests
         env:
           OPENTILE_TESTDIR: OPENTILE_TESTDATA
+          TURBOJPEG: C:\Windows\System32
         run: pytest -v tests/
