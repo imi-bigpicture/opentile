@@ -54,6 +54,27 @@ tile = tiler.get_tile(0, (0, 0))
 ```python
 tiler.close()
 ```
+
+## Setup environment for development
+Requires poetry and pytest and pytest-watch installed in the virtual environment.
+
+```console
+$ git clone https://github.com/imi-bigpicture/opentile.git
+$ poetry install
+```
+
+By default the tests looks for slides in 'tests/testdata'. This can be overriden by setting the OPENTILE_TESTDIR environment variable. The script 'tests/download_test_images.py' can be used to download publically available [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/) into the set testdata folder:
+```console
+$ python tests/download_test_images.py
+```
+The test data used for philips tiff is currently not publically available as we dont have permission to share them. If you have slides in philips tiff format that can be freely shared we would be happy to use them instead.
+
+To watch unit tests use:
+
+```console
+$ poetry run pytest-watch -- -m unittest
+```
+
 ## Other TIFF python tools
 - [tifffile](https://github.com/cgohlke/tifffile)
 - [tiffslide](https://github.com/bayer-science-for-a-better-life/tiffslide)

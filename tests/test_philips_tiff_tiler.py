@@ -20,13 +20,10 @@ from pathlib import Path
 import pytest
 from opentile.philips_tiff_tiler import PhilipsTiffTiler
 
-philips_test_data_dir = os.environ.get(
-    "OPEN_TILER_TESTDIR",
-    "C:/temp/opentile/philips_tiff/"
+test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
+philips_file_path = Path(test_data_dir).joinpath(
+    "slides/philips_tiff/philips1/input.tif"
 )
-sub_data_path = "philips1/input.tif"
-philips_file_path = Path(philips_test_data_dir + '/' + sub_data_path)
-turbojpeg_path = Path('C:/libjpeg-turbo64/bin/turbojpeg.dll')
 
 
 @pytest.mark.unittest
@@ -37,10 +34,12 @@ class PhilipsTiffTilerTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tiler = PhilipsTiffTiler(
-            philips_file_path,
-            turbojpeg_path
-        )
+        try:
+            cls.tiler = PhilipsTiffTiler(philips_file_path)
+        except FileNotFoundError:
+            raise unittest.SkipTest(
+                'Philips tiff test file not found, skipping'
+            )
         cls.level = cls.tiler.get_level(0)
 
     @classmethod

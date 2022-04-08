@@ -147,11 +147,11 @@ def blank_image(
         dc_component = 0
         subsampling = background_data.subsample
     coeffs = get_np_coeffs(coeffs_ptr, arrayRegion)
+    coeffs[:][:][:] = 0
 
     for x in range(0, arrayRegion.w//tjMCUWidth[subsampling]):
         for y in range(0, arrayRegion.h//tjMCUHeight[subsampling]):
             coeffs[y][x][0] = dc_component
-            coeffs[y][x][1:] = 0
 
     return 1
 

@@ -19,7 +19,7 @@ from typing import Iterator, List, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from opentile.geometry import Size
-from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
+from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG, find_turbojpeg_path
 from opentile.turbojpeg_patch import tjMCUHeight, tjMCUWidth
 
 
@@ -51,6 +51,8 @@ class Jpeg:
         self,
         turbo_path: Optional[Union[str, Path]] = None
     ) -> None:
+        if turbo_path is None:
+            turbo_path = find_turbojpeg_path()
         self._turbo_jpeg = TurboJPEG(turbo_path)
 
     def concatenate_fragments(
