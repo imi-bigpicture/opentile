@@ -411,6 +411,12 @@ class Tiler(metaclass=ABCMeta):
         )
         # self._pages: Dict[Tuple[int, int, int], OpenTilePage] = {}
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     @property
     def properties(self) -> Dict[str, Any]:
         """Dictionary of properties read from TiffFile."""
