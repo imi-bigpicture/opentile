@@ -12,11 +12,9 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import io
 import math
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from PIL import Image
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -718,12 +716,12 @@ class NdpiOneFramePage(NdpiTiledPage):
             raise ValueError("Frame position not (0, 0) for one frame level.")
         frame = self._read_frame(0)
         if (
-            self.frame_size.width % 8 != 0
-            or self.frame_size.height % 8 != 0
+            self.image_size.width % 8 != 0
+            or self.image_size.height % 8 != 0
         ):
-            even_size = Size.ceil_div(self.frame_size, 8) * 8
+            # Extend to whole MCUs
+            even_size = Size.ceil_div(self.image_size, 8) * 8
             frame = Jpeg.manipulate_header(frame, even_size)
-
         # Use crop_multiple as it allows extending frame
         tile: bytes = self._jpeg.crop_multiple(
             frame,
