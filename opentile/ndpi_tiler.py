@@ -634,7 +634,8 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         except JpegCropError:
             raise ValueError(
                 f'Failed to crop at position {frame_job.position} with '
-                f'parameters {frame_job.crop_parameters}.'
+                f'parameters {frame_job.crop_parameters}. '
+                'This might be due using libjpeg-turbo < 2.1.'
             )
         return {
             tile.position: tiles[i]
