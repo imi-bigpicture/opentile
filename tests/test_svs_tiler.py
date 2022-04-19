@@ -90,3 +90,21 @@ class SvsTilerTest(unittest.TestCase):
             (False, False),
             self.level._detect_corrupt_edges()
         )
+
+    def test_photometric_interpretation(self):
+        self.assertEqual(
+            'RGB',
+            self.tiler.get_level(0).photometric_interpretation
+        )
+
+    def test_subsampling(self):
+        self.assertEqual(
+            (2, 2),
+            self.tiler.get_level(0).subsampling
+        )
+
+    def test_sumples_per_pixel(self):
+        self.assertEqual(
+            3,
+            self.tiler.get_level(0).samples_per_pixel
+        )

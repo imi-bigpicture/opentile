@@ -12,7 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import io
 import math
 import threading
 from abc import ABCMeta, abstractmethod
@@ -134,6 +133,21 @@ class OpenTilePage(metaclass=ABCMeta):
     def compression(self) -> str:
         """Return compression of page."""
         return str(self._page.compression)
+
+    @property
+    def photometric_interpretation(self) -> str:
+        """Return photometric interpretation, e.g. 'YCBCR" or "RGB"."""
+        return str(self._page.photometric).split('.', maxsplit=1)[1]
+
+    @property
+    def subsampling(self) -> Optional[Tuple[int, int]]:
+        """Return subsampling, or None if only one component."""
+        return self._page.subsampling
+
+    @property
+    def samples_per_pixel(self) -> int:
+        """Return samples per pixel."""
+        return self._page.samplesperpixel
 
     @property
     def page(self) -> TiffPage:

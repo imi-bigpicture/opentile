@@ -312,3 +312,21 @@ class NdpiTilerTest(unittest.TestCase):
                 248
             )
         )
+
+    def test_photometric_interpretation(self):
+        self.assertEqual(
+            'YCBCR',
+            self.tiler.get_level(0).photometric_interpretation
+        )
+
+    def test_subsampling(self):
+        self.assertEqual(
+            (1, 1),
+            self.tiler.get_level(0).subsampling
+        )
+
+    def test_sumples_per_pixel(self):
+        self.assertEqual(
+            3,
+            self.tiler.get_level(0).samples_per_pixel
+        )

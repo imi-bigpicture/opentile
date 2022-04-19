@@ -67,6 +67,7 @@ By default the tests looks for slides in 'tests/testdata'. This can be overriden
 ```console
 $ python tests/download_test_images.py
 ```
+
 The test data used for philips tiff is currently not publically available as we dont have permission to share them. If you have slides in philips tiff format that can be freely shared we would be happy to use them instead.
 
 To watch unit tests use:
