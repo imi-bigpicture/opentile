@@ -486,6 +486,17 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         """The default read size used for reading frames."""
         return self._frame_size
 
+    @property
+    def mcu(self) -> Size:
+        subsampling: Optional[Tuple[int, int]] = self._page.subsampling
+        if subsampling is None or subsampling == (1, 1):
+            return Size(8, 8)
+        elif subsampling == (2, 1):
+            return Size(16, 8)
+        elif subsampling == (2, 2):
+            return Size(16, 16)
+        raise ValueError(f"Unkown subsampling {subsampling}")
+
     @abstractmethod
     def _read_extended_frame(
         self,
@@ -716,6 +727,13 @@ class NdpiOneFramePage(NdpiTiledPage):
         if position != Point(0, 0):
             raise ValueError("Frame position not (0, 0) for one frame level.")
         frame = self._read_frame(0)
+        if (
+            self.image_size.width % self.mcu.width != 0
+            or self.image_size.height % self.mcu.height != 0
+        ):
+            # Extend to whole MCUs
+            even_size = Size.ceil_div(self.image_size, self.mcu) * self.mcu
+            frame = Jpeg.manipulate_header(frame, even_size)
         # Use crop_multiple as it allows extending frame
         tile: bytes = self._jpeg.crop_multiple(
             frame,
