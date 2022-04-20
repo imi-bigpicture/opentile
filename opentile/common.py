@@ -423,7 +423,6 @@ class Tiler(metaclass=ABCMeta):
             self.base_page.shape[1],
             self.base_page.shape[0]
         )
-        # self._pages: Dict[Tuple[int, int, int], OpenTilePage] = {}
 
     def __enter__(self):
         return self
