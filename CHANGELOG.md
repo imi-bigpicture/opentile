@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [0.3.0] - 2021-04-20
+### Added
+- Scripts and github actions for downloading test data.
+- Properties photometric_interpretation, subsampling, and samples_per_pixel for OpenTilePage.
+- __enter__ and __exit__ for Tiler.
+- __version__ added.
+
+### Changed
+- Dropped support for python 3.7.
+
+### Fixed
+- Generation of blank tiles for philips tiff.
+- Border appearing when cropping one-frammed ndpi pages.
+- Even more descriptive error when jpeg crop fails.
+
 ## [0.2.0] - 2021-02-14
 ### Added
 - Support for svs overview and label images.
@@ -27,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of opentile.
 
 [Unreleased]: https://github.com/imi-bigpicture/opentile/compare/0.2.0..HEAD
+[0.2.0]: https://github.com/imi-bigpicture/opentile/compare/0.2.0..0.3.0
 [0.2.0]: https://github.com/imi-bigpicture/opentile/compare/0.1.1..0.2.0
 [0.1.1]: https://github.com/imi-bigpicture/opentile/compare/0.1.0..0.1.1
 [0.1.0]: https://github.com/imi-bigpicture/opentile/tree/v0.1.0

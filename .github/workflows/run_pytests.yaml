@@ -47,8 +47,6 @@ jobs:
             python-version: "3.10"
           - os: ubuntu-latest
             python-version: 3.9
-          - os: ubuntu-latest
-            python-version: 3.7
     steps:
       # see:
       #   - https://github.com/actions/checkout/issues/135
