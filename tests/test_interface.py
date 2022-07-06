@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from pathlib import Path
 import unittest
 
 import pytest
@@ -25,13 +26,23 @@ from .filepaths import (histech_file_path, ndpi_file_path, philips_file_path,
 class InterfaceTest(unittest.TestCase):
 
     def test_open_svs(self):
-        OpenTile.open(svs_file_path)
+        self._test_open(svs_file_path)
 
     def test_open_ndpi(self):
-        OpenTile.open(ndpi_file_path)
+        self._test_open(ndpi_file_path)
 
     def test_open_philips(self):
-        OpenTile.open(philips_file_path)
+        self._test_open(philips_file_path)
 
     def test_open_histech(self):
-        OpenTile.open(histech_file_path)
+        self._test_open(histech_file_path)
+
+    def _test_open(self, file: Path):
+        self._check_file_exists(file)
+        OpenTile.open(file)
+
+    def _check_file_exists(self, file: Path):
+        if not file.exists:
+            raise unittest.SkipTest(
+                'Histech tiff test file not found, skipping'
+            )
