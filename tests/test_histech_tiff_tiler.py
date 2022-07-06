@@ -1,4 +1,4 @@
-#    Copyright 2021 SECTRA AB
+#    Copyright 2022 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -16,24 +16,24 @@ import unittest
 from hashlib import md5
 
 import pytest
-from opentile.philips_tiff_tiler import PhilipsTiffTiler
+from opentile.histech_tiff_tiler import HistechTiffTiler
 
-from .filepaths import philips_file_path
+from .filepaths import histech_file_path
 
 
 @pytest.mark.unittest
-class PhilipsTiffTilerTest(unittest.TestCase):
+class HistechTiffTilerTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.tiler: PhilipsTiffTiler
+        self.tiler: HistechTiffTiler
 
     @classmethod
     def setUpClass(cls):
         try:
-            cls.tiler = PhilipsTiffTiler(philips_file_path)
+            cls.tiler = HistechTiffTiler(histech_file_path)
         except FileNotFoundError:
             raise unittest.SkipTest(
-                'Philips tiff test file not found, skipping'
+                'Histech tiff test file not found, skipping'
             )
         cls.level = cls.tiler.get_level(0)
 
@@ -44,12 +44,12 @@ class PhilipsTiffTilerTest(unittest.TestCase):
     def test_get_tile(self):
         tile = self.level.get_tile((0, 0))
         self.assertEqual(
-            '570d069f9de5d2716fb0d7167bc79195',
+            'ea3fc95b75785485a02fe3a3c826ba04',
             md5(tile).hexdigest()
         )
         tile = self.level.get_tile((20, 20))
         self.assertEqual(
-            'db28efb73a72ef7e2780fc72c624d7ae',
+            'ea3fc95b75785485a02fe3a3c826ba04',
             md5(tile).hexdigest()
         )
 
@@ -61,7 +61,7 @@ class PhilipsTiffTilerTest(unittest.TestCase):
 
     def test_subsampling(self):
         self.assertEqual(
-            (2, 2),
+            None,
             self.tiler.get_level(0).subsampling
         )
 

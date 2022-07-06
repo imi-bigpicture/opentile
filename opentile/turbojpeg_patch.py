@@ -22,8 +22,8 @@ from typing import Optional, Union
 
 import numpy as np
 from turbojpeg import (CUSTOMFILTER, TJFLAG_ACCURATEDCT, TJXOP_NONE,
-                       TJXOPT_PERFECT, CroppingRegion, TurboJPEG, tjMCUHeight,
-                       tjMCUWidth, split_byte_into_nibbles)
+                       TJXOPT_PERFECT, CroppingRegion, TurboJPEG,
+                       split_byte_into_nibbles, tjMCUHeight, tjMCUWidth)
 
 
 def find_turbojpeg_path() -> Optional[Path]:
@@ -164,7 +164,7 @@ class TurboJPEG_patch(TurboJPEG):
         if lib_turbojpeg_path is not None:
             lib_turbojpeg_str_path = str(lib_turbojpeg_path)
         else:
-            lib_turbojpeg_str_path = str(self._TurboJPEG__find_turbojpeg())
+            lib_turbojpeg_str_path = str(self.__find_turbojpeg())
         super().__init__(lib_turbojpeg_str_path)
         turbo_jpeg = cdll.LoadLibrary(lib_turbojpeg_str_path)
         self.__transform = turbo_jpeg.tjTransform

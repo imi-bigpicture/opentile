@@ -37,9 +37,16 @@ class JpegTest(unittest.TestCase):
     def setUpClass(cls):
         try:
             cls.ndpi_tiff = TiffFile(ndpi_file_path)
-            cls.ndpi_level = cls.ndpi_tiff.series[0].levels[0].pages[0]
+            ndpi_level = cls.ndpi_tiff.series[0].levels[0].pages[0]
+            assert(isinstance(ndpi_level, TiffPage))
+            cls.ndpi_level = ndpi_level
+            header = cls.ndpi_level.jpegheader
+            assert(isinstance(header, bytes))
+            cls.ndpi_header = header
             cls.svs_tiff = TiffFile(svs_file_path)
-            cls.svs_overview = cls.svs_tiff.series[3].pages[0]
+            svs_overview = cls.svs_tiff.series[3].pages[0]
+            assert(isinstance(svs_overview, TiffPage))
+            cls.svs_overview = svs_overview
         except FileNotFoundError:
             raise unittest.SkipTest(
                 'Svs or ndpi test file not found, skipping'
@@ -65,15 +72,14 @@ class JpegTest(unittest.TestCase):
         self.assertEqual(Jpeg.restart_mark(9), bytes([0xD1]))
 
     def test_find_tag(self):
-        header = self.ndpi_level.jpegheader
-        index, length = Jpeg._find_tag(header, Jpeg.start_of_frame())
+        index, length = Jpeg._find_tag(self.ndpi_header, Jpeg.start_of_frame())
         self.assertEqual(621, index)
         self.assertEqual(17, length)
 
     def test_update_header(self):
         target_size = Size(512, 200)
         updated_header = Jpeg.manipulate_header(
-            self.ndpi_level.jpegheader,
+            self.ndpi_header,
             target_size
         )
         (
@@ -89,7 +95,7 @@ class JpegTest(unittest.TestCase):
                 self.read_frame(self.ndpi_tiff, self.ndpi_level, index)
                 for index in range(10)
             ),
-            self.ndpi_level.jpegheader
+            self.ndpi_header
         )
         self.assertEqual(
             'ea40e78b081c42a6aabf8da81f976f11',

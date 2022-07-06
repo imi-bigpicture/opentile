@@ -18,7 +18,8 @@ from typing import Dict, Optional, Tuple, Union, cast
 
 import numpy as np
 from PIL import Image
-from tifffile.tifffile import FileHandle, TiffPage, svs_description_metadata
+from tifffile.tifffile import (FileHandle, TiffFile, TiffPage,
+                               svs_description_metadata)
 
 from opentile.common import NativeTiledPage, OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
@@ -157,16 +158,14 @@ class SvsLZWPage(OpenTilePage):
         """
         if tile_position != (0, 0):
             raise ValueError("Non-tiled page, expected tile_position (0, 0)")
-        data = None
+        data = np.empty(0)
         for index in range(len(self.page.dataoffsets)):
             new_row = self.page.decode(
                 self._read_frame(index),
                 index
             )[0]
-            if data is None:
-                data = new_row
-            else:
-                data = np.append(data, new_row, axis=1)
+            assert(isinstance(new_row, np.ndarray))
+            data = np.append(data, new_row, axis=1)
         return np.squeeze(data)
 
 
@@ -328,7 +327,7 @@ class SvsTiledPage(NativeTiledPage):
         image: Image.Image = Image.fromarray(image_data)
         image = image.resize(
             self.tile_size.to_tuple(),
-            resample=Image.BILINEAR
+            resample=Image.Resampling.BILINEAR
         )
 
         # Return compressed image
@@ -432,11 +431,21 @@ class SvsTiler(Tiler):
         self._pages: Dict[
             Tuple[int, int, int], OpenTilePage
         ] = {}
+        if 'InterColorProfile' in self._tiff_file.pages.first.tags:
+            icc_profile = (
+                self._tiff_file.pages.first.tags['InterColorProfile'].value
+            )
+            assert(isinstance(icc_profile, bytes) or icc_profile is None)
+            self._icc_profile = icc_profile
 
     @property
     def base_mpp(self) -> SizeMm:
         """Return pixel spacing in um/pixel for base level."""
         return self._base_mpp
+
+    @classmethod
+    def supported(cls, tiff_file: TiffFile) -> bool:
+        return tiff_file.is_svs
 
     def _get_level_page(
         self,
@@ -444,15 +453,13 @@ class SvsTiler(Tiler):
         page: int = 0
     ) -> SvsTiledPage:
         series = self._level_series_index
-
-        tiff_page = self.series[series].levels[level].pages[page]
         if level > 0:
             parent = self.get_page(series, level-1, page)
             parent = cast(SvsTiledPage, parent)
         else:
             parent = None
         svs_page = SvsTiledPage(
-            tiff_page,
+            self._get_tiff_page(series, level, page),
             self._fh,
             self.base_size,
             self.base_mpp,
@@ -468,17 +475,16 @@ class SvsTiler(Tiler):
     ) -> OpenTilePage:
         """Return SvsTiledPage for series, level, page."""
         if not (series, level, page) in self._pages:
-            tiff_page = self.series[series].levels[level].pages[page]
 
             if series == self._overview_series_index:
                 svs_page = SvsStripedPage(
-                    tiff_page,
+                    self._get_tiff_page(series, level, page),
                     self._fh,
                     self._jpeg
                 )
             elif series == self._label_series_index:
                 svs_page = SvsLZWPage(
-                    tiff_page,
+                    self._get_tiff_page(series, level, page),
                     self._fh,
                     self._jpeg
                 )

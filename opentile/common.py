@@ -14,9 +14,9 @@
 
 import math
 import threading
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractclassmethod, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, Any
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from tifffile.tifffile import (FileHandle, TiffFile, TiffPage, TiffPageSeries,
@@ -386,11 +386,11 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
                 dtype=np.dtype(np.uint8)
             )
 
-        data: np.ndarray
         shape: tuple[int, int, int, int]
         frame = self.get_tile(tile_position)
         frame_index = self._tile_point_to_frame_index(tile_point)
-        data, _, shape = self.page.decode(frame, frame_index)  # TBD!
+        data, _, shape = self.page.decode(frame, frame_index)
+        assert(isinstance(data, np.ndarray))
         data.shape = shape[1:]
         return data
 
@@ -408,6 +408,7 @@ class Tiler(metaclass=ABCMeta):
     _level_series_index: int = 0
     _overview_series_index: Optional[int] = None
     _label_series_index: Optional[int] = None
+    _icc_profile: Optional[bytes] = None
 
     def __init__(self, filepath: Path):
         """Abstract class for reading pages from TiffFile.
@@ -418,7 +419,9 @@ class Tiler(metaclass=ABCMeta):
             Filepath to a TiffFile.
         """
         self._tiff_file = TiffFile(filepath)
-        self._base_page = self.series[self._level_series_index].pages[0]
+        base_page = self.series[self._level_series_index].pages[0]
+        assert(isinstance(base_page, TiffPage))
+        self._base_page = base_page
         self._base_size = Size(
             self.base_page.shape[1],
             self.base_page.shape[0]
@@ -484,9 +487,18 @@ class Tiler(metaclass=ABCMeta):
             in enumerate(self.series[self._overview_series_index].pages)
         ]
 
+    @property
+    def icc_profile(self) -> Optional[bytes]:
+        """Return icc profile if found in file."""
+        return self._icc_profile
+
     @abstractmethod
     def get_page(self, series: int, level: int, page: int) -> OpenTilePage:
         """Should return a OpenTilePage for series, level, page in file."""
+        raise NotImplementedError
+
+    @abstractclassmethod
+    def supported(cls, tiff_file: TiffFile) -> bool:
         raise NotImplementedError
 
     def close(self) -> None:
@@ -581,3 +593,9 @@ class Tiler(metaclass=ABCMeta):
         if self._overview_series_index is None:
             raise ValueError("No overview detected in file")
         return self.get_page(self._overview_series_index, 0, page)
+
+    def _get_tiff_page(self, series: int, level: int, page: int) -> TiffPage:
+        """Return TiffPage for series, level, page."""
+        tiff_page = self.series[series].levels[level].pages[page]
+        assert(isinstance(tiff_page, TiffPage))
+        return tiff_page

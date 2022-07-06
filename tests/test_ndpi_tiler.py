@@ -12,10 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import os
 import unittest
 from hashlib import md5
-from pathlib import Path
 from typing import cast
 
 import pytest
@@ -23,8 +21,7 @@ from opentile.geometry import Point, Size
 from opentile.ndpi_tiler import (NdpiCache, NdpiFrameJob, NdpiStripedPage,
                                  NdpiTile, NdpiTiler)
 
-test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
-ndpi_file_path = Path(test_data_dir).joinpath("slides/ndpi/CMU-1/CMU-1.ndpi")
+from .filepaths import ndpi_file_path
 
 
 @pytest.mark.unittest
@@ -257,6 +254,7 @@ class NdpiTilerTest(unittest.TestCase):
 
     def test_header(self):
         header = self.level._page.jpegheader
+        assert(isinstance(header, bytes))
         self.assertEqual(
             '579211c6b9fedca17d94b95840f4b985',
             md5(header).hexdigest()

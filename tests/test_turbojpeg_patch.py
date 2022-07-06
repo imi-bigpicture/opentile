@@ -17,9 +17,9 @@ from ctypes import c_short, pointer
 
 import numpy as np
 import pytest
-from opentile.turbojpeg_patch import BlankStruct, BlankTransformStruct, find_turbojpeg_path
+from opentile.turbojpeg_patch import BlankStruct, BlankTransformStruct
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.turbojpeg_patch import blank_image
+from opentile.turbojpeg_patch import blank_image, find_turbojpeg_path
 from turbojpeg import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP, TJXOPT_GRAY,
                        TJXOPT_PERFECT, BackgroundStruct, CroppingRegion,
                        TransformStruct, fill_background)
@@ -220,7 +220,11 @@ class TurboJpegTest(unittest.TestCase):
             )
             # For luminance add background luminance to expected result
             if componentID == 0:
-                for index in range(0, extended_width*extended_height, mcu_size):
+                for index in range(
+                    0,
+                    extended_width*extended_height,
+                    mcu_size
+                ):
                     expected_results[index] = background_luminance
             # Iterate the callback with one mcu-row of data.
             for row in range(extended_height//callback_row_heigth):
@@ -243,5 +247,3 @@ class TurboJpegTest(unittest.TestCase):
 
             # Compare the modified component with the expected result
             self.assertTrue(np.array_equal(expected_results, coeffs))
-
-

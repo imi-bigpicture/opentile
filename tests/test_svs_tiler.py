@@ -12,18 +12,15 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import os
 import unittest
 from hashlib import md5
-from pathlib import Path
 from typing import cast
 
 import pytest
 from opentile.geometry import Point
 from opentile.svs_tiler import SvsTiledPage, SvsTiler
 
-test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
-svs_file_path = Path(test_data_dir).joinpath("slides/svs/CMU-1/CMU-1.svs")
+from .filepaths import svs_file_path
 
 
 @pytest.mark.unittest

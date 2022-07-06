@@ -12,11 +12,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from xml.etree import ElementTree
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
+from xml.etree import ElementTree
 
-from tifffile.tifffile import FileHandle, TiffPage, TiffPageSeries
+from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
@@ -38,7 +38,7 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: NdpiFileHandle
+        fh: FileHandle
             Filehandler to read data from.
         base_shape: Size
             Size of base level in pyramid.
@@ -175,6 +175,10 @@ class PhilipsTiffTiler(Tiler):
         """Return dictionary with philips tiff file properties."""
         return self._properties
 
+    @classmethod
+    def supported(cls, tiff_file: TiffFile) -> bool:
+        return tiff_file.is_philips
+
     def get_page(
         self,
         series: int,
@@ -183,9 +187,8 @@ class PhilipsTiffTiler(Tiler):
     ) -> PhilipsTiffTiledPage:
         """Return PhilipsTiffTiledPage for series, level, page."""
         if not (series, level, page) in self._pages:
-            tiff_page = self.series[series].levels[level].pages[page]
             self._pages[series, level, page] = PhilipsTiffTiledPage(
-                tiff_page,
+                self._get_tiff_page(series, level, page),
                 self._fh,
                 self.base_size,
                 self.base_mpp,
@@ -196,12 +199,16 @@ class PhilipsTiffTiler(Tiler):
     @staticmethod
     def is_overview(series: TiffPageSeries) -> bool:
         """Return true if series is a overview series."""
-        return series.pages[0].description.find('Macro') > - 1
+        page = series.pages[0]
+        assert(isinstance(page, TiffPage))
+        return page.description.find('Macro') > - 1
 
     @staticmethod
     def is_label(series: TiffPageSeries) -> bool:
         """Return true if series is a label series."""
-        return series.pages[0].description.find('Label') > - 1
+        page = series.pages[0]
+        assert(isinstance(page, TiffPage))
+        return page.description.find('Label') > - 1
 
     @staticmethod
     def _get_associated_mpp_from_page(page: TiffPage):

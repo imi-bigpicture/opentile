@@ -13,11 +13,12 @@
 #    limitations under the License.
 
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Type, Union
 
 from tifffile import TiffFile, TiffFileError
 
 from opentile.common import Tiler
+from opentile.histech_tiff_tiler import HistechTiffTiler
 from opentile.ndpi_tiler import NdpiTiler
 from opentile.philips_tiff_tiler import PhilipsTiffTiler
 from opentile.svs_tiler import SvsTiler
@@ -26,29 +27,29 @@ from opentile.turbojpeg_patch import find_turbojpeg_path
 
 class OpenTile:
     @staticmethod
-    def detect_format(filepath: Union[str, Path]) -> Optional[str]:
-        """Return string describing tiff file format in file, or None
-        if not supported."""
-        file_format: Optional[str]
+    def get_tiler(filepath: Union[str, Path]) -> Optional[Type[Tiler]]:
+        """Return tiler that supports the tiff file in filepath, or None if
+        not supported"""
+        tilers: List[Type[Tiler]] = [
+            NdpiTiler,
+            SvsTiler,
+            PhilipsTiffTiler,
+            HistechTiffTiler
+        ]
         try:
             tiff_file = TiffFile(filepath)
-            if tiff_file.is_ndpi:
-                file_format = 'ndpi'
-            elif tiff_file.is_svs:
-                file_format = 'svs'
-            elif tiff_file.is_philips:
-                file_format = 'philips_tiff'
-            else:
-                file_format = None
-        except TiffFileError:
-            file_format = None
-        return file_format
+            return next(
+                tiler for tiler in tilers
+                if tiler.supported(tiff_file)
+            )
+        except (TiffFileError, StopIteration):
+            return None
 
     @classmethod
     def open(
         cls,
         filepath: Union[str, Path],
-        tile_size: Optional[int] = None,
+        tile_size: int = 512,
     ) -> Tiler:
         """Return a file type specific tiler for tiff file in filepath.
         Tile size and turbo jpeg path are optional but required for some file
@@ -58,29 +59,32 @@ class OpenTile:
         ----------
         filepath: Union[str, Path]
             Path to tiff file.
-        tile_size: Optional[int] = None
+        tile_size: int = 512
             Tile size for creating tiles, if needed for file format.
         """
-        file_format = cls.detect_format(filepath)
-        if file_format == 'ndpi':
-            if tile_size is None:
-                raise ValueError("Tile size needed for ndpi")
+        supported_tiler = cls.get_tiler(filepath)
+        if supported_tiler is NdpiTiler:
             return NdpiTiler(
                 filepath,
                 tile_size,
                 find_turbojpeg_path()
             )
 
-        if file_format == 'svs':
+        if supported_tiler is SvsTiler:
             return SvsTiler(
                 filepath,
                 find_turbojpeg_path()
             )
 
-        if file_format == 'philips_tiff':
+        if supported_tiler is PhilipsTiffTiler:
             return PhilipsTiffTiler(
                 filepath,
                 find_turbojpeg_path()
+            )
+
+        if supported_tiler is HistechTiffTiler:
+            return HistechTiffTiler(
+                filepath
             )
 
         raise NotImplementedError('Non supported tiff file')
