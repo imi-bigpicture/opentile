@@ -42,7 +42,7 @@ class InterfaceTest(unittest.TestCase):
         OpenTile.open(file)
 
     def _check_file_exists(self, file: Path):
-        if not file.exists:
+        if not file.exists():
             raise unittest.SkipTest(
                 'Histech tiff test file not found, skipping'
             )
