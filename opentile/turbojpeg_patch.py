@@ -22,8 +22,8 @@ from typing import Optional, Union
 
 import numpy as np
 from turbojpeg import (CUSTOMFILTER, TJFLAG_ACCURATEDCT, TJXOP_NONE,
-                       TJXOPT_PERFECT, CroppingRegion, TurboJPEG, tjMCUHeight,
-                       tjMCUWidth, split_byte_into_nibbles)
+                       TJXOPT_PERFECT, CroppingRegion, TurboJPEG,
+                       split_byte_into_nibbles, tjMCUHeight, tjMCUWidth)
 
 
 def find_turbojpeg_path() -> Optional[Path]:

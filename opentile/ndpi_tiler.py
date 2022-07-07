@@ -18,8 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
-from tifffile import FileHandle, TiffPage
-from tifffile.tifffile import TIFF
+from tifffile.tifffile import TIFF, FileHandle, TiffFile, TiffPage
 
 from opentile.common import OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
@@ -323,6 +322,7 @@ class NdpiPage(OpenTilePage):
         self._jpeg = jpeg
         try:
             # Defined in nm
+            assert(isinstance(page.ndpi_tags, dict))
             self._focal_plane = (
                 page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
             )
@@ -350,7 +350,7 @@ class NdpiPage(OpenTilePage):
     @property
     def mpp(self) -> SizeMm:
         """Return pixel spacing in um per pixel."""
-        return self._get_mpp_from_page()
+        return self._mpp
 
     @property
     def properties(self) -> Dict[str, Any]:
@@ -775,6 +775,9 @@ class NdpiStripedPage(NdpiTiledPage):
         """
         super().__init__(page, fh, base_shape, tile_size, jpeg, frame_cache)
         self._striped_size = Size(self.page.chunked[1], self.page.chunked[0])
+        jpeg_header = self.page.jpegheader
+        assert(isinstance(jpeg_header, bytes))
+        self._jpeg_header = jpeg_header
 
     @property
     def stripe_size(self) -> Size:
@@ -785,6 +788,11 @@ class NdpiStripedPage(NdpiTiledPage):
     def striped_size(self) -> Size:
         """Number of stripes in columns and rows."""
         return self._striped_size
+
+    @property
+    def jpeg_header(self) -> bytes:
+        """Jpeg header in page."""
+        return self._jpeg_header
 
     def _get_file_frame_size(self) -> Size:
         """Return size of stripes in file. For striped levels this is parsed
@@ -881,7 +889,7 @@ class NdpiStripedPage(NdpiTiledPage):
             header = self._headers[frame_size]
         else:
             header = self._jpeg.manipulate_header(
-                self.page.jpegheader,
+                self.jpeg_header,
                 frame_size
             )
             self._headers[frame_size] = header
@@ -974,6 +982,10 @@ class NdpiTiler(Tiler):
         """The size of the tiles to generate."""
         return self._tile_size
 
+    @classmethod
+    def supported(cls, tiff_file: TiffFile) -> bool:
+        return tiff_file.is_ndpi
+
     def get_page(
         self,
         series: int,
@@ -1038,6 +1050,7 @@ class NdpiTiler(Tiler):
         """
         smallest_stripe_width: Optional[int] = None
         for page in self._tiff_file.pages:
+            assert(isinstance(page, TiffPage))
             stripe_width = page.chunks[1]
             if (
                 page.is_tiled and
@@ -1071,9 +1084,8 @@ class NdpiTiler(Tiler):
         NdpiLevel
             Created level.
         """
-        tiff_page: TiffPage = (
-            self._tiff_file.series[series].levels[level].pages[page]
-        )
+        tiff_page = self._tiff_file.series[series].levels[level].pages[page]
+        assert(isinstance(tiff_page, TiffPage))
         if tiff_page.is_tiled:  # Striped ndpi page
             return NdpiStripedPage(
                 tiff_page,

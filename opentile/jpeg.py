@@ -19,8 +19,9 @@ from typing import Iterator, List, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from opentile.geometry import Size
-from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG, find_turbojpeg_path
-from opentile.turbojpeg_patch import tjMCUHeight, tjMCUWidth
+from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
+from opentile.turbojpeg_patch import (find_turbojpeg_path, tjMCUHeight,
+                                      tjMCUWidth)
 
 
 class JpegTagNotFound(Exception):

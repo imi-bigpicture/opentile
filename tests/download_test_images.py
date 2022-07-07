@@ -18,13 +18,14 @@ import requests
 from hashlib import md5
 
 SVS_PATH = 'slides/svs/CMU-1/CMU-1.svs'
-SVS_URL = 'https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs'
+SVS_URL = 'https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs'  # NOQA
 SVS_MD5 = '751b0b86a3c5ff4dfc8567cf24daaa85'
 NDPI_PATH = 'slides/ndpi/CMU-1/CMU-1.ndpi'
-NDPI_URL = 'https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi'
+NDPI_URL = 'https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi'  # NOQA
 NDPI_MD5 = 'fb89dea54f85fb112e418a3cf4c7888a'
 DEFAULT_DIR = 'testdata'
-DOWNLOAD_CHUNK_SIZE=8192
+DOWNLOAD_CHUNK_SIZE = 8192
+
 
 def download_file(url: str, filename: Path):
     with requests.get(url, stream=True) as request:
@@ -32,6 +33,7 @@ def download_file(url: str, filename: Path):
         with open(filename, 'wb') as file:
             for chunk in request.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 file.write(chunk)
+
 
 def main():
     print("Downloading and/or checking testdata from openslide.")
@@ -63,6 +65,7 @@ def main():
                 raise ValueError(f"Checksum faild for {file}")
             else:
                 print(f"{file} checksum OK")
+
 
 if __name__ == "__main__":
     main()
