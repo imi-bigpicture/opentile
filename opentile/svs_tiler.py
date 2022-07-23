@@ -163,7 +163,7 @@ class SvsLZWPage(OpenTilePage):
             self._get_row(index)
             for index in range(len(self.page.dataoffsets))
         ], axis=1)
-        return tile
+        return np.squeeze(tile)
 
     def _get_row(self, index: int) -> np.ndarray:
         row = self.page.decode(
@@ -171,7 +171,7 @@ class SvsLZWPage(OpenTilePage):
             index
         )[0]
         assert(isinstance(row, np.ndarray))
-        return np.squeeze(row)
+        return row
 
 
 class SvsTiledPage(NativeTiledPage):
