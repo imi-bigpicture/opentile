@@ -31,7 +31,11 @@ class InterfaceTest(unittest.TestCase):
         OpenTile.open(ndpi_file_path)
 
     def test_open_philips(self):
+        if not philips_file_path.exists():
+            self.skipTest('Phlilips test file not found.')
         OpenTile.open(philips_file_path)
 
     def test_open_histech(self):
+        if not histech_file_path.exists():
+            self.skipTest('3dhistech test file not found.')
         OpenTile.open(histech_file_path)

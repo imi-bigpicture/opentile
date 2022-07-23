@@ -158,15 +158,20 @@ class SvsLZWPage(OpenTilePage):
         """
         if tile_position != (0, 0):
             raise ValueError("Non-tiled page, expected tile_position (0, 0)")
-        data = np.empty(0)
-        for index in range(len(self.page.dataoffsets)):
-            new_row = self.page.decode(
-                self._read_frame(index),
-                index
-            )[0]
-            assert(isinstance(new_row, np.ndarray))
-            data = np.append(data, new_row, axis=1)
-        return np.squeeze(data)
+
+        tile = np.concatenate([
+            self._get_row(index)
+            for index in range(len(self.page.dataoffsets))
+        ], axis=1)
+        return np.squeeze(tile)
+
+    def _get_row(self, index: int) -> np.ndarray:
+        row = self.page.decode(
+            self._read_frame(index),
+            index
+        )[0]
+        assert(isinstance(row, np.ndarray))
+        return row
 
 
 class SvsTiledPage(NativeTiledPage):

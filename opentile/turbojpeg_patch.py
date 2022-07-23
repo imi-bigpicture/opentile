@@ -164,7 +164,7 @@ class TurboJPEG_patch(TurboJPEG):
         if lib_turbojpeg_path is not None:
             lib_turbojpeg_str_path = str(lib_turbojpeg_path)
         else:
-            lib_turbojpeg_str_path = str(self.__find_turbojpeg())
+            lib_turbojpeg_str_path = str(self._TurboJPEG__find_turbojpeg())
         super().__init__(lib_turbojpeg_str_path)
         turbo_jpeg = cdll.LoadLibrary(lib_turbojpeg_str_path)
         self.__transform = turbo_jpeg.tjTransform
