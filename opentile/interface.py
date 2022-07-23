@@ -13,7 +13,7 @@
 #    limitations under the License.
 
 from pathlib import Path
-from typing import List, Optional, Type, Union
+from typing import Dict, Optional, Tuple, Type, Union
 
 from tifffile import TiffFile, TiffFileError
 
@@ -27,23 +27,33 @@ from opentile.turbojpeg_patch import find_turbojpeg_path
 
 class OpenTile:
     @staticmethod
-    def get_tiler(filepath: Union[str, Path]) -> Optional[Type[Tiler]]:
+    def get_tiler(
+        filepath: Union[str, Path]
+    ) -> Tuple[Optional[str], Optional[Type[Tiler]]]:
         """Return tiler that supports the tiff file in filepath, or None if
         not supported"""
-        tilers: List[Type[Tiler]] = [
-            NdpiTiler,
-            SvsTiler,
-            PhilipsTiffTiler,
-            HistechTiffTiler
-        ]
+        tilers: Dict[str, Type[Tiler]] = {
+            'ndpi': NdpiTiler,
+            'svs': SvsTiler,
+            'phillips_tiff': PhilipsTiffTiler,
+            '3dhistech tiff': HistechTiffTiler
+        }
         try:
             tiff_file = TiffFile(filepath)
             return next(
-                tiler for tiler in tilers
+                (tiler_name, tiler) for (tiler_name, tiler) in tilers.items()
                 if tiler.supported(tiff_file)
             )
         except (TiffFileError, StopIteration):
-            return None
+            return None, None
+
+    @classmethod
+    def detect_format(
+        cls,
+        filepath: Union[str, Path]
+    ) -> Optional[str]:
+        format, supported_tiler = cls.get_tiler(filepath)
+        return format
 
     @classmethod
     def open(
@@ -62,7 +72,7 @@ class OpenTile:
         tile_size: int = 512
             Tile size for creating tiles, if needed for file format.
         """
-        supported_tiler = cls.get_tiler(filepath)
+        format, supported_tiler = cls.get_tiler(filepath)
         if supported_tiler is NdpiTiler:
             return NdpiTiler(
                 filepath,
