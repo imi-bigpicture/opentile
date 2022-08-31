@@ -19,8 +19,7 @@ Please note that this is an early release and the API is not frozen yet. Functio
 *opentile* requires python >=3.7 and uses numpy, Pillow, TiffFile and PyTurboJPEG (with lib-turbojpeg >= 2.1 ).
 
 ## Limitations
-Files with z-stacks are currently not fully supported.
-Striped pages with stripes divided in frames are not supported for other file except for Ndpi. This is common for overview and label images.
+Files with z-stacks are currently not fully supported for all formats.
 
 ## Supported file formats
 The following description of the workings of the supported file formats does not include the additional specifics for each format that is handled by tifffile. Additional formats supported by tifffile and that have non-overlapping tile layout are likely to be added in future release.
@@ -35,6 +34,9 @@ The Philips tiff-format allows tiles to be sparse, i.e. missing. For such tiles,
 
 ***Aperio svs***
 Some Asperio svs-files have corrupt tile data at edges of non-base pyramidal levels. This is observed as tiles with 0-byte length and tiles with incorrect pixel data. *opentile* detects such corruption and instead returns downscaled image data from lower levels. Associated images (label, overview) are currently not handled correctly.
+
+***3DHistech tiff***
+Only the pyramidal levels are supported (not overviews or labels).
 
 ## Basic usage
 ***Load a Ndpi-file using tile size (1024, 1024) pixels.***
@@ -53,6 +55,17 @@ tile = tiler.get_tile(0, (0, 0))
 ***Close the tiler object.***
 ```python
 tiler.close()
+```
+
+***Usage as context manager***
+
+The tiler can also be used as context manager:
+```python
+from opentile import OpenTile
+tile_size = (1024, 1024)
+turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
+with OpenTile.open(path_to_ndpi_file, tile_size, turbo_path) as tiler:
+    tile = tiler.get_tile(0, (0, 0))
 ```
 
 ## Setup environment for development
