@@ -42,14 +42,15 @@ class HistechTiffTilerTest(unittest.TestCase):
         cls.tiler.close()
 
     def test_get_tile(self):
-        tile = self.level.get_tile((0, 0))
+        tile = self.level.get_tile((50, 50))
         self.assertEqual(
-            'ea3fc95b75785485a02fe3a3c826ba04',
+            '221f47792ebef7b9e394fc6c8ed7cb64',
             md5(tile).hexdigest()
         )
-        tile = self.level.get_tile((20, 20))
+
+        tile = self.level.get_tile((100, 100))
         self.assertEqual(
-            'ea3fc95b75785485a02fe3a3c826ba04',
+            '0a2e459e94e9237bb866b3bc1ac10cb8',
             md5(tile).hexdigest()
         )
 
