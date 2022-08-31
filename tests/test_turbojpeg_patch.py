@@ -46,7 +46,7 @@ class TurboJpegTest(unittest.TestCase):
         image_size = (2048, 1024)
         crop_region = CroppingRegion(0, 0, 512, 512)
         self.assertFalse(
-            self.jpeg._TurboJPEG__need_fill_background(
+            TurboJPEG.__need_fill_background(
                 crop_region,
                 image_size,
                 1.0
@@ -55,7 +55,7 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(0, 0, 2048, 1024)
         self.assertFalse(
-            self.jpeg._TurboJPEG__need_fill_background(
+            TurboJPEG.__need_fill_background(
                 crop_region,
                 image_size,
                 1.0
@@ -64,7 +64,7 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(1024, 0, 1024, 1024)
         self.assertFalse(
-            self.jpeg._TurboJPEG__need_fill_background(
+            TurboJPEG.__need_fill_background(
                 crop_region,
                 image_size,
                 1.0
@@ -73,7 +73,7 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(0, 0, 2048, 2048)
         self.assertTrue(
-            self.jpeg._TurboJPEG__need_fill_background(
+            TurboJPEG.__need_fill_background(
                 crop_region,
                 image_size,
                 1.0
@@ -82,7 +82,7 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(0, 0, 2048, 2048)
         self.assertFalse(
-            self.jpeg._TurboJPEG__need_fill_background(
+            TurboJPEG.__need_fill_background(
                 crop_region,
                 image_size,
                 0.5
@@ -95,8 +95,8 @@ class TurboJpegTest(unittest.TestCase):
             CroppingRegion(0, 1, 2, 3),
             CroppingRegion(4, 5, 6, 7)
         ]
-        cropping_regions = self.jpeg._TurboJPEG__define_cropping_regions(
-                crop_parameters
+        cropping_regions = TurboJPEG.__define_cropping_regions(
+            crop_parameters
         )
         for index, region in enumerate(cropping_regions):
             expected = expected_cropping_regions[index]

@@ -13,9 +13,9 @@
 #    limitations under the License.
 
 import os
-from ctypes import (POINTER, Structure, byref, c_int, c_short, c_ubyte,
-                    c_ulong, c_void_p, cast, cdll, create_string_buffer,
-                    memmove, pointer)
+from ctypes import (POINTER, _Pointer, Structure, byref, c_int, c_short,
+                    c_ubyte, c_ulong, c_void_p, cast, cdll,
+                    create_string_buffer, memmove, pointer)
 from pathlib import Path
 from struct import calcsize, unpack
 from typing import Optional, Union
@@ -112,7 +112,7 @@ def blank_image(
     planeRegion: CroppingRegion,
     componentID: int,
     transformID: int,
-    transform_ptr: pointer
+    transform_ptr: c_void_p
 ) -> int:
     """Callback function for filling whole image with background color.
 
@@ -164,7 +164,9 @@ class TurboJPEG_patch(TurboJPEG):
         if lib_turbojpeg_path is not None:
             lib_turbojpeg_str_path = str(lib_turbojpeg_path)
         else:
-            lib_turbojpeg_str_path = str(self._TurboJPEG__find_turbojpeg())
+            lib_turbojpeg_str_path = str(
+                self.__find_turbojpeg()
+            )
         super().__init__(lib_turbojpeg_str_path)
         turbo_jpeg = cdll.LoadLibrary(lib_turbojpeg_str_path)
         self.__transform = turbo_jpeg.tjTransform
@@ -200,17 +202,17 @@ class TurboJPEG_patch(TurboJPEG):
         List[bytes]
             Filled jpeg images.
         """
-        handle: c_void_p = self._TurboJPEG__init_transform()
+        handle = self.__init_transform()
         try:
             jpeg_array: np.ndarray = np.frombuffer(jpeg_buf, dtype=np.uint8)
-            src_addr = self._TurboJPEG__getaddr(jpeg_array)
+            src_addr = self.__getaddr(jpeg_array)
             image_width = c_int()
             image_height = c_int()
             jpeg_subsample = c_int()
             jpeg_colorspace = c_int()
 
             # Decompress header to get input image size and subsample value
-            decompress_header_status = self._TurboJPEG__decompress_header(
+            decompress_header_status = self.__decompress_header(
                 handle,
                 src_addr,
                 jpeg_array.size,
@@ -221,12 +223,12 @@ class TurboJPEG_patch(TurboJPEG):
             )
 
             if decompress_header_status != 0:
-                self._TurboJPEG__report_error(handle)
+                self.__report_error(handle)
 
             # Use callback to fill in background post-transform
             callback_data = BlankStruct(
                 jpeg_subsample,
-                self.__map_luminance_to_dc_dct_coefficient(
+                self._map_luminance_to_dc_dct_coefficient(
                     jpeg_buf,
                     background_luminance
                 )
@@ -262,18 +264,18 @@ class TurboJPEG_patch(TurboJPEG):
             memmove(dest_buf, dest_array.value, dest_size.value)
 
             # Free the output image buffers
-            self._TurboJPEG__free(dest_array)
+            self.__free(dest_array)
 
             if transform_status != 0:
-                self._TurboJPEG__report_error(handle)
+                self.__report_error(handle)
 
             return dest_buf.raw
 
         finally:
-            self._TurboJPEG__destroy(handle)
+            self.__destroy(handle)
 
     @staticmethod
-    def __find_dqt(
+    def _find_dqt(
         jpeg_data: bytes,
         dqt_index: int
     ) -> Optional[int]:
@@ -312,7 +314,7 @@ class TurboJPEG_patch(TurboJPEG):
         return None
 
     @classmethod
-    def __get_dc_dqt_element(
+    def _get_dc_dqt_element(
         cls,
         jpeg_data: bytes,
         dqt_index: int
@@ -332,7 +334,7 @@ class TurboJPEG_patch(TurboJPEG):
         int
             Dc quantification element.
         """
-        dqt_offset = cls.__find_dqt(jpeg_data, dqt_index)
+        dqt_offset = cls._find_dqt(jpeg_data, dqt_index)
         if dqt_offset is None:
             raise ValueError(
                 f"Quantisation table {dqt_index} not found in header"
@@ -354,7 +356,7 @@ class TurboJPEG_patch(TurboJPEG):
         return dc_value
 
     @classmethod
-    def __map_luminance_to_dc_dct_coefficient(
+    def _map_luminance_to_dc_dct_coefficient(
         cls,
         jpeg_data: bytes,
         luminance: float
@@ -378,5 +380,52 @@ class TurboJPEG_patch(TurboJPEG):
             Quantified luminance dc dct coefficent.
         """
         luminance = min(max(luminance, 0), 1)
-        dc_dqt_coefficient = cls.__get_dc_dqt_element(jpeg_data, 0)
+        dc_dqt_coefficient = cls._get_dc_dqt_element(jpeg_data, 0)
         return(round((luminance * 2047 - 1024) / dc_dqt_coefficient))
+
+    def __find_turbojpeg(self) -> str:
+        return self._TurboJPEG__find_turbojpeg()  # type: ignore
+
+    def __init_transform(self) -> c_void_p:
+        return self._TurboJPEG__init_transform()  # type: ignore
+
+    def __getaddr(self, nda: np.ndarray) -> _Pointer[c_ubyte]:
+        return self._TurboJPEG__getaddr(nda)  # type: ignore
+
+    def __decompress_header(
+        self,
+        handle: c_void_p,
+        src_addr,
+        jpeg_array_size: int,
+        image_width,
+        image_height,
+        jpeg_subsample,
+        jpeg_colorspace
+    ) -> c_int:
+        return self._TurboJPEG__decompress_header(  # type: ignore
+            handle,
+            src_addr,
+            jpeg_array_size,
+            image_width,
+            image_height,
+            jpeg_subsample,
+            jpeg_colorspace
+        )
+
+    def __report_error(
+        self,
+        handle: c_void_p
+    ) -> None:
+        self._TurboJPEG__report_error(handle)  # type: ignore
+
+    def __free(
+        self,
+        dest_array: c_void_p
+    ) -> None:
+        self._TurboJPEG__free(dest_array)  # type: ignore
+
+    def __destroy(
+        self,
+        handle: c_void_p
+    ) -> c_int:
+        return self._TurboJPEG__destroy(handle)  # type: ignore
