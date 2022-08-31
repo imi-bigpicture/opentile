@@ -201,14 +201,14 @@ class PhilipsTiffTiler(Tiler):
         """Return true if series is a overview series."""
         page = series.pages[0]
         assert(isinstance(page, TiffPage))
-        return page.description.find('Macro') > - 1
+        return page.description.find('Macro') > -1
 
     @staticmethod
     def is_label(series: TiffPageSeries) -> bool:
         """Return true if series is a label series."""
         page = series.pages[0]
         assert(isinstance(page, TiffPage))
-        return page.description.find('Label') > - 1
+        return page.description.find('Label') > -1
 
     @staticmethod
     def _get_associated_mpp_from_page(page: TiffPage):
