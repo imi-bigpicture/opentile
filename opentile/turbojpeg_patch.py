@@ -18,7 +18,7 @@ from ctypes import (POINTER, _Pointer, Structure, byref, c_int, c_short,
                     create_string_buffer, memmove, pointer)
 from pathlib import Path
 from struct import calcsize, unpack
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from turbojpeg import (CUSTOMFILTER, TJFLAG_ACCURATEDCT, TJXOP_NONE,
@@ -165,7 +165,7 @@ class TurboJPEG_patch(TurboJPEG):
             lib_turbojpeg_str_path = str(lib_turbojpeg_path)
         else:
             lib_turbojpeg_str_path = str(
-                self.__find_turbojpeg()
+                self._find_turbojpeg()
             )
         super().__init__(lib_turbojpeg_str_path)
         turbo_jpeg = cdll.LoadLibrary(lib_turbojpeg_str_path)
@@ -202,17 +202,17 @@ class TurboJPEG_patch(TurboJPEG):
         List[bytes]
             Filled jpeg images.
         """
-        handle = self.__init_transform()
+        handle = self._init_transform()
         try:
             jpeg_array: np.ndarray = np.frombuffer(jpeg_buf, dtype=np.uint8)
-            src_addr = self.__getaddr(jpeg_array)
+            src_addr = self._getaddr(jpeg_array)
             image_width = c_int()
             image_height = c_int()
             jpeg_subsample = c_int()
             jpeg_colorspace = c_int()
 
             # Decompress header to get input image size and subsample value
-            decompress_header_status = self.__decompress_header(
+            decompress_header_status = self._decompress_header(
                 handle,
                 src_addr,
                 jpeg_array.size,
@@ -223,7 +223,7 @@ class TurboJPEG_patch(TurboJPEG):
             )
 
             if decompress_header_status != 0:
-                self.__report_error(handle)
+                self._report_error(handle)
 
             # Use callback to fill in background post-transform
             callback_data = BlankStruct(
@@ -264,15 +264,15 @@ class TurboJPEG_patch(TurboJPEG):
             memmove(dest_buf, dest_array.value, dest_size.value)
 
             # Free the output image buffers
-            self.__free(dest_array)
+            self._free(dest_array)
 
             if transform_status != 0:
-                self.__report_error(handle)
+                self._report_error(handle)
 
             return dest_buf.raw
 
         finally:
-            self.__destroy(handle)
+            self._destroy(handle)
 
     @staticmethod
     def _find_dqt(
@@ -383,16 +383,16 @@ class TurboJPEG_patch(TurboJPEG):
         dc_dqt_coefficient = cls._get_dc_dqt_element(jpeg_data, 0)
         return(round((luminance * 2047 - 1024) / dc_dqt_coefficient))
 
-    def __find_turbojpeg(self) -> str:
+    def _find_turbojpeg(self) -> str:
         return self._TurboJPEG__find_turbojpeg()  # type: ignore
 
-    def __init_transform(self) -> c_void_p:
+    def _init_transform(self) -> c_void_p:
         return self._TurboJPEG__init_transform()  # type: ignore
 
-    def __getaddr(self, nda: np.ndarray) -> _Pointer[c_ubyte]:
+    def _getaddr(self, nda: np.ndarray) -> _Pointer:
         return self._TurboJPEG__getaddr(nda)  # type: ignore
 
-    def __decompress_header(
+    def _decompress_header(
         self,
         handle: c_void_p,
         src_addr,
@@ -412,20 +412,40 @@ class TurboJPEG_patch(TurboJPEG):
             jpeg_colorspace
         )
 
-    def __report_error(
+    def _report_error(
         self,
         handle: c_void_p
     ) -> None:
         self._TurboJPEG__report_error(handle)  # type: ignore
 
-    def __free(
+    def _free(
         self,
         dest_array: c_void_p
     ) -> None:
         self._TurboJPEG__free(dest_array)  # type: ignore
 
-    def __destroy(
+    def _destroy(
         self,
         handle: c_void_p
     ) -> c_int:
         return self._TurboJPEG__destroy(handle)  # type: ignore
+
+    @staticmethod
+    def _need_fill_background(
+        crop_region: CroppingRegion,
+        image_size: Tuple[int, int],
+        background_luminance: float
+    ) -> bool:
+        return TurboJPEG._TurboJPEG__need_fill_background(  # type: ignore
+            crop_region,
+            image_size,
+            background_luminance
+        )
+
+    @staticmethod
+    def _define_cropping_regions(
+        crop_parameters: List[Tuple[int, int, int, int]]
+    ) -> List[CroppingRegion]:
+        return TurboJPEG._TurboJPEG__define_cropping_regions(  # type: ignore
+            crop_parameters
+        )
