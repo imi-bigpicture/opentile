@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "opentile"
 version = "0.3.0"
-description = "[Read tiles from wsi-TIFF files]"
+description = "Read tiles from wsi-TIFF files"
 authors = ["Erik O Gabrielsson <erik.o.gabrielsson@sectra.com>"]
 license = "Apache-2.0"
 readme = "README.md"

@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
-from tifffile.tifffile import (FileHandle, TiffFile, TiffPage, TiffPageSeries,
-                               TiffTags)
+from tifffile.tifffile import (COMPRESSION, FileHandle, TiffFile, TiffPage,
+                               TiffPageSeries, TiffTags)
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
@@ -130,9 +130,9 @@ class OpenTilePage(metaclass=ABCMeta):
         return 1
 
     @property
-    def compression(self) -> str:
+    def compression(self) -> COMPRESSION:
         """Return compression of page."""
-        return str(self._page.compression)
+        return COMPRESSION(self._page.compression)
 
     @property
     def photometric_interpretation(self) -> str:

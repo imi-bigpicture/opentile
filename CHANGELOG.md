@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - tifffile minimun version set to 2022.5.4.
 
+### Fixed
+- Use COMPRESSION-enum from TiffFile for compression type checks.
+
 ## [0.3.0] - 2021-04-20
 ### Added
 - Scripts and github actions for downloading test data.
