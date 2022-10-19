@@ -18,7 +18,7 @@ from typing import Dict, Optional, Tuple, Union, cast
 
 import numpy as np
 from PIL import Image
-from tifffile.tifffile import (FileHandle, TiffFile, TiffPage,
+from tifffile.tifffile import (COMPRESSION, FileHandle, TiffFile, TiffPage,
                                svs_description_metadata)
 
 from opentile.common import NativeTiledPage, OpenTilePage, Tiler
@@ -120,9 +120,9 @@ class SvsLZWPage(OpenTilePage):
         )
 
     @property
-    def compression(self) -> str:
+    def compression(self) -> COMPRESSION:
         """Return compression of page."""
-        return 'COMPRESSION.JPEG'
+        return COMPRESSION.JPEG
 
     @property
     def pixel_spacing(self) -> Optional[SizeMm]:
@@ -336,10 +336,10 @@ class SvsTiledPage(NativeTiledPage):
         )
 
         # Return compressed image
-        if self.compression == 'COMPRESSION.JPEG':
+        if self.compression == COMPRESSION.JPEG:
             image_format = 'jpeg'
             image_options = {'quality': 95}
-        elif self.compression == 'COMPRESSION.APERIO_JP2000_RGB':
+        elif self.compression == COMPRESSION.APERIO_JP2000_RGB:
             image_format = 'jpeg2000'
             image_options = {'irreversible': True}
         else:
@@ -348,7 +348,7 @@ class SvsTiledPage(NativeTiledPage):
             image.save(buffer, format=image_format, **image_options)
             frame = buffer.getvalue()
 
-        if self.compression == 'COMPRESSION.APERIO_JP2000_RGB':
+        if self.compression == COMPRESSION.APERIO_JP2000_RGB:
             # PIL encodes in jp2, find start of j2k and return from there.
             START_TAGS = bytes([0xFF, 0x4F, 0xFF, 0x51])
             start_index = frame.find(START_TAGS)
@@ -401,7 +401,7 @@ class SvsTiledPage(NativeTiledPage):
             return self._get_fixed_tile(tile_point)
 
         tile = super().get_tile(tile_position)
-        if self.compression == 'COMPRESSION.JPEG':
+        if self.compression == COMPRESSION.JPEG:
             tile = Jpeg.add_color_space_fix(tile)
         return tile
 
@@ -433,9 +433,7 @@ class SvsTiler(Tiler):
                 self._overview_series_index = series_index
         mpp = svs_description_metadata(self.base_page.description)['MPP']
         self._base_mpp = SizeMm(mpp, mpp)
-        self._pages: Dict[
-            Tuple[int, int, int], OpenTilePage
-        ] = {}
+        self._pages: Dict[Tuple[int, int, int], OpenTilePage] = {}
         if 'InterColorProfile' in self._tiff_file.pages.first.tags:
             icc_profile = (
                 self._tiff_file.pages.first.tags['InterColorProfile'].value

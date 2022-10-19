@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
-from tifffile.tifffile import TIFF, FileHandle, TiffFile, TiffPage
+from tifffile.tifffile import COMPRESSION, TIFF, FileHandle, TiffFile, TiffPage
 
 from opentile.common import OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
@@ -314,7 +314,7 @@ class NdpiPage(OpenTilePage):
             Jpeg instance to use.
         """
         super().__init__(page, fh)
-        if self.compression != 'COMPRESSION.JPEG':
+        if self.compression != COMPRESSION.JPEG:
             raise NotImplementedError(
                 f'{self.compression} is unsupported for ndpi '
                 '(Only jpeg is supported)'
