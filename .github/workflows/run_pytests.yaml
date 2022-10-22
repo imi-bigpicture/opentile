@@ -15,10 +15,10 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Load test images from cache
         id: cache-test-images
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           key: test-images-cache-${{ hashFiles('tests/download_test_images.py') }}
           path: OPENTILE_TESTDATA
@@ -56,7 +56,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up Python
         id: setup-python
         uses: actions/setup-python@v2
@@ -70,7 +70,7 @@ jobs:
         run: echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
       - name: Load test images from cache
         id: cache-test-images
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           key: test-images-cache-${{ hashFiles('tests/download_test_images.py') }}
           path: OPENTILE_TESTDATA
