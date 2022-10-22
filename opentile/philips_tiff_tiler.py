@@ -18,7 +18,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 from xml.etree import ElementTree
 
-from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
+from tifffile.tifffile import (COMPRESSION, FileHandle, TiffFile, TiffPage,
+                               TiffPageSeries)
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
@@ -60,14 +61,18 @@ class PhilipsTiffTiledPage(NativeTiledPage):
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._page}, {self._fh}, "
-            f"{self._base_shape}, {self._base_mpp}, {self._jpeg})"
+            f'{type(self).__name__}({self._page}, {self._fh}, '
+            f'{self._base_shape}, {self._base_mpp}, {self._jpeg})'
         )
 
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
         return self.mpp * 1000
+
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return [COMPRESSION.JPEG]
 
     @property
     def mpp(self) -> SizeMm:
@@ -103,8 +108,10 @@ class PhilipsTiffTiledPage(NativeTiledPage):
                 for index, datalength in enumerate(self.page.databytecounts)
                 if datalength != 0
             )
-        except StopIteration:
-            raise ValueError("Could not find valid frame in page.")
+        except StopIteration as exception:
+            raise ValueError(
+                'Could not find valid frame in page.'
+            ) from exception
         tile = self._read_frame(valid_frame_index)
         if self.page.jpegtables is not None:
             tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables, False)

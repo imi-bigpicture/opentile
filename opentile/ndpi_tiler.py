@@ -32,7 +32,7 @@ def get_value_from_ndpi_comments(
     comments: str, value_name: str, value_type: Any
 ) -> Any:
     """Read value from ndpi comment string."""
-    for line in comments.split("\n"):
+    for line in comments.split('\n'):
         if value_name in line:
             value_string = line.split("=")[1]
             return value_type(value_string)
@@ -64,7 +64,7 @@ class NdpiCache:
         )
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._size})"
+        return f'{type(self).__name__}({self._size})'
 
     def __setitem__(self, key: Point, value: bytes) -> None:
         """Set item in cache. Remove old items if needed.
@@ -179,12 +179,12 @@ class NdpiTile:
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self.position}, {self._tile_size}, "
-            f"{self._frame_size})"
+            f'{type(self).__name__}({self.position}, {self._tile_size}, '
+            f'{self._frame_size})'
         )
 
     def __str__(self) -> str:
-        return f"{type(self).__name__} of position {self.position}"
+        return f'{type(self).__name__} of position {self.position}'
 
     @property
     def position(self) -> Point:
@@ -245,10 +245,10 @@ class NdpiFrameJob:
             self.append(tile)
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}{self.tiles})"
+        return f'{type(self).__name__}{self.tiles})'
 
     def __str__(self) -> str:
-        return f"{type(self).__name__} of tiles {self.tiles}"
+        return f'{type(self).__name__} of tiles {self.tiles}'
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, NdpiFrameJob):
@@ -278,7 +278,7 @@ class NdpiFrameJob:
     def append(self, tile: NdpiTile) -> None:
         """Add a tile to the tile job."""
         if tile.frame_position != self.position:
-            raise ValueError(f"{tile} does not match {self} frame position")
+            raise ValueError(f'{tile} does not match {self} frame position')
         self._tiles.append(tile)
 
 
@@ -328,6 +328,10 @@ class NdpiPage(OpenTilePage):
         return self.mpp / 1000.0
 
     @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return [COMPRESSION.JPEG]
+
+    @property
     def mpp(self) -> SizeMm:
         """Return pixel spacing in um per pixel."""
         return self._mpp
@@ -351,7 +355,7 @@ class NdpiPage(OpenTilePage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+            raise ValueError('Non-tiled page, expected tile_position (0, 0)')
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
@@ -487,9 +491,9 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._page}, {self._fh}, "
-            f"{self._base_shape}, {self.tile_size}, {self._jpeg}, "
-            f"{self._frame_cache.size})"
+            f'{type(self).__name__}({self._page}, {self._fh}, '
+            f'{self._base_shape}, {self.tile_size}, {self._jpeg}, '
+            f'{self._frame_cache.size})'
         )
 
     @property
@@ -509,17 +513,17 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
     @abstractmethod
     def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Read a frame of size frame_size covering position."""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @abstractmethod
     def _get_file_frame_size(self) -> Size:
         """Return size of single frame/stripe in file."""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @abstractmethod
     def _get_frame_size_for_tile(self, tile_position: Point) -> Size:
         """Return frame size used for creating tile at tile position."""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return image bytes for tile at tile position.
@@ -706,7 +710,7 @@ class NdpiOneFramePage(NdpiTiledPage):
             Frame
         """
         if position != Point(0, 0):
-            raise ValueError("Frame position not (0, 0) for one frame level.")
+            raise ValueError('Frame position not (0, 0) for one frame level.')
         frame = self._read_frame(0)
         if (
             self.image_size.width % self.mcu.width != 0
@@ -991,7 +995,7 @@ class NdpiTiler(Tiler):
             tile_size, self._get_smallest_stripe_width()
         )
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
-            raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
+            raise ValueError(f'Tile size {self.tile_size} not divisable by 8')
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
 
@@ -1006,13 +1010,13 @@ class NdpiTiler(Tiler):
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._tiff_file.filename}, "
-            f"{self.tile_size.to_tuple}, "
-            f"{self._turbo_path})"
+            f'{type(self).__name__}({self._tiff_file.filename}, '
+            f'{self.tile_size.to_tuple}, '
+            f'{self._turbo_path})'
         )
 
     def __str__(self) -> str:
-        return f"{type(self).__name__} of Tifffile {self._tiff_file}"
+        return f'{type(self).__name__} of Tifffile {self._tiff_file}'
 
     @property
     def tile_size(self) -> Size:

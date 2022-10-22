@@ -42,10 +42,10 @@ class LockableFileHandle:
         self._lock = threading.Lock()
 
     def __str__(self) -> str:
-        return f"{type(self).__name__} for FileHandle {self._fh}"
+        return f'{type(self).__name__} for FileHandle {self._fh}'
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._fh})"
+        return f'{type(self).__name__}({self._fh})'
 
     @property
     def filepath(self) -> Path:
@@ -145,6 +145,13 @@ class OpenTilePage(metaclass=ABCMeta):
         add_rgb_colorspace_fix: bool = False
             If to add color space fix for rgb image data.
         """
+        if (
+            self.supported_compressions is not None
+            and page.compression not in self.supported_compressions
+        ):
+            raise NotImplementedError(
+                f'Non-supported compression {self.compression}.'
+            )
         self._page = page
         self._fh = LockableFileHandle(fh)
         self._add_rgb_colorspace_fix = add_rgb_colorspace_fix
@@ -160,7 +167,20 @@ class OpenTilePage(metaclass=ABCMeta):
         raise NotImplementedError()
 
     def __str__(self) -> str:
-        return f"{type(self).__name__} of page {self._page}"
+        return f'{type(self).__name__} of page {self._page}'
+
+    @property
+    @abstractmethod
+    def pixel_spacing(self) -> Optional[SizeMm]:
+        """Should return the pixel size in mm/pixel of the page."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        """Should return list of compressions supported, or None if class is
+        indenpendent on compression."""
+        raise NotImplementedError()
 
     @property
     def filepath(self) -> Path:
@@ -360,10 +380,13 @@ class OpenTilePage(metaclass=ABCMeta):
     def _get_value_from_tiff_tags(
         tiff_tags: TiffTags, value_name: str
     ) -> Optional[str]:
-        for tag in tiff_tags:
-            if tag.name == value_name:
-                return str(tag.value)
-        return None
+        return next(
+            (
+                str(tag.value) for tag in tiff_tags
+                if tag.name == value_name
+            ),
+            None
+        )
 
     def _calculate_pyramidal_index(
         self,

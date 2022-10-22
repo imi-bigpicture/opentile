@@ -20,6 +20,7 @@ from tifffile import TiffFile, TiffFileError
 from opentile.common import Tiler
 from opentile.histech_tiff_tiler import HistechTiffTiler
 from opentile.ndpi_tiler import NdpiTiler
+from opentile.ome_tiff import OmeTiffTiler
 from opentile.philips_tiff_tiler import PhilipsTiffTiler
 from opentile.svs_tiler import SvsTiler
 from opentile.turbojpeg_patch import find_turbojpeg_path
@@ -33,10 +34,11 @@ class OpenTile:
         """Return tiler that supports the tiff file in filepath, or None if
         not supported"""
         tilers: Dict[str, Type[Tiler]] = {
-            "ndpi": NdpiTiler,
-            "svs": SvsTiler,
-            "phillips_tiff": PhilipsTiffTiler,
-            "3dhistech tiff": HistechTiffTiler,
+            'ndpi': NdpiTiler,
+            'svs': SvsTiler,
+            'phillips_tiff': PhilipsTiffTiler,
+            '3dhistech tiff': HistechTiffTiler,
+            'ome-tiff tiler': OmeTiffTiler
         }
         try:
             tiff_file = TiffFile(filepath)
@@ -83,4 +85,9 @@ class OpenTile:
         if supported_tiler is HistechTiffTiler:
             return HistechTiffTiler(filepath)
 
-        raise NotImplementedError("Non supported tiff file")
+        if supported_tiler is OmeTiffTiler:
+            return OmeTiffTiler(
+                filepath
+            )
+
+        raise NotImplementedError('Non supported tiff file')

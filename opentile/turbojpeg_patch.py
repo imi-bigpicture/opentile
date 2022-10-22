@@ -79,8 +79,8 @@ class BlankStruct(Structure):
     """
 
     _fields_ = [
-        ("subsample", c_int),
-        ("lum", c_int),
+        ('subsample', c_int),
+        ('lum', c_int),
     ]
 
 
@@ -143,12 +143,13 @@ class BlankImage:
             The width and height coefficient array and its offset relative to
             the component plane.
         plane_region: CroppingRegion
-            The width and height of the component plane of the coefficient array.
+            The width and height of the component plane of the coefficient
+            array.
         component_ID: int
             The component number (i.e. 0, 1, or 2)
         transform_ID: int
-            The index of the transformation in the array of transformation given to
-            the transform function.
+            The index of the transformation in the array of transformation
+            given to the transform function.
         transform_ptr: _Pointer
             Pointer to the transform structure used for the transformation.
 

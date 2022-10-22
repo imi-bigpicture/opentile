@@ -15,12 +15,12 @@
 import os
 from pathlib import Path
 
-test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
-svs_file_path = Path(test_data_dir).joinpath("slides/svs/CMU-1/CMU-1.svs")
+test_data_dir = os.environ.get('OPENTILE_TESTDIR', 'tests/testdata')
+svs_file_path = Path(test_data_dir).joinpath('slides/svs/CMU-1/CMU-1.svs')
 philips_file_path = Path(test_data_dir).joinpath(
-    "slides/philips_tiff/philips1/input.tif"
+    'slides/philips_tiff/philips1/input.tif'
 )
-ndpi_file_path = Path(test_data_dir).joinpath("slides/ndpi/CMU-1/CMU-1.ndpi")
+ndpi_file_path = Path(test_data_dir).joinpath('slides/ndpi/CMU-1/CMU-1.ndpi')
 histech_file_path = Path(test_data_dir).joinpath(
-    "slides/3dhistech_tiff/CMU-1/CMU-1_Default_Extended.tif"
+    'slides/3dhistech_tiff/CMU-1/CMU-1_Default_Extended.tif'
 )

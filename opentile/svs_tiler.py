@@ -60,6 +60,10 @@ class SvsStripedPage(OpenTilePage):
     def pixel_spacing(self) -> Optional[SizeMm]:
         return None
 
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return [COMPRESSION.JPEG]
+
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return tile for tile position.
 
@@ -74,7 +78,7 @@ class SvsStripedPage(OpenTilePage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+            raise ValueError('Non-tiled page, expected tile_position (0, 0)')
         indices = range(len(self.page.dataoffsets))
         scans = (self._read_frame(index) for index in indices)
         jpeg_tables = self.page.jpegtables
@@ -130,6 +134,10 @@ class SvsLZWPage(OpenTilePage):
     def pixel_spacing(self) -> Optional[SizeMm]:
         return None
 
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return [COMPRESSION.LZW]
+
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return tile for tile position.
 
@@ -159,7 +167,7 @@ class SvsLZWPage(OpenTilePage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+            raise ValueError('Non-tiled page, expected tile_position (0, 0)')
 
         tile = np.concatenate(
             [self._get_row(index) for index in range(len(self.page.dataoffsets))],
@@ -211,14 +219,21 @@ class SvsTiledPage(NativeTiledPage):
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._page}, {self._fh}, "
-            f"{self._base_shape}, {self._base_mpp})"
+            f'{type(self).__name__}({self._page}, {self._fh}, '
+            f'{self._base_shape}, {self._base_mpp})'
         )
 
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
         return self.mpp / 1000
+
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return [
+            COMPRESSION.JPEG,
+            COMPRESSION.APERIO_JP2000_RGB
+        ]
 
     @property
     def mpp(self) -> SizeMm:
@@ -302,7 +317,7 @@ class SvsTiledPage(NativeTiledPage):
 
         """
         if self._parent is None:
-            raise ValueError("No parent level to get tiles from")
+            raise ValueError('No parent level to get tiles from')
         scale = int(pow(2, self.pyramid_index - self._parent.pyramid_index))
         scaled_tile_region = Region(tile_point, Size(1, 1)) * scale
 
@@ -336,7 +351,7 @@ class SvsTiledPage(NativeTiledPage):
             image_format = "jpeg2000"
             image_options = {"irreversible": True}
         else:
-            raise NotImplementedError("Not supported compression")
+            raise NotImplementedError('Non-supported compression')
         with io.BytesIO() as buffer:
             image.save(buffer, format=image_format, **image_options)
             frame = buffer.getvalue()

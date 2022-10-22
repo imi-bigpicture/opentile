@@ -13,7 +13,7 @@
 #    limitations under the License.
 
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from tifffile.tifffile import (
     PHOTOMETRIC,
@@ -56,6 +56,10 @@ class HistechTiffTiledPage(NativeTiledPage):
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
         return self.mpp * 1000
+
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return None
 
     @property
     def mpp(self) -> SizeMm:
