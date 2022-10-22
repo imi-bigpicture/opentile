@@ -17,20 +17,11 @@ from ctypes import c_short, pointer
 
 import numpy as np
 import pytest
-from opentile.turbojpeg_patch import BlankStruct, BlankTransformStruct
-from opentile.turbojpeg_patch import TurboJPEG_patch
-from opentile.turbojpeg_patch import blank_image, find_turbojpeg_path
-from turbojpeg import (
-    CUSTOMFILTER,
-    TJXOP_NONE,
-    TJXOPT_CROP,
-    TJXOPT_GRAY,
-    TJXOPT_PERFECT,
-    BackgroundStruct,
-    CroppingRegion,
-    TransformStruct,
-    fill_background,
-)
+from opentile.turbojpeg_patch import (BlankImage, BlankStruct, TurboJPEG_patch,
+                                      find_turbojpeg_path)
+from turbojpeg import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP, TJXOPT_GRAY,
+                       TJXOPT_PERFECT, BackgroundStruct, CroppingRegion,
+                       TransformStruct, fill_background)
 
 test_file_path = "tests/testdata/turbojpeg/frame_2048x512.jpg"
 
@@ -142,7 +133,7 @@ class TurboJpegTest(unittest.TestCase):
             arrayRegion = CroppingRegion(
                 0, row * callback_row_heigth, extended_width, callback_row_heigth
             )
-            callback_result = fill_background(
+            _ = fill_background(
                 coeffs[data_start:data_end].ctypes.data,
                 arrayRegion,
                 planeRegion,
@@ -160,8 +151,8 @@ class TurboJpegTest(unittest.TestCase):
         extended_height = 16
         callback_row_heigth = 8
         background_luminance = 508
-        gray = False
         transformID = 0
+        blank_image_transform = BlankImage()
 
         crop_region = CroppingRegion(0, 0, extended_width, extended_height)
 
@@ -175,12 +166,9 @@ class TurboJpegTest(unittest.TestCase):
 
         planeRegion = CroppingRegion(0, 0, extended_width, extended_width)
 
-        transform_struct = BlankTransformStruct(
+        transform_struct = blank_image_transform.transform(
             crop_region,
-            TJXOP_NONE,
-            TJXOPT_PERFECT | TJXOPT_CROP | (gray and TJXOPT_GRAY),
-            pointer(BlankStruct(0, background_luminance)),
-            CUSTOMFILTER(blank_image),
+            BlankStruct(0, background_luminance),
         )
 
         # Iterate through components
@@ -198,7 +186,7 @@ class TurboJpegTest(unittest.TestCase):
                 arrayRegion = CroppingRegion(
                     0, row * callback_row_heigth, extended_width, callback_row_heigth
                 )
-                callback_result = blank_image(
+                _ = blank_image_transform.callback(
                     coeffs[data_start:data_end].ctypes.data,  # type: ignore
                     arrayRegion,
                     planeRegion,
