@@ -186,7 +186,7 @@ class SvsTiledPage(NativeTiledPage):
         self,
         page: TiffPage,
         fh: FileHandle,
-        base_shape: Size,
+        base_size: Size,
         base_mpp: SizeMm,
         parent: Optional["SvsTiledPage"] = None,
     ):
@@ -198,17 +198,18 @@ class SvsTiledPage(NativeTiledPage):
             TiffPage defining the page.
         fh: FileHandle
             Filehandler to read data from.
-        base_shape: Size
+        base_size: Size
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
         parent: Optional['SvsTiledPage'] = None
             Parent SvsTiledPage
         """
-        super().__init__(page, fh, True)
-        self._base_shape = base_shape
+
+        super().__init__(page, fh)
+        self._base_size = base_size
         self._base_mpp = base_mpp
-        self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
+        self._pyramid_index = self._calculate_pyramidal_index(self._base_size)
         self._mpp = self._calculate_mpp(self._base_mpp)
         self._parent = parent
         (
@@ -220,7 +221,7 @@ class SvsTiledPage(NativeTiledPage):
     def __repr__(self) -> str:
         return (
             f'{type(self).__name__}({self._page}, {self._fh}, '
-            f'{self._base_shape}, {self._base_mpp})'
+            f'{self._base_size}, {self._base_mpp})'
         )
 
     @property

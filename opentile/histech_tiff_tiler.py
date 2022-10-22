@@ -30,7 +30,12 @@ from opentile.metadata import Metadata
 
 
 class HistechTiffTiledPage(NativeTiledPage):
-    def __init__(self, page: TiffPage, fh: FileHandle, base_shape: Size):
+    def __init__(
+        self,
+        page: TiffPage,
+        fh: FileHandle,
+        base_size: Size
+    ):
         """OpenTiledPage for 3DHistech Tiff-page.
 
         Parameters
@@ -39,17 +44,18 @@ class HistechTiffTiledPage(NativeTiledPage):
             TiffPage defining the page.
         fh: FileHandler
             Filehandler to read data from.
-        base_shape: Size
+        base_size: Size
             Size of base level in pyramid.
         """
         super().__init__(page, fh)
-        self._base_shape = base_shape
-        self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
+        self._base_size = base_size
+        self._pyramid_index = self._calculate_pyramidal_index(self._base_size)
         self._mpp = self._get_mpp_from_page()
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._page}, {self._fh}, " f"{self._base_shape})"
+            f'{type(self).__name__}({self._page}, {self._fh}, '
+            f'{self._base_size})'
         )
 
     @property

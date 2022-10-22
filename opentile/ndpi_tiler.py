@@ -458,7 +458,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         self,
         page: TiffPage,
         fh: FileHandle,
-        base_shape: Size,
+        base_size: Size,
         tile_size: Size,
         jpeg: Jpeg,
         frame_cache: int = 1,
@@ -471,7 +471,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             TiffPage defining the page.
         fh: FileHandle
             Filehandler to read data from.
-        base_shape: Size
+        base_size: Size
             Size of base level in pyramid.
         tile_size: Size
             Requested tile size.
@@ -481,18 +481,18 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             Number of read frames to cache.
         """
         super().__init__(page, fh, jpeg)
-        self._base_shape = base_shape
+        self._base_size = base_size
         self._tile_size = tile_size
         self._file_frame_size = self._get_file_frame_size()
         self._frame_size = Size.max(self.tile_size, self._file_frame_size)
-        self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
+        self._pyramid_index = self._calculate_pyramidal_index(self._base_size)
         self._frame_cache = NdpiCache(frame_cache)
         self._headers: Dict[Size, bytes] = {}
 
     def __repr__(self) -> str:
         return (
             f'{type(self).__name__}({self._page}, {self._fh}, '
-            f'{self._base_shape}, {self.tile_size}, {self._jpeg}, '
+            f'{self._base_size}, {self.tile_size}, {self._jpeg}, '
             f'{self._frame_cache.size})'
         )
 
@@ -736,7 +736,7 @@ class NdpiStripedPage(NdpiTiledPage):
         self,
         page: TiffPage,
         fh: FileHandle,
-        base_shape: Size,
+        base_size: Size,
         tile_size: Size,
         jpeg: Jpeg,
         frame_cache: int = 1,
@@ -749,7 +749,7 @@ class NdpiStripedPage(NdpiTiledPage):
             TiffPage defining the page.
         fh: FileHandle
             Filehandler to read data from.
-        base_shape: Size
+        base_size: Size
             Size of base level in pyramid.
         tile_size: Size
             Requested tile size.
@@ -758,7 +758,7 @@ class NdpiStripedPage(NdpiTiledPage):
         frame_cache: int:
             Number of read frames to cache.
         """
-        super().__init__(page, fh, base_shape, tile_size, jpeg, frame_cache)
+        super().__init__(page, fh, base_size, tile_size, jpeg, frame_cache)
         self._striped_size = Size(self.page.chunked[1], self.page.chunked[0])
         jpeg_header = self.page.jpegheader
         assert isinstance(jpeg_header, bytes)

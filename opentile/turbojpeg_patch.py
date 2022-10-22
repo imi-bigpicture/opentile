@@ -311,7 +311,7 @@ class TurboJPEG_patch(TurboJPEG):
     def _map_luminance_to_dc_dct_coefficient(
         cls, jpeg_data: bytes, luminance: float
     ) -> int:
-        return cls._TurboJPEG__map_luminance_to_dc_dct_coefficient(  # type: ignore
+        return cls._TurboJPEG__map_luminance_to_dc_dct_coefficient(  # type: ignore # NOQA
             jpeg_data,
             luminance
         )

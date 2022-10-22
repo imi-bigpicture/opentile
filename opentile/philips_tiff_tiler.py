@@ -32,7 +32,7 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         self,
         page: TiffPage,
         fh: FileHandle,
-        base_shape: Size,
+        base_size: Size,
         base_mpp: SizeMm,
         jpeg: Jpeg,
     ):
@@ -44,7 +44,7 @@ class PhilipsTiffTiledPage(NativeTiledPage):
             TiffPage defining the page.
         fh: FileHandle
             Filehandler to read data from.
-        base_shape: Size
+        base_size: Size
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
@@ -53,16 +53,16 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         """
         super().__init__(page, fh)
         self._jpeg = jpeg
-        self._base_shape = base_shape
+        self._base_size = base_size
         self._base_mpp = base_mpp
-        self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
+        self._pyramid_index = self._calculate_pyramidal_index(self._base_size)
         self._mpp = self._calculate_mpp(self._base_mpp)
         self._blank_tile = self._create_blank_tile()
 
     def __repr__(self) -> str:
         return (
             f'{type(self).__name__}({self._page}, {self._fh}, '
-            f'{self._base_shape}, {self._base_mpp}, {self._jpeg})'
+            f'{self._base_size}, {self._base_mpp}, {self._jpeg})'
         )
 
     @property

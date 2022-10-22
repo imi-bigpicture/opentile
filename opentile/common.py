@@ -155,7 +155,10 @@ class OpenTilePage(metaclass=ABCMeta):
         self._page = page
         self._fh = LockableFileHandle(fh)
         self._add_rgb_colorspace_fix = add_rgb_colorspace_fix
-        self._image_size = Size(self._page.shape[1], self._page.shape[0])
+        self._image_size = Size(
+            self._page.imagewidth,
+            self._page.imagelength
+        )
         if self.page.is_tiled:
             self._tile_size = Size(self.page.tilewidth, self.page.tilelength)
         else:
@@ -390,9 +393,9 @@ class OpenTilePage(metaclass=ABCMeta):
 
     def _calculate_pyramidal_index(
         self,
-        base_shape: Size,
+        base_size: Size,
     ) -> int:
-        return int(math.log2(base_shape.width / self.image_size.width))
+        return int(math.log2(base_size.width/self.image_size.width))
 
     def _calculate_mpp(self, base_mpp: SizeMm) -> SizeMm:
         return base_mpp * pow(2, self.pyramid_index)
@@ -507,7 +510,10 @@ class Tiler(metaclass=ABCMeta):
         base_page = self.series[self._level_series_index].pages[0]
         assert isinstance(base_page, TiffPage)
         self._base_page = base_page
-        self._base_size = Size(self.base_page.shape[1], self.base_page.shape[0])
+        self._base_size = Size(
+            self.base_page.imagewidth,
+            self.base_page.imagelength
+        )
 
     def __enter__(self):
         return self
