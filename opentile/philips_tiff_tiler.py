@@ -16,7 +16,7 @@ from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
-from xml.etree import ElementTree
+from defusedxml import ElementTree
 
 from tifffile.tifffile import (COMPRESSION, FileHandle, TiffFile, TiffPage,
                                TiffPageSeries)
