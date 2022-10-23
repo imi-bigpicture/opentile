@@ -324,6 +324,42 @@ class OpenTilePage(metaclass=ABCMeta):
         """
         return [self.get_decoded_tile(tile) for tile in tile_positions]
 
+    def get_all_tiles(self, raw: bool = False) -> Iterator[bytes]:
+        """Return iterator of all tiles in page.
+
+        Parameters
+        ----------
+        raw: bool = False
+            Set to True to not do any format-specifc processing on the tile.
+
+        Returns
+        ----------
+        Iterator[bytes]
+            Iterator of all tiles in page.
+        """
+        if raw:
+            return (
+                self._read_frame(index)
+                for index in range(self.tiled_size.area)
+            )
+        return (
+            self.get_tile(tile.to_tuple())
+            for tile in self.tiled_region.iterate_all(True)
+        )
+
+    def get_all_tiles_decoded(self) -> Iterator[np.ndarray]:
+        """Return iterator of all tiles in page decoded.
+
+        Returns
+        ----------
+        Iterator[np.ndarray]
+            Iterator of all tiles in page decoded.
+        """
+        return (
+            self.get_decoded_tile(tile.to_tuple())
+            for tile in self.tiled_region.iterate_all(True)
+        )
+
     def close(self) -> None:
         """Close filehandle."""
         self._fh.close()
