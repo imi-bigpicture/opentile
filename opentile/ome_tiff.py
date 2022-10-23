@@ -73,6 +73,10 @@ class OmeTiffPage(OpenTilePage):
 
 
 class OmeTiffOneFramePage(NdpiOneFramePage):
+    """Some ome tiff files have levels that are not tiled, similar to ndpi.
+    Not sure if this is something worht supporting yet, and if so should either
+    refactor the ndpi-classes to separate out the ndpi-specific metadata
+    processing or make a new metadata processing class."""
     def __init__(
         self,
         page: TiffPage,
@@ -217,6 +221,11 @@ class OmeTiffTiledPage(NativeTiledPage):
 class OmeTiffTiler(
     Tiler[Union[OmeTiffOneFramePage, OmeTiffTiledPage, OmeTiffPage]]
 ):
+    """Simple tiler for ome-tiff. Works with images converted with QuPath using
+    jpeg. Might report 'wrong' photometric interpretation. Does not support rgb
+    images where the colors are separated. This could maybe be supported by
+    using turbo-jpeg to losslessly merge the rgb components (assuming they have
+    the same tables)."""
     def __init__(
         self,
         filepath: Union[str, Path],
