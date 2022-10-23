@@ -24,3 +24,6 @@ ndpi_file_path = Path(test_data_dir).joinpath('slides/ndpi/CMU-1/CMU-1.ndpi')
 histech_file_path = Path(test_data_dir).joinpath(
     'slides/3dhistech_tiff/CMU-1/CMU-1_Default_Extended.tif'
 )
+ome_tiff_file_path = Path(test_data_dir).joinpath(
+    'slides/ome_tiff/CMU-1/CMU-1.ome.tiff'
+)

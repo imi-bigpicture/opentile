@@ -18,12 +18,8 @@ import unittest
 import pytest
 from opentile import OpenTile
 
-from .filepaths import (
-    histech_file_path,
-    ndpi_file_path,
-    philips_file_path,
-    svs_file_path,
-)
+from .filepaths import (histech_file_path, ndpi_file_path, philips_file_path,
+                        svs_file_path, ome_tiff_file_path)
 
 
 @pytest.mark.unittest
@@ -39,6 +35,9 @@ class InterfaceTest(unittest.TestCase):
 
     def test_open_histech(self):
         self._test_open(histech_file_path)
+
+    def test_open_ome_tiff(self):
+        self._test_open(ome_tiff_file_path)
 
     def _test_open(self, file: Path):
         self._check_file_exists(file)

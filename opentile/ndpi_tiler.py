@@ -308,8 +308,10 @@ class NdpiPage(OpenTilePage):
         try:
             # Defined in nm
             assert isinstance(page.ndpi_tags, dict)
-            self._focal_plane = page.ndpi_tags["ZOffsetFromSlideCenter"] / 1000.0
-        except KeyError:
+            self._focal_plane = (
+                page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
+            )
+        except (KeyError, AssertionError):
             self._focal_plane = 0.0
 
         self._mpp = self._get_mpp_from_page()
