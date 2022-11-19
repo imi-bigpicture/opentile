@@ -216,6 +216,11 @@ class OpenTilePage(metaclass=ABCMeta):
         return self._page.samplesperpixel
 
     @property
+    def bit_depth(self) -> int:
+        """Return the sample bit depth."""
+        return self._page.bitspersample
+
+    @property
     def page(self) -> TiffPage:
         """Return source TiffPage."""
         return self._page
