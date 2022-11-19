@@ -17,11 +17,11 @@ from struct import pack, unpack
 from typing import Iterator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+from turbojpeg import TJPF_RGB, tjMCUHeight, tjMCUWidth
 
 from opentile.geometry import Size
 from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.turbojpeg_patch import (find_turbojpeg_path, tjMCUHeight,
-                                      tjMCUWidth)
+from opentile.turbojpeg_patch import find_turbojpeg_path
 
 
 class JpegTagNotFound(Exception):
@@ -146,7 +146,7 @@ class Jpeg:
         if colorspace_fix:
             frame = self._add_color_space_fix(frame)
 
-        assert(
+        assert (
             image_size is not None
             and scan_size is not None
             and subsample is not None
@@ -154,7 +154,7 @@ class Jpeg:
         frame = self._manipulate_header(
             frame,
             image_size,
-            scan_size.area//self.subsample_to_mcu_size(subsample)
+            scan_size.area // self.subsample_to_mcu_size(subsample)
         )
         return bytes(frame)
 
@@ -188,7 +188,7 @@ class Jpeg:
         np.ndarray:
             Decoded frame as np array.
         """
-        return self._turbo_jpeg.decode(frame)
+        return self._turbo_jpeg.decode(frame, pixel_format=TJPF_RGB)
 
     def encode(self, data: np.ndarray) -> bytes:
         """Encode np array to bytes.
@@ -365,7 +365,7 @@ class Jpeg:
         """
         index = frame.find(tag)
         if index != -1:
-            (length, ) = unpack('>H', frame[index+2:index+4])
+            (length, ) = unpack('>H', frame[index + 2:index + 4])
             return index, length
 
         return None, None
@@ -399,18 +399,18 @@ class Jpeg:
                 frame, cls.start_of_frame()
             )
             if start_of_frame_index is None:
-                raise JpegTagNotFound("Start of frame tag not found in header")
-            size_index = start_of_frame_index+5
-            frame[size_index:size_index+2] = cls.code_short(size.height)
-            frame[size_index+2:size_index+4] = cls.code_short(size.width)
+                raise JpegTagNotFound('Start of frame tag not found in header')
+            size_index = start_of_frame_index + 5
+            frame[size_index:size_index + 2] = cls.code_short(size.height)
+            frame[size_index + 2:size_index + 4] = cls.code_short(size.width)
 
         if restart_interval is not None:
             restart_payload = cls.code_short(restart_interval)
             restart_index, _ = cls._find_tag(frame, cls.restart_interval())
             if restart_index is not None:
                 # Modify excisting restart tag
-                payload_index = restart_index+4
-                frame[payload_index:payload_index+2] = restart_payload
+                payload_index = restart_index + 4
+                frame[payload_index:payload_index + 2] = restart_payload
             else:
                 # Make and insert new restart tag
                 start_of_scan_index, _ = cls._find_tag(
