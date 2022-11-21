@@ -12,8 +12,10 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from datetime import datetime
+from functools import cached_property
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 from xml.etree import ElementTree
 
 from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
@@ -21,6 +23,7 @@ from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
+from opentile.metadata import Metadata
 
 
 class PhilipsTiffTiledPage(NativeTiledPage):
@@ -133,6 +136,128 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         return super()._read_frame(index)
 
 
+CastType = TypeVar('CastType', int, float, str)
+
+
+class PhilipsMetadata(Metadata):
+    _scanner_manufacturer: Optional[str] = None
+    _scanner_software_versions: Optional[List[str]] = None
+    _scanner_serial_number: Optional[str] = None
+    _pixel_spacing: Optional[Tuple[float, float]] = None
+
+    TAGS = [
+        'DICOM_PIXEL_SPACING',
+        'DICOM_ACQUISITION_DATETIME',
+        'DICOM_MANUFACTURER',
+        'DICOM_SOFTWARE_VERSIONS',
+        'DICOM_DEVICE_SERIAL_NUMBER',
+        'DICOM_LOSSY_IMAGE_COMPRESSION_METHOD',
+        'DICOM_LOSSY_IMAGE_COMPRESSION_RATIO',
+        'DICOM_BITS_STORED',
+        'DICOM_HIGH_BIT',
+        'DICOM_PIXEL_REPRESENTATION'
+    ]
+
+    def __init__(
+        self,
+        tiff_file: TiffFile
+    ):
+        if tiff_file.philips_metadata is None:
+            return
+
+        metadata = ElementTree.fromstring(tiff_file.philips_metadata)
+        self._tags: Dict[str, Optional[str]] = {
+            tag: None for tag in self.TAGS
+        }
+        for element in metadata.iter():
+            if element.tag == 'Attribute' and element.text is not None:
+                name = element.attrib['Name']
+                if name in self._tags and self._tags[name] is None:
+                    self._tags[name] = element.text
+
+    @property
+    def scanner_manufacturer(self) -> Optional[str]:
+        return self._tags['DICOM_MANUFACTURER']
+
+    @cached_property
+    def scanner_software_versions(self) -> Optional[List[str]]:
+        print(self._tags['DICOM_SOFTWARE_VERSIONS'])
+        if self._tags['DICOM_SOFTWARE_VERSIONS'] is None:
+            return None
+        return self._split_and_cast_text(
+            self._tags['DICOM_SOFTWARE_VERSIONS'],
+            str
+        )
+
+    @property
+    def scanner_serial_number(self) -> Optional[str]:
+        return self._tags['DICOM_DEVICE_SERIAL_NUMBER']
+
+    @cached_property
+    def aquisition_datetime(self) -> Optional[datetime]:
+        if self._tags['DICOM_ACQUISITION_DATETIME'] is None:
+            return None
+        try:
+            return datetime.strptime(
+                self._tags['DICOM_ACQUISITION_DATETIME'],
+                r'%Y%m%d%H%M%S.%f'
+            )
+        except ValueError:
+            return None
+
+    @cached_property
+    def pixel_spacing(self) -> Optional[Tuple[float, float]]:
+        if self._tags['DICOM_PIXEL_SPACING'] is None:
+            return None
+        return tuple(
+            self._split_and_cast_text(
+                self._tags['DICOM_PIXEL_SPACING'],
+                float
+            )[0:2]
+        )
+
+    @cached_property
+    def properties(self) -> Dict[str, Any]:
+        properties: Dict[str, Any] = {}
+        if self._tags['DICOM_LOSSY_IMAGE_COMPRESSION_METHOD'] is not None:
+            properties['lossy_image_compression_method'] = (
+                self._split_and_cast_text(
+                    self._tags['DICOM_LOSSY_IMAGE_COMPRESSION_METHOD'],
+                    str
+                )
+            )
+        if self._tags['DICOM_LOSSY_IMAGE_COMPRESSION_RATIO'] is not None:
+            properties['lossy_image_compression_ratio'] = (
+                self._split_and_cast_text(
+                    self._tags['DICOM_LOSSY_IMAGE_COMPRESSION_RATIO'],
+                    float
+                )[0]
+            )
+        if self._tags['DICOM_BITS_ALLOCATED'] is not None:
+            properties['bits_allocated'] = int(
+                self._tags['DICOM_BITS_ALLOCATED']
+            )
+        if self._tags['DICOM_BITS_STORED'] is not None:
+            properties['bits_stored'] = int(self._tags['DICOM_BITS_STORED'])
+        if self._tags['DICOM_HIGH_BIT'] is not None:
+            properties['high_bit'] = int(self._tags['DICOM_HIGH_BIT'])
+
+        if self._tags['DICOM_PIXEL_REPRESENTATION'] is not None:
+            properties['pixel_representation'] = (
+                self._tags['DICOM_PIXEL_REPRESENTATION']
+            )
+        return properties
+
+    @staticmethod
+    def _split_and_cast_text(
+        string: str,
+        cast_type: Type[CastType]
+    ) -> List[CastType]:
+        return [
+            cast_type(element) for element in string.replace('"', '').split()
+        ]
+
+
 class PhilipsTiffTiler(Tiler):
     def __init__(
         self,
@@ -160,20 +285,16 @@ class PhilipsTiffTiler(Tiler):
                 self._label_series_index = series_index
             elif self.is_overview(series):
                 self._overview_series_index = series_index
-        self._properties = self._read_properties()
-        mpp = self.properties['pixel_spacing'] * 1000.0
-        self._base_mpp = SizeMm(mpp, mpp)
+        self._metadata = PhilipsMetadata(self._tiff_file)
+        assert self._metadata.pixel_spacing is not None
+        self._base_mpp = (
+            SizeMm.from_tuple(self._metadata.pixel_spacing) * 1000.0
+        )
         self._pages: Dict[Tuple[int, int, int], PhilipsTiffTiledPage] = {}
 
     @property
-    def base_mpp(self) -> SizeMm:
-        """Return pixel spacing in um/pixel for base level."""
-        return self._base_mpp
-
-    @property
-    def properties(self) -> Dict[str, Any]:
-        """Return dictionary with philips tiff file properties."""
-        return self._properties
+    def metadata(self) -> Metadata:
+        return self._metadata
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
@@ -191,7 +312,7 @@ class PhilipsTiffTiler(Tiler):
                 self._get_tiff_page(series, level, page),
                 self._fh,
                 self.base_size,
-                self.base_mpp,
+                self._base_mpp,
                 self._jpeg
             )
         return self._pages[series, level, page]
@@ -200,14 +321,14 @@ class PhilipsTiffTiler(Tiler):
     def is_overview(series: TiffPageSeries) -> bool:
         """Return true if series is a overview series."""
         page = series.pages[0]
-        assert(isinstance(page, TiffPage))
+        assert isinstance(page, TiffPage)
         return page.description.find('Macro') > -1
 
     @staticmethod
     def is_label(series: TiffPageSeries) -> bool:
         """Return true if series is a label series."""
         page = series.pages[0]
-        assert(isinstance(page, TiffPage))
+        assert isinstance(page, TiffPage)
         return page.description.find('Label') > -1
 
     @staticmethod
@@ -218,86 +339,9 @@ class PhilipsTiffTiler(Tiler):
         pixel_size_start = page.description.find(pixel_size_start_string)
         pixel_size_end = page.description.find(')', pixel_size_start)
         pixel_size_string = page.description[
-            pixel_size_start+len(pixel_size_start_string):pixel_size_end
+            pixel_size_start + len(pixel_size_start_string):pixel_size_end
         ]
         pixel_spacing = SizeMm.from_tuple(
             [float(v) for v in pixel_size_string.replace('"', '').split(',')]
         )
         return pixel_spacing / 1000.0
-
-    @staticmethod
-    def _split_and_cast_text(string: str, cast_type: Any) -> List[Any]:
-        return [
-            cast_type(element) for element in string.replace('"', '').split()
-        ]
-
-    def _read_properties(self) -> Dict[str, Any]:
-        """Return dictionary with philips tiff file properties."""
-        metadata = ElementTree.fromstring(
-            str(self._tiff_file.philips_metadata)
-        )
-        pixel_spacing: Optional[float] = None
-        aquisition_datetime: Optional[str] = None
-        device_serial_number: Optional[str] = None
-        manufacturer: Optional[str] = None
-        software_versions: Optional[str] = None
-        lossy_image_compression_method: Optional[str] = None
-        lossy_image_compression_ratio: Optional[str] = None
-        photometric_interpretation: Optional[str] = None
-        bits_allocated: Optional[int] = None
-        bits_stored: Optional[int] = None
-        high_bit: Optional[int] = None
-        pixel_representation: Optional[str] = None
-        for element in metadata.iter():
-            if element.tag == 'Attribute' and element.text is not None:
-                name = element.attrib['Name']
-                if name == 'DICOM_PIXEL_SPACING' and pixel_spacing is None:
-                    pixel_spacing = self._split_and_cast_text(
-                        element.text,
-                        float
-                    )[0]
-                elif name == 'DICOM_ACQUISITION_DATETIME':
-                    aquisition_datetime = element.text
-                elif name == 'DICOM_DEVICE_SERIAL_NUMBER':
-                    device_serial_number = element.text
-                elif name == 'DICOM_MANUFACTURER':
-                    manufacturer = element.text
-                elif name == 'DICOM_SOFTWARE_VERSIONS':
-                    software_versions = self._split_and_cast_text(
-                        element.text,
-                        str
-                    )[0]
-                elif name == 'DICOM_LOSSY_IMAGE_COMPRESSION_METHOD':
-                    lossy_image_compression_method = self._split_and_cast_text(
-                        element.text,
-                        str
-                    )[0]
-                elif name == 'DICOM_LOSSY_IMAGE_COMPRESSION_RATIO':
-                    lossy_image_compression_ratio = self._split_and_cast_text(
-                        element.text,
-                        float
-                    )[0]
-                elif name == 'DICOM_PHOTOMETRIC_INTERPRETATION':
-                    photometric_interpretation = element.text
-                elif name == 'DICOM_BITS_ALLOCATED':
-                    bits_allocated = int(element.text)
-                elif name == 'DICOM_BITS_STORED':
-                    bits_stored = int(element.text)
-                elif name == 'DICOM_HIGH_BIT':
-                    high_bit = int(element.text)
-                elif name == 'DICOM_PIXEL_REPRESENTATION':
-                    pixel_representation = element.text
-        return {
-            'pixel_spacing': pixel_spacing,
-            'aquisition_datetime': aquisition_datetime,
-            'device_serial_number': device_serial_number,
-            'manufacturer': manufacturer,
-            'software_versions': software_versions,
-            'lossy_image_compression_method': lossy_image_compression_method,
-            'lossy_image_compression_ratio': lossy_image_compression_ratio,
-            'photometric_interpretation': photometric_interpretation,
-            'bits_allocated': bits_allocated,
-            'bits_stored': bits_stored,
-            'high_bit': high_bit,
-            'pixel_representation': pixel_representation
-        }
