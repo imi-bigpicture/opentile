@@ -12,8 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from datetime import datetime
-from functools import cached_property
 import math
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
@@ -25,7 +23,6 @@ from tifffile.tifffile import COMPRESSION, TIFF, FileHandle, TiffFile, TiffPage
 from opentile.common import OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
-from opentile.metadata import Metadata
 
 
 def get_value_from_ndpi_comments(
@@ -37,7 +34,7 @@ def get_value_from_ndpi_comments(
     for line in comments.split("\n"):
         if value_name in line:
             value_string = line.split('=')[1]
-            return value_type(value_string)
+            return(value_type(value_string))
 
 
 class NdpiCache():
@@ -325,7 +322,7 @@ class NdpiPage(OpenTilePage):
         self._jpeg = jpeg
         try:
             # Defined in nm
-            assert isinstance(page.ndpi_tags, dict)
+            assert(isinstance(page.ndpi_tags, dict))
             self._focal_plane = (
                 page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
             )
@@ -333,6 +330,7 @@ class NdpiPage(OpenTilePage):
             self._focal_plane = 0.0
 
         self._mpp = self._get_mpp_from_page()
+        self._properties = self._get_properties()
 
     def __repr__(self) -> str:
         return (
@@ -353,6 +351,11 @@ class NdpiPage(OpenTilePage):
     def mpp(self) -> SizeMm:
         """Return pixel spacing in um per pixel."""
         return self._mpp
+
+    @property
+    def properties(self) -> Dict[str, Any]:
+        """Return dictionary with ndpifile properties."""
+        return self._properties
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return tile for tile position.
@@ -395,9 +398,35 @@ class NdpiPage(OpenTilePage):
         if resolution_unit != TIFF.RESUNIT.CENTIMETER:
             raise ValueError("Unkown resolution unit")
         # 10*1000 um per cm
-        mpp_x = 10 * 1000 / x_resolution
-        mpp_y = 10 * 1000 / y_resolution
+        mpp_x = 10*1000/x_resolution
+        mpp_y = 10*1000/y_resolution
         return SizeMm(mpp_x, mpp_y)
+
+    def _get_properties(self) -> Dict[str, Any]:
+        """Return dictionary with ndpifile properties."""
+        ndpi_tags = self.page.ndpi_tags
+        manufacturer = getattr(ndpi_tags, 'Make', None)
+        model = getattr(ndpi_tags, 'Model', None)
+        software_version = getattr(ndpi_tags, 'Software', None)
+        if software_version is not None:
+            software_versions = [software_version]
+        else:
+            software_versions = []
+        device_serial_number = getattr(ndpi_tags, 'ScannerSerialNumber', None)
+        aquisition_datetime = self._get_value_from_tiff_tags(
+            self.page.tags, 'DateTime'
+        )
+        photometric_interpretation = self._get_value_from_tiff_tags(
+            self.page.tags, 'PhotometricInterpretation'
+        )
+        return {
+            'aquisition_datetime': aquisition_datetime,
+            'device_serial_number': device_serial_number,
+            'manufacturer': manufacturer,
+            'model': model,
+            'software_versions': software_versions,
+            'photometric_interpretation': photometric_interpretation
+        }
 
 
 class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
@@ -747,7 +776,7 @@ class NdpiStripedPage(NdpiTiledPage):
         super().__init__(page, fh, base_shape, tile_size, jpeg, frame_cache)
         self._striped_size = Size(self.page.chunked[1], self.page.chunked[0])
         jpeg_header = self.page.jpegheader
-        assert isinstance(jpeg_header, bytes)
+        assert(isinstance(jpeg_header, bytes))
         self._jpeg_header = jpeg_header
 
     @property
@@ -895,74 +924,6 @@ class NdpiStripedPage(NdpiTiledPage):
         return position.x + position.y * self.striped_size.width
 
 
-class NdpiMetadata(Metadata):
-    def __init__(
-        self,
-        page: TiffPage
-    ):
-        self._tags = page.tags
-        if page.ndpi_tags is not None:
-            self._ndpi_tags = page.ndpi_tags
-        else:
-            self._ndpi_tags = {}
-
-    @cached_property
-    def magnification(self) -> Optional[float]:
-        try:
-            return float(self._ndpi_tags['Magnification'])
-        except (AttributeError, ValueError):
-            return None
-
-    @property
-    def scanner_manufacturer(self) -> Optional[str]:
-        return self._ndpi_tags.get('Make')
-
-    @property
-    def scanner_model(self) -> Optional[str]:
-        return self._ndpi_tags.get('Model')
-
-    @property
-    def scanner_software_versions(self) -> Optional[List[str]]:
-        software_version = self._ndpi_tags.get('Software')
-        if software_version is not None:
-            return [software_version]
-        return None
-
-    @property
-    def scanner_serial_number(self) -> Optional[str]:
-        return self._ndpi_tags.get('ScannerSerialNumber')
-
-    @cached_property
-    def aquisition_datetime(self) -> Optional[datetime]:
-        datetime_tag = self._tags.get('DateTime')
-        if datetime_tag is None:
-            return None
-        try:
-            return datetime.strptime(
-                datetime_tag.value,
-                '%Y:%m:%d %H:%M:%S'
-            )
-        except ValueError:
-            return None
-
-    @cached_property
-    def properties(self) -> Dict[str, Any]:
-        x_offset_from_slide_center = self._ndpi_tags.get(
-            'XOffsetFromSlideCenter'
-        )
-        y_offset_from_slide_center = self._ndpi_tags.get(
-            'YOffsetFromSlideCenter'
-        )
-        z_offset_from_slide_center = self._ndpi_tags.get(
-            'ZXOffsetFromSlideCenter'
-        )
-        return {
-            'x_offset_from_slide_center': x_offset_from_slide_center,
-            'y_offset_from_slide_center': y_offset_from_slide_center,
-            'z_offset_from_slide_center': z_offset_from_slide_center
-        }
-
-
 class NdpiTiler(Tiler):
     def __init__(
         self,
@@ -1005,7 +966,6 @@ class NdpiTiler(Tiler):
             elif series.name == 'Macro':
                 self._overview_series_index = series_index
         self._pages: Dict[Tuple[int, int, int], NdpiPage] = {}
-        self._metadata = NdpiMetadata(self.base_page)
 
     def __repr__(self) -> str:
         return (
@@ -1021,10 +981,6 @@ class NdpiTiler(Tiler):
     def tile_size(self) -> Size:
         """The size of the tiles to generate."""
         return self._tile_size
-
-    @property
-    def metadata(self) -> Metadata:
-        return self._metadata
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
@@ -1094,7 +1050,7 @@ class NdpiTiler(Tiler):
         """
         smallest_stripe_width: Optional[int] = None
         for page in self._tiff_file.pages:
-            assert isinstance(page, TiffPage)
+            assert(isinstance(page, TiffPage))
             stripe_width = page.chunks[1]
             if (
                 page.is_tiled and
@@ -1129,7 +1085,7 @@ class NdpiTiler(Tiler):
             Created level.
         """
         tiff_page = self._tiff_file.series[series].levels[level].pages[page]
-        assert isinstance(tiff_page, TiffPage)
+        assert(isinstance(tiff_page, TiffPage))
         if tiff_page.is_tiled:  # Striped ndpi page
             return NdpiStripedPage(
                 tiff_page,

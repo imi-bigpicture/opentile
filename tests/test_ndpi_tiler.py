@@ -12,7 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from datetime import datetime
 import unittest
 from hashlib import md5
 from typing import cast
@@ -188,7 +187,7 @@ class NdpiTilerTest(unittest.TestCase):
                 NdpiFrameJob(
                     [
                         NdpiTile(
-                            Point(index_x_0 + index_x_1, index_y),
+                            Point(index_x_0+index_x_1, index_y),
                             self.tile_size,
                             self.level.frame_size
                         )
@@ -255,7 +254,7 @@ class NdpiTilerTest(unittest.TestCase):
 
     def test_header(self):
         header = self.level._page.jpegheader
-        assert isinstance(header, bytes)
+        assert(isinstance(header, bytes))
         self.assertEqual(
             '579211c6b9fedca17d94b95840f4b985',
             md5(header).hexdigest()
@@ -328,40 +327,4 @@ class NdpiTilerTest(unittest.TestCase):
         self.assertEqual(
             3,
             self.tiler.get_level(0).samples_per_pixel
-        )
-
-    def test_metadata_magnification(self):
-        self.assertEqual(
-            20.0,
-            self.tiler.metadata.magnification
-        )
-
-    def test_metadata_scanner_manufacturer(self):
-        self.assertEqual(
-            'Hamamatsu',
-            self.tiler.metadata.scanner_manufacturer
-        )
-
-    def test_metadata_scanner_model(self):
-        self.assertEqual(
-            'NanoZoomer',
-            self.tiler.metadata.scanner_model
-        )
-
-    def test_metadata_scanner_software_versions(self):
-        self.assertEqual(
-            ['NDP.scan'],
-            self.tiler.metadata.scanner_software_versions
-        )
-
-    def test_metadata_scanner_serial_number(self):
-        self.assertEqual(
-            None,
-            self.tiler.metadata.scanner_serial_number
-        )
-
-    def test_metadata_aquisition_datetime(self):
-        self.assertEqual(
-            datetime(2009, 12, 31, 9, 11, 46),
-            self.tiler.metadata.aquisition_datetime
         )

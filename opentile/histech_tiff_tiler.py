@@ -20,7 +20,6 @@ from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.metadata import Metadata
 
 
 class HistechTiffTiledPage(NativeTiledPage):
@@ -113,11 +112,6 @@ class HistechTiffTiler(Tiler):
             elif self.is_overview(series):
                 self._overview_series_index = series_index
         self._pages: Dict[Tuple[int, int, int], HistechTiffTiledPage] = {}
-
-    @property
-    def metadata(self) -> Metadata:
-        """No known metadata for 3DHistech tiff files."""
-        return Metadata()
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:

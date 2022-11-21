@@ -12,7 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from datetime import datetime
 import unittest
 from hashlib import md5
 
@@ -70,27 +69,4 @@ class PhilipsTiffTilerTest(unittest.TestCase):
         self.assertEqual(
             3,
             self.tiler.get_level(0).samples_per_pixel
-        )
-
-    def test_metadata_scanner_manufacturer(self):
-        self.assertEqual(
-            'PHILIPS',
-            self.tiler.metadata.scanner_manufacturer
-        )
-
-    def test_metadata_scanner_software_versions(self):
-        self.assertEqual(
-            ['1.6.5505', '20111209_R44', '4.0.3'],
-            self.tiler.metadata.scanner_software_versions
-        )
-
-    def test_metadata_scanner_serial_number(self):
-        self.assertIsNotNone(
-            self.tiler.metadata.scanner_serial_number
-        )
-
-    def test_metadata_aquisition_datetime(self):
-        self.assertEqual(
-            datetime(2013, 7, 1, 18, 59, 4),
-            self.tiler.metadata.aquisition_datetime
         )
