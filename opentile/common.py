@@ -16,7 +16,7 @@ import math
 import threading
 from abc import ABCMeta, abstractclassmethod, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 from tifffile.tifffile import (COMPRESSION, FileHandle, TiffFile, TiffPage,
@@ -24,6 +24,7 @@ from tifffile.tifffile import (COMPRESSION, FileHandle, TiffFile, TiffPage,
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
+from opentile.metadata import Metadata
 
 
 class LockableFileHandle:
@@ -114,7 +115,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @abstractmethod
     def __repr__(self) -> str:
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def __str__(self) -> str:
         return f"{type(self).__name__} of page {self._page}"
@@ -193,7 +194,7 @@ class OpenTilePage(metaclass=ABCMeta):
     @abstractmethod
     def pixel_spacing(self) -> Optional[SizeMm]:
         """Should return the pixel size in mm/pixel of the page."""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @abstractmethod
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
@@ -209,7 +210,7 @@ class OpenTilePage(metaclass=ABCMeta):
         bytes
             Produced tile at position.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @abstractmethod
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
@@ -225,7 +226,7 @@ class OpenTilePage(metaclass=ABCMeta):
         bytes
             Produced tile at position.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def get_tiles(
         self,
@@ -330,7 +331,7 @@ class OpenTilePage(metaclass=ABCMeta):
         self,
         base_shape: Size,
     ) -> int:
-        return int(math.log2(base_shape.width/self.image_size.width))
+        return int(math.log2(base_shape.width / self.image_size.width))
 
     def _calculate_mpp(
         self,
@@ -390,7 +391,7 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         frame = self.get_tile(tile_position)
         frame_index = self._tile_point_to_frame_index(tile_point)
         data, _, shape = self.page.decode(frame, frame_index)
-        assert(isinstance(data, np.ndarray))
+        assert isinstance(data, np.ndarray)
         data.shape = shape[1:]
         return data
 
@@ -420,7 +421,7 @@ class Tiler(metaclass=ABCMeta):
         """
         self._tiff_file = TiffFile(filepath)
         base_page = self.series[self._level_series_index].pages[0]
-        assert(isinstance(base_page, TiffPage))
+        assert isinstance(base_page, TiffPage)
         self._base_page = base_page
         self._base_size = Size(
             self.base_page.shape[1],
@@ -434,9 +435,8 @@ class Tiler(metaclass=ABCMeta):
         self.close()
 
     @property
-    def properties(self) -> Dict[str, Any]:
-        """Dictionary of properties read from TiffFile."""
-        return {}
+    def metadata(self) -> Metadata:
+        raise NotImplementedError()
 
     @property
     def base_page(self) -> TiffPage:
@@ -495,11 +495,11 @@ class Tiler(metaclass=ABCMeta):
     @abstractmethod
     def get_page(self, series: int, level: int, page: int) -> OpenTilePage:
         """Should return a OpenTilePage for series, level, page in file."""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @abstractclassmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def close(self) -> None:
         """CLose tiff-file."""
@@ -597,5 +597,5 @@ class Tiler(metaclass=ABCMeta):
     def _get_tiff_page(self, series: int, level: int, page: int) -> TiffPage:
         """Return TiffPage for series, level, page."""
         tiff_page = self.series[series].levels[level].pages[page]
-        assert(isinstance(tiff_page, TiffPage))
+        assert isinstance(tiff_page, TiffPage)
         return tiff_page

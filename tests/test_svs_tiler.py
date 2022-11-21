@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from datetime import datetime
 import unittest
 from hashlib import md5
 from typing import cast
@@ -104,4 +105,16 @@ class SvsTilerTest(unittest.TestCase):
         self.assertEqual(
             3,
             self.tiler.get_level(0).samples_per_pixel
+        )
+
+    def test_metadata_magnification(self):
+        self.assertEqual(
+            20.0,
+            self.tiler.metadata.magnification
+        )
+
+    def test_metadata_aquisition_datetime(self):
+        self.assertEqual(
+            datetime(2009, 12, 29, 9, 59, 15),
+            self.tiler.metadata.aquisition_datetime
         )
