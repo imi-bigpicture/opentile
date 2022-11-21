@@ -1,5 +1,7 @@
 # *opentile*
+
 *opentile* is a Python library for reading tiles from wsi tiff files. The aims of the proect are:
+
 - Allow compressed tiles to be losslessly read from wsi tiffs using 2D coordinates (tile position x, y).
 - Provide unified interface for relevant metadata.
 - Support all file formats supported by tifffile that has a non-overlapping tile structure.
@@ -7,21 +9,27 @@
 Crrently supported file formats are listed and described under *Supported file formats*.
 
 ## Installing *opentile*
+
 *opentile* is available on PyPI:
+
 ```console
 $ pip install opentile
 ```
 
 ## Important note
+
 Please note that this is an early release and the API is not frozen yet. Function names and functionality is prone to change.
 
 ## Requirements
+
 *opentile* requires python >=3.7 and uses numpy, Pillow, TiffFile and PyTurboJPEG (with lib-turbojpeg >= 2.1 ).
 
 ## Limitations
+
 Files with z-stacks are currently not fully supported for all formats.
 
 ## Supported file formats
+
 The following description of the workings of the supported file formats does not include the additional specifics for each format that is handled by tifffile. Additional formats supported by tifffile and that have non-overlapping tile layout are likely to be added in future release.
 
 ***Hamamatsu Ndpi***
@@ -38,8 +46,21 @@ Some Asperio svs-files have corrupt tile data at edges of non-base pyramidal lev
 ***3DHistech tiff***
 Only the pyramidal levels are supported (not overviews or labels).
 
+## Metadata
+
+File metadata can be accessed through the `metadata`-property of a tiler. Depending on file format and content, the following metadata is avaiable:
+
+- Magnification
+- Scanner manufacturer
+- Scanner model
+- Scanner software versions
+- Scanner serial number
+- Aquisition datetime
+
 ## Basic usage
+
 ***Load a Ndpi-file using tile size (1024, 1024) pixels.***
+
 ```python
 from opentile import OpenTile
 tile_size = (1024, 1024)
@@ -48,11 +69,13 @@ tiler = OpenTile.open(path_to_ndpi_file, tile_size, turbo_path)
 ```
 
 ***Get rectangular tile at level 0 and position x=0, y=0.***
+
 ```python
 tile = tiler.get_tile(0, (0, 0))
 ```
 
 ***Close the tiler object.***
+
 ```python
 tiler.close()
 ```
@@ -60,6 +83,7 @@ tiler.close()
 ***Usage as context manager***
 
 The tiler can also be used as context manager:
+
 ```python
 from opentile import OpenTile
 tile_size = (1024, 1024)
@@ -69,6 +93,7 @@ with OpenTile.open(path_to_ndpi_file, tile_size, turbo_path) as tiler:
 ```
 
 ## Setup environment for development
+
 Requires poetry and pytest and pytest-watch installed in the virtual environment.
 
 ```console
@@ -77,6 +102,7 @@ $ poetry install
 ```
 
 By default the tests looks for slides in 'tests/testdata'. This can be overriden by setting the OPENTILE_TESTDIR environment variable. The script 'tests/download_test_images.py' can be used to download publically available [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/) into the set testdata folder:
+
 ```console
 $ python tests/download_test_images.py
 ```
@@ -90,10 +116,12 @@ $ poetry run pytest-watch -- -m unittest
 ```
 
 ## Other TIFF python tools
+
 - [tifffile](https://github.com/cgohlke/tifffile)
 - [tiffslide](https://github.com/bayer-science-for-a-better-life/tiffslide)
 
 ## Contributing
+
 We welcome any contributions to help improve this tool for the WSI community!
 
 We recommend first creating an issue before creating potential contributions to check that the contribution is in line with the goals of the project. To submit your contribution, please issue a pull request on the imi-bigpicture/opentile repository with your changes for review.
@@ -101,6 +129,7 @@ We recommend first creating an issue before creating potential contributions to 
 Our aim is to provide constructive and positive code reviews for all submissions. The project relies on gradual typing and roughly follows PEP8. However, we are not dogmatic. Most important is that the code is easy to read and understand.
 
 ## Acknowledgement
+
 *opentile*: Copyright 2021 Sectra AB, licensed under Apache 2.0.
 
 This project is part of a project that has received funding from the Innovative Medicines Initiative 2 Joint Undertaking under grant agreement No 945358. This Joint Undertaking receives support from the European Union’s Horizon 2020 research and innovation programme and EFPIA. IMI website: www.imi.europa.eu

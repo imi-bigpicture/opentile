@@ -19,39 +19,41 @@ from tifffile.tifffile import TiffTags
 
 
 class Metadata:
+    """Class for retrieving metadata from tiff-file. Should be sub-classed
+    to read metadata from specific file formats. """
     @property
     def magnification(self) -> Optional[float]:
-        """Returns the objective magnification if present in file."""
+        """Return the objective magnification if present in file."""
         return None
 
     @property
     def scanner_manufacturer(self) -> Optional[str]:
-        """Returns the scanner manufacturer if present in file."""
+        """Return the scanner manufacturer if present in file."""
         return None
 
     @property
     def scanner_model(self) -> Optional[str]:
-        """Returns the scanner model if present in file."""
+        """Return the scanner model if present in file."""
         return None
 
     @property
     def scanner_software_versions(self) -> Optional[List[str]]:
-        """Returns the scanner software versions if present in file."""
+        """Return the scanner software versions if present in file."""
         return None
 
     @property
     def scanner_serial_number(self) -> Optional[str]:
-        """Returns the scanner serial number if present in file."""
+        """Return the scanner serial number if present in file."""
         return None
 
     @property
     def aquisition_datetime(self) -> Optional[datetime]:
-        """Returns the aquisition datetime if present in file."""
+        """Return the aquisition datetime if present in file."""
         return None
 
     @property
     def properties(self) -> Dict[str, Any]:
-        """Returns a dictionary of other metadata present in file."""
+        """Return a dictionary of other metadata present in file."""
         return {}
 
     @staticmethod
