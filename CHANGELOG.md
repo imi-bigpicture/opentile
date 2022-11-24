@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Use COMPRESSION-enum from TiffFile for compression type checks.
+- Decompress jpeg data to RGB instead of BGR when using turbojpeg.
 
 ## [0.3.0] - 2021-04-20
 ### Added
