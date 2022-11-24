@@ -203,7 +203,7 @@ class Jpeg:
         bytes:
             Encoded frame of data.
         """
-        return self._turbo_jpeg.encode(data)
+        return self._turbo_jpeg.encode(data, pixel_format=TJPF_RGB)
 
     def crop_multiple(
         self,

@@ -16,6 +16,8 @@ import unittest
 from hashlib import md5
 
 import pytest
+from tifffile.tifffile import PHOTOMETRIC
+
 from opentile.histech_tiff_tiler import HistechTiffTiler
 
 from .filepaths import histech_file_path
@@ -56,7 +58,7 @@ class HistechTiffTilerTest(unittest.TestCase):
 
     def test_photometric_interpretation(self):
         self.assertEqual(
-            'YCBCR',
+            PHOTOMETRIC.YCBCR,
             self.tiler.get_level(0).photometric_interpretation
         )
 

@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
-from tifffile.tifffile import (COMPRESSION, FileHandle, TiffFile, TiffPage,
-                               TiffPageSeries, TiffTags)
+from tifffile.tifffile import (COMPRESSION, PHOTOMETRIC, FileHandle, TiffFile,
+                               TiffPage, TiffPageSeries, TiffTags)
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
@@ -136,9 +136,9 @@ class OpenTilePage(metaclass=ABCMeta):
         return COMPRESSION(self._page.compression)
 
     @property
-    def photometric_interpretation(self) -> str:
+    def photometric_interpretation(self) -> PHOTOMETRIC:
         """Return photometric interpretation, e.g. 'YCBCR" or "RGB"."""
-        return str(self._page.photometric).split('.', maxsplit=1)[1]
+        return PHOTOMETRIC(self._page.photometric)
 
     @property
     def subsampling(self) -> Optional[Tuple[int, int]]:

@@ -12,12 +12,14 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from datetime import datetime
 import unittest
+from datetime import datetime
 from hashlib import md5
 from typing import cast
 
 import pytest
+from tifffile.tifffile import PHOTOMETRIC
+
 from opentile.geometry import Point
 from opentile.svs_tiler import SvsTiledPage, SvsTiler
 
@@ -91,7 +93,7 @@ class SvsTilerTest(unittest.TestCase):
 
     def test_photometric_interpretation(self):
         self.assertEqual(
-            'RGB',
+            PHOTOMETRIC.RGB,
             self.tiler.get_level(0).photometric_interpretation
         )
 

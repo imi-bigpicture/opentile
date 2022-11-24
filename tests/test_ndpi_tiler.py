@@ -12,12 +12,14 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from datetime import datetime
 import unittest
+from datetime import datetime
 from hashlib import md5
 from typing import cast
 
 import pytest
+from tifffile.tifffile import PHOTOMETRIC
+
 from opentile.geometry import Point, Size
 from opentile.ndpi_tiler import (NdpiCache, NdpiFrameJob, NdpiStripedPage,
                                  NdpiTile, NdpiTiler)
@@ -314,7 +316,7 @@ class NdpiTilerTest(unittest.TestCase):
 
     def test_photometric_interpretation(self):
         self.assertEqual(
-            'YCBCR',
+            PHOTOMETRIC.YCBCR,
             self.tiler.get_level(0).photometric_interpretation
         )
 

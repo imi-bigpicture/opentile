@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "opentile"
-version = "0.4.1"
+version = "0.4.2"
 description = "Read tiles from wsi-TIFF files"
 authors = ["Erik O Gabrielsson <erik.o.gabrielsson@sectra.com>"]
 license = "Apache-2.0"
@@ -20,7 +20,7 @@ tifffile = "^2022.5.4"
 numpy = "^1.22.0"
 PyTurboJPEG = "^1.6.1"
 Pillow = "^9.1.1"
-imagecodecs = "^2021.8.26"
+imagecodecs = "^2022.9.26"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
