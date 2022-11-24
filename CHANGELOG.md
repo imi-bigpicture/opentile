@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+
+## [0.4.2] - 2022-11-24
+### Fixed
+- Use PHOTOMETRIC-enum from tifffile for photometric interpretation.
+- Update imagecodecs to 2022.9.26.
+
 ## [0.4.1] - 2022-11-24
 ### Fixed
 - Added missing tag in Philips tiff tiler.
@@ -59,7 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.4.1..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.4.2..HEAD
+[0.4.2]: https://github.com/imi-bigpicture/opentile/compare/v0.4.1..v0.4.2
 [0.4.1]: https://github.com/imi-bigpicture/opentile/compare/v0.4.0..v0.4.1
 [0.4.0]: https://github.com/imi-bigpicture/opentile/compare/v0.3.0..v0.4.0
 [0.3.0]: https://github.com/imi-bigpicture/opentile/compare/v0.2.0..v0.3.0

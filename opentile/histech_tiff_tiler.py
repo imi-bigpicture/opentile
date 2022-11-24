@@ -15,7 +15,8 @@
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
-from tifffile.tifffile import FileHandle, TiffFile, TiffPage, TiffPageSeries
+from tifffile.tifffile import (PHOTOMETRIC, FileHandle, TiffFile, TiffPage,
+                               TiffPageSeries)
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
@@ -63,14 +64,11 @@ class HistechTiffTiledPage(NativeTiledPage):
         return self._mpp
 
     @property
-    def photometric_interpretation(self) -> str:
-        photometric_interpretation = str(
-            self._page.photometric
-        ).split('.', maxsplit=1)[1]
-        if photometric_interpretation == 'PALETTE':
-            return 'MINISBLACK'
-        else:
-            return photometric_interpretation
+    def photometric_interpretation(self) -> PHOTOMETRIC:
+        photometric_interpretation = PHOTOMETRIC(self._page.photometric)
+        if photometric_interpretation == PHOTOMETRIC.PALETTE:
+            return PHOTOMETRIC.MINISBLACK
+        return photometric_interpretation
 
     def _get_mpp_from_page(self) -> SizeMm:
         items_split = self._page.description.split('|')

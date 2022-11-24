@@ -12,11 +12,13 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from datetime import datetime
 import unittest
+from datetime import datetime
 from hashlib import md5
 
 import pytest
+from tifffile.tifffile import PHOTOMETRIC
+
 from opentile.philips_tiff_tiler import PhilipsTiffTiler
 
 from .filepaths import philips_file_path
@@ -56,7 +58,7 @@ class PhilipsTiffTilerTest(unittest.TestCase):
 
     def test_photometric_interpretation(self):
         self.assertEqual(
-            'YCBCR',
+            PHOTOMETRIC.YCBCR,
             self.tiler.get_level(0).photometric_interpretation
         )
 
