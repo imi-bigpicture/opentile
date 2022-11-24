@@ -7,19 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [0.4.0] - 2022-11-24
 ### Added
 - Support for 3DHISTECH tiff files.
-- Tiler-property icc_profile returning icc profile if found in file.
+- Tiler-property `icc_profile` returning icc profile if found in file.
 
 ### Changed
 - tifffile minimun version set to 2022.5.4.
 - Replaced Dict property `properties` of tilers with property `metadata` of Metadata-class.
 
 ### Fixed
-- Use COMPRESSION-enum from TiffFile for compression type checks.
+- Use `COMPRESSION`-enum from TiffFile for compression type checks.
 - Decompress jpeg data to RGB instead of BGR when using turbojpeg.
 
-## [0.3.0] - 2021-04-20
+## [0.3.0] - 2022-04-20
 ### Added
 - Scripts and github actions for downloading test data.
 - Properties photometric_interpretation, subsampling, and samples_per_pixel for OpenTilePage.
@@ -34,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Border appearing when cropping one-frammed ndpi pages.
 - Even more descriptive error when jpeg crop fails.
 
-## [0.2.0] - 2021-02-14
+## [0.2.0] - 2022-02-14
 ### Added
 - Support for svs overview and label images.
 
@@ -53,7 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.3.0..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.4.0..HEAD
+[0.4.0]: https://github.com/imi-bigpicture/opentile/compare/v0.3.0..v0.4.0
 [0.3.0]: https://github.com/imi-bigpicture/opentile/compare/v0.2.0..v0.3.0
 [0.2.0]: https://github.com/imi-bigpicture/opentile/compare/v0.1.1..v0.2.0
 [0.1.1]: https://github.com/imi-bigpicture/opentile/compare/v0.1.0..v0.1.1
