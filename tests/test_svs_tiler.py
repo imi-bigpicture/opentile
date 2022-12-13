@@ -15,9 +15,10 @@
 import unittest
 from datetime import datetime
 from hashlib import md5
-from typing import cast
+from typing import Sequence, Tuple, cast
 
 import pytest
+from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.geometry import Point
@@ -44,48 +45,56 @@ class SvsTilerTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.tiler.close()
 
-    def test_get_tile(self):
-        tile = self.level.get_tile((15, 25))
-        self.assertEqual(
-            'dd8402d5a7250ebfe9e33b3dfee3c1e1',
-            md5(tile).hexdigest()
-        )
-        tile = self.level.get_tile((35, 30))
-        self.assertEqual(
-            '50f885cd7299bd3fff22743bfb4a4930',
-            md5(tile).hexdigest()
-        )
+    @parameterized.expand([
+        ((15, 25), 'dd8402d5a7250ebfe9e33b3dfee3c1e1'),
+        ((35, 30), '50f885cd7299bd3fff22743bfb4a4930')
+    ])
+    def test_get_tile(self, tile_point: Tuple[int, int], hash: str):
+        tile = self.level.get_tile(tile_point)
+        self.assertEqual(hash, md5(tile).hexdigest())
 
-    def test_get_scaled_tile(self):
+    @parameterized.expand([
+        (
+            [(15, 25), (35, 30)],
+            [
+                'dd8402d5a7250ebfe9e33b3dfee3c1e1',
+                '50f885cd7299bd3fff22743bfb4a4930'
+            ]
+        ),
+    ])
+    def test_get_tiles(
+        self,
+        tile_points: Sequence[Tuple[int, int]],
+        hashes: Sequence[str]
+    ):
+        tiles = self.level.get_tiles(tile_points)
+        for tile, hash in zip(tiles, hashes):
+            self.assertEqual(hash, md5(tile).hexdigest())
+
+    @parameterized.expand([
+        ((0, 0), 'd9135db3b0bcc0d9e785754e760f80c4'),
+        ((50, 50), 'bd0599aa1becf3511fa122582ecc7e3d')
+    ])
+    def test_get_scaled_tile(self, tile_point: Tuple[int, int], hash: str):
         level = cast(SvsTiledPage, self.tiler.get_level(1))
-        tile = level._get_scaled_tile(Point(0, 0))
+        tile = level._get_scaled_tile(Point.from_tuple(tile_point))
         self.assertEqual(
-            'd9135db3b0bcc0d9e785754e760f80c4',
-            md5(tile).hexdigest()
-        )
-        tile = level._get_scaled_tile(Point(50, 50))
-        self.assertEqual(
-            'bd0599aa1becf3511fa122582ecc7e3d',
+            hash,
             md5(tile).hexdigest()
         )
 
-    def test_tile_is_at_edge(self):
-        print(self.level.tiled_size)
-        self.assertFalse(self.level._tile_is_at_right_edge(Point(178, 127)))
-        self.assertFalse(self.level._tile_is_at_right_edge(Point(178, 128)))
-        self.assertTrue(self.level._tile_is_at_right_edge(Point(179, 127)))
-        self.assertTrue(self.level._tile_is_at_right_edge(Point(179, 128)))
+    @parameterized.expand([
+        (Point(178, 127), False, False),
+        (Point(178, 128), False, True),
+        (Point(179, 127), True, False),
+        (Point(179, 128), True, True),
 
-        self.assertFalse(self.level._tile_is_at_bottom_edge(Point(178, 127)))
-        self.assertFalse(self.level._tile_is_at_bottom_edge(Point(179, 127)))
-        self.assertTrue(self.level._tile_is_at_bottom_edge(Point(178, 128)))
-        self.assertTrue(self.level._tile_is_at_bottom_edge(Point(179, 128)))
+    ])
+    def test_tile_is_at_edge(self, tile: Point, right: bool, bottom: bool):
+        self.assertEqual(self.level._tile_is_at_right_edge(tile), right)
+        self.assertEqual(self.level._tile_is_at_bottom_edge(tile), bottom)
 
     def test_detect_corrupt_edges(self):
-        self.assertEqual(
-            (False, False),
-            self.level._detect_corrupt_edges()
-        )
         self.assertEqual(
             (False, False),
             self.level._detect_corrupt_edges()

@@ -14,8 +14,10 @@
 
 import unittest
 from hashlib import md5
+from typing import Sequence, Tuple
 
 import pytest
+from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.histech_tiff_tiler import HistechTiffTiler
@@ -43,18 +45,31 @@ class HistechTiffTilerTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.tiler.close()
 
-    def test_get_tile(self):
-        tile = self.level.get_tile((50, 50))
-        self.assertEqual(
-            '221f47792ebef7b9e394fc6c8ed7cb64',
-            md5(tile).hexdigest()
-        )
+    @parameterized.expand([
+        ((50, 50), '221f47792ebef7b9e394fc6c8ed7cb64'),
+        ((100, 100), '0a2e459e94e9237bb866b3bc1ac10cb8')
+    ])
+    def test_get_tile(self, tile_point: Tuple[int, int], hash: str):
+        tile = self.level.get_tile(tile_point)
+        self.assertEqual(hash, md5(tile).hexdigest())
 
-        tile = self.level.get_tile((100, 100))
-        self.assertEqual(
-            '0a2e459e94e9237bb866b3bc1ac10cb8',
-            md5(tile).hexdigest()
-        )
+    @parameterized.expand([
+        (
+            [(50, 50), (100, 100)],
+            [
+                '221f47792ebef7b9e394fc6c8ed7cb64',
+                '0a2e459e94e9237bb866b3bc1ac10cb8'
+            ]
+        ),
+    ])
+    def test_get_tiles(
+        self,
+        tile_points: Sequence[Tuple[int, int]],
+        hashes: Sequence[str]
+    ):
+        tiles = self.level.get_tiles(tile_points)
+        for tile, hash in zip(tiles, hashes):
+            self.assertEqual(hash, md5(tile).hexdigest())
 
     def test_photometric_interpretation(self):
         self.assertEqual(

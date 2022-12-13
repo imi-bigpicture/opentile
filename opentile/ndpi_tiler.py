@@ -706,7 +706,7 @@ class NdpiOneFramePage(NdpiTiledPage):
             even_size = Size.ceil_div(self.image_size, self.mcu) * self.mcu
             frame = Jpeg.manipulate_header(frame, even_size)
         # Use crop_multiple as it allows extending frame
-        tile: bytes = self._jpeg.crop_multiple(
+        tile = self._jpeg.crop_multiple(
             frame,
             [(0, 0, frame_size.width, frame_size.height)]
         )[0]
