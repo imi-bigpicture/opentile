@@ -44,7 +44,7 @@ class LockableFileHandle:
         return Path(self._fh.path)
 
     def read(self, offset: int, bytecount: int) -> bytes:
-        """Return bytes from file handle.
+        """Return bytes from single location from file handle. Is thread safe.
 
         Parameters
         ----------
@@ -59,9 +59,48 @@ class LockableFileHandle:
             Requested bytes.
         """
         with self._lock:
-            self._fh.seek(offset)
-            data: bytes = self._fh.read(bytecount)
-        return data
+            return self._read(offset, bytecount)
+
+    def read_multiple(
+        self,
+        offsets_bytecounts: Sequence[Tuple[int, int]]
+    ) -> List[bytes]:
+        """Return bytes from multiple locations from file handle. Is thread
+        safe.
+
+        Parameters
+        ----------
+        offsets_bytecounts: Sequence[Tuple[int, int]]
+            List of tuples with offset and lengths to read.
+
+        Returns
+        ----------
+        List[bytes]
+            List of requested bytes.
+        """
+        with self._lock:
+            return [
+                self._read(offset, bytecount)
+                for (offset, bytecount) in offsets_bytecounts
+            ]
+
+    def _read(self, offset: int, bytecount: int):
+        """Read bytes from file handle. Is not thread safe.
+
+        Parameters
+        ----------
+        offset: int
+            Offset in bytes.
+        bytecount: int
+            Length in bytes.
+
+        Returns
+        ----------
+        bytes
+            Requested bytes.
+        """
+        self._fh.seek(offset)
+        return self._fh.read(bytecount)
 
     def close(self) -> None:
         """Close the file handle"""
@@ -87,7 +126,8 @@ class OpenTilePage(metaclass=ABCMeta):
     def __init__(
         self,
         page: TiffPage,
-        fh: FileHandle
+        fh: FileHandle,
+        add_rgb_colorspace_fix: bool = False
     ):
         """Abstract class for reading tiles from TiffPage.
 
@@ -97,9 +137,12 @@ class OpenTilePage(metaclass=ABCMeta):
             TiffPage to get tiles from.
         fh: FileHandle
             FileHandle for reading data.
+        add_rgb_colorspace_fix: bool = False
+            If to add color space fix for rgb image data.
         """
         self._page = page
         self._fh = LockableFileHandle(fh)
+        self._add_rgb_colorspace_fix = add_rgb_colorspace_fix
         self._image_size = Size(self._page.shape[1], self._page.shape[0])
         if self.page.is_tiled:
             self._tile_size = Size(
@@ -310,6 +353,17 @@ class OpenTilePage(metaclass=ABCMeta):
             self._page.databytecounts[index]
         )
 
+    def _read_frames(self, indices: Sequence[int]) -> List[bytes]:
+        return self._fh.read_multiple(
+            [
+                (
+                    self._page.dataoffsets[index],
+                    self._page.databytecounts[index]
+                )
+                for index in indices
+            ]
+        )
+
     def _check_if_tile_inside_image(self, tile_position: Point) -> bool:
         """Return true if tile position is inside tiled image."""
         return (
@@ -341,6 +395,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
 
 class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
+
     """Meta class for pages that are natively tiled (e.g. not ndpi)"""
     def get_tile(
         self,
@@ -362,8 +417,47 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         frame_index = self._tile_point_to_frame_index(tile_point)
         tile = self._read_frame(frame_index)
         if self.page.jpegtables is not None:
-            tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables)
+            tile = Jpeg.add_jpeg_tables(
+                tile,
+                self.page.jpegtables,
+                self._add_rgb_colorspace_fix
+            )
         return tile
+
+    def get_tiles(
+        self,
+        tile_positions: Sequence[Tuple[int, int]]
+    ) -> List[bytes]:
+        """Return image bytes for tiles at tile positions.
+
+        Parameters
+        ----------
+        tile_positions: Sequence[Tuple[int, int]]
+            Tile positions to get.
+
+        Returns
+        ----------
+        List[bytes]
+            Produced tiles at positions.
+        """
+        tile_points = [
+            Point.from_tuple(tile_position) for tile_position in tile_positions
+        ]
+        frame_indices = [
+            self._tile_point_to_frame_index(tile_point)
+            for tile_point in tile_points
+        ]
+        tiles = self._read_frames(frame_indices)
+        if self.page.jpegtables is not None:
+            tiles = [
+                Jpeg.add_jpeg_tables(
+                    tile,
+                    self.page.jpegtables,
+                    self._add_rgb_colorspace_fix
+                )
+                for tile in tiles
+            ]
+        return tiles
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         """Return decoded tile for tile position. Returns a white tile if tile

@@ -107,7 +107,11 @@ class PhilipsTiffTiledPage(NativeTiledPage):
             raise ValueError("Could not find valid frame in page.")
         tile = self._read_frame(valid_frame_index)
         if self.page.jpegtables is not None:
-            tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables)
+            tile = Jpeg.add_jpeg_tables(
+                tile,
+                self.page.jpegtables,
+                False
+            )
         tile = self._jpeg.fill_frame(tile, luminance)
         return tile
 

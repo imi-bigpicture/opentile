@@ -93,7 +93,7 @@ class Jpeg:
         self,
         scans: Iterator[bytes],
         jpeg_tables: Optional[bytes],
-        colorspace_fix: bool = False
+        rgb_colorspace_fix: bool = False
     ) -> bytes:
         """Return frame created by horisontal concatenating scans. Scans must
         have the same header content, and only the last scan is allowed to have
@@ -105,8 +105,8 @@ class Jpeg:
             Iterator providing scans to concatenate.
         jpeg_tables: Optional[bytes]
             Optional jpeg tables to insert into frame.
-        colorspace_fix: bool = False
-            If to apply color space fix (for svs files).
+        rgb_colorspace_fix: bool = False
+            If to apply rgb color space fix (for svs files).
 
         Returns
         ----------
@@ -142,9 +142,13 @@ class Jpeg:
         frame[-2:] = self.end_of_image()
 
         if jpeg_tables is not None:
-            frame = self._add_jpeg_tables(frame, jpeg_tables)
-        if colorspace_fix:
-            frame = self._add_color_space_fix(frame)
+            if rgb_colorspace_fix:
+                frame = self._add_jpeg_tables_and_rgb_color_space_fix(
+                    frame,
+                    jpeg_tables
+                )
+            else:
+                frame = self._add_jpeg_tables(frame, jpeg_tables)
 
         assert (
             image_size is not None
@@ -237,7 +241,8 @@ class Jpeg:
     def add_jpeg_tables(
         cls,
         frame: bytes,
-        jpeg_tables: bytes
+        jpeg_tables: bytes,
+        apply_rgb_colorspace_fix: Optional[bool] = False
     ) -> bytes:
         """Add jpeg tables to frame. Tables are insterted before 'start of
         scan'-tag, and leading 'start of image' and ending 'end of image' tags
@@ -249,6 +254,8 @@ class Jpeg:
             'Abbreviated' jpeg frame lacking jpeg tables.
         jpeg_tables: bytes
             Jpeg tables to add
+        apply_rgb_colorspace_fix: Optional[bool] = False
+            If to also apply
 
         Returns
         ----------
@@ -256,27 +263,15 @@ class Jpeg:
             'Interchange' jpeg frame containg jpeg tables.
 
         """
-        return bytes(cls._add_jpeg_tables(bytearray(frame), jpeg_tables))
 
-    @classmethod
-    def add_color_space_fix(
-        cls,
-        frame: bytes
-    ) -> bytes:
-        """Add color space fix to frame (for svs).
-
-        Parameters
-        ----------
-        frame: bytes
-            Frame to add color space fix to.
-
-        Returns
-        ----------
-        bytes:
-            Frame with color fix.
-
-        """
-        return bytes(cls._add_color_space_fix(bytearray(frame)))
+        if apply_rgb_colorspace_fix:
+            frame = cls._add_jpeg_tables_and_rgb_color_space_fix(
+                bytearray(frame),
+                jpeg_tables
+            )
+        else:
+            frame = cls._add_jpeg_tables(bytearray(frame), jpeg_tables)
+        return bytes(frame)
 
     @classmethod
     def manipulate_header(
@@ -303,11 +298,13 @@ class Jpeg:
             Frame with updated header.
 
         """
-        return bytes(cls._manipulate_header(
-            bytearray(frame),
-            image_size,
-            restart_interval
-        ))
+        return bytes(
+                cls._manipulate_header(
+                    bytearray(frame),
+                    image_size,
+                    restart_interval
+                )
+            )
 
     @classmethod
     def start_of_frame(cls) -> bytes:
@@ -431,7 +428,7 @@ class Jpeg:
     def _add_jpeg_tables(
         cls,
         frame: bytearray,
-        jpegtables: bytes
+        jpegtables: bytes,
     ) -> bytearray:
         """Add jpeg tables to frame."""
         start_of_scan = frame.find(cls.start_of_scan())
@@ -439,15 +436,17 @@ class Jpeg:
         return frame
 
     @classmethod
-    def _add_color_space_fix(
+    def _add_jpeg_tables_and_rgb_color_space_fix(
         cls,
         frame: bytearray,
+        jpegtables: bytes,
     ) -> bytearray:
-        """Add Adobe APP14 marker with transform flag 0 indicating image is
-        encoded as RGB (not YCbCr)"""
+        """Add jpeg tables to frame and add Adobe APP14 marker with transform
+        flag 0 indicating image is encoded as RGB (not YCbCr)."""
         start_of_scan = frame.find(cls.start_of_scan())
         frame[start_of_scan:start_of_scan] = (
-            b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
+            jpegtables[2:-2]
+            + b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
             + b"\x65\x00\x64\x80\x00\x00\x00\x00"
         )
         return frame

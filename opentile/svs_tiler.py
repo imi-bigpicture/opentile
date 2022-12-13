@@ -12,11 +12,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import io
 from datetime import datetime
 from functools import cached_property
-import io
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 from PIL import Image
@@ -45,7 +45,7 @@ class SvsStripedPage(OpenTilePage):
             Jpeg instance to use.
 
         """
-        super().__init__(page, fh)
+        super().__init__(page, fh, True)
         self._jpeg = jpeg
 
     def __repr__(self) -> str:
@@ -78,7 +78,7 @@ class SvsStripedPage(OpenTilePage):
         frame = self._jpeg.concatenate_scans(
             scans,
             jpeg_tables,
-            True
+            self._add_rgb_colorspace_fix
         )
         return frame
 
@@ -201,7 +201,7 @@ class SvsTiledPage(NativeTiledPage):
         parent: Optional['SvsTiledPage'] = None
             Parent SvsTiledPage
         """
-        super().__init__(page, fh)
+        super().__init__(page, fh, True)
         self._base_shape = base_shape
         self._base_mpp = base_mpp
         self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
@@ -392,21 +392,56 @@ class SvsTiledPage(NativeTiledPage):
             Produced tile at position.
         """
         tile_point = Point.from_tuple(tile_position)
-        # Check if tile is corrupted
-        tile_corrupt = (
+        if self._tile_is_corrupt(tile_point):
+            return self._get_fixed_tile(tile_point)
+
+        return super().get_tile(tile_position)
+
+    def get_tiles(
+        self,
+        tile_positions: Sequence[Tuple[int, int]]
+    ) -> List[bytes]:
+        """Return list of image bytes for tiles at tile positions.
+
+        Parameters
+        ----------
+        tile_positions: Sequence[Tuple[int, int]]
+            Tile positions to get.
+
+        Returns
+        ----------
+        List[bytes]
+            List of tile bytes.
+        """
+        tile_points = [
+            Point.from_tuple(tile_position) for tile_position in tile_positions
+        ]
+        if any(
+            self._tile_is_corrupt(tile_point) for tile_point in tile_points
+        ):
+            return [self.get_tile(tile) for tile in tile_positions]
+        return super().get_tiles(tile_positions)
+
+    def _tile_is_corrupt(self, tile_point: Point) -> bool:
+        """Return true if tile is corrupt
+
+        Parameters
+        ----------
+        tile_point: Point
+            Tile to check
+
+        Returns
+        ----------
+        bool
+            True if tile is corrupt.
+        """
+        return (
             self.right_edge_corrupt and
             self._tile_is_at_right_edge(tile_point)
         ) or (
             self.bottom_edge_corrupt and
             self._tile_is_at_bottom_edge(tile_point)
         )
-        if tile_corrupt:
-            return self._get_fixed_tile(tile_point)
-
-        tile = super().get_tile(tile_position)
-        if self.compression == COMPRESSION.JPEG:
-            tile = Jpeg.add_color_space_fix(tile)
-        return tile
 
 
 class SvsMetadata(Metadata):

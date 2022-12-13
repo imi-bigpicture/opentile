@@ -15,9 +15,10 @@
 import unittest
 from datetime import datetime
 from hashlib import md5
-from typing import cast
+from typing import Sequence, Tuple, cast
 
 import pytest
+from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.geometry import Point, Size
@@ -49,14 +50,14 @@ class NdpiTilerTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.tiler.close()
 
-    def test_get_stripe_position_to_index(self):
+    @parameterized.expand([
+        (Point(50, 0), 50),
+        (Point(20, 20), 520)
+    ])
+    def test_get_stripe_position_to_index(self, point: Point, position: int):
         self.assertEqual(
-            50,
-            self.level._get_stripe_position_to_index(Point(50, 0))
-        )
-        self.assertEqual(
-            520,
-            self.level._get_stripe_position_to_index(Point(20, 20))
+            position,
+            self.level._get_stripe_position_to_index(point)
         )
 
     def test_file_handle_read(self):
@@ -94,17 +95,31 @@ class NdpiTilerTest(unittest.TestCase):
             md5(image).hexdigest()
         )
 
-    def test_get_tile(self):
-        tile = self.level.get_tile((0, 0))
-        self.assertEqual(
-            '30c69cab610e5b3db4beac63806d6513',
-            md5(tile).hexdigest()
-        )
-        tile = self.level.get_tile((20, 20))
-        self.assertEqual(
-            'fec8116d05485df513f4f41e13eaa994',
-            md5(tile).hexdigest()
-        )
+    @parameterized.expand([
+        ((0, 0), '30c69cab610e5b3db4beac63806d6513'),
+        ((20, 20), 'fec8116d05485df513f4f41e13eaa994')
+    ])
+    def test_get_tile(self, tile_point: Tuple[int, int], hash: str):
+        tile = self.level.get_tile(tile_point)
+        self.assertEqual(hash, md5(tile).hexdigest())
+
+    @parameterized.expand([
+        (
+            [(0, 0), (20, 20)],
+            [
+                '30c69cab610e5b3db4beac63806d6513',
+                'fec8116d05485df513f4f41e13eaa994'
+            ]
+        ),
+    ])
+    def test_get_tiles(
+        self,
+        tile_points: Sequence[Tuple[int, int]],
+        hashes: Sequence[str]
+    ):
+        tiles = self.level.get_tiles(tile_points)
+        for tile, hash in zip(tiles, hashes):
+            self.assertEqual(hash, md5(tile).hexdigest())
 
     def test_create_tiles(self):
         frame_job = NdpiFrameJob(
@@ -154,20 +169,19 @@ class NdpiTilerTest(unittest.TestCase):
             (tile.left, tile.top, tile.width, tile.height)
         )
 
-    def test_frame_position_tile(self):
-        tile = NdpiTile(Point(3, 0), self.tile_size, self.level.frame_size)
+    @parameterized.expand([
+        (Point(3, 0), Point(0, 0)),
+        (Point(7, 0), Point(4, 0)),
+        (Point(5, 2), Point(4, 2))
+    ])
+    def test_frame_position_tile(
+        self,
+        tile_point: Point,
+        frame_position: Point
+    ):
+        tile = NdpiTile(tile_point, self.tile_size, self.level.frame_size)
         self.assertEqual(
-            Point(0, 0),
-            tile.frame_position
-        )
-        tile = NdpiTile(Point(7, 0), self.tile_size, self.level.frame_size)
-        self.assertEqual(
-            Point(4, 0),
-            tile.frame_position
-        )
-        tile = NdpiTile(Point(5, 2), self.tile_size, self.level.frame_size)
-        self.assertEqual(
-            Point(4, 2),
+            frame_position,
             tile.frame_position
         )
 
@@ -289,28 +303,22 @@ class NdpiTilerTest(unittest.TestCase):
     def test_get_smallest_stripe_width(self):
         self.assertEqual(128, self.tiler._get_smallest_stripe_width())
 
-    def test_adjust_tile_size(self):
+    @parameterized.expand([
+        (512, 512, Size(512, 512)),
+        (512, 56, Size(448, 448)),
+        (512, 248, Size(496, 496)),
+    ])
+    def test_adjust_tile_size(
+        self,
+        requested_size: int,
+        stripe_widdth: int,
+        adjusted_size: Size
+    ):
         self.assertEqual(
-            Size(512, 512),
+            adjusted_size,
             self.tiler._adjust_tile_size(
-                512,
-                self.tiler._get_smallest_stripe_width()
-            )
-        )
-
-        self.assertEqual(
-            Size(448, 448),
-            self.tiler._adjust_tile_size(
-                512,
-                56
-            )
-        )
-
-        self.assertEqual(
-            Size(496, 496),
-            self.tiler._adjust_tile_size(
-                512,
-                248
+                requested_size,
+                stripe_widdth
             )
         )
 
