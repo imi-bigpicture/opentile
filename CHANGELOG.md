@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - ...
+
+## [0.5.0] - 2022-12-13
 ### Changed
 - get_tiles() changed from list comprehension of get_tile to sequentially read all tiles and then process them. This allows all tiles to be read with the same file lock improving threading performance.
 
@@ -66,7 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.4.2..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.5.0..HEAD
+[0.5.0]: https://github.com/imi-bigpicture/opentile/compare/v0.4.2..v0.5.0
 [0.4.2]: https://github.com/imi-bigpicture/opentile/compare/v0.4.1..v0.4.2
 [0.4.1]: https://github.com/imi-bigpicture/opentile/compare/v0.4.0..v0.4.1
 [0.4.0]: https://github.com/imi-bigpicture/opentile/compare/v0.3.0..v0.4.0
