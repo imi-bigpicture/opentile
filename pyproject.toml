@@ -20,7 +20,7 @@ tifffile = "^2022.5.4"
 numpy = "^1.22.0"
 PyTurboJPEG = "^1.6.1"
 Pillow = "^9.1.1"
-imagecodecs = "^2022.9.26"
+imagecodecs = "^2022.12.24"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
