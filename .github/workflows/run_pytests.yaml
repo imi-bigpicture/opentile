@@ -76,12 +76,9 @@ jobs:
         with:
           script: |
             core.setFailed('test images were not cached')
-
-      - name: Set up libjpegturbo Ubuntu
+      - name: Set up Ubuntu
         if: matrix.os == 'ubuntu-latest'
-        run: |
-          wget https://sourceforge.net/projects/libjpeg-turbo/files/2.1.3/libjpeg-turbo-official_2.1.3_amd64.deb
-          sudo dpkg -i libjpeg-turbo-official_2.1.3_amd64.deb
+        run: sudo apt-get install -y libturbojpeg
       - name: Set up libjpegturbo OSX
         if: matrix.os == 'macos-latest'
         run: brew install jpeg-turbo
@@ -89,8 +86,9 @@ jobs:
         shell: pwsh
         if: matrix.os == 'windows-latest'
         run: |
-          Invoke-WebRequest -Uri https://sourceforge.net/projects/libjpeg-turbo/files/2.1.3/libjpeg-turbo-2.1.3-vc64.exe/download -OutFile libjpeg-turbo-2.1.3-vc64.exe -UserAgent "NativeHost"
-          7z e libjpeg-turbo-2.1.3-vc64.exe -oC:\Windows\System32 bin/turbojpeg.dll
+          Invoke-WebRequest -Uri https://sourceforge.net/projects/libjpeg-turbo/files/2.1.4/libjpeg-turbo-2.1.4-vc64.exe/download -OutFile libjpeg-turbo-2.1.4-vc64.exe -UserAgent "NativeHost"
+          7z e libjpeg-turbo-2.1.4-vc64.exe -oC:\turbojpeg bin/turbojpeg.dll
+          echo C:\turbojpeg >> $GITHUB_PATH
 
       - name: Install dependencies
         run: |
