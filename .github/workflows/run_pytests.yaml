@@ -88,8 +88,12 @@ jobs:
         run: |
           Invoke-WebRequest -Uri https://sourceforge.net/projects/libjpeg-turbo/files/2.1.4/libjpeg-turbo-2.1.4-vc64.exe/download -OutFile libjpeg-turbo-2.1.4-vc64.exe -UserAgent "NativeHost"
           7z e libjpeg-turbo-2.1.4-vc64.exe -oC:\turbojpeg bin/turbojpeg.dll
-          echo C:\turbojpeg >> $GITHUB_PATH
-
+      - name: Set up paths in windows
+        if: matrix.os == 'windows-latest'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            core.addPath('C:\\turbojpeg')
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
