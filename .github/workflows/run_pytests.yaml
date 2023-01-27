@@ -33,7 +33,7 @@ jobs:
           python tests/download_test_images.py
 
   tests:
-    needs: [ cache_test_images ]
+    needs: [cache_test_images]
     name: pytest ${{ matrix.os }}::py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -41,15 +41,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.8"]
-        include:
-          # we'll test the python support on ubuntu
-          - os: ubuntu-latest
-            python-version: "3.11"
-          - os: ubuntu-latest
-            python-version: "3.10"
-          - os: ubuntu-latest
-            python-version: "3.9"
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     steps:
       # see:
       #   - https://github.com/actions/checkout/issues/135
