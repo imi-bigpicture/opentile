@@ -32,13 +32,19 @@ def find_turbojpeg_path() -> Optional[Path]:
     if os.name != 'nt':
         return None
     turbojpeg_lib_path = find_library('turbojpeg')
-    if turbojpeg_lib_path is None:
-        raise ModuleNotFoundError(
-            "Could not find turbojpeg.dll in the directories specified "
-            "in the Path environmental variable. Please add the directory with"
-            "turbojpeg.dll to the Path environmental variable"
-        )
-    return Path(turbojpeg_lib_path)
+    if turbojpeg_lib_path is not None:
+        return Path(turbojpeg_lib_path)
+    turbojpeg_lib_dir = os.environ.get('TURBOJPEG')
+    if turbojpeg_lib_dir is not None:
+        turbojpeg_lib_path = Path(turbojpeg_lib_dir).joinpath('turbojpeg.dll')
+        if turbojpeg_lib_path.exists():
+            return turbojpeg_lib_path
+    raise ModuleNotFoundError(
+        "Could not find turbojpeg.dll in the directories specified "
+        "in the `Path` or `TURBOJPEG` environmental variable. Please add the "
+        "directory with turbojpeg.dll to the `Path` or `TURBOJPEG` "
+        "environmental variable."
+    )
 
 
 class BlankStruct(Structure):
