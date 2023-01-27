@@ -13,7 +13,7 @@ Crrently supported file formats are listed and described under *Supported file f
 *opentile* is available on PyPI:
 
 ```console
-$ pip install opentile
+pip install opentile
 ```
 
 ## Important note
@@ -22,7 +22,7 @@ Please note that this is an early release and the API is not frozen yet. Functio
 
 ## Requirements
 
-*opentile* requires python >=3.7 and uses numpy, Pillow, TiffFile and PyTurboJPEG (with lib-turbojpeg >= 2.1 ).
+*opentile* requires python >=3.8 and uses numpy, Pillow, TiffFile, and PyTurboJPEG (with lib-turbojpeg >= 2.1 ).
 
 ## Limitations
 
@@ -97,14 +97,14 @@ with OpenTile.open(path_to_ndpi_file, tile_size, turbo_path) as tiler:
 Requires poetry and pytest and pytest-watch installed in the virtual environment.
 
 ```console
-$ git clone https://github.com/imi-bigpicture/opentile.git
-$ poetry install
+git clone https://github.com/imi-bigpicture/opentile.git
+poetry install
 ```
 
 By default the tests looks for slides in 'tests/testdata'. This can be overriden by setting the OPENTILE_TESTDIR environment variable. The script 'tests/download_test_images.py' can be used to download publically available [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/) into the set testdata folder:
 
 ```console
-$ python tests/download_test_images.py
+python tests/download_test_images.py
 ```
 
 The test data used for philips tiff is currently not publically available as we dont have permission to share them. If you have slides in philips tiff format that can be freely shared we would be happy to use them instead.
@@ -112,7 +112,7 @@ The test data used for philips tiff is currently not publically available as we 
 To watch unit tests use:
 
 ```console
-$ poetry run pytest-watch -- -m unittest
+poetry run pytest-watch -- -m unittest
 ```
 
 ## Other TIFF python tools
