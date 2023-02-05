@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -
 
+### Changed
+
+- Crop out label and overview page from macro page of ndpi-files.
+
 ## [0.6.0] - 2023-01-24
 
 ### Changed

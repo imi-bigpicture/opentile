@@ -37,6 +37,8 @@ The Ndpi-format uses non-rectangular tile size typically 8 pixels high, i.e. str
 
 A ndpi-file can also contain non-tiled images. If these are part of a pyramidal series, *opentile* tiles the image.
 
+The macro page in ndpi-files images the whole slide including label. A label and overview is created by cropping the macro image.
+
 ***Philips tiff***
 The Philips tiff-format allows tiles to be sparse, i.e. missing. For such tiles, *opentile* instead provides a blank (currently white) tile image using the same jpeg header as the rest of the image.
 
