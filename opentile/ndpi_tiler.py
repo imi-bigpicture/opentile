@@ -1039,18 +1039,16 @@ class NdpiMetadata(Metadata):
 
 
 class NdpiTiler(Tiler):
-    # Ndpi includes the label in the macro image. Crop out label and overview
-    # from the macro image. Use a faked label series to avoid clashing with
-    # series in the file.
-    CROP_LABEL = (0.0, 0.3)
-    CROP_OVERVIEW = (0.3, 1.0)
+    # The label and overview is cropped out of the macro image.Use a faked
+    # label series to avoid clashing with series in the file.
     FAKED_LABEL_SERIES_INDEX = -1
 
     def __init__(
         self,
         filepath: Union[str, Path],
         tile_size: int,
-        turbo_path: Optional[Union[str, Path]] = None
+        turbo_path: Optional[Union[str, Path]] = None,
+        label_crop_position: float = 0.3
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
         size.
@@ -1065,6 +1063,9 @@ class NdpiTiler(Tiler):
             width in the file.
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
+        label_crop_position: float = 0.3
+            The position (relative to the image width) to use for cropping out
+            the label and overview image from the macro image.
 
         """
         super().__init__(Path(filepath))
@@ -1087,6 +1088,7 @@ class NdpiTiler(Tiler):
                 self._label_series_index = self.FAKED_LABEL_SERIES_INDEX
         self._pages: Dict[Tuple[int, int, int], NdpiPage] = {}
         self._metadata = NdpiMetadata(self.base_page)
+        self._label_crop_position = label_crop_position
 
     def __repr__(self) -> str:
         return (
@@ -1251,7 +1253,7 @@ class NdpiTiler(Tiler):
             tiff_page,
             self._fh,
             self._jpeg,
-            self.CROP_LABEL
+            (0.0, self._label_crop_position)
         )
 
     def _create_overview_page(self) -> NdpiPage:
@@ -1271,5 +1273,5 @@ class NdpiTiler(Tiler):
             tiff_page,
             self._fh,
             self._jpeg,
-            self.CROP_OVERVIEW
+            (self._label_crop_position, 1.0)
         )
