@@ -375,3 +375,17 @@ class NdpiTilerTest(unittest.TestCase):
             datetime(2009, 12, 31, 9, 11, 46),
             self.tiler.metadata.aquisition_datetime
         )
+
+    def test_label(self):
+        label = self.tiler.get_label().get_tile((0, 0))
+        self.assertEqual(
+            'ff78b53c3d483adb04b3e24e413cc96f',
+            md5(label).hexdigest()
+        )
+
+    def test_overview(self):
+        overview = self.tiler.get_overview().get_tile((0, 0))
+        self.assertEqual(
+            'c663698334b10cd57484a2d503b3bafa',
+            md5(overview).hexdigest()
+        )
