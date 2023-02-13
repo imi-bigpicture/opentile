@@ -1,4 +1,4 @@
-#    Copyright 2021 SECTRA AB
+#    Copyright 2021, 2022, 2023 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -354,6 +354,18 @@ class NdpiPage(OpenTilePage):
         """Return pixel spacing in um per pixel."""
         return self._mpp
 
+    @property
+    def mcu(self) -> Size:
+        """Return mcu size of page."""
+        subsampling: Optional[Tuple[int, int]] = self._page.subsampling
+        if subsampling is None or subsampling == (1, 1):
+            return Size(8, 8)
+        elif subsampling == (2, 1):
+            return Size(16, 8)
+        elif subsampling == (2, 2):
+            return Size(16, 16)
+        raise ValueError(f"Unknown subsampling {subsampling}")
+
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return tile for tile position.
 
@@ -393,11 +405,85 @@ class NdpiPage(OpenTilePage):
         y_resolution = self.page.tags['YResolution'].value[0]
         resolution_unit = self.page.tags['ResolutionUnit'].value
         if resolution_unit != TIFF.RESUNIT.CENTIMETER:
-            raise ValueError("Unkown resolution unit")
+            raise ValueError("Unknown resolution unit")
         # 10*1000 um per cm
         mpp_x = 10 * 1000 / x_resolution
         mpp_y = 10 * 1000 / y_resolution
         return SizeMm(mpp_x, mpp_y)
+
+
+class CroppedNdpiPage(NdpiPage):
+    def __init__(
+        self,
+        page: TiffPage,
+        fh: FileHandle,
+        jpeg: Jpeg,
+        crop: Tuple[float, float]
+    ):
+        """Ndpi page that should be cropped (e.g. overview or label).
+        Image data is assumed to be jpeg.
+
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        fh: FileHandle
+            Filehandler to read data from.
+        jpeg: Jpeg
+            Jpeg instance to use.
+        crop: Tuple[float, float]
+            Crop start and end in x-direction relative to image width.
+        """
+        super().__init__(page, fh, jpeg)
+        crop_from = self._calculate_crop(crop[0])
+        crop_to = self._calculate_crop(crop[1])
+
+        self._image_size = Size(
+            crop_to-crop_from,
+            self._page.shape[0]
+        )
+        self._crop_parameters = (
+            crop_from,
+            0,
+            crop_to-crop_from,
+            self.image_size.height
+        )
+
+    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
+        """Return tile for tile position.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Produced tile at position.
+        """
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+        full_frame = super().get_tile(tile_position)
+        return self._jpeg.crop_multiple(full_frame, [self._crop_parameters])[0]
+
+    def _calculate_crop(self, crop: float) -> int:
+        """Return pixel position for crop position rounded down to closest mcu
+        boarder.
+
+        Parameters
+        ----------
+        crop: float
+            Crop parameter relative to image width.
+
+        Returns
+        ----------
+        int
+            Pixel position for crop.
+        """
+        width = self._page.shape[1]
+        mcu_width = self.mcu.width
+        return int(width * crop / mcu_width) * mcu_width
 
 
 class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
@@ -456,17 +542,6 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
     def frame_size(self) -> Size:
         """The default read size used for reading frames."""
         return self._frame_size
-
-    @property
-    def mcu(self) -> Size:
-        subsampling: Optional[Tuple[int, int]] = self._page.subsampling
-        if subsampling is None or subsampling == (1, 1):
-            return Size(8, 8)
-        elif subsampling == (2, 1):
-            return Size(16, 8)
-        elif subsampling == (2, 2):
-            return Size(16, 16)
-        raise ValueError(f"Unkown subsampling {subsampling}")
 
     @abstractmethod
     def _read_extended_frame(
@@ -964,11 +1039,16 @@ class NdpiMetadata(Metadata):
 
 
 class NdpiTiler(Tiler):
+    # The label and overview is cropped out of the macro image.Use a faked
+    # label series to avoid clashing with series in the file.
+    FAKED_LABEL_SERIES_INDEX = -1
+
     def __init__(
         self,
         filepath: Union[str, Path],
         tile_size: int,
-        turbo_path: Optional[Union[str, Path]] = None
+        turbo_path: Optional[Union[str, Path]] = None,
+        label_crop_position: float = 0.3
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
         size.
@@ -983,6 +1063,9 @@ class NdpiTiler(Tiler):
             width in the file.
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
+        label_crop_position: float = 0.3
+            The position (relative to the image width) to use for cropping out
+            the label and overview image from the macro image.
 
         """
         super().__init__(Path(filepath))
@@ -1000,12 +1083,12 @@ class NdpiTiler(Tiler):
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
-            if series.name == 'Label':
-                self._label_series_index = series_index
-            elif series.name == 'Macro':
+            if series.name == 'Macro':
                 self._overview_series_index = series_index
+                self._label_series_index = self.FAKED_LABEL_SERIES_INDEX
         self._pages: Dict[Tuple[int, int, int], NdpiPage] = {}
         self._metadata = NdpiMetadata(self.base_page)
+        self._label_crop_position = label_crop_position
 
     def __repr__(self) -> str:
         return (
@@ -1040,7 +1123,14 @@ class NdpiTiler(Tiler):
         store created pages.
         """
         if not (series, level, page) in self._pages:
-            ndpi_page = self._create_page(series, level, page)
+            if series == self._level_series_index:
+                ndpi_page = self._create_level_page(level, page)
+            elif series == self._overview_series_index:
+                ndpi_page = self._create_overview_page()
+            elif series == self._label_series_index:
+                ndpi_page = self._create_label_page()
+            else:
+                raise ValueError("Unknown series {series}.")
             self._pages[series, level, page] = ndpi_page
         return self._pages[series, level, page]
 
@@ -1106,18 +1196,15 @@ class NdpiTiler(Tiler):
                 smallest_stripe_width = stripe_width
         return smallest_stripe_width
 
-    def _create_page(
+    def _create_level_page(
         self,
-        series: int,
         level: int,
         page: int,
-    ) -> NdpiPage:
-        """Create a new page from TiffPage.
+    ) -> Union[NdpiStripedPage, NdpiOneFramePage]:
+        """Create a new level page from TiffPage.
 
         Parameters
         ----------
-        series: int
-            Series of page.
         level: int
             Level of page.
         page: int
@@ -1125,10 +1212,12 @@ class NdpiTiler(Tiler):
 
         Returns
         ----------
-        NdpiLevel
-            Created level.
+        NdpiPage
+            Created page.
         """
-        tiff_page = self._tiff_file.series[series].levels[level].pages[page]
+        tiff_page = self._tiff_file.series[
+            self._level_series_index
+        ].levels[level].pages[page]
         assert isinstance(tiff_page, TiffPage)
         if tiff_page.is_tiled:  # Striped ndpi page
             return NdpiStripedPage(
@@ -1138,16 +1227,51 @@ class NdpiTiler(Tiler):
                 self.tile_size,
                 self._jpeg
             )
-        if series == self._level_series_index:  # Single frame, force tiling
-            return NdpiOneFramePage(
-                tiff_page,
-                self._fh,
-                self.base_size,
-                self.tile_size,
-                self._jpeg
-            )
-        return NdpiPage(
+        # Single frame, force tiling
+        return NdpiOneFramePage(
             tiff_page,
             self._fh,
+            self.base_size,
+            self.tile_size,
             self._jpeg
-        )  # Single frame, do not tile
+        )
+
+    def _create_label_page(self) -> CroppedNdpiPage:
+        """Create a new label page from TiffPage.
+
+        Returns
+        ----------
+        CroppedNdpiPage
+            Created page.
+        """
+        assert self._overview_series_index is not None
+        tiff_page = self._tiff_file.series[
+            self._overview_series_index
+        ].pages.pages[0]
+        assert isinstance(tiff_page, TiffPage)
+        return CroppedNdpiPage(
+            tiff_page,
+            self._fh,
+            self._jpeg,
+            (0.0, self._label_crop_position)
+        )
+
+    def _create_overview_page(self) -> NdpiPage:
+        """Create a new overview page from TiffPage.
+
+        Returns
+        ----------
+        CroppedNdpiPage
+            Created page.
+        """
+        assert self._overview_series_index is not None
+        tiff_page = self._tiff_file.series[
+            self._overview_series_index
+        ].pages.pages[0]
+        assert isinstance(tiff_page, TiffPage)
+        return CroppedNdpiPage(
+            tiff_page,
+            self._fh,
+            self._jpeg,
+            (self._label_crop_position, 1.0)
+        )
