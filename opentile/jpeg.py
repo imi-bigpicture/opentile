@@ -250,10 +250,9 @@ class Jpeg:
         """
         try:
             return self._turbo_jpeg.crop_multiple(frame, crop_parameters)
-        except OSError:
+        except OSError as exception:
             raise JpegCropError(
-                f"Crop of frame failed "
-                f"with parameters {crop_parameters}"
+                f"Crop of frame failed with parameters {crop_parameters}.", exception
             )
 
     @classmethod
