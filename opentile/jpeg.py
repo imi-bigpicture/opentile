@@ -56,6 +56,25 @@ class Jpeg:
             turbo_path = find_turbojpeg_path()
         self._turbo_jpeg = TurboJPEG(turbo_path)
 
+    def get_mcu(self, frame: bytes) -> Size:
+        """Return MCU size read from frame header.
+
+        Parameters
+        ----------
+        frame: bytes
+            Frame with header.
+
+        Returns
+        ----------
+        bytes:
+            MCU size in header.
+        """
+        _, _, subsampling, _ = self._turbo_jpeg.decode_header(frame)
+        try:
+            return Size(tjMCUWidth[subsampling], tjMCUHeight[subsampling])
+        except IndexError:
+            raise ValueError(f"Unknown subsampling {subsampling}.")
+
     def concatenate_fragments(
         self,
         fragments: Iterator[bytes],
