@@ -354,17 +354,10 @@ class NdpiPage(OpenTilePage):
         """Return pixel spacing in um per pixel."""
         return self._mpp
 
-    @property
+    @cached_property
     def mcu(self) -> Size:
         """Return mcu size of page."""
-        subsampling: Optional[Tuple[int, int]] = self._page.subsampling
-        if subsampling is None or subsampling == (1, 1):
-            return Size(8, 8)
-        elif subsampling == (2, 1):
-            return Size(16, 8)
-        elif subsampling == (2, 2):
-            return Size(16, 16)
-        raise ValueError(f"Unknown subsampling {subsampling}")
+        return self._jpeg.get_mcu(self._read_frame(0))
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return tile for tile position.
@@ -482,8 +475,7 @@ class CroppedNdpiPage(NdpiPage):
             Pixel position for crop.
         """
         width = self._page.shape[1]
-        mcu_width = self.mcu.width
-        return int(width * crop / mcu_width) * mcu_width
+        return int(width * crop / self.mcu.width) * self.mcu.width
 
 
 class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
@@ -725,7 +717,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
 class NdpiOneFramePage(NdpiTiledPage):
     """Class for a ndpi page containing only one frame that should be tiled.
     The frame can be of any size (smaller or larger than the wanted tile size).
-    The frame is padded to an even multipe of tile size.
+    The frame is padded to an even multiple of tile size.
     """
 
     def _get_file_frame_size(self) -> Size:
