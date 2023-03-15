@@ -13,7 +13,7 @@
 #    limitations under the License.
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from tifffile.tifffile import TiffTags
 
@@ -49,6 +49,11 @@ class Metadata:
     @property
     def aquisition_datetime(self) -> Optional[datetime]:
         """Return the aquisition datetime if present in file."""
+        return None
+
+    @property
+    def image_offset(self) -> Optional[Tuple[float, float]]:
+        """Return the offset from slide corner to image in mm if present in file."""
         return None
 
     @property
