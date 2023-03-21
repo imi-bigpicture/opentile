@@ -73,7 +73,8 @@ tiler = OpenTile.open(path_to_ndpi_file, tile_size, turbo_path)
 ***Get rectangular tile at level 0 and position x=0, y=0.***
 
 ```python
-tile = tiler.get_tile(0, (0, 0))
+level = tiler.get_evel(0)
+tile = level.get_tile((0, 0))
 ```
 
 ***Close the tiler object.***
@@ -91,7 +92,8 @@ from opentile import OpenTile
 tile_size = (1024, 1024)
 turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
 with OpenTile.open(path_to_ndpi_file, tile_size, turbo_path) as tiler:
-    tile = tiler.get_tile(0, (0, 0))
+    level = tiler.get_evel(0)
+    tile = level.get_tile((0, 0))
 ```
 
 ## Setup environment for development
