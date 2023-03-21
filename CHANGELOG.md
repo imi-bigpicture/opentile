@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed error in readme.
 
+## [0.7.1] - 2023-03-15
+
+### Fixed
+
+- Use MCU read from frame instead of from subsampling tag as the latter can be incorrect.
+
 ## [0.7.0] - 2023-02-13
 
 ### Changed
@@ -105,7 +111,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.7.0..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.7.1..HEAD
+[0.7.1]: https://github.com/imi-bigpicture/opentile/compare/v0.7.0..v0.7.1
 [0.7.0]: https://github.com/imi-bigpicture/opentile/compare/v0.6.0..v0.7.0
 [0.6.0]: https://github.com/imi-bigpicture/opentile/compare/v0.5.0..v0.6.0
 [0.5.0]: https://github.com/imi-bigpicture/opentile/compare/v0.4.2..v0.5.0
