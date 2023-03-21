@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -
 
+### Added
+
+- Added optional image_offset property in metadata class.
+
 ## [0.7.1] - 2023-03-15
 
 ### Fixed

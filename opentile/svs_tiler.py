@@ -477,6 +477,13 @@ class SvsMetadata(Metadata):
     def mpp(self) -> float:
         return float(self._svs_metadata['MPP'])
 
+    @property
+    def image_offset(self) -> Optional[Tuple[float, float]]:
+        return (
+            float(self._svs_metadata['Left']),
+            float(self._svs_metadata['Top'])
+        )
+
 
 class SvsTiler(Tiler):
     def __init__(
