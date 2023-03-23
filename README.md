@@ -16,6 +16,12 @@ Crrently supported file formats are listed and described under *Supported file f
 pip install opentile
 ```
 
+Alternatively, it can be installed via conda:
+
+```console
+conda install opentile
+```
+
 ## Important note
 
 Please note that this is an early release and the API is not frozen yet. Function names and functionality is prone to change.
