@@ -19,7 +19,7 @@ pip install opentile
 Alternatively, it can be installed via conda:
 
 ```console
-conda install opentile
+conda install -c conda-forge opentile
 ```
 
 ## Important note
