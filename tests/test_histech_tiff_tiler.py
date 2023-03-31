@@ -36,36 +36,36 @@ class HistechTiffTilerTest(unittest.TestCase):
         try:
             cls.tiler = HistechTiffTiler(histech_file_path)
         except FileNotFoundError:
-            raise unittest.SkipTest(
-                'Histech tiff test file not found, skipping'
-            )
+            raise unittest.SkipTest("Histech tiff test file not found, skipping")
         cls.level = cls.tiler.get_level(0)
 
     @classmethod
     def tearDownClass(cls):
         cls.tiler.close()
 
-    @parameterized.expand([
-        ((50, 50), '221f47792ebef7b9e394fc6c8ed7cb64'),
-        ((100, 100), '0a2e459e94e9237bb866b3bc1ac10cb8')
-    ])
+    @parameterized.expand(
+        [
+            ((50, 50), "221f47792ebef7b9e394fc6c8ed7cb64"),
+            ((100, 100), "0a2e459e94e9237bb866b3bc1ac10cb8"),
+        ]
+    )
     def test_get_tile(self, tile_point: Tuple[int, int], hash: str):
         tile = self.level.get_tile(tile_point)
         self.assertEqual(hash, md5(tile).hexdigest())
 
-    @parameterized.expand([
-        (
-            [(50, 50), (100, 100)],
-            [
-                '221f47792ebef7b9e394fc6c8ed7cb64',
-                '0a2e459e94e9237bb866b3bc1ac10cb8'
-            ]
-        ),
-    ])
+    @parameterized.expand(
+        [
+            (
+                [(50, 50), (100, 100)],
+                [
+                    "221f47792ebef7b9e394fc6c8ed7cb64",
+                    "0a2e459e94e9237bb866b3bc1ac10cb8",
+                ],
+            ),
+        ]
+    )
     def test_get_tiles(
-        self,
-        tile_points: Sequence[Tuple[int, int]],
-        hashes: Sequence[str]
+        self, tile_points: Sequence[Tuple[int, int]], hashes: Sequence[str]
     ):
         tiles = self.level.get_tiles(tile_points)
         for tile, hash in zip(tiles, hashes):
@@ -73,18 +73,11 @@ class HistechTiffTilerTest(unittest.TestCase):
 
     def test_photometric_interpretation(self):
         self.assertEqual(
-            PHOTOMETRIC.YCBCR,
-            self.tiler.get_level(0).photometric_interpretation
+            PHOTOMETRIC.YCBCR, self.tiler.get_level(0).photometric_interpretation
         )
 
     def test_subsampling(self):
-        self.assertEqual(
-            None,
-            self.tiler.get_level(0).subsampling
-        )
+        self.assertEqual(None, self.tiler.get_level(0).subsampling)
 
     def test_sumples_per_pixel(self):
-        self.assertEqual(
-            3,
-            self.tiler.get_level(0).samples_per_pixel
-        )
+        self.assertEqual(3, self.tiler.get_level(0).samples_per_pixel)

@@ -19,8 +19,15 @@ from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
-from tifffile.tifffile import (COMPRESSION, PHOTOMETRIC, FileHandle, TiffFile,
-                               TiffPage, TiffPageSeries, TiffTags)
+from tifffile.tifffile import (
+    COMPRESSION,
+    PHOTOMETRIC,
+    FileHandle,
+    TiffFile,
+    TiffPage,
+    TiffPageSeries,
+    TiffTags,
+)
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
@@ -29,6 +36,7 @@ from opentile.metadata import Metadata
 
 class LockableFileHandle:
     """A lockable file handle for reading frames."""
+
     def __init__(self, fh: FileHandle):
         self._fh = fh
         self._lock = threading.Lock()
@@ -62,8 +70,7 @@ class LockableFileHandle:
             return self._read(offset, bytecount)
 
     def read_multiple(
-        self,
-        offsets_bytecounts: Sequence[Tuple[int, int]]
+        self, offsets_bytecounts: Sequence[Tuple[int, int]]
     ) -> List[bytes]:
         """Return bytes from multiple locations from file handle. Is thread
         safe.
@@ -121,13 +128,11 @@ class OpenTilePage(metaclass=ABCMeta):
                 NdpiStripedPage - Tiled Ndpi page of striped frames
 
     """
+
     _pyramid_index: int
 
     def __init__(
-        self,
-        page: TiffPage,
-        fh: FileHandle,
-        add_rgb_colorspace_fix: bool = False
+        self, page: TiffPage, fh: FileHandle, add_rgb_colorspace_fix: bool = False
     ):
         """Abstract class for reading tiles from TiffPage.
 
@@ -145,16 +150,10 @@ class OpenTilePage(metaclass=ABCMeta):
         self._add_rgb_colorspace_fix = add_rgb_colorspace_fix
         self._image_size = Size(self._page.shape[1], self._page.shape[0])
         if self.page.is_tiled:
-            self._tile_size = Size(
-                self.page.tilewidth,
-                self.page.tilelength
-            )
+            self._tile_size = Size(self.page.tilewidth, self.page.tilelength)
         else:
             self._tile_size = self.image_size
-        self._tiled_region = Region(
-            position=Point(0, 0),
-            size=self.tiled_size
-        )
+        self._tiled_region = Region(position=Point(0, 0), size=self.tiled_size)
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -207,7 +206,7 @@ class OpenTilePage(metaclass=ABCMeta):
     def optical_path(self) -> str:
         """Return optical path identifier."""
         # Not sure if optical paths are defined in tiff files...
-        return '0'
+        return "0"
 
     @property
     def image_size(self) -> Size:
@@ -216,8 +215,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def tile_size(self) -> Size:
-        """The pixel size of the tiles. Returns image size if not tiled page
-        """
+        """The pixel size of the tiles. Returns image size if not tiled page"""
         return self._tile_size
 
     @property
@@ -271,10 +269,7 @@ class OpenTilePage(metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def get_tiles(
-        self,
-        tile_positions: Sequence[Tuple[int, int]]
-    ) -> List[bytes]:
+    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> List[bytes]:
         """Return list of image bytes for tiles at tile positions.
 
         Parameters
@@ -287,9 +282,7 @@ class OpenTilePage(metaclass=ABCMeta):
         List[bytes]
             List of tile bytes.
         """
-        return [
-            self.get_tile(tile) for tile in tile_positions
-        ]
+        return [self.get_tile(tile) for tile in tile_positions]
 
     def get_decoded_tiles(
         self, tile_positions: Sequence[Tuple[int, int]]
@@ -312,11 +305,7 @@ class OpenTilePage(metaclass=ABCMeta):
         """Close filehandle."""
         self._fh.close()
 
-    def pretty_str(
-        self,
-        indent: int = 0,
-        depth: Optional[int] = None
-    ) -> str:
+    def pretty_str(self, indent: int = 0, depth: Optional[int] = None) -> str:
         return str(self)
 
     @property
@@ -349,17 +338,13 @@ class OpenTilePage(metaclass=ABCMeta):
             Frame bytes.
         """
         return self._fh.read(
-            self._page.dataoffsets[index],
-            self._page.databytecounts[index]
+            self._page.dataoffsets[index], self._page.databytecounts[index]
         )
 
     def _read_frames(self, indices: Sequence[int]) -> List[bytes]:
         return self._fh.read_multiple(
             [
-                (
-                    self._page.dataoffsets[index],
-                    self._page.databytecounts[index]
-                )
+                (self._page.dataoffsets[index], self._page.databytecounts[index])
                 for index in indices
             ]
         )
@@ -367,14 +352,13 @@ class OpenTilePage(metaclass=ABCMeta):
     def _check_if_tile_inside_image(self, tile_position: Point) -> bool:
         """Return true if tile position is inside tiled image."""
         return (
-            tile_position.x < self.tiled_size.width and
-            tile_position.y < self.tiled_size.height
+            tile_position.x < self.tiled_size.width
+            and tile_position.y < self.tiled_size.height
         )
 
     @staticmethod
     def _get_value_from_tiff_tags(
-        tiff_tags: TiffTags,
-        value_name: str
+        tiff_tags: TiffTags, value_name: str
     ) -> Optional[str]:
         for tag in tiff_tags:
             if tag.name == value_name:
@@ -387,20 +371,15 @@ class OpenTilePage(metaclass=ABCMeta):
     ) -> int:
         return int(math.log2(base_shape.width / self.image_size.width))
 
-    def _calculate_mpp(
-        self,
-        base_mpp: SizeMm
-    ) -> SizeMm:
+    def _calculate_mpp(self, base_mpp: SizeMm) -> SizeMm:
         return base_mpp * pow(2, self.pyramid_index)
 
 
 class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
 
     """Meta class for pages that are natively tiled (e.g. not ndpi)"""
-    def get_tile(
-        self,
-        tile_position: Tuple[int, int]
-    ) -> bytes:
+
+    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return image bytes for tile at tile position.
 
         Parameters
@@ -418,16 +397,11 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         tile = self._read_frame(frame_index)
         if self.page.jpegtables is not None:
             tile = Jpeg.add_jpeg_tables(
-                tile,
-                self.page.jpegtables,
-                self._add_rgb_colorspace_fix
+                tile, self.page.jpegtables, self._add_rgb_colorspace_fix
             )
         return tile
 
-    def get_tiles(
-        self,
-        tile_positions: Sequence[Tuple[int, int]]
-    ) -> List[bytes]:
+    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> List[bytes]:
         """Return image bytes for tiles at tile positions.
 
         Parameters
@@ -444,16 +418,13 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
             Point.from_tuple(tile_position) for tile_position in tile_positions
         ]
         frame_indices = [
-            self._tile_point_to_frame_index(tile_point)
-            for tile_point in tile_points
+            self._tile_point_to_frame_index(tile_point) for tile_point in tile_points
         ]
         tiles = self._read_frames(frame_indices)
         if self.page.jpegtables is not None:
             tiles = [
                 Jpeg.add_jpeg_tables(
-                    tile,
-                    self.page.jpegtables,
-                    self._add_rgb_colorspace_fix
+                    tile, self.page.jpegtables, self._add_rgb_colorspace_fix
                 )
                 for tile in tiles
             ]
@@ -476,9 +447,7 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         tile_point = Point.from_tuple(tile_position)
         if not self._check_if_tile_inside_image(tile_point):
             return np.full(
-                self.tile_size.to_tuple() + (3,),
-                255,
-                dtype=np.dtype(np.uint8)
+                self.tile_size.to_tuple() + (3,), 255, dtype=np.dtype(np.uint8)
             )
 
         shape: tuple[int, int, int, int]
@@ -489,10 +458,7 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         data.shape = shape[1:]
         return data
 
-    def _tile_point_to_frame_index(
-        self,
-        tile_point: Point
-    ) -> int:
+    def _tile_point_to_frame_index(self, tile_point: Point) -> int:
         """Return linear frame index for tile position."""
         frame_index = tile_point.y * self.tiled_size.width + tile_point.x
         return frame_index
@@ -500,6 +466,7 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
 
 class Tiler(metaclass=ABCMeta):
     """Abstract class for reading pages from TiffFile."""
+
     _level_series_index: int = 0
     _overview_series_index: Optional[int] = None
     _label_series_index: Optional[int] = None
@@ -517,10 +484,7 @@ class Tiler(metaclass=ABCMeta):
         base_page = self.series[self._level_series_index].pages[0]
         assert isinstance(base_page, TiffPage)
         self._base_page = base_page
-        self._base_size = Size(
-            self.base_page.shape[1],
-            self.base_page.shape[0]
-        )
+        self._base_size = Size(self.base_page.shape[1], self.base_page.shape[0])
 
     def __enter__(self):
         return self
@@ -554,8 +518,9 @@ class Tiler(metaclass=ABCMeta):
             return []
         return [
             self.get_level(level_index, page_index)
-            for level_index, level
-            in enumerate(self.series[self._level_series_index].levels)
+            for level_index, level in enumerate(
+                self.series[self._level_series_index].levels
+            )
             for page_index, page in enumerate(level.pages)
         ]
 
@@ -566,8 +531,9 @@ class Tiler(metaclass=ABCMeta):
             return []
         return [
             self.get_label(page_index)
-            for page_index, page
-            in enumerate(self.series[self._label_series_index].pages)
+            for page_index, page in enumerate(
+                self.series[self._label_series_index].pages
+            )
         ]
 
     @property
@@ -577,8 +543,9 @@ class Tiler(metaclass=ABCMeta):
             return []
         return [
             self.get_overview(page_index)
-            for page_index, page
-            in enumerate(self.series[self._overview_series_index].pages)
+            for page_index, page in enumerate(
+                self.series[self._overview_series_index].pages
+            )
         ]
 
     @property
@@ -600,11 +567,7 @@ class Tiler(metaclass=ABCMeta):
         self._tiff_file.close()
 
     def get_tile(
-        self,
-        series: int,
-        level: int,
-        page: int,
-        tile_position: Tuple[int, int]
+        self, series: int, level: int, page: int, tile_position: Tuple[int, int]
     ) -> bytes:
         """Return list of image bytes for tiles at tile positions.
 
@@ -627,11 +590,7 @@ class Tiler(metaclass=ABCMeta):
         tiled_page = self.get_page(series, level, page)
         return tiled_page.get_tile(tile_position)
 
-    def get_level(
-        self,
-        level: int,
-        page: int = 0
-    ) -> OpenTilePage:
+    def get_level(self, level: int, page: int = 0) -> OpenTilePage:
         """Return OpenTilePage for level in pyramid series.
 
         Parameters
@@ -648,10 +607,7 @@ class Tiler(metaclass=ABCMeta):
         """
         return self.get_page(self._level_series_index, level, page)
 
-    def get_label(
-        self,
-        page: int = 0
-    ) -> OpenTilePage:
+    def get_label(self, page: int = 0) -> OpenTilePage:
         """Return OpenTilePage for label in label series.
 
         Parameters
@@ -668,10 +624,7 @@ class Tiler(metaclass=ABCMeta):
             raise ValueError("No label detected in file")
         return self.get_page(self._label_series_index, 0, page)
 
-    def get_overview(
-        self,
-        page: int = 0
-    ) -> OpenTilePage:
+    def get_overview(self, page: int = 0) -> OpenTilePage:
         """Return OpenTilePage for overview in overview series.
 
         Parameters
