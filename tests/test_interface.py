@@ -18,13 +18,16 @@ import unittest
 import pytest
 from opentile import OpenTile
 
-from .filepaths import (histech_file_path, ndpi_file_path, philips_file_path,
-                        svs_file_path)
+from .filepaths import (
+    histech_file_path,
+    ndpi_file_path,
+    philips_file_path,
+    svs_file_path,
+)
 
 
 @pytest.mark.unittest
 class InterfaceTest(unittest.TestCase):
-
     def test_open_svs(self):
         self._test_open(svs_file_path)
 
@@ -43,6 +46,4 @@ class InterfaceTest(unittest.TestCase):
 
     def _check_file_exists(self, file: Path):
         if not file.exists():
-            raise unittest.SkipTest(
-                f'{file} test file not found, skipping'
-            )
+            raise unittest.SkipTest(f"{file} test file not found, skipping")

@@ -20,11 +20,19 @@ import pytest
 from opentile.turbojpeg_patch import BlankStruct, BlankTransformStruct
 from opentile.turbojpeg_patch import TurboJPEG_patch
 from opentile.turbojpeg_patch import blank_image, find_turbojpeg_path
-from turbojpeg import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP, TJXOPT_GRAY,
-                       TJXOPT_PERFECT, BackgroundStruct, CroppingRegion,
-                       TransformStruct, fill_background)
+from turbojpeg import (
+    CUSTOMFILTER,
+    TJXOP_NONE,
+    TJXOPT_CROP,
+    TJXOPT_GRAY,
+    TJXOPT_PERFECT,
+    BackgroundStruct,
+    CroppingRegion,
+    TransformStruct,
+    fill_background,
+)
 
-test_file_path = 'tests/testdata/turbojpeg/frame_2048x512.jpg'
+test_file_path = "tests/testdata/turbojpeg/frame_2048x512.jpg"
 
 
 @pytest.mark.turbojpeg
@@ -35,7 +43,7 @@ class TurboJpegTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.jpeg = TurboJPEG_patch(find_turbojpeg_path())
-        cls.test_file = open(test_file_path, 'rb')
+        cls.test_file = open(test_file_path, "rb")
         cls.buffer = cls.test_file.read()
 
     @classmethod
@@ -45,64 +53,32 @@ class TurboJpegTest(unittest.TestCase):
     def test__need_fill_background(self):
         image_size = (2048, 1024)
         crop_region = CroppingRegion(0, 0, 512, 512)
-        self.assertFalse(
-            self.jpeg._need_fill_background(
-                crop_region,
-                image_size,
-                1.0
-            )
-        )
+        self.assertFalse(self.jpeg._need_fill_background(crop_region, image_size, 1.0))
 
         crop_region = CroppingRegion(0, 0, 2048, 1024)
-        self.assertFalse(
-            self.jpeg._need_fill_background(
-                crop_region,
-                image_size,
-                1.0
-            )
-        )
+        self.assertFalse(self.jpeg._need_fill_background(crop_region, image_size, 1.0))
 
         crop_region = CroppingRegion(1024, 0, 1024, 1024)
-        self.assertFalse(
-            self.jpeg._need_fill_background(
-                crop_region,
-                image_size,
-                1.0
-            )
-        )
+        self.assertFalse(self.jpeg._need_fill_background(crop_region, image_size, 1.0))
 
         crop_region = CroppingRegion(0, 0, 2048, 2048)
-        self.assertTrue(
-            self.jpeg._need_fill_background(
-                crop_region,
-                image_size,
-                1.0
-            )
-        )
+        self.assertTrue(self.jpeg._need_fill_background(crop_region, image_size, 1.0))
 
         crop_region = CroppingRegion(0, 0, 2048, 2048)
-        self.assertFalse(
-            self.jpeg._need_fill_background(
-                crop_region,
-                image_size,
-                0.5
-            )
-        )
+        self.assertFalse(self.jpeg._need_fill_background(crop_region, image_size, 0.5))
 
     def test__define_cropping_regions(self):
         crop_parameters = [(0, 1, 2, 3), (4, 5, 6, 7)]
         expected_cropping_regions = [
             CroppingRegion(0, 1, 2, 3),
-            CroppingRegion(4, 5, 6, 7)
+            CroppingRegion(4, 5, 6, 7),
         ]
-        cropping_regions = self.jpeg._define_cropping_regions(
-            crop_parameters
-        )
+        cropping_regions = self.jpeg._define_cropping_regions(crop_parameters)
         for index, region in enumerate(cropping_regions):
             expected = expected_cropping_regions[index]
             self.assertEqual(
                 (expected.x, expected.y, expected.w, expected.h),
-                (region.x, region.y, region.w, region.h)
+                (region.x, region.y, region.w, region.h),
             )
 
     def test_crop_multiple_compare(self):
@@ -137,14 +113,14 @@ class TurboJpegTest(unittest.TestCase):
         # Create coefficent array, filled with 0:s. The data is arranged in
         # mcus, i.e. first 64 values are for mcu (0, 0), second 64 values for
         # mcu (1, 0)
-        coeffs = np.zeros(extended_width*extended_height, dtype=c_short)
+        coeffs = np.zeros(extended_width * extended_height, dtype=c_short)
         # Fill the mcu corresponding to the original image with 1:s.
-        coeffs[0:original_width*original_height] = 1
+        coeffs[0 : original_width * original_height] = 1
 
         # Make a copy of the original data and change the coefficents for the
         # extended mcus ((0, 0), (1, 0), (1, 1)) manually.
         expected_results = np.copy(coeffs)
-        for index in range(mcu_size, extended_width*extended_height, mcu_size):
+        for index in range(mcu_size, extended_width * extended_height, mcu_size):
             expected_results[index] = background_luminance
 
         planeRegion = CroppingRegion(0, 0, extended_width, extended_width)
@@ -153,23 +129,18 @@ class TurboJpegTest(unittest.TestCase):
             crop_region,
             TJXOP_NONE,
             TJXOPT_PERFECT | TJXOPT_CROP | (gray and TJXOPT_GRAY),
-            pointer(BackgroundStruct(
-                original_width,
-                original_height,
-                background_luminance
-            )),
-            CUSTOMFILTER(fill_background)
+            pointer(
+                BackgroundStruct(original_width, original_height, background_luminance)
+            ),
+            CUSTOMFILTER(fill_background),
         )
 
         # Iterate the callback with one mcu-row of data.
-        for row in range(extended_height//callback_row_heigth):
+        for row in range(extended_height // callback_row_heigth):
             data_start = row * callback_row_heigth * extended_width
-            data_end = (row+1) * callback_row_heigth * extended_width
+            data_end = (row + 1) * callback_row_heigth * extended_width
             arrayRegion = CroppingRegion(
-                0,
-                row*callback_row_heigth,
-                extended_width,
-                callback_row_heigth
+                0, row * callback_row_heigth, extended_width, callback_row_heigth
             )
             callback_result = fill_background(
                 coeffs[data_start:data_end].ctypes.data,
@@ -177,7 +148,7 @@ class TurboJpegTest(unittest.TestCase):
                 planeRegion,
                 componentID,
                 transformID,
-                pointer(transform_struct)
+                pointer(transform_struct),
             )
 
         # Compare the modified data with the expected result
@@ -197,7 +168,7 @@ class TurboJpegTest(unittest.TestCase):
         # Create coefficent array, filled with 1:s. The data is arranged in
         # mcus, i.e. first 64 values are for mcu (0, 0), second 64 values for
         # mcu (1, 0)
-        coeffs = np.ones(extended_width*extended_height, dtype=c_short)
+        coeffs = np.ones(extended_width * extended_height, dtype=c_short)
 
         # The expected result is fileld with 0:s and luminance dc component
         # changed
@@ -209,32 +180,23 @@ class TurboJpegTest(unittest.TestCase):
             TJXOP_NONE,
             TJXOPT_PERFECT | TJXOPT_CROP | (gray and TJXOPT_GRAY),
             pointer(BlankStruct(0, background_luminance)),
-            CUSTOMFILTER(blank_image)
+            CUSTOMFILTER(blank_image),
         )
 
         # Iterate through components
         for componentID in range(3):
             # Expected result is array with 0
-            expected_results = np.zeros(
-                extended_width*extended_height, dtype=c_short
-            )
+            expected_results = np.zeros(extended_width * extended_height, dtype=c_short)
             # For luminance add background luminance to expected result
             if componentID == 0:
-                for index in range(
-                    0,
-                    extended_width*extended_height,
-                    mcu_size
-                ):
+                for index in range(0, extended_width * extended_height, mcu_size):
                     expected_results[index] = background_luminance
             # Iterate the callback with one mcu-row of data.
-            for row in range(extended_height//callback_row_heigth):
+            for row in range(extended_height // callback_row_heigth):
                 data_start = row * callback_row_heigth * extended_width
-                data_end = (row+1) * callback_row_heigth * extended_width
+                data_end = (row + 1) * callback_row_heigth * extended_width
                 arrayRegion = CroppingRegion(
-                    0,
-                    row*callback_row_heigth,
-                    extended_width,
-                    callback_row_heigth
+                    0, row * callback_row_heigth, extended_width, callback_row_heigth
                 )
                 callback_result = blank_image(
                     coeffs[data_start:data_end].ctypes.data,  # type: ignore
@@ -242,7 +204,7 @@ class TurboJpegTest(unittest.TestCase):
                     planeRegion,
                     componentID,
                     transformID,
-                    pointer(transform_struct)  # type: ignore
+                    pointer(transform_struct),  # type: ignore
                 )
 
             # Compare the modified component with the expected result

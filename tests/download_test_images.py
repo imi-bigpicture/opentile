@@ -19,24 +19,24 @@ import requests
 from hashlib import md5
 
 FILES: Dict[str, Dict[str, Any]] = {
-    'slides/svs/CMU-1/CMU-1.svs': {
-        'url': 'https://data.cytomine.coop/open/openslide/aperio-svs/CMU-1.svs',  # NOQA
-        'md5': {'CMU-1.svs': '751b0b86a3c5ff4dfc8567cf24daaa85'}
+    "slides/svs/CMU-1/CMU-1.svs": {
+        "url": "https://data.cytomine.coop/open/openslide/aperio-svs/CMU-1.svs",  # NOQA
+        "md5": {"CMU-1.svs": "751b0b86a3c5ff4dfc8567cf24daaa85"},
     },
-    'slides/ndpi/CMU-1/CMU-1.ndpi': {
-        'url': 'https://data.cytomine.coop/open/openslide/hamamatsu-ndpi/CMU-1.ndpi',  # NOQA
-        'md5': {'CMU-1.ndpi': 'fb89dea54f85fb112e418a3cf4c7888a'}
-    }
+    "slides/ndpi/CMU-1/CMU-1.ndpi": {
+        "url": "https://data.cytomine.coop/open/openslide/hamamatsu-ndpi/CMU-1.ndpi",  # NOQA
+        "md5": {"CMU-1.ndpi": "fb89dea54f85fb112e418a3cf4c7888a"},
+    },
 }
 
-DEFAULT_DIR = 'testdata'
+DEFAULT_DIR = "testdata"
 DOWNLOAD_CHUNK_SIZE = 8192
 
 
 def download_file(url: str, filename: Path):
     with requests.get(url, stream=True) as request:
         request.raise_for_status()
-        with open(filename, 'wb') as file:
+        with open(filename, "wb") as file:
             for chunk in request.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 file.write(chunk)
 
@@ -59,19 +59,19 @@ def main():
         if file_path.exists():
             print(f"{file} found, skipping download")
         else:
-            url = file_settings['url']
+            url = file_settings["url"]
             print(f"{file} not found, downloading from {url}")
             os.makedirs(file_path.parent, exist_ok=True)
             download_file(url, file_path)
 
-        for relative_path, hash in file_settings['md5'].items():
+        for relative_path, hash in file_settings["md5"].items():
             saved_file_path = file_path.parent.joinpath(relative_path)
             if not saved_file_path.exists():
                 raise ValueError(
-                    f'Did not find {saved_file_path}. Try removing the '
-                    'parent folder and try again.'
+                    f"Did not find {saved_file_path}. Try removing the "
+                    "parent folder and try again."
                 )
-            with open(saved_file_path, 'rb') as saved_file_io:
+            with open(saved_file_path, "rb") as saved_file_io:
                 data = saved_file_io.read()
                 if not hash == md5(data).hexdigest():
                     raise ValueError(f"Checksum faild for {saved_file_path}")

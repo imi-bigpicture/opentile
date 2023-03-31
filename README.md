@@ -72,6 +72,14 @@ File metadata can be accessed through the `metadata`-property of a tiler. Depend
 ```python
 from opentile import OpenTile
 tile_size = (1024, 1024)
+tiler = OpenTile.open(path_to_ndpi_file, tile_size)
+```
+
+***If turbo jpeg library path is not found.***
+
+```python
+from opentile import OpenTile
+tile_size = (1024, 1024)
 turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
 tiler = OpenTile.open(path_to_ndpi_file, tile_size, turbo_path)
 ```
@@ -96,8 +104,7 @@ The tiler can also be used as context manager:
 ```python
 from opentile import OpenTile
 tile_size = (1024, 1024)
-turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
-with OpenTile.open(path_to_ndpi_file, tile_size, turbo_path) as tiler:
+with OpenTile.open(path_to_ndpi_file, tile_size) as tiler:
     level = tiler.get_evel(0)
     tile = level.get_tile((0, 0))
 ```

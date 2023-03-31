@@ -20,7 +20,8 @@ from tifffile.tifffile import TiffTags
 
 class Metadata:
     """Class for retrieving metadata from tiff-file. Should be sub-classed
-    to read metadata from specific file formats. """
+    to read metadata from specific file formats."""
+
     @property
     def magnification(self) -> Optional[float]:
         """Return the objective magnification if present in file."""
@@ -63,8 +64,7 @@ class Metadata:
 
     @staticmethod
     def _get_value_from_tiff_tags(
-        tiff_tags: TiffTags,
-        value_name: str
+        tiff_tags: TiffTags, value_name: str
     ) -> Optional[str]:
         for tag in tiff_tags:
             if tag.name == value_name:

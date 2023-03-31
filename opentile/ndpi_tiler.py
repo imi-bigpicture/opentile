@@ -29,20 +29,19 @@ from opentile.metadata import Metadata
 
 
 def get_value_from_ndpi_comments(
-    comments: str,
-    value_name: str,
-    value_type: Any
+    comments: str, value_name: str, value_type: Any
 ) -> Any:
     """Read value from ndpi comment string."""
     for line in comments.split("\n"):
         if value_name in line:
-            value_string = line.split('=')[1]
+            value_string = line.split("=")[1]
             return value_type(value_string)
 
 
-class NdpiCache():
+class NdpiCache:
     """Cache for bytes ordered by tile position. Oldest entry is removed when
     size of content is above set size."""
+
     def __init__(self, size: int):
         """Create cache for size items.
 
@@ -61,8 +60,7 @@ class NdpiCache():
 
     def __str__(self) -> str:
         return (
-            f"{type(self).__name__} of size {len(self)} "
-            f"and max size {self._size}"
+            f"{type(self).__name__} of size {len(self)} " f"and max size {self._size}"
         )
 
     def __repr__(self) -> str:
@@ -140,12 +138,8 @@ class NdpiCache():
 class NdpiTile:
     """Defines a tile by position and coordinates and size for cropping out
     out frame."""
-    def __init__(
-        self,
-        position: Point,
-        tile_size: Size,
-        frame_size: Size
-    ) -> None:
+
+    def __init__(self, position: Point, tile_size: Size, frame_size: Size) -> None:
         """Create a ndpi tile and calculate cropping parameters.
 
         Parameters
@@ -163,25 +157,23 @@ class NdpiTile:
         self._frame_size = frame_size
 
         self._tiles_per_frame = Size.max(
-            self._frame_size // self._tile_size,
-            Size(1, 1)
+            self._frame_size // self._tile_size, Size(1, 1)
         )
-        position_inside_frame: Point = (
-            (self.position * self._tile_size)
-            % Size.max(self._frame_size, self._tile_size)
+        position_inside_frame: Point = (self.position * self._tile_size) % Size.max(
+            self._frame_size, self._tile_size
         )
         self._left = position_inside_frame.x
         self._top = position_inside_frame.y
         self._frame_position = (
-            (self.position // self._tiles_per_frame) * self._tiles_per_frame
-        )
+            self.position // self._tiles_per_frame
+        ) * self._tiles_per_frame
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, NdpiTile):
             return (
-                self.position == other.position and
-                self._tile_size == other._tile_size and
-                self._frame_size == other._frame_size
+                self.position == other.position
+                and self._tile_size == other._tile_size
+                and self._frame_size == other._frame_size
             )
         return NotImplemented
 
@@ -233,10 +225,8 @@ class NdpiTile:
 class NdpiFrameJob:
     """A list of tiles to create from a frame. Tiles need to have the same
     frame position."""
-    def __init__(
-        self,
-        tiles: Union[NdpiTile, List[NdpiTile]]
-    ) -> None:
+
+    def __init__(self, tiles: Union[NdpiTile, List[NdpiTile]]) -> None:
         """Create a frame job from given tile(s).
 
         Parameters
@@ -283,10 +273,7 @@ class NdpiFrameJob:
     @property
     def crop_parameters(self) -> List[Tuple[int, int, int, int]]:
         """Parameters for croping tiles from frame in NdpiFrameJob."""
-        return [
-            (tile.left, tile.top, tile.width, tile.height)
-            for tile in self._tiles
-        ]
+        return [(tile.left, tile.top, tile.width, tile.height) for tile in self._tiles]
 
     def append(self, tile: NdpiTile) -> None:
         """Add a tile to the tile job."""
@@ -298,12 +285,7 @@ class NdpiFrameJob:
 class NdpiPage(OpenTilePage):
     _pyramid_index = 0
 
-    def __init__(
-        self,
-        page: TiffPage,
-        fh: FileHandle,
-        jpeg: Jpeg
-    ):
+    def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
         """Ndpi page that should not be tiled (e.g. overview or label).
         Image data is assumed to be jpeg.
 
@@ -319,25 +301,21 @@ class NdpiPage(OpenTilePage):
         super().__init__(page, fh)
         if self.compression != COMPRESSION.JPEG:
             raise NotImplementedError(
-                f'{self.compression} is unsupported for ndpi '
-                '(Only jpeg is supported)'
+                f"{self.compression} is unsupported for ndpi "
+                "(Only jpeg is supported)"
             )
         self._jpeg = jpeg
         try:
             # Defined in nm
             assert isinstance(page.ndpi_tags, dict)
-            self._focal_plane = (
-                page.ndpi_tags['ZOffsetFromSlideCenter'] / 1000.0
-            )
+            self._focal_plane = page.ndpi_tags["ZOffsetFromSlideCenter"] / 1000.0
         except KeyError:
             self._focal_plane = 0.0
 
         self._mpp = self._get_mpp_from_page()
 
     def __repr__(self) -> str:
-        return (
-            f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
-        )
+        return f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
 
     @property
     def focal_plane(self) -> float:
@@ -394,9 +372,9 @@ class NdpiPage(OpenTilePage):
 
     def _get_mpp_from_page(self) -> SizeMm:
         """Return pixel spacing in um/pixel."""
-        x_resolution = self.page.tags['XResolution'].value[0]
-        y_resolution = self.page.tags['YResolution'].value[0]
-        resolution_unit = self.page.tags['ResolutionUnit'].value
+        x_resolution = self.page.tags["XResolution"].value[0]
+        y_resolution = self.page.tags["YResolution"].value[0]
+        resolution_unit = self.page.tags["ResolutionUnit"].value
         if resolution_unit != TIFF.RESUNIT.CENTIMETER:
             raise ValueError("Unknown resolution unit")
         # 10*1000 um per cm
@@ -407,11 +385,7 @@ class NdpiPage(OpenTilePage):
 
 class CroppedNdpiPage(NdpiPage):
     def __init__(
-        self,
-        page: TiffPage,
-        fh: FileHandle,
-        jpeg: Jpeg,
-        crop: Tuple[float, float]
+        self, page: TiffPage, fh: FileHandle, jpeg: Jpeg, crop: Tuple[float, float]
     ):
         """Ndpi page that should be cropped (e.g. overview or label).
         Image data is assumed to be jpeg.
@@ -431,15 +405,12 @@ class CroppedNdpiPage(NdpiPage):
         crop_from = self._calculate_crop(crop[0])
         crop_to = self._calculate_crop(crop[1])
 
-        self._image_size = Size(
-            crop_to-crop_from,
-            self._page.shape[0]
-        )
+        self._image_size = Size(crop_to - crop_from, self._page.shape[0])
         self._crop_parameters = (
             crop_from,
             0,
-            crop_to-crop_from,
-            self.image_size.height
+            crop_to - crop_from,
+            self.image_size.height,
         )
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
@@ -486,7 +457,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         base_shape: Size,
         tile_size: Size,
         jpeg: Jpeg,
-        frame_cache: int = 1
+        frame_cache: int = 1,
     ):
         """Metaclass for a tiled ndpi page.
 
@@ -536,11 +507,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         return self._frame_size
 
     @abstractmethod
-    def _read_extended_frame(
-        self,
-        position: Point,
-        frame_size: Size
-    ) -> bytes:
+    def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Read a frame of size frame_size covering position."""
         raise NotImplementedError
 
@@ -554,10 +521,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         """Return frame size used for creating tile at tile position."""
         raise NotImplementedError
 
-    def get_tile(
-        self,
-        tile_position: Tuple[int, int]
-    ) -> bytes:
+    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return image bytes for tile at tile position.
 
         Parameters
@@ -572,10 +536,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         """
         return self.get_tiles([tile_position])[0]
 
-    def get_tiles(
-        self,
-        tile_positions: Sequence[Tuple[int, int]]
-    ) -> List[bytes]:
+    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> List[bytes]:
         """Return list of image bytes for tile positions.
 
         Parameters
@@ -617,10 +578,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             for tile in self._create_tiles(frame_job).values()
         ]
 
-    def _create_tiles(
-        self,
-        frame_job: NdpiFrameJob
-    ) -> Dict[Point, bytes]:
+    def _create_tiles(self, frame_job: NdpiFrameJob) -> Dict[Point, bytes]:
         """Return tiles defined by frame job. Read frames are cached by
         frame position.
 
@@ -637,18 +595,13 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         if frame_job.position in self._frame_cache:
             frame = self._frame_cache[frame_job.position]
         else:
-            frame = self._read_extended_frame(
-                frame_job.position,
-                frame_job.frame_size
-            )
+            frame = self._read_extended_frame(frame_job.position, frame_job.frame_size)
             self._frame_cache[frame_job.position] = frame
         tiles = self._crop_to_tiles(frame_job, frame)
         return tiles
 
     def _crop_to_tiles(
-        self,
-        frame_job: NdpiFrameJob,
-        frame: bytes
+        self, frame_job: NdpiFrameJob, frame: bytes
     ) -> Dict[Point, bytes]:
         """Crop jpeg data to tiles.
 
@@ -666,23 +619,18 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         """
         try:
             tiles: List[bytes] = self._jpeg.crop_multiple(
-                frame,
-                frame_job.crop_parameters
+                frame, frame_job.crop_parameters
             )
         except JpegCropError:
             raise ValueError(
-                f'Failed to crop at position {frame_job.position} with '
-                f'parameters {frame_job.crop_parameters}. '
-                'This might be due using libjpeg-turbo < 2.1.'
+                f"Failed to crop at position {frame_job.position} with "
+                f"parameters {frame_job.crop_parameters}. "
+                "This might be due using libjpeg-turbo < 2.1."
             )
-        return {
-            tile.position: tiles[i]
-            for i, tile in enumerate(frame_job.tiles)
-        }
+        return {tile.position: tiles[i] for i, tile in enumerate(frame_job.tiles)}
 
     def _sort_into_frame_jobs(
-        self,
-        tile_positions: Sequence[Tuple[int, int]]
+        self, tile_positions: Sequence[Tuple[int, int]]
     ) -> List[NdpiFrameJob]:
         """Sorts tile positions into frame jobs (i.e. from the same frame.)
 
@@ -702,8 +650,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
             tile_point = Point.from_tuple(tile_position)
             if not self._check_if_tile_inside_image(tile_point):
                 raise ValueError(
-                    f"Tile {tile_point} is outside "
-                    f"tiled size {self.tiled_size}"
+                    f"Tile {tile_point} is outside " f"tiled size {self.tiled_size}"
                 )
             frame_size = self._get_frame_size_for_tile(tile_point)
             tile = NdpiTile(tile_point, self.tile_size, frame_size)
@@ -743,11 +690,7 @@ class NdpiOneFramePage(NdpiTiledPage):
         """
         return ((self.frame_size) // self.tile_size + 1) * self.tile_size
 
-    def _read_extended_frame(
-        self,
-        position: Point,
-        frame_size: Size
-    ) -> bytes:
+    def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Return padded image covering tile coordinate as valid jpeg bytes.
 
         Parameters
@@ -774,8 +717,7 @@ class NdpiOneFramePage(NdpiTiledPage):
             frame = Jpeg.manipulate_header(frame, even_size)
         # Use crop_multiple as it allows extending frame
         tile = self._jpeg.crop_multiple(
-            frame,
-            [(0, 0, frame_size.width, frame_size.height)]
+            frame, [(0, 0, frame_size.width, frame_size.height)]
         )[0]
         return tile
 
@@ -785,6 +727,7 @@ class NdpiStripedPage(NdpiTiledPage):
     concatenating multiple stripes, and from the frame one or more tiles can be
     produced by lossless cropping.
     """
+
     def __init__(
         self,
         page: TiffPage,
@@ -792,7 +735,7 @@ class NdpiStripedPage(NdpiTiledPage):
         base_shape: Size,
         tile_size: Size,
         jpeg: Jpeg,
-        frame_cache: int = 1
+        frame_cache: int = 1,
     ):
         """Ndpi page with striped image data.
 
@@ -859,12 +802,12 @@ class NdpiStripedPage(NdpiTiledPage):
             Tuple that is True if tile position x or y is at edge of image.
         """
         partial_x = (
-            tile_position.x == (self.tiled_size.width - 1) and
-            self.stripe_size.width < self.tile_size.width
+            tile_position.x == (self.tiled_size.width - 1)
+            and self.stripe_size.width < self.tile_size.width
         )
         partial_y = (
-            tile_position.y == (self.tiled_size.height - 1) and
-            self.stripe_size.height < self.tile_size.height
+            tile_position.y == (self.tiled_size.height - 1)
+            and self.stripe_size.height < self.tile_size.height
         )
         return partial_x, partial_y
 
@@ -901,11 +844,7 @@ class NdpiStripedPage(NdpiTiledPage):
             height = self.frame_size.height
         return Size(width, height)
 
-    def _read_extended_frame(
-        self,
-        position: Point,
-        frame_size: Size
-    ) -> bytes:
+    def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Return extended frame of frame size starting at frame position.
         Returned frame is jpeg bytes including header with correct image size.
         Original restart markers are updated to get the proper incrementation.
@@ -926,23 +865,19 @@ class NdpiStripedPage(NdpiTiledPage):
         if frame_size in self._headers:
             header = self._headers[frame_size]
         else:
-            header = self._jpeg.manipulate_header(
-                self.jpeg_header,
-                frame_size
-            )
+            header = self._jpeg.manipulate_header(self.jpeg_header, frame_size)
             self._headers[frame_size] = header
 
         stripe_region = Region(
             (position * self.tile_size) // self.stripe_size,
-            Size.max(frame_size // self.stripe_size, Size(1, 1))
+            Size.max(frame_size // self.stripe_size, Size(1, 1)),
         )
         indices = [
             self._get_stripe_position_to_index(stripe_coordinate)
             for stripe_coordinate in stripe_region.iterate_all()
         ]
         frame = self._jpeg.concatenate_fragments(
-            (self._read_frame(index) for index in indices),
-            header
+            (self._read_frame(index) for index in indices), header
         )
         return frame
 
@@ -963,10 +898,7 @@ class NdpiStripedPage(NdpiTiledPage):
 
 
 class NdpiMetadata(Metadata):
-    def __init__(
-        self,
-        page: TiffPage
-    ):
+    def __init__(self, page: TiffPage):
         self._tags = page.tags
         if page.ndpi_tags is not None:
             self._ndpi_tags = page.ndpi_tags
@@ -976,57 +908,48 @@ class NdpiMetadata(Metadata):
     @cached_property
     def magnification(self) -> Optional[float]:
         try:
-            return float(self._ndpi_tags['Magnification'])
+            return float(self._ndpi_tags["Magnification"])
         except (AttributeError, ValueError):
             return None
 
     @property
     def scanner_manufacturer(self) -> Optional[str]:
-        return self._ndpi_tags.get('Make')
+        return self._ndpi_tags.get("Make")
 
     @property
     def scanner_model(self) -> Optional[str]:
-        return self._ndpi_tags.get('Model')
+        return self._ndpi_tags.get("Model")
 
     @property
     def scanner_software_versions(self) -> Optional[List[str]]:
-        software_version = self._ndpi_tags.get('Software')
+        software_version = self._ndpi_tags.get("Software")
         if software_version is not None:
             return [software_version]
         return None
 
     @property
     def scanner_serial_number(self) -> Optional[str]:
-        return self._ndpi_tags.get('ScannerSerialNumber')
+        return self._ndpi_tags.get("ScannerSerialNumber")
 
     @cached_property
     def aquisition_datetime(self) -> Optional[datetime]:
-        datetime_tag = self._tags.get('DateTime')
+        datetime_tag = self._tags.get("DateTime")
         if datetime_tag is None:
             return None
         try:
-            return datetime.strptime(
-                datetime_tag.value,
-                '%Y:%m:%d %H:%M:%S'
-            )
+            return datetime.strptime(datetime_tag.value, "%Y:%m:%d %H:%M:%S")
         except ValueError:
             return None
 
     @cached_property
     def properties(self) -> Dict[str, Any]:
-        x_offset_from_slide_center = self._ndpi_tags.get(
-            'XOffsetFromSlideCenter'
-        )
-        y_offset_from_slide_center = self._ndpi_tags.get(
-            'YOffsetFromSlideCenter'
-        )
-        z_offset_from_slide_center = self._ndpi_tags.get(
-            'ZXOffsetFromSlideCenter'
-        )
+        x_offset_from_slide_center = self._ndpi_tags.get("XOffsetFromSlideCenter")
+        y_offset_from_slide_center = self._ndpi_tags.get("YOffsetFromSlideCenter")
+        z_offset_from_slide_center = self._ndpi_tags.get("ZXOffsetFromSlideCenter")
         return {
-            'x_offset_from_slide_center': x_offset_from_slide_center,
-            'y_offset_from_slide_center': y_offset_from_slide_center,
-            'z_offset_from_slide_center': z_offset_from_slide_center
+            "x_offset_from_slide_center": x_offset_from_slide_center,
+            "y_offset_from_slide_center": y_offset_from_slide_center,
+            "z_offset_from_slide_center": z_offset_from_slide_center,
         }
 
 
@@ -1040,7 +963,7 @@ class NdpiTiler(Tiler):
         filepath: Union[str, Path],
         tile_size: int,
         turbo_path: Optional[Union[str, Path]] = None,
-        label_crop_position: float = 0.3
+        label_crop_position: float = 0.3,
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
         size.
@@ -1065,8 +988,7 @@ class NdpiTiler(Tiler):
         self._fh = self._tiff_file.filehandle
         self._tile_size = Size(tile_size, tile_size)
         self._tile_size = self._adjust_tile_size(
-            tile_size,
-            self._get_smallest_stripe_width()
+            tile_size, self._get_smallest_stripe_width()
         )
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
@@ -1075,7 +997,7 @@ class NdpiTiler(Tiler):
 
         self._level_series_index = 0
         for series_index, series in enumerate(self.series):
-            if series.name == 'Macro':
+            if series.name == "Macro":
                 self._overview_series_index = series_index
                 self._label_series_index = self.FAKED_LABEL_SERIES_INDEX
         self._pages: Dict[Tuple[int, int, int], NdpiPage] = {}
@@ -1105,12 +1027,7 @@ class NdpiTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_ndpi
 
-    def get_page(
-        self,
-        series: int,
-        level: int,
-        page: int
-    ) -> NdpiPage:
+    def get_page(self, series: int, level: int, page: int) -> NdpiPage:
         """Return NdpiPage for series, level, page. NdpiPages holds a cache, so
         store created pages.
         """
@@ -1128,8 +1045,7 @@ class NdpiTiler(Tiler):
 
     @staticmethod
     def _adjust_tile_size(
-        requested_tile_width: int,
-        smallest_stripe_width: Optional[int] = None
+        requested_tile_width: int, smallest_stripe_width: Optional[int] = None
     ) -> Size:
         """Return adjusted tile size. If file contains striped pages the
         tile size must be an n * smallest stripe width in the file, where n
@@ -1149,8 +1065,8 @@ class NdpiTiler(Tiler):
             Adjusted tile size.
         """
         if (
-            smallest_stripe_width is None or
-            smallest_stripe_width == requested_tile_width
+            smallest_stripe_width is None
+            or smallest_stripe_width == requested_tile_width
         ):
             # No striped pages or requested is equald to smallest
             return Size(requested_tile_width, requested_tile_width)
@@ -1178,12 +1094,8 @@ class NdpiTiler(Tiler):
         for page in self._tiff_file.pages:
             assert isinstance(page, TiffPage)
             stripe_width = page.chunks[1]
-            if (
-                page.is_tiled and
-                (
-                    smallest_stripe_width is None or
-                    smallest_stripe_width > stripe_width
-                )
+            if page.is_tiled and (
+                smallest_stripe_width is None or smallest_stripe_width > stripe_width
             ):
                 smallest_stripe_width = stripe_width
         return smallest_stripe_width
@@ -1207,25 +1119,17 @@ class NdpiTiler(Tiler):
         NdpiPage
             Created page.
         """
-        tiff_page = self._tiff_file.series[
-            self._level_series_index
-        ].levels[level].pages[page]
+        tiff_page = (
+            self._tiff_file.series[self._level_series_index].levels[level].pages[page]
+        )
         assert isinstance(tiff_page, TiffPage)
         if tiff_page.is_tiled:  # Striped ndpi page
             return NdpiStripedPage(
-                tiff_page,
-                self._fh,
-                self.base_size,
-                self.tile_size,
-                self._jpeg
+                tiff_page, self._fh, self.base_size, self.tile_size, self._jpeg
             )
         # Single frame, force tiling
         return NdpiOneFramePage(
-            tiff_page,
-            self._fh,
-            self.base_size,
-            self.tile_size,
-            self._jpeg
+            tiff_page, self._fh, self.base_size, self.tile_size, self._jpeg
         )
 
     def _create_label_page(self) -> CroppedNdpiPage:
@@ -1237,15 +1141,10 @@ class NdpiTiler(Tiler):
             Created page.
         """
         assert self._overview_series_index is not None
-        tiff_page = self._tiff_file.series[
-            self._overview_series_index
-        ].pages.pages[0]
+        tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[0]
         assert isinstance(tiff_page, TiffPage)
         return CroppedNdpiPage(
-            tiff_page,
-            self._fh,
-            self._jpeg,
-            (0.0, self._label_crop_position)
+            tiff_page, self._fh, self._jpeg, (0.0, self._label_crop_position)
         )
 
     def _create_overview_page(self) -> NdpiPage:
@@ -1257,13 +1156,8 @@ class NdpiTiler(Tiler):
             Created page.
         """
         assert self._overview_series_index is not None
-        tiff_page = self._tiff_file.series[
-            self._overview_series_index
-        ].pages.pages[0]
+        tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[0]
         assert isinstance(tiff_page, TiffPage)
         return CroppedNdpiPage(
-            tiff_page,
-            self._fh,
-            self._jpeg,
-            (self._label_crop_position, 1.0)
+            tiff_page, self._fh, self._jpeg, (self._label_crop_position, 1.0)
         )
