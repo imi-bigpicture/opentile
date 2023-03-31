@@ -15,8 +15,13 @@
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
-from tifffile.tifffile import (PHOTOMETRIC, FileHandle, TiffFile, TiffPage,
-                               TiffPageSeries)
+from tifffile.tifffile import (
+    PHOTOMETRIC,
+    FileHandle,
+    TiffFile,
+    TiffPage,
+    TiffPageSeries,
+)
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
@@ -25,12 +30,7 @@ from opentile.metadata import Metadata
 
 
 class HistechTiffTiledPage(NativeTiledPage):
-    def __init__(
-        self,
-        page: TiffPage,
-        fh: FileHandle,
-        base_shape: Size
-    ):
+    def __init__(self, page: TiffPage, fh: FileHandle, base_shape: Size):
         """OpenTiledPage for 3DHistech Tiff-page.
 
         Parameters
@@ -49,8 +49,7 @@ class HistechTiffTiledPage(NativeTiledPage):
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._page}, {self._fh}, "
-            f"{self._base_shape})"
+            f"{type(self).__name__}({self._page}, {self._fh}, " f"{self._base_shape})"
         )
 
     @property
@@ -71,25 +70,22 @@ class HistechTiffTiledPage(NativeTiledPage):
         return photometric_interpretation
 
     def _get_mpp_from_page(self) -> SizeMm:
-        items_split = self._page.description.split('|')
+        items_split = self._page.description.split("|")
         header = items_split.pop(0)
         items = {
             key: value
-            for (key, value) in (
-                item.split(' = ', 1) for item in items_split
-            )
+            for (key, value) in (item.split(" = ", 1) for item in items_split)
         }
-        return SizeMm(
-            float(items['3dh_PixelSizeX']),
-            float(items['3dh_PixelSizeY'])
-        ) / 1000 / 1000
+        return (
+            SizeMm(float(items["3dh_PixelSizeX"]), float(items["3dh_PixelSizeY"]))
+            / 1000
+            / 1000
+        )
 
 
 class HistechTiffTiler(Tiler):
     def __init__(
-        self,
-        filepath: Union[str, Path],
-        turbo_path: Optional[Union[str, Path]] = None
+        self, filepath: Union[str, Path], turbo_path: Optional[Union[str, Path]] = None
     ):
         """Tiler for 3DHistech tiff file.
 
@@ -119,20 +115,13 @@ class HistechTiffTiler(Tiler):
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
-        return '3dh_PixelSizeX' in tiff_file.pages.first.description
+        return "3dh_PixelSizeX" in tiff_file.pages.first.description
 
-    def get_page(
-        self,
-        series: int,
-        level: int,
-        page: int = 0
-    ) -> HistechTiffTiledPage:
+    def get_page(self, series: int, level: int, page: int = 0) -> HistechTiffTiledPage:
         """Return PhilipsTiffTiledPage for series, level, page."""
         if not (series, level, page) in self._pages:
             self._pages[series, level, page] = HistechTiffTiledPage(
-                self._get_tiff_page(series, level, page),
-                self._fh,
-                self.base_size
+                self._get_tiff_page(series, level, page), self._fh, self.base_size
             )
         return self._pages[series, level, page]
 

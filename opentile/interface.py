@@ -33,25 +33,23 @@ class OpenTile:
         """Return tiler that supports the tiff file in filepath, or None if
         not supported"""
         tilers: Dict[str, Type[Tiler]] = {
-            'ndpi': NdpiTiler,
-            'svs': SvsTiler,
-            'phillips_tiff': PhilipsTiffTiler,
-            '3dhistech tiff': HistechTiffTiler
+            "ndpi": NdpiTiler,
+            "svs": SvsTiler,
+            "phillips_tiff": PhilipsTiffTiler,
+            "3dhistech tiff": HistechTiffTiler,
         }
         try:
             tiff_file = TiffFile(filepath)
             return next(
-                (tiler_name, tiler) for (tiler_name, tiler) in tilers.items()
+                (tiler_name, tiler)
+                for (tiler_name, tiler) in tilers.items()
                 if tiler.supported(tiff_file)
             )
         except (TiffFileError, StopIteration):
             return None, None
 
     @classmethod
-    def detect_format(
-        cls,
-        filepath: Union[str, Path]
-    ) -> Optional[str]:
+    def detect_format(cls, filepath: Union[str, Path]) -> Optional[str]:
         format, supported_tiler = cls.get_tiler(filepath)
         return format
 
@@ -74,27 +72,15 @@ class OpenTile:
         """
         format, supported_tiler = cls.get_tiler(filepath)
         if supported_tiler is NdpiTiler:
-            return NdpiTiler(
-                filepath,
-                tile_size,
-                find_turbojpeg_path()
-            )
+            return NdpiTiler(filepath, tile_size, find_turbojpeg_path())
 
         if supported_tiler is SvsTiler:
-            return SvsTiler(
-                filepath,
-                find_turbojpeg_path()
-            )
+            return SvsTiler(filepath, find_turbojpeg_path())
 
         if supported_tiler is PhilipsTiffTiler:
-            return PhilipsTiffTiler(
-                filepath,
-                find_turbojpeg_path()
-            )
+            return PhilipsTiffTiler(filepath, find_turbojpeg_path())
 
         if supported_tiler is HistechTiffTiler:
-            return HistechTiffTiler(
-                filepath
-            )
+            return HistechTiffTiler(filepath)
 
-        raise NotImplementedError('Non supported tiff file')
+        raise NotImplementedError("Non supported tiff file")

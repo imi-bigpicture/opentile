@@ -38,19 +38,17 @@ class JpegTest(unittest.TestCase):
         try:
             cls.ndpi_tiff = TiffFile(ndpi_file_path)
             ndpi_level = cls.ndpi_tiff.series[0].levels[0].pages[0]
-            assert(isinstance(ndpi_level, TiffPage))
+            assert isinstance(ndpi_level, TiffPage)
             cls.ndpi_level = ndpi_level
             header = cls.ndpi_level.jpegheader
-            assert(isinstance(header, bytes))
+            assert isinstance(header, bytes)
             cls.ndpi_header = header
             cls.svs_tiff = TiffFile(svs_file_path)
             svs_overview = cls.svs_tiff.series[3].pages[0]
-            assert(isinstance(svs_overview, TiffPage))
+            assert isinstance(svs_overview, TiffPage)
             cls.svs_overview = svs_overview
         except FileNotFoundError:
-            raise unittest.SkipTest(
-                'Svs or ndpi test file not found, skipping'
-            )
+            raise unittest.SkipTest("Svs or ndpi test file not found, skipping")
 
     @classmethod
     def tearDownClass(cls):
@@ -78,15 +76,10 @@ class JpegTest(unittest.TestCase):
 
     def test_update_header(self):
         target_size = Size(512, 200)
-        updated_header = Jpeg.manipulate_header(
-            self.ndpi_header,
-            target_size
+        updated_header = Jpeg.manipulate_header(self.ndpi_header, target_size)
+        (stripe_width, stripe_height, _, _) = self.jpeg._turbo_jpeg.decode_header(
+            updated_header
         )
-        (
-            stripe_width,
-            stripe_height,
-            _, _
-        ) = self.jpeg._turbo_jpeg.decode_header(updated_header)
         self.assertEqual(target_size, Size(stripe_width, stripe_height))
 
     def test_concatenate_fragments(self):
@@ -95,12 +88,9 @@ class JpegTest(unittest.TestCase):
                 self.read_frame(self.ndpi_tiff, self.ndpi_level, index)
                 for index in range(10)
             ),
-            self.ndpi_header
+            self.ndpi_header,
         )
-        self.assertEqual(
-            'ea40e78b081c42a6aabf8da81f976f11',
-            md5(frame).hexdigest()
-        )
+        self.assertEqual("ea40e78b081c42a6aabf8da81f976f11", md5(frame).hexdigest())
 
     def test_concatenate_scans(self):
         frame = self.jpeg.concatenate_scans(
@@ -109,15 +99,9 @@ class JpegTest(unittest.TestCase):
                 for index in range(len(self.svs_overview.databytecounts))
             ),
             self.svs_overview.jpegtables,
-            True
+            True,
         )
-        self.assertEqual(
-            'fdde19f6d10994c5b866b43027ff94ed',
-            md5(frame).hexdigest()
-        )
+        self.assertEqual("fdde19f6d10994c5b866b43027ff94ed", md5(frame).hexdigest())
 
     def test_code_short(self):
-        self.assertEqual(
-            bytes([0x00, 0x06]),
-            self.jpeg.code_short(6)
-        )
+        self.assertEqual(bytes([0x00, 0x06]), self.jpeg.code_short(6))
