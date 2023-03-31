@@ -153,7 +153,7 @@ class OpenTilePage(metaclass=ABCMeta):
             self._tile_size = self.image_size
         self._tiled_region = Region(
             position=Point(0, 0),
-            size=self.tiled_size - 1
+            size=self.tiled_size
         )
 
     @abstractmethod
