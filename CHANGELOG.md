@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.1] - 2023-03-31
 
+### Added
+
+- Added conda installation instructions to readme.
+
 ### Changed
 
 - Implementation and use of Region updated to that of wsidicom.
