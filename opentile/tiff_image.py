@@ -119,7 +119,10 @@ class TiffImage(metaclass=ABCMeta):
     _pyramid_index: int
 
     def __init__(
-        self, page: TiffPage, fh: FileHandle, add_rgb_colorspace_fix: bool = False
+        self,
+        page: TiffPage,
+        fh: LockableFileHandle,
+        add_rgb_colorspace_fix: bool = False,
     ):
         """Abstract class for reading tiles from TiffPage.
 
@@ -127,7 +130,7 @@ class TiffImage(metaclass=ABCMeta):
         ----------
         page: TiffPage
             TiffPage to get tiles from.
-        fh: FileHandle
+        fh: LockableFileHandle
             FileHandle for reading data.
         add_rgb_colorspace_fix: bool = False
             If to add color space fix for rgb image data.
@@ -138,7 +141,7 @@ class TiffImage(metaclass=ABCMeta):
         ):
             raise NotImplementedError(f"Non-supported compression {self.compression}.")
         self._page = page
-        self._fh = LockableFileHandle(fh)
+        self._fh = fh
         self._add_rgb_colorspace_fix = add_rgb_colorspace_fix
         self._image_size = Size(self._page.imagewidth, self._page.imagelength)
         if self.page.is_tiled:

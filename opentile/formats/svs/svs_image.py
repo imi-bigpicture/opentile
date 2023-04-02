@@ -13,28 +13,28 @@
 #    limitations under the License.
 
 import io
-from typing import Dict, List, Optional, Sequence, Tuple, cast
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from PIL import Image
-from tifffile.tifffile import COMPRESSION, FileHandle, TiffPage
+from tifffile.tifffile import COMPRESSION, TiffPage
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import NativeTiledTiffImage, TiffImage
+from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage, TiffImage
 
 
 class SvsStripedImage(TiffImage):
     _pyramid_index = 0
 
-    def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
+    def __init__(self, page: TiffPage, fh: LockableFileHandle, jpeg: Jpeg):
         """OpenTiledPage for jpeg striped Svs image, e.g. overview image.
 
         Parameters
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
@@ -96,14 +96,14 @@ class SvsStripedImage(TiffImage):
 class SvsLZWImage(TiffImage):
     _pyramid_index = 0
 
-    def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
+    def __init__(self, page: TiffPage, fh: LockableFileHandle, jpeg: Jpeg):
         """OpenTiledPage for lzw striped Svs image, e.g. label image.
 
         Parameters
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
@@ -175,7 +175,7 @@ class SvsTiledImage(NativeTiledTiffImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: FileHandle,
+        fh: LockableFileHandle,
         base_size: Size,
         base_mpp: SizeMm,
         parent: Optional["SvsTiledImage"] = None,
@@ -186,7 +186,7 @@ class SvsTiledImage(NativeTiledTiffImage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
         base_size: Size
             Size of base level in pyramid.

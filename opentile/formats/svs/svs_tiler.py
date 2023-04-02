@@ -37,7 +37,6 @@ class SvsTiler(Tiler):
             Filepath to a svs TiffFile.
         """
         super().__init__(Path(filepath))
-        self._fh = self._tiff_file.filehandle
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
 

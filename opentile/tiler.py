@@ -25,7 +25,7 @@ from tifffile.tifffile import (
 
 from opentile.geometry import Size
 from opentile.metadata import Metadata
-from opentile.tiff_image import TiffImage
+from opentile.tiff_image import LockableFileHandle, TiffImage
 
 
 class Tiler(metaclass=ABCMeta):
@@ -45,6 +45,7 @@ class Tiler(metaclass=ABCMeta):
             Filepath to a TiffFile.
         """
         self._tiff_file = TiffFile(filepath)
+        self._fh = LockableFileHandle(self._tiff_file.filehandle)
         base_page = self.series[self._level_series_index].pages[0]
         assert isinstance(base_page, TiffPage)
         self._base_page = base_page

@@ -15,19 +15,19 @@
 from typing import List, Optional, Tuple
 
 import numpy as np
-from tifffile.tifffile import COMPRESSION, FileHandle, TiffPage
+from tifffile.tifffile import COMPRESSION, TiffPage
 
 from opentile.formats.ndpi.ndpi_tiler import NdpiOneFrameImage
 from opentile.geometry import Point, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import NativeTiledTiffImage, TiffImage
+from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage, TiffImage
 
 
 class OmeTiffImage(TiffImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: FileHandle,
+        fh: LockableFileHandle,
         base_mpp: Optional[SizeMm] = None,
     ):
         super().__init__(page, fh)
@@ -74,7 +74,7 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: FileHandle,
+        fh: LockableFileHandle,
         base_size: Size,
         tile_size: Size,
         base_mpp: SizeMm,
@@ -167,7 +167,7 @@ class OmeTiffTiledImage(NativeTiledTiffImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: FileHandle,
+        fh: LockableFileHandle,
         base_size: Size,
         base_mpp: SizeMm,
     ):

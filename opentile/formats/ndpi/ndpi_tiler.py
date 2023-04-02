@@ -63,8 +63,6 @@ class NdpiTiler(Tiler):
 
         """
         super().__init__(Path(filepath))
-
-        self._fh = self._tiff_file.filehandle
         self._tile_size = Size(tile_size, tile_size)
         self._tile_size = self._adjust_tile_size(
             tile_size, self._get_smallest_stripe_width()

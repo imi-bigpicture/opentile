@@ -15,18 +15,18 @@
 
 from typing import List, Optional
 
-from tifffile.tifffile import COMPRESSION, FileHandle, TiffPage
+from tifffile.tifffile import COMPRESSION, TiffPage
 
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import NativeTiledTiffImage
+from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage
 
 
 class PhilipsTiffImage(NativeTiledTiffImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: FileHandle,
+        fh: LockableFileHandle,
         base_size: Size,
         base_mpp: SizeMm,
         jpeg: Jpeg,
@@ -37,7 +37,7 @@ class PhilipsTiffImage(NativeTiledTiffImage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
         base_size: Size
             Size of base level in pyramid.

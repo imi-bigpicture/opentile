@@ -40,7 +40,6 @@ class OmeTiffTiler(Tiler):
         self, filepath: Union[str, Path], turbo_path: Optional[Union[str, Path]] = None
     ):
         super().__init__(Path(filepath))
-        self._fh = self._tiff_file.filehandle
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
         self._base_mpp = self._get_mpp(self._level_series_index)

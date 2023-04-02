@@ -14,21 +14,21 @@
 
 from typing import List, Optional
 
-from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, FileHandle, TiffPage
+from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
 from opentile.geometry import Size, SizeMm
-from opentile.tiff_image import NativeTiledTiffImage
+from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage
 
 
 class HistechTiffImage(NativeTiledTiffImage):
-    def __init__(self, page: TiffPage, fh: FileHandle, base_size: Size):
+    def __init__(self, page: TiffPage, fh: LockableFileHandle, base_size: Size):
         """OpenTiledPage for 3DHistech Tiff image.
 
         Parameters
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandler
+        fh: LockableFileHandle
             Filehandler to read data from.
         base_size: Size
             Size of base level in pyramid.

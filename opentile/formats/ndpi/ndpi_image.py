@@ -17,19 +17,20 @@ from functools import cached_property, lru_cache
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
-from tifffile.tifffile import COMPRESSION, TIFF, FileHandle, TiffPage
+from tifffile.tifffile import COMPRESSION, TIFF, TiffPage
 
 from opentile.config import settings
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
+from opentile.tiff_image import LockableFileHandle
 from opentile.tiler import TiffImage
 
 
 class NdpiImage(TiffImage):
     _pyramid_index = 0
 
-    def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
+    def __init__(self, page: TiffPage, fh: LockableFileHandle, jpeg: Jpeg):
         """Ndpi image that should not be tiled (e.g. overview or label).
         Image data is assumed to be jpeg.
 
@@ -37,7 +38,7 @@ class NdpiImage(TiffImage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
@@ -133,7 +134,11 @@ class NdpiImage(TiffImage):
 
 class NdpiCroppedImage(NdpiImage):
     def __init__(
-        self, page: TiffPage, fh: FileHandle, jpeg: Jpeg, crop: Tuple[float, float]
+        self,
+        page: TiffPage,
+        fh: LockableFileHandle,
+        jpeg: Jpeg,
+        crop: Tuple[float, float],
     ):
         """Ndpi image that should be cropped (e.g. overview or label).
         Image data is assumed to be jpeg.
@@ -142,7 +147,7 @@ class NdpiCroppedImage(NdpiImage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
@@ -201,11 +206,10 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
     def __init__(
         self,
         page: TiffPage,
-        fh: FileHandle,
+        fh: LockableFileHandle,
         base_size: Size,
         tile_size: Size,
         jpeg: Jpeg,
-        frame_cache: int = 1,
     ):
         """Metaclass for a tiled ndpi image.
 
@@ -213,7 +217,7 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
         base_size: Size
             Size of base level in pyramid.
@@ -221,8 +225,6 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
             Requested tile size.
         jpeg: Jpeg
             Jpeg instance to use.
-        frame_cache: int:
-            Number of read frames to cache.
         """
         super().__init__(page, fh, jpeg)
         self._base_size = base_size
@@ -475,11 +477,10 @@ class NdpiStripedImage(NdpiTiledImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: FileHandle,
+        fh: LockableFileHandle,
         base_size: Size,
         tile_size: Size,
         jpeg: Jpeg,
-        frame_cache: int = 1,
     ):
         """Ndpi image with striped image data.
 
@@ -487,7 +488,7 @@ class NdpiStripedImage(NdpiTiledImage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
         base_size: Size
             Size of base level in pyramid.
@@ -495,10 +496,8 @@ class NdpiStripedImage(NdpiTiledImage):
             Requested tile size.
         jpeg: Jpeg
             Jpeg instance to use.
-        frame_cache: int:
-            Number of read frames to cache.
         """
-        super().__init__(page, fh, base_size, tile_size, jpeg, frame_cache)
+        super().__init__(page, fh, base_size, tile_size, jpeg)
         self._striped_size = Size(self.page.chunked[1], self.page.chunked[0])
         jpeg_header = self.page.jpegheader
         assert isinstance(jpeg_header, bytes)
