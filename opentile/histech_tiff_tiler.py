@@ -21,6 +21,7 @@ from tifffile.tifffile import (
     TiffFile,
     TiffPage,
     TiffPageSeries,
+    COMPRESSION,
 )
 
 from opentile.common import NativeTiledPage, Tiler
@@ -30,12 +31,7 @@ from opentile.metadata import Metadata
 
 
 class HistechTiffTiledPage(NativeTiledPage):
-    def __init__(
-        self,
-        page: TiffPage,
-        fh: FileHandle,
-        base_size: Size
-    ):
+    def __init__(self, page: TiffPage, fh: FileHandle, base_size: Size):
         """OpenTiledPage for 3DHistech Tiff-page.
 
         Parameters
@@ -53,10 +49,7 @@ class HistechTiffTiledPage(NativeTiledPage):
         self._mpp = self._get_mpp_from_page()
 
     def __repr__(self) -> str:
-        return (
-            f'{type(self).__name__}({self._page}, {self._fh}, '
-            f'{self._base_size})'
-        )
+        return f"{type(self).__name__}({self._page}, {self._fh}, " f"{self._base_size})"
 
     @property
     def pixel_spacing(self) -> SizeMm:

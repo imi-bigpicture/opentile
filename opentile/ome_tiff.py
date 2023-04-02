@@ -13,13 +13,18 @@
 #    limitations under the License.
 
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import ome_types
 from ome_types.model.simple_types import UnitsLength
-from tifffile.tifffile import (COMPRESSION, FileHandle, TiffFile, TiffPage,
-                               TiffPageSeries)
+from tifffile.tifffile import (
+    COMPRESSION,
+    FileHandle,
+    TiffFile,
+    TiffPage,
+    TiffPageSeries,
+)
 
 from opentile.common import NativeTiledPage, OpenTilePage, Tiler
 from opentile.geometry import Point, Size, SizeMm
@@ -39,10 +44,7 @@ class OmeTiffPage(OpenTilePage):
         self._mpp = base_mpp
 
     def __repr__(self) -> str:
-        return (
-            f'{type(self).__name__}({self._page}, {self._fh}, '
-            f'{self._base_mpp})'
-        )
+        return f"{type(self).__name__}({self._page}, {self._fh}, " f"{self._base_mpp})"
 
     @property
     def mpp(self) -> Optional[SizeMm]:
@@ -61,7 +63,7 @@ class OmeTiffPage(OpenTilePage):
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         if tile_position != (0, 0):
-            raise ValueError('Non-tiled page, expected tile_position (0, 0)')
+            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
@@ -77,6 +79,7 @@ class OmeTiffOneFramePage(NdpiOneFramePage):
     Not sure if this is something worht supporting yet, and if so should either
     refactor the ndpi-classes to separate out the ndpi-specific metadata
     processing or make a new metadata processing class."""
+
     def __init__(
         self,
         page: TiffPage,
@@ -84,8 +87,7 @@ class OmeTiffOneFramePage(NdpiOneFramePage):
         base_size: Size,
         tile_size: Size,
         base_mpp: SizeMm,
-        jpeg: Jpeg
-
+        jpeg: Jpeg,
     ):
         super().__init__(page, fh, base_size, tile_size, jpeg)
         self._pyramid_index = self._calculate_pyramidal_index(base_size)
@@ -113,7 +115,7 @@ class OmeTiffOneFramePage(NdpiOneFramePage):
             return Size(16, 8)
         if subsampling == (2, 2):
             return Size(16, 16)
-        raise ValueError(f'Unkown subsampling {subsampling}')
+        raise ValueError(f"Unkown subsampling {subsampling}")
 
     def _get_file_frame_size(self) -> Size:
         """Return size of the single frame in file. For single framed page
@@ -138,11 +140,7 @@ class OmeTiffOneFramePage(NdpiOneFramePage):
         """
         return ((self.image_size) // self.tile_size + 1) * self.tile_size
 
-    def _read_extended_frame(
-        self,
-        position: Point,
-        frame_size: Size
-    ) -> bytes:
+    def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Return padded image covering tile coordinate as valid jpeg bytes.
 
         Parameters
@@ -158,7 +156,7 @@ class OmeTiffOneFramePage(NdpiOneFramePage):
             Frame
         """
         if position != Point(0, 0):
-            raise ValueError('Frame position not (0, 0) for one frame level.')
+            raise ValueError("Frame position not (0, 0) for one frame level.")
         frame = self._read_frame(0)
         if (
             self.image_size.width % self.mcu.width != 0
@@ -169,8 +167,7 @@ class OmeTiffOneFramePage(NdpiOneFramePage):
             frame = Jpeg.manipulate_header(frame, even_size)
         # Use crop_multiple as it allows extending frame
         tile: bytes = self._jpeg.crop_multiple(
-            frame,
-            [(0, 0, frame_size.width, frame_size.height)]
+            frame, [(0, 0, frame_size.width, frame_size.height)]
         )[0]
         return tile
 
@@ -184,10 +181,7 @@ class OmeTiffTiledPage(NativeTiledPage):
         base_mpp: SizeMm,
     ):
         super().__init__(page, fh)
-        self._image_size = Size(
-            self._page.imagewidth,
-            self._page.imagelength
-        )
+        self._image_size = Size(self._page.imagewidth, self._page.imagelength)
         self._base_size = base_size
         self._base_mpp = base_mpp
         self._pyramid_index = self._calculate_pyramidal_index(base_size)
@@ -195,8 +189,8 @@ class OmeTiffTiledPage(NativeTiledPage):
 
     def __repr__(self) -> str:
         return (
-            f'{type(self).__name__}({self._page}, {self._fh}, '
-            f'{self._base_size}, {self._base_mpp})'
+            f"{type(self).__name__}({self._page}, {self._fh}, "
+            f"{self._base_size}, {self._base_mpp})"
         )
 
     @property
@@ -218,70 +212,59 @@ class OmeTiffTiledPage(NativeTiledPage):
         return self._pyramid_index
 
 
-class OmeTiffTiler(
-    Tiler[Union[OmeTiffOneFramePage, OmeTiffTiledPage, OmeTiffPage]]
-):
+class OmeTiffTiler(Tiler):
     """Simple tiler for ome-tiff. Works with images converted with QuPath using
     jpeg. Might report 'wrong' photometric interpretation. Does not support rgb
     images where the colors are separated. This could maybe be supported by
     using turbo-jpeg to losslessly merge the rgb components (assuming they have
     the same tables)."""
+
     def __init__(
-        self,
-        filepath: Union[str, Path],
-        turbo_path: Optional[Union[str, Path]] = None
+        self, filepath: Union[str, Path], turbo_path: Optional[Union[str, Path]] = None
     ):
         super().__init__(Path(filepath))
         self._fh = self._tiff_file.filehandle
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
-        self._base_mpp = self._get_mpp(self._level_series.index)
+        self._base_mpp = self._get_mpp(self._level_series_index)
+        self._pages: Dict[Tuple[int, int, int], OpenTilePage] = {}
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_ome
 
     def _is_level_series(self, series: TiffPageSeries) -> bool:
-        return (
-            not self._is_label_series(series)
-            and not self._is_overview_series(series)
+        return not self._is_label_series(series) and not self._is_overview_series(
+            series
         )
 
     def _is_label_series(self, series: TiffPageSeries) -> bool:
-        return series.name.strip() == 'label'
+        return series.name.strip() == "label"
 
     def _is_overview_series(self, series: TiffPageSeries) -> bool:
-        return series.name.strip() == 'macro'
+        return series.name.strip() == "macro"
 
     def _get_mpp(self, series_index: int) -> SizeMm:
         mpp = self._get_optional_mpp(series_index)
         if mpp is None:
-            raise ValueError('Could not find physical size of x and y.')
+            raise ValueError("Could not find physical size of x and y.")
         return mpp
 
     def _get_optional_mpp(self, series_index: int) -> Optional[SizeMm]:
         assert self._tiff_file.ome_metadata is not None
-        metadata = ome_types.from_xml(
-            self._tiff_file.ome_metadata,
-            parser='lxml'
-        )
+        metadata = ome_types.from_xml(self._tiff_file.ome_metadata, parser="lxml")
         pixels = metadata.images[series_index].pixels
         if (
             pixels.physical_size_x_unit != UnitsLength.MICROMETER
             or pixels.physical_size_y_unit != UnitsLength.MICROMETER
         ):
-            raise NotImplementedError('Only um physical size implemented.')
+            raise NotImplementedError("Only um physical size implemented.")
         mpp_x, mpp_y = pixels.physical_size_x, pixels.physical_size_y
         if mpp_x is None or mpp_y is None:
             return None
         return SizeMm(mpp_x, mpp_y)
 
-    def get_page(
-        self,
-        series: int,
-        level: int,
-        page: int = 0
-    ) -> Union[OmeTiffOneFramePage, OmeTiffTiledPage, OmeTiffPage]:
+    def get_page(self, series: int, level: int, page: int = 0) -> OpenTilePage:
         """Return OpenTilePage for series, level, page."""
         if (series, level, page) not in self._pages:
             tiff_page = self._get_tiff_page(series, level, page)
@@ -292,14 +275,14 @@ class OmeTiffTiler(
                     self.base_size,
                     self._base_mpp,
                 )
-            elif series == self._level_series.index:
+            elif series == self._level_series_index:
                 self._pages[series, level, page] = OmeTiffOneFramePage(
                     tiff_page,
                     self._fh,
                     self.base_size,
                     Size(self.base_page.tilewidth, self.base_page.tilelength),
                     self._base_mpp,
-                    self._jpeg
+                    self._jpeg,
                 )
             else:
                 self._pages[series, level, page] = OmeTiffPage(

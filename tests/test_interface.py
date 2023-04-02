@@ -18,8 +18,13 @@ import unittest
 import pytest
 from opentile import OpenTile
 
-from .filepaths import (histech_file_path, ndpi_file_path, philips_file_path,
-                        svs_file_path, ome_tiff_file_path)
+from .filepaths import (
+    histech_file_path,
+    ndpi_file_path,
+    philips_file_path,
+    svs_file_path,
+    ome_tiff_file_path,
+)
 
 
 @pytest.mark.unittest

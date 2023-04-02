@@ -79,8 +79,8 @@ class BlankStruct(Structure):
     """
 
     _fields_ = [
-        ('subsample', c_int),
-        ('lum', c_int),
+        ("subsample", c_int),
+        ("lum", c_int),
     ]
 
 
@@ -107,20 +107,13 @@ class BlankImage:
         return cast(transform.data, POINTER(BlankStruct)).contents
 
     @staticmethod
-    def get_np_coeffs(
-        coeffs_ptr: _Pointer,
-        array_region: CroppingRegion
-    ) -> np.ndarray:
+    def get_np_coeffs(coeffs_ptr: _Pointer, array_region: CroppingRegion) -> np.ndarray:
         coeff_array_size = array_region.w * array_region.h
         # Read the coefficients in the pointer as a np array (no copy)
-        array_type = c_short*coeff_array_size
+        array_type = c_short * coeff_array_size
         array_pointer = cast(coeffs_ptr, POINTER(array_type))
         coeffs = np.frombuffer(array_pointer.contents, dtype=np.int16)
-        coeffs.shape = (
-            array_region.h//8,
-            array_region.w//8,
-            64
-        )
+        coeffs.shape = (array_region.h // 8, array_region.w // 8, 64)
         return coeffs
 
     @classmethod
@@ -131,7 +124,7 @@ class BlankImage:
         plane_region: CroppingRegion,
         component_ID: int,
         transform_ID: int,
-        transform_ptr: _Pointer
+        transform_ptr: _Pointer,
     ) -> int:
         """Callback function for filling whole image with background color.
 
@@ -169,21 +162,15 @@ class BlankImage:
         coeffs = cls.get_np_coeffs(coeffs_ptr, array_region)
         coeffs[:][:][:] = 0
 
-        for x in range(0, array_region.w//tjMCUWidth[subsampling]):
-            for y in range(0, array_region.h//tjMCUHeight[subsampling]):
+        for x in range(0, array_region.w // tjMCUWidth[subsampling]):
+            for y in range(0, array_region.h // tjMCUHeight[subsampling]):
                 coeffs[y][x][0] = dc_component
 
         return 1
 
     @staticmethod
-    def callback_data(
-        jpeg_subsample: c_int,
-        luminance: int
-    ) -> BlankStruct:
-        return BlankStruct(
-            jpeg_subsample,
-            luminance
-        )
+    def callback_data(jpeg_subsample: c_int, luminance: int) -> BlankStruct:
+        return BlankStruct(jpeg_subsample, luminance)
 
     @classmethod
     def transform(
@@ -196,7 +183,7 @@ class BlankImage:
             cls._operation,
             cls._options,
             pointer(callback_data),
-            CUSTOMFILTER(cls.callback)
+            CUSTOMFILTER(cls.callback),
         )
 
 
@@ -288,7 +275,7 @@ class TurboJPEG_patch(TurboJPEG):
                 byref(dest_array),
                 byref(dest_size),
                 byref(transform),
-                TJFLAG_ACCURATEDCT
+                TJFLAG_ACCURATEDCT,
             )
 
             # Copy the transform results into python bytes
@@ -312,8 +299,7 @@ class TurboJPEG_patch(TurboJPEG):
         cls, jpeg_data: bytes, luminance: float
     ) -> int:
         return cls._TurboJPEG__map_luminance_to_dc_dct_coefficient(  # type: ignore # NOQA
-            jpeg_data,
-            luminance
+            jpeg_data, luminance
         )
 
     def _find_turbojpeg(self) -> str:

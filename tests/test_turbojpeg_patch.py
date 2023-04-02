@@ -17,11 +17,23 @@ from ctypes import c_short, pointer
 
 import numpy as np
 import pytest
-from opentile.turbojpeg_patch import (BlankImage, BlankStruct, TurboJPEG_patch,
-                                      find_turbojpeg_path)
-from turbojpeg import (CUSTOMFILTER, TJXOP_NONE, TJXOPT_CROP, TJXOPT_GRAY,
-                       TJXOPT_PERFECT, BackgroundStruct, CroppingRegion,
-                       TransformStruct, fill_background)
+from opentile.turbojpeg_patch import (
+    BlankImage,
+    BlankStruct,
+    TurboJPEG_patch,
+    find_turbojpeg_path,
+)
+from turbojpeg import (
+    CUSTOMFILTER,
+    TJXOP_NONE,
+    TJXOPT_CROP,
+    TJXOPT_GRAY,
+    TJXOPT_PERFECT,
+    BackgroundStruct,
+    CroppingRegion,
+    TransformStruct,
+    fill_background,
+)
 
 test_file_path = "tests/testdata/turbojpeg/frame_2048x512.jpg"
 

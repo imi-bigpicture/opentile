@@ -34,11 +34,11 @@ class OpenTile:
         """Return tiler that supports the tiff file in filepath, or None if
         not supported"""
         tilers: Dict[str, Type[Tiler]] = {
-            'ndpi': NdpiTiler,
-            'svs': SvsTiler,
-            'phillips_tiff': PhilipsTiffTiler,
-            '3dhistech tiff': HistechTiffTiler,
-            'ome-tiff tiler': OmeTiffTiler
+            "ndpi": NdpiTiler,
+            "svs": SvsTiler,
+            "phillips_tiff": PhilipsTiffTiler,
+            "3dhistech tiff": HistechTiffTiler,
+            "ome-tiff tiler": OmeTiffTiler,
         }
         try:
             tiff_file = TiffFile(filepath)
@@ -86,8 +86,6 @@ class OpenTile:
             return HistechTiffTiler(filepath)
 
         if supported_tiler is OmeTiffTiler:
-            return OmeTiffTiler(
-                filepath
-            )
+            return OmeTiffTiler(filepath)
 
-        raise NotImplementedError('Non supported tiff file')
+        raise NotImplementedError("Non supported tiff file")

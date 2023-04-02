@@ -16,7 +16,7 @@ import math
 import threading
 from abc import ABCMeta, abstractclassmethod, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 from tifffile.tifffile import (
@@ -42,10 +42,10 @@ class LockableFileHandle:
         self._lock = threading.Lock()
 
     def __str__(self) -> str:
-        return f'{type(self).__name__} for FileHandle {self._fh}'
+        return f"{type(self).__name__} for FileHandle {self._fh}"
 
     def __repr__(self) -> str:
-        return f'{type(self).__name__}({self._fh})'
+        return f"{type(self).__name__}({self._fh})"
 
     @property
     def filepath(self) -> Path:
@@ -149,16 +149,11 @@ class OpenTilePage(metaclass=ABCMeta):
             self.supported_compressions is not None
             and page.compression not in self.supported_compressions
         ):
-            raise NotImplementedError(
-                f'Non-supported compression {self.compression}.'
-            )
+            raise NotImplementedError(f"Non-supported compression {self.compression}.")
         self._page = page
         self._fh = LockableFileHandle(fh)
         self._add_rgb_colorspace_fix = add_rgb_colorspace_fix
-        self._image_size = Size(
-            self._page.imagewidth,
-            self._page.imagelength
-        )
+        self._image_size = Size(self._page.imagewidth, self._page.imagelength)
         if self.page.is_tiled:
             self._tile_size = Size(self.page.tilewidth, self.page.tilelength)
         else:
@@ -170,7 +165,7 @@ class OpenTilePage(metaclass=ABCMeta):
         raise NotImplementedError()
 
     def __str__(self) -> str:
-        return f'{type(self).__name__} of page {self._page}'
+        return f"{type(self).__name__} of page {self._page}"
 
     @property
     @abstractmethod
@@ -259,12 +254,6 @@ class OpenTilePage(metaclass=ABCMeta):
         images not in pyramidal series."""
         return self._pyramid_index
 
-    @property
-    @abstractmethod
-    def pixel_spacing(self) -> Optional[SizeMm]:
-        """Should return the pixel size in mm/pixel of the page."""
-        raise NotImplementedError()
-
     @abstractmethod
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Should return image bytes for tile at tile position.
@@ -343,13 +332,9 @@ class OpenTilePage(metaclass=ABCMeta):
             Iterator of all tiles in page.
         """
         if raw:
-            return (
-                self._read_frame(index)
-                for index in range(self.tiled_size.area)
-            )
+            return (self._read_frame(index) for index in range(self.tiled_size.area))
         return (
-            self.get_tile(tile.to_tuple())
-            for tile in self.tiled_region.iterate_all(True)
+            self.get_tile(tile.to_tuple()) for tile in self.tiled_region.iterate_all()
         )
 
     def get_all_tiles_decoded(self) -> Iterator[np.ndarray]:
@@ -362,7 +347,7 @@ class OpenTilePage(metaclass=ABCMeta):
         """
         return (
             self.get_decoded_tile(tile.to_tuple())
-            for tile in self.tiled_region.iterate_all(True)
+            for tile in self.tiled_region.iterate_all()
         )
 
     def close(self) -> None:
@@ -425,18 +410,14 @@ class OpenTilePage(metaclass=ABCMeta):
         tiff_tags: TiffTags, value_name: str
     ) -> Optional[str]:
         return next(
-            (
-                str(tag.value) for tag in tiff_tags
-                if tag.name == value_name
-            ),
-            None
+            (str(tag.value) for tag in tiff_tags if tag.name == value_name), None
         )
 
     def _calculate_pyramidal_index(
         self,
         base_size: Size,
     ) -> int:
-        return int(math.log2(base_size.width/self.image_size.width))
+        return int(math.log2(base_size.width / self.image_size.width))
 
     def _calculate_mpp(self, base_mpp: SizeMm) -> SizeMm:
         return base_mpp * pow(2, self.pyramid_index)
@@ -551,10 +532,7 @@ class Tiler(metaclass=ABCMeta):
         base_page = self.series[self._level_series_index].pages[0]
         assert isinstance(base_page, TiffPage)
         self._base_page = base_page
-        self._base_size = Size(
-            self.base_page.imagewidth,
-            self.base_page.imagelength
-        )
+        self._base_size = Size(self.base_page.imagewidth, self.base_page.imagelength)
 
     def __enter__(self):
         return self

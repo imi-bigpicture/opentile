@@ -22,9 +22,9 @@ from opentile.geometry import Size
 from opentile.jpeg import Jpeg
 from tifffile import TiffFile, TiffPage
 
-test_data_dir = os.environ.get('OPENTILE_TESTDIR', 'tests/testdata')
-ndpi_file_path = Path(test_data_dir).joinpath('slides/ndpi/CMU-1/CMU-1.ndpi')
-svs_file_path = Path(test_data_dir).joinpath('slides/svs/CMU-1/CMU-1.svs')
+test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
+ndpi_file_path = Path(test_data_dir).joinpath("slides/ndpi/CMU-1/CMU-1.ndpi")
+svs_file_path = Path(test_data_dir).joinpath("slides/svs/CMU-1/CMU-1.svs")
 
 
 @pytest.mark.unittest

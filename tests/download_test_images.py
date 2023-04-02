@@ -48,11 +48,11 @@ def main():
         test_data_dir = Path(DEFAULT_DIR)
         print(
             'Env "OPENTILE_TESTDIR"" not set, downloading to default folder '
-            f'{test_data_dir}.'
+            f"{test_data_dir}."
         )
     else:
         test_data_dir = Path(test_data_path)
-        print(f'Downloading to {test_data_dir}')
+        print(f"Downloading to {test_data_dir}")
     os.makedirs(test_data_dir, exist_ok=True)
     for file, file_settings in FILES.items():
         file_path = test_data_dir.joinpath(file)
@@ -79,5 +79,5 @@ def main():
                     print(f"{saved_file_path} checksum OK")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -18,8 +18,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 from defusedxml import ElementTree
 
-from tifffile.tifffile import (COMPRESSION, FileHandle, TiffFile, TiffPage,
-                               TiffPageSeries)
+from tifffile.tifffile import (
+    COMPRESSION,
+    FileHandle,
+    TiffFile,
+    TiffPage,
+    TiffPageSeries,
+)
 
 from opentile.common import NativeTiledPage, Tiler
 from opentile.geometry import Size, SizeMm
@@ -61,8 +66,8 @@ class PhilipsTiffTiledPage(NativeTiledPage):
 
     def __repr__(self) -> str:
         return (
-            f'{type(self).__name__}({self._page}, {self._fh}, '
-            f'{self._base_size}, {self._base_mpp}, {self._jpeg})'
+            f"{type(self).__name__}({self._page}, {self._fh}, "
+            f"{self._base_size}, {self._base_mpp}, {self._jpeg})"
         )
 
     @property
@@ -109,9 +114,7 @@ class PhilipsTiffTiledPage(NativeTiledPage):
                 if datalength != 0
             )
         except StopIteration as exception:
-            raise ValueError(
-                'Could not find valid frame in page.'
-            ) from exception
+            raise ValueError("Could not find valid frame in page.") from exception
         tile = self._read_frame(valid_frame_index)
         if self.page.jpegtables is not None:
             tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables, False)
