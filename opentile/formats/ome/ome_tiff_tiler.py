@@ -27,6 +27,7 @@ from opentile.formats.ome.ome_tiff_image import (
 )
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
+from opentile.metadata import Metadata
 from opentile.tiler import TiffImage, Tiler
 
 
@@ -44,6 +45,11 @@ class OmeTiffTiler(Tiler):
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
         self._base_mpp = self._get_mpp(self._level_series_index)
+
+    @property
+    def metadata(self) -> Metadata:
+        """Metadata parsing not implemented for OmeTiff."""
+        return Metadata()
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
@@ -103,20 +109,18 @@ class OmeTiffTiler(Tiler):
     def get_label(self, page: int = 0) -> TiffImage:
         if self._label_series_index is None:
             raise ValueError("No label detected in file")
-        tiff_page = self._get_tiff_page(self._label_series_index, 0, page)
-        return OmeTiffImage(
-            tiff_page,
-            self._fh,
-            self._get_optional_mpp(self._label_series_index),
-        )
+        return self._get_associated_image(self._label_series_index, page)
 
     @lru_cache(None)
     def get_overview(self, page: int = 0) -> TiffImage:
         if self._overview_series_index is None:
             raise ValueError("No overview detected in file")
-        tiff_page = self._get_tiff_page(self._overview_series_index, 0, page)
+        return self._get_associated_image(self._overview_series_index, page)
+
+    def _get_associated_image(self, series: int, page: int = 0) -> TiffImage:
+        tiff_page = self._get_tiff_page(series, 0, page)
         return OmeTiffImage(
             tiff_page,
             self._fh,
-            self._get_optional_mpp(self._overview_series_index),
+            self._get_optional_mpp(series),
         )

@@ -66,20 +66,9 @@ class NdpiTiler(Tiler):
         )
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
-        self._turbo_path = turbo_path
-        self._jpeg = Jpeg(self._turbo_path)
+        self._jpeg = Jpeg(turbo_path)
         self._metadata = NdpiMetadata(self.base_page)
         self._label_crop_position = label_crop_position
-
-    def __repr__(self) -> str:
-        return (
-            f"{type(self).__name__}({self._tiff_file.filename}, "
-            f"{self.tile_size.to_tuple}, "
-            f"{self._turbo_path})"
-        )
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__} of Tifffile {self._tiff_file}"
 
     @property
     def tile_size(self) -> Size:
@@ -133,7 +122,7 @@ class NdpiTiler(Tiler):
             smallest_stripe_width is None
             or smallest_stripe_width == requested_tile_width
         ):
-            # No striped pages or requested is equald to smallest
+            # No striped pages or requested is equal to smallest
             return Size(requested_tile_width, requested_tile_width)
 
         if requested_tile_width > smallest_stripe_width:

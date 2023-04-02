@@ -17,11 +17,7 @@ from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from tifffile.tifffile import (
-    TiffFile,
-    TiffPage,
-    TiffPageSeries,
-)
+from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
 
 from opentile.geometry import Size
 from opentile.metadata import Metadata
@@ -29,15 +25,10 @@ from opentile.tiff_image import LockableFileHandle, TiffImage
 
 
 class Tiler(metaclass=ABCMeta):
-    """Abstract class for reading images from TiffFile."""
-
-    _level_series_index: int = 0
-    _overview_series_index: Optional[int] = None
-    _label_series_index: Optional[int] = None
-    _icc_profile: Optional[bytes] = None
+    """Base class for reading images from TiffFile."""
 
     def __init__(self, filepath: Path):
-        """Abstract class for reading images from TiffFile.
+        """Base class for reading images from TiffFile.
 
         Parameters
         ----------
@@ -50,6 +41,9 @@ class Tiler(metaclass=ABCMeta):
         assert isinstance(base_page, TiffPage)
         self._base_page = base_page
         self._base_size = Size(self.base_page.imagewidth, self.base_page.imagelength)
+        self._level_series_index = 0
+        self._overview_series_index: Optional[int] = None
+        self._label_series_index: Optional[int] = None
         for series_index, series in enumerate(self.series):
             if self._is_level_series(series):
                 self._level_series_index = series_index
@@ -57,16 +51,13 @@ class Tiler(metaclass=ABCMeta):
                 self._label_series_index = series_index
             elif self._is_overview_series(series):
                 self._overview_series_index = series_index
+        self._icc_profile: Optional[bytes] = None
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-
-    @property
-    def metadata(self) -> Metadata:
-        raise NotImplementedError()
 
     @property
     def base_page(self) -> TiffPage:
@@ -125,9 +116,16 @@ class Tiler(metaclass=ABCMeta):
         """Return icc profile if found in file."""
         return self._icc_profile
 
+    @property
+    @abstractmethod
+    def metadata(self) -> Metadata:
+        """Return metadata parsed from file."""
+        raise NotImplementedError()
+
     @classmethod
     @abstractmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
+        """Return true if file is supported by tiler."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -138,7 +136,7 @@ class Tiler(metaclass=ABCMeta):
         ----------
         level: int
             Level to get.
-        page: int
+        page: int = 0
             Index of page to get.
 
         Returns
@@ -150,11 +148,11 @@ class Tiler(metaclass=ABCMeta):
 
     @abstractmethod
     def get_label(self, page: int = 0) -> TiffImage:
-        """Return TiffImage for label in label series.
+        """Return label TiffImage.
 
         Parameters
         ----------
-        page: int
+        page: int = 0
             Index of page to get.
 
         Returns
@@ -166,11 +164,11 @@ class Tiler(metaclass=ABCMeta):
 
     @abstractmethod
     def get_overview(self, page: int = 0) -> TiffImage:
-        """Return TiffImage for overview in overview series.
+        """Return overview TiffImage.
 
         Parameters
         ----------
-        page: int
+        page: int = 0
             Index of page to get.
 
         Returns
@@ -183,6 +181,7 @@ class Tiler(metaclass=ABCMeta):
     @staticmethod
     @abstractmethod
     def _is_level_series(series: TiffPageSeries) -> bool:
+        """Return true if series is a level series."""
         raise NotImplementedError()
 
     @staticmethod
@@ -198,7 +197,7 @@ class Tiler(metaclass=ABCMeta):
         raise NotImplementedError()
 
     def close(self) -> None:
-        """CLose tiff-file."""
+        """Close tiff file."""
         self._tiff_file.close()
 
     def get_tile(

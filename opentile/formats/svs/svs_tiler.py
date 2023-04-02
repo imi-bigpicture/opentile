@@ -38,8 +38,7 @@ class SvsTiler(Tiler):
             Filepath to a svs TiffFile.
         """
         super().__init__(Path(filepath))
-        self._turbo_path = turbo_path
-        self._jpeg = Jpeg(self._turbo_path)
+        self._jpeg = Jpeg(turbo_path)
         if "InterColorProfile" in self._tiff_file.pages.first.tags:
             icc_profile = self._tiff_file.pages.first.tags["InterColorProfile"].value
             assert isinstance(icc_profile, bytes) or icc_profile is None

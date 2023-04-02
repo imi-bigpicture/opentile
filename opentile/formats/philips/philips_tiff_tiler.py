@@ -41,8 +41,7 @@ class PhilipsTiffTiler(Tiler):
             Path to turbojpeg (dll or so).
         """
         super().__init__(Path(filepath))
-        self._turbo_path = turbo_path
-        self._jpeg = Jpeg(self._turbo_path)
+        self._jpeg = Jpeg(turbo_path)
         self._metadata = PhilipsTiffMetadata(self._tiff_file)
         assert self._metadata.pixel_spacing is not None
         self._base_mpp = SizeMm.from_tuple(self._metadata.pixel_spacing) * 1000.0

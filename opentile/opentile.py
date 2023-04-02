@@ -24,7 +24,6 @@ from opentile.formats import (
     PhilipsTiffTiler,
     SvsTiler,
 )
-from opentile.jpeg import find_turbojpeg_path
 from opentile.tiler import Tiler
 
 
@@ -34,6 +33,7 @@ class OpenTile:
         cls,
         filepath: Union[str, Path],
         tile_size: int = 512,
+        turbo_path: Optional[Union[str, Path]] = None,
     ) -> Tiler:
         """Return a file type specific tiler for tiff file in filepath.
         Tile size and turbo jpeg path are optional but required for some file
@@ -45,16 +45,18 @@ class OpenTile:
             Path to tiff file.
         tile_size: int = 512
             Tile size for creating tiles, if needed for file format.
+        turbo_path: Optional[Union[str, Path]] = None
+            Path to turbojpeg (dll or so).
         """
         format, supported_tiler = cls.get_tiler(filepath)
         if supported_tiler is NdpiTiler:
-            return NdpiTiler(filepath, tile_size, find_turbojpeg_path())
+            return NdpiTiler(filepath, tile_size, turbo_path)
 
         if supported_tiler is SvsTiler:
-            return SvsTiler(filepath, find_turbojpeg_path())
+            return SvsTiler(filepath, turbo_path)
 
         if supported_tiler is PhilipsTiffTiler:
-            return PhilipsTiffTiler(filepath, find_turbojpeg_path())
+            return PhilipsTiffTiler(filepath, turbo_path)
 
         if supported_tiler is HistechTiffTiler:
             return HistechTiffTiler(filepath)
