@@ -17,13 +17,13 @@ from typing import Dict, Optional, Tuple, Type, Union
 
 from tifffile import TiffFile, TiffFileError
 
-from opentile.tiler import Tiler
 from opentile.histech.histech_tiff_tiler import HistechTiffTiler
+from opentile.jpeg import find_turbojpeg_path
 from opentile.ndpi import NdpiTiler
 from opentile.ome.ome_tiff_tiler import OmeTiffTiler
 from opentile.philips.philips_tiff_tiler import PhilipsTiffTiler
 from opentile.svs import SvsTiler
-from opentile.jpeg import find_turbojpeg_path
+from opentile.tiler import Tiler
 
 
 class OpenTile:

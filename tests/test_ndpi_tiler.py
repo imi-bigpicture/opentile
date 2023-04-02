@@ -22,7 +22,6 @@ from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.geometry import Point, Size
-from opentile.ndpi.ndpi_cache import NdpiCache
 from opentile.ndpi.ndpi_page import NdpiStripedPage
 from opentile.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.ndpi.ndpi_tiler import NdpiTiler
@@ -176,42 +175,6 @@ class NdpiTilerTest(unittest.TestCase):
             self.level._sort_into_frame_jobs(
                 [(index_x, index_y) for index_x in range(8) for index_y in range(2)]
             ),
-        )
-
-    def test_cache(self):
-        cache_size = 10
-        cache = NdpiCache(cache_size)
-        for index in range(10):
-            point = Point(index, index)
-            data = bytes([index])
-            cache[point] = data
-            self.assertEqual(data, cache[point])
-        self.assertEqual(cache_size, len(cache))
-
-        next = 10
-        point = Point(next, next)
-        data = bytes([next])
-        cache[point] = data
-        self.assertEqual(data, cache[point])
-        self.assertEqual(cache_size, len(cache))
-        with self.assertRaises(KeyError):
-            cache[Point(0, 0)]
-
-        update = {Point(index, index): bytes([index]) for index in range(11, 20)}
-        cache.update(update)
-        self.assertEqual(cache_size, len(cache))
-        for index in range(10, 20):
-            point = Point(index, index)
-            data = bytes([index])
-            self.assertEqual(data, cache[point])
-
-        for index in range(10):
-            with self.assertRaises(KeyError):
-                cache[Point(index, index)]
-
-        self.assertEqual(
-            [Point(index, index) for index in range(10, 20)],
-            list(cache._content.keys()),
         )
 
     def test_stripe_size(self):

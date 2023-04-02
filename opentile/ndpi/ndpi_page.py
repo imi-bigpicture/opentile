@@ -13,16 +13,16 @@
 #    limitations under the License.
 
 from abc import ABCMeta, abstractmethod
-from functools import cached_property
+from functools import cached_property, lru_cache
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from tifffile.tifffile import COMPRESSION, TIFF, FileHandle, TiffPage
+from opentile.config import settings
 
 from opentile.tiler import OpenTilePage
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
-from opentile.ndpi.ndpi_cache import NdpiCache
 from opentile.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 
 
@@ -230,14 +230,12 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         self._file_frame_size = self._get_file_frame_size()
         self._frame_size = Size.max(self.tile_size, self._file_frame_size)
         self._pyramid_index = self._calculate_pyramidal_index(self._base_size)
-        self._frame_cache = NdpiCache(frame_cache)
         self._headers: Dict[Size, bytes] = {}
 
     def __repr__(self) -> str:
         return (
             f"{type(self).__name__}({self._page}, {self._fh}, "
-            f"{self._base_size}, {self.tile_size}, {self._jpeg}, "
-            f"{self._frame_cache.size})"
+            f"{self._base_size}, {self.tile_size}, {self._jpeg}"
         )
 
     @property
@@ -340,11 +338,8 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         Dict[Point, bytes]:
             Created tiles ordered by tile coordinate.
         """
-        if frame_job.position in self._frame_cache:
-            frame = self._frame_cache[frame_job.position]
-        else:
-            frame = self._read_extended_frame(frame_job.position, frame_job.frame_size)
-            self._frame_cache[frame_job.position] = frame
+
+        frame = self._read_extended_frame(frame_job.position, frame_job.frame_size)
         tiles = self._crop_to_tiles(frame_job, frame)
         return tiles
 
@@ -438,6 +433,7 @@ class NdpiOneFramePage(NdpiTiledPage):
         """
         return ((self.frame_size) // self.tile_size + 1) * self.tile_size
 
+    @lru_cache(settings.ndpi_frame_cache)
     def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Return padded image covering tile coordinate as valid jpeg bytes.
 
@@ -592,6 +588,7 @@ class NdpiStripedPage(NdpiTiledPage):
             height = self.frame_size.height
         return Size(width, height)
 
+    @lru_cache(settings.ndpi_frame_cache)
     def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Return extended frame of frame size starting at frame position.
         Returned frame is jpeg bytes including header with correct image size.
