@@ -20,8 +20,8 @@ import numpy as np
 from turbojpeg import TJPF_RGB, tjMCUHeight, tjMCUWidth
 
 from opentile.geometry import Size
-from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.turbojpeg_patch import find_turbojpeg_path
+from opentile.jpeg.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
+from opentile.jpeg.turbojpeg_patch import find_turbojpeg_path
 
 
 class JpegTagNotFound(Exception):
@@ -93,7 +93,7 @@ class Jpeg:
         for fragment_index, fragment in enumerate(fragments):
             if not (fragment[-2] == Jpeg.TAGS["tag marker"] and fragment[-1] != b"0"):
                 raise JpegTagNotFound(
-                    'Tag for end of scan or restart marker not found in scan'
+                    "Tag for end of scan or restart marker not found in scan"
                 )
             frame += fragment[:-1]  # Do not include restart mark index
             frame += self.restart_mark(fragment_index)
@@ -232,8 +232,7 @@ class Jpeg:
             return self._turbo_jpeg.crop_multiple(frame, crop_parameters)
         except OSError as exception:
             raise JpegCropError(
-                f'Crop of frame failed '
-                f'with parameters {crop_parameters}'
+                f"Crop of frame failed " f"with parameters {crop_parameters}"
             ) from exception
 
     @classmethod
@@ -327,7 +326,7 @@ class Jpeg:
 
     @staticmethod
     def code_short(value: int) -> bytes:
-        return pack('>H', value)
+        return pack(">H", value)
 
     @staticmethod
     def subsample_to_mcu_size(subsample: int) -> int:

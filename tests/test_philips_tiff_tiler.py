@@ -21,7 +21,7 @@ import pytest
 from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
-from opentile.philips_tiff_tiler import PhilipsTiffTiler
+from opentile.philips.philips_tiff_tiler import PhilipsTiffTiler
 
 from .filepaths import philips_file_path
 

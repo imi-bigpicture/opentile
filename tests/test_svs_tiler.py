@@ -22,7 +22,7 @@ from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.geometry import Point
-from opentile.svs_tiler import SvsTiledPage, SvsTiler
+from opentile.svs.svs_tiler import SvsTiledPage, SvsTiler
 
 from .filepaths import svs_file_path
 

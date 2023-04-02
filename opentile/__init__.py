@@ -12,6 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from opentile.interface import OpenTile
+from opentile.opentile import OpenTile
 
 __version__ = "0.8.1"

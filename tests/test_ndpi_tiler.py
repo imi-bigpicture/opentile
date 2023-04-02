@@ -22,13 +22,10 @@ from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.geometry import Point, Size
-from opentile.ndpi_tiler import (
-    NdpiCache,
-    NdpiFrameJob,
-    NdpiStripedPage,
-    NdpiTile,
-    NdpiTiler,
-)
+from opentile.ndpi.ndpi_cache import NdpiCache
+from opentile.ndpi.ndpi_page import NdpiStripedPage
+from opentile.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
+from opentile.ndpi.ndpi_tiler import NdpiTiler
 
 from .filepaths import ndpi_file_path
 

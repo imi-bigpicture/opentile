@@ -12,22 +12,12 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional
 
-from tifffile.tifffile import (
-    PHOTOMETRIC,
-    FileHandle,
-    TiffFile,
-    TiffPage,
-    TiffPageSeries,
-    COMPRESSION,
-)
+from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, FileHandle, TiffPage
 
-from opentile.common import NativeTiledPage, Tiler
+from opentile.page import NativeTiledPage
 from opentile.geometry import Size, SizeMm
-from opentile.jpeg import Jpeg
-from opentile.metadata import Metadata
 
 
 class HistechTiffTiledPage(NativeTiledPage):
@@ -84,56 +74,3 @@ class HistechTiffTiledPage(NativeTiledPage):
             / 1000
             / 1000
         )
-
-
-class HistechTiffTiler(Tiler):
-    def __init__(
-        self, filepath: Union[str, Path], turbo_path: Optional[Union[str, Path]] = None
-    ):
-        """Tiler for 3DHistech tiff file.
-
-        Parameters
-        ----------
-        filepath: Union[str, Path]
-            Filepath to a 3DHistech-TiffFile.
-        """
-        super().__init__(Path(filepath))
-        self._fh = self._tiff_file.filehandle
-
-        self._turbo_path = turbo_path
-        self._jpeg = Jpeg(self._turbo_path)
-
-        self._level_series_index = 0
-        for series_index, series in enumerate(self.series):
-            if self.is_label(series):
-                self._label_series_index = series_index
-            elif self.is_overview(series):
-                self._overview_series_index = series_index
-        self._pages: Dict[Tuple[int, int, int], HistechTiffTiledPage] = {}
-
-    @property
-    def metadata(self) -> Metadata:
-        """No known metadata for 3DHistech tiff files."""
-        return Metadata()
-
-    @classmethod
-    def supported(cls, tiff_file: TiffFile) -> bool:
-        return "3dh_PixelSizeX" in tiff_file.pages.first.description
-
-    def get_page(self, series: int, level: int, page: int = 0) -> HistechTiffTiledPage:
-        """Return PhilipsTiffTiledPage for series, level, page."""
-        if not (series, level, page) in self._pages:
-            self._pages[series, level, page] = HistechTiffTiledPage(
-                self._get_tiff_page(series, level, page), self._fh, self.base_size
-            )
-        return self._pages[series, level, page]
-
-    @staticmethod
-    def is_overview(series: TiffPageSeries) -> bool:
-        """Return true if series is a overview series."""
-        return False
-
-    @staticmethod
-    def is_label(series: TiffPageSeries) -> bool:
-        """Return true if series is a label series."""
-        return False

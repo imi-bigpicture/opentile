@@ -17,7 +17,7 @@ from ctypes import c_short, pointer
 
 import numpy as np
 import pytest
-from opentile.turbojpeg_patch import (
+from opentile.jpeg.turbojpeg_patch import (
     BlankImage,
     BlankStruct,
     TurboJPEG_patch,

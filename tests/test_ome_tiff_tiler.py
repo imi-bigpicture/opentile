@@ -16,7 +16,7 @@ import unittest
 from hashlib import md5
 
 import pytest
-from opentile.ome_tiff import OmeTiffTiler
+from opentile.ome.ome_tiff_tiler import OmeTiffTiler
 
 from .filepaths import ome_tiff_file_path
 
@@ -32,9 +32,7 @@ class OmeTiffTilerTest(unittest.TestCase):
         try:
             cls.tiler = OmeTiffTiler(ome_tiff_file_path)
         except FileNotFoundError:
-            raise unittest.SkipTest(
-                'Ome tiff test file not found, skipping'
-            )
+            raise unittest.SkipTest("Ome tiff test file not found, skipping")
         cls.level = cls.tiler.get_level(0)
 
     @classmethod
@@ -45,20 +43,17 @@ class OmeTiffTilerTest(unittest.TestCase):
         tile = self.level.get_tile((0, 0))
         self.assertEqual(
             md5(tile).hexdigest(),
-            '646c70833b30aab095950424b59a0cf7',
+            "646c70833b30aab095950424b59a0cf7",
         )
 
         tile = self.level.get_tile((20, 20))
         self.assertEqual(
             md5(tile).hexdigest(),
-            '4c37c335b697aaf1550f77fd9e367f69',
+            "4c37c335b697aaf1550f77fd9e367f69",
         )
 
     def test_subsampling(self):
         self.assertIsNone(self.tiler.get_level(0).subsampling)
 
     def test_sumples_per_pixel(self):
-        self.assertEqual(
-            self.tiler.get_level(0).samples_per_pixel,
-            3
-        )
+        self.assertEqual(self.tiler.get_level(0).samples_per_pixel, 3)
