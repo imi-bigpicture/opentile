@@ -19,14 +19,14 @@ import ome_types
 from ome_types.model.simple_types import UnitsLength
 from tifffile.tifffile import TiffFile, TiffPageSeries
 
-from opentile.formats.ome.ome_tiff_page import (
-    OmeTiffOneFramePage,
-    OmeTiffPage,
-    OmeTiffTiledPage,
+from opentile.formats.ome.ome_tiff_image import (
+    OmeTiffOneFrameImage,
+    OmeTiffImage,
+    OmeTiffTiledImage,
 )
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiler import OpenTilePage, Tiler
+from opentile.tiler import TiffImage, Tiler
 
 
 class OmeTiffTiler(Tiler):
@@ -44,7 +44,7 @@ class OmeTiffTiler(Tiler):
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
         self._base_mpp = self._get_mpp(self._level_series_index)
-        self._pages: Dict[Tuple[int, int, int], OpenTilePage] = {}
+        self._images: Dict[Tuple[int, int, int], TiffImage] = {}
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
@@ -81,19 +81,19 @@ class OmeTiffTiler(Tiler):
             return None
         return SizeMm(mpp_x, mpp_y)
 
-    def get_page(self, series: int, level: int, page: int = 0) -> OpenTilePage:
-        """Return OpenTilePage for series, level, page."""
-        if (series, level, page) not in self._pages:
+    def get_image(self, series: int, level: int, page: int = 0) -> TiffImage:
+        """Return TiffImage for series, level, page."""
+        if (series, level, page) not in self._images:
             tiff_page = self._get_tiff_page(series, level, page)
             if tiff_page.is_tiled:
-                self._pages[series, level, page] = OmeTiffTiledPage(
+                self._images[series, level, page] = OmeTiffTiledImage(
                     tiff_page,
                     self._fh,
                     self.base_size,
                     self._base_mpp,
                 )
             elif series == self._level_series_index:
-                self._pages[series, level, page] = OmeTiffOneFramePage(
+                self._images[series, level, page] = OmeTiffOneFrameImage(
                     tiff_page,
                     self._fh,
                     self.base_size,
@@ -102,9 +102,9 @@ class OmeTiffTiler(Tiler):
                     self._jpeg,
                 )
             else:
-                self._pages[series, level, page] = OmeTiffPage(
+                self._images[series, level, page] = OmeTiffImage(
                     tiff_page,
                     self._fh,
                     self._get_optional_mpp(series),
                 )
-        return self._pages[series, level, page]
+        return self._images[series, level, page]

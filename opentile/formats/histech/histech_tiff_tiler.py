@@ -17,7 +17,7 @@ from typing import Dict, Optional, Tuple, Union
 
 from tifffile.tifffile import TiffFile, TiffPageSeries
 
-from opentile.formats.histech.histech_tiff_tiled_page import HistechTiffTiledPage
+from opentile.formats.histech.histech_tiff_image import HistechTiffImage
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiler import Tiler
@@ -46,7 +46,7 @@ class HistechTiffTiler(Tiler):
                 self._label_series_index = series_index
             elif self.is_overview(series):
                 self._overview_series_index = series_index
-        self._pages: Dict[Tuple[int, int, int], HistechTiffTiledPage] = {}
+        self._images: Dict[Tuple[int, int, int], HistechTiffImage] = {}
 
     @property
     def metadata(self) -> Metadata:
@@ -57,13 +57,13 @@ class HistechTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return "3dh_PixelSizeX" in tiff_file.pages.first.description
 
-    def get_page(self, series: int, level: int, page: int = 0) -> HistechTiffTiledPage:
-        """Return PhilipsTiffTiledPage for series, level, page."""
-        if not (series, level, page) in self._pages:
-            self._pages[series, level, page] = HistechTiffTiledPage(
+    def get_image(self, series: int, level: int, page: int = 0) -> HistechTiffImage:
+        """Return HistechTiffImage for series, level, page."""
+        if not (series, level, page) in self._images:
+            self._images[series, level, page] = HistechTiffImage(
                 self._get_tiff_page(series, level, page), self._fh, self.base_size
             )
-        return self._pages[series, level, page]
+        return self._images[series, level, page]
 
     @staticmethod
     def is_overview(series: TiffPageSeries) -> bool:

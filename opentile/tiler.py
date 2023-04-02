@@ -25,11 +25,11 @@ from tifffile.tifffile import (
 
 from opentile.geometry import Size
 from opentile.metadata import Metadata
-from opentile.page import OpenTilePage
+from opentile.tiff_image import TiffImage
 
 
 class Tiler(metaclass=ABCMeta):
-    """Abstract class for reading pages from TiffFile."""
+    """Abstract class for reading images from TiffFile."""
 
     _level_series_index: int = 0
     _overview_series_index: Optional[int] = None
@@ -37,7 +37,7 @@ class Tiler(metaclass=ABCMeta):
     _icc_profile: Optional[bytes] = None
 
     def __init__(self, filepath: Path):
-        """Abstract class for reading pages from TiffFile.
+        """Abstract class for reading images from TiffFile.
 
         Parameters
         ----------
@@ -76,8 +76,8 @@ class Tiler(metaclass=ABCMeta):
         return self._tiff_file.series
 
     @property
-    def levels(self) -> List[OpenTilePage]:
-        """Return list of pyramid level OpenTilePages."""
+    def levels(self) -> List[TiffImage]:
+        """Return list of pyramid level TiffImages."""
         if self._level_series_index is None:
             return []
         return [
@@ -89,8 +89,8 @@ class Tiler(metaclass=ABCMeta):
         ]
 
     @property
-    def labels(self) -> List[OpenTilePage]:
-        """Return list of label OpenTilePage."""
+    def labels(self) -> List[TiffImage]:
+        """Return list of label TiffImage."""
         if self._label_series_index is None:
             return []
         return [
@@ -101,8 +101,8 @@ class Tiler(metaclass=ABCMeta):
         ]
 
     @property
-    def overviews(self) -> List[OpenTilePage]:
-        """Return list of overview OpenTilePage."""
+    def overviews(self) -> List[TiffImage]:
+        """Return list of overview TiffImage."""
         if self._overview_series_index is None:
             return []
         return [
@@ -118,8 +118,8 @@ class Tiler(metaclass=ABCMeta):
         return self._icc_profile
 
     @abstractmethod
-    def get_page(self, series: int, level: int, page: int) -> OpenTilePage:
-        """Should return a OpenTilePage for series, level, page in file."""
+    def get_image(self, series: int, level: int, page: int) -> TiffImage:
+        """Should return a TiffImage for series, level, page in file."""
         raise NotImplementedError()
 
     @classmethod
@@ -152,11 +152,11 @@ class Tiler(metaclass=ABCMeta):
         bytes
             Tile at position.
         """
-        tiled_page = self.get_page(series, level, page)
-        return tiled_page.get_tile(tile_position)
+        image = self.get_image(series, level, page)
+        return image.get_tile(tile_position)
 
-    def get_level(self, level: int, page: int = 0) -> OpenTilePage:
-        """Return OpenTilePage for level in pyramid series.
+    def get_level(self, level: int, page: int = 0) -> TiffImage:
+        """Return TiffImage for level in pyramid series.
 
         Parameters
         ----------
@@ -167,13 +167,13 @@ class Tiler(metaclass=ABCMeta):
 
         Returns
         ----------
-        OpenTilePage
-            Level OpenTilePage.
+        TiffImage
+            Level TiffImage.
         """
-        return self.get_page(self._level_series_index, level, page)
+        return self.get_image(self._level_series_index, level, page)
 
-    def get_label(self, page: int = 0) -> OpenTilePage:
-        """Return OpenTilePage for label in label series.
+    def get_label(self, page: int = 0) -> TiffImage:
+        """Return TiffImage for label in label series.
 
         Parameters
         ----------
@@ -182,15 +182,15 @@ class Tiler(metaclass=ABCMeta):
 
         Returns
         ----------
-        OpenTilePage
-            Label OpenTilePage.
+        TiffImage
+            Label TiffImage.
         """
         if self._label_series_index is None:
             raise ValueError("No label detected in file")
-        return self.get_page(self._label_series_index, 0, page)
+        return self.get_image(self._label_series_index, 0, page)
 
-    def get_overview(self, page: int = 0) -> OpenTilePage:
-        """Return OpenTilePage for overview in overview series.
+    def get_overview(self, page: int = 0) -> TiffImage:
+        """Return TiffImage for overview in overview series.
 
         Parameters
         ----------
@@ -199,12 +199,12 @@ class Tiler(metaclass=ABCMeta):
 
         Returns
         ----------
-        OpenTilePage
-            Overview OpenTilePage.
+        TiffImage
+            Overview TiffImage.
         """
         if self._overview_series_index is None:
             raise ValueError("No overview detected in file")
-        return self.get_page(self._overview_series_index, 0, page)
+        return self.get_image(self._overview_series_index, 0, page)
 
     def _get_tiff_page(self, series: int, level: int, page: int) -> TiffPage:
         """Return TiffPage for series, level, page."""

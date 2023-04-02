@@ -19,10 +19,10 @@ from tifffile.tifffile import COMPRESSION, FileHandle, TiffPage
 
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.page import NativeTiledPage
+from opentile.tiff_image import NativeTiledTiffImage
 
 
-class PhilipsTiffTiledPage(NativeTiledPage):
+class PhilipsTiffImage(NativeTiledTiffImage):
     def __init__(
         self,
         page: TiffPage,
@@ -31,7 +31,7 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         base_mpp: SizeMm,
         jpeg: Jpeg,
     ):
-        """OpenTiledPage for Philips Tiff-page.
+        """OpenTiledPage for Philips Tiff image.
 
         Parameters
         ----------
@@ -104,7 +104,7 @@ class PhilipsTiffTiledPage(NativeTiledPage):
                 if datalength != 0
             )
         except StopIteration as exception:
-            raise ValueError("Could not find valid frame in page.") from exception
+            raise ValueError("Could not find valid frame in image.") from exception
         tile = self._read_frame(valid_frame_index)
         if self.page.jpegtables is not None:
             tile = Jpeg.add_jpeg_tables(tile, self.page.jpegtables, False)
@@ -112,14 +112,14 @@ class PhilipsTiffTiledPage(NativeTiledPage):
         return tile
 
     def _read_frame(self, index: int) -> bytes:
-        """Read frame at frame index from page. Return blank tile if tile is
+        """Read frame at frame index from image. Return blank tile if tile is
         sparse (length of frame is zero or frame indexis outside length of
         frames)
 
         Parameters
         ----------
         index: int
-            Frame index to read from page.
+            Frame index to read from image.
 
         Returns
         ----------

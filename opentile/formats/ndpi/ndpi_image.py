@@ -23,14 +23,14 @@ from opentile.config import settings
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
-from opentile.tiler import OpenTilePage
+from opentile.tiler import TiffImage
 
 
-class NdpiPage(OpenTilePage):
+class NdpiImage(TiffImage):
     _pyramid_index = 0
 
     def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
-        """Ndpi page that should not be tiled (e.g. overview or label).
+        """Ndpi image that should not be tiled (e.g. overview or label).
         Image data is assumed to be jpeg.
 
         Parameters
@@ -82,7 +82,7 @@ class NdpiPage(OpenTilePage):
 
     @cached_property
     def mcu(self) -> Size:
-        """Return mcu size of page."""
+        """Return mcu size of image."""
         return self._jpeg.get_mcu(self._read_frame(0))
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
@@ -99,7 +99,7 @@ class NdpiPage(OpenTilePage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
@@ -131,11 +131,11 @@ class NdpiPage(OpenTilePage):
         return SizeMm(mpp_x, mpp_y)
 
 
-class CroppedNdpiPage(NdpiPage):
+class NdpiCroppedImage(NdpiImage):
     def __init__(
         self, page: TiffPage, fh: FileHandle, jpeg: Jpeg, crop: Tuple[float, float]
     ):
-        """Ndpi page that should be cropped (e.g. overview or label).
+        """Ndpi image that should be cropped (e.g. overview or label).
         Image data is assumed to be jpeg.
 
         Parameters
@@ -175,7 +175,7 @@ class CroppedNdpiPage(NdpiPage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         full_frame = super().get_tile(tile_position)
         return self._jpeg.crop_multiple(full_frame, [self._crop_parameters])[0]
 
@@ -197,7 +197,7 @@ class CroppedNdpiPage(NdpiPage):
         return int(width * crop / self.mcu.width) * self.mcu.width
 
 
-class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
+class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
     def __init__(
         self,
         page: TiffPage,
@@ -207,7 +207,7 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         jpeg: Jpeg,
         frame_cache: int = 1,
     ):
-        """Metaclass for a tiled ndpi page.
+        """Metaclass for a tiled ndpi image.
 
         Parameters
         ----------
@@ -404,14 +404,14 @@ class NdpiTiledPage(NdpiPage, metaclass=ABCMeta):
         return list(frame_jobs.values())
 
 
-class NdpiOneFramePage(NdpiTiledPage):
-    """Class for a ndpi page containing only one frame that should be tiled.
+class NdpiOneFrameImage(NdpiTiledImage):
+    """Class for a ndpi image containing only one frame that should be tiled.
     The frame can be of any size (smaller or larger than the wanted tile size).
     The frame is padded to an even multiple of tile size.
     """
 
     def _get_file_frame_size(self) -> Size:
-        """Return size of the single frame in file. For single framed page
+        """Return size of the single frame in file. For single framed image
         this is equal to the level size.
 
         Returns
@@ -422,7 +422,7 @@ class NdpiOneFramePage(NdpiTiledPage):
         return self.image_size
 
     def _get_frame_size_for_tile(self, tile_position: Point) -> Size:
-        """Return read frame size for tile position. For single frame page
+        """Return read frame size for tile position. For single frame image
         the read frame size is the image size rounded up to the closest tile
         size.
 
@@ -466,8 +466,8 @@ class NdpiOneFramePage(NdpiTiledPage):
         return tile
 
 
-class NdpiStripedPage(NdpiTiledPage):
-    """Class for a ndpi page containing stripes. Frames are constructed by
+class NdpiStripedImage(NdpiTiledImage):
+    """Class for a ndpi image containing stripes. Frames are constructed by
     concatenating multiple stripes, and from the frame one or more tiles can be
     produced by lossless cropping.
     """
@@ -481,7 +481,7 @@ class NdpiStripedPage(NdpiTiledPage):
         jpeg: Jpeg,
         frame_cache: int = 1,
     ):
-        """Ndpi page with striped image data.
+        """Ndpi image with striped image data.
 
         Parameters
         ----------
@@ -516,7 +516,7 @@ class NdpiStripedPage(NdpiTiledPage):
 
     @property
     def jpeg_header(self) -> bytes:
-        """Jpeg header in page."""
+        """Jpeg header in image."""
         return self._jpeg_header
 
     def _get_file_frame_size(self) -> Size:

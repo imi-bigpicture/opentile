@@ -22,7 +22,7 @@ from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.formats import NdpiTiler
-from opentile.formats.ndpi.ndpi_page import NdpiStripedPage
+from opentile.formats.ndpi.ndpi_image import NdpiStripedImage
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size
 
@@ -42,7 +42,7 @@ class NdpiTilerTest(unittest.TestCase):
             cls.tiler = NdpiTiler(ndpi_file_path, cls.tile_size.width)
         except FileNotFoundError:
             raise unittest.SkipTest("ndpi test file not found, skipping")
-        cls.level = cast(NdpiStripedPage, cls.tiler.get_level(0))
+        cls.level = cast(NdpiStripedImage, cls.tiler.get_level(0))
 
     @classmethod
     def tearDownClass(cls):

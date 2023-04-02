@@ -18,7 +18,7 @@ from typing import Dict, Optional, Tuple, Union
 from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
 
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
-from opentile.formats.philips.philips_tiff_tiled_page import PhilipsTiffTiledPage
+from opentile.formats.philips.philips_tiff_image import PhilipsTiffImage
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
@@ -53,7 +53,7 @@ class PhilipsTiffTiler(Tiler):
         self._metadata = PhilipsTiffMetadata(self._tiff_file)
         assert self._metadata.pixel_spacing is not None
         self._base_mpp = SizeMm.from_tuple(self._metadata.pixel_spacing) * 1000.0
-        self._pages: Dict[Tuple[int, int, int], PhilipsTiffTiledPage] = {}
+        self._images: Dict[Tuple[int, int, int], PhilipsTiffImage] = {}
 
     @property
     def metadata(self) -> Metadata:
@@ -63,17 +63,17 @@ class PhilipsTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_philips
 
-    def get_page(self, series: int, level: int, page: int = 0) -> PhilipsTiffTiledPage:
+    def get_image(self, series: int, level: int, page: int = 0) -> PhilipsTiffImage:
         """Return PhilipsTiffTiledPage for series, level, page."""
-        if not (series, level, page) in self._pages:
-            self._pages[series, level, page] = PhilipsTiffTiledPage(
+        if not (series, level, page) in self._images:
+            self._images[series, level, page] = PhilipsTiffImage(
                 self._get_tiff_page(series, level, page),
                 self._fh,
                 self.base_size,
                 self._base_mpp,
                 self._jpeg,
             )
-        return self._pages[series, level, page]
+        return self._images[series, level, page]
 
     @staticmethod
     def is_overview(series: TiffPageSeries) -> bool:

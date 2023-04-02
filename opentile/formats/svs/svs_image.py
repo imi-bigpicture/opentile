@@ -21,14 +21,14 @@ from tifffile.tifffile import COMPRESSION, FileHandle, TiffPage
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.page import NativeTiledPage, OpenTilePage
+from opentile.tiff_image import NativeTiledTiffImage, TiffImage
 
 
-class SvsStripedPage(OpenTilePage):
+class SvsStripedImage(TiffImage):
     _pyramid_index = 0
 
     def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
-        """OpenTiledPage for jpeg striped Svs page, e.g. overview page.
+        """OpenTiledPage for jpeg striped Svs image, e.g. overview image.
 
         Parameters
         ----------
@@ -68,7 +68,7 @@ class SvsStripedPage(OpenTilePage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         indices = range(len(self.page.dataoffsets))
         scans = (self._read_frame(index) for index in indices)
         jpeg_tables = self.page.jpegtables
@@ -93,11 +93,11 @@ class SvsStripedPage(OpenTilePage):
         return self._jpeg.decode(self.get_tile(tile_position))
 
 
-class SvsLZWPage(OpenTilePage):
+class SvsLZWImage(TiffImage):
     _pyramid_index = 0
 
     def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
-        """OpenTiledPage for lzw striped Svs page, e.g. label page.
+        """OpenTiledPage for lzw striped Svs image, e.g. label image.
 
         Parameters
         ----------
@@ -157,7 +157,7 @@ class SvsLZWPage(OpenTilePage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
 
         tile = np.concatenate(
             [self._get_row(index) for index in range(len(self.page.dataoffsets))],
@@ -171,16 +171,16 @@ class SvsLZWPage(OpenTilePage):
         return row
 
 
-class SvsTiledPage(NativeTiledPage):
+class SvsTiledImage(NativeTiledTiffImage):
     def __init__(
         self,
         page: TiffPage,
         fh: FileHandle,
         base_size: Size,
         base_mpp: SizeMm,
-        parent: Optional["SvsTiledPage"] = None,
+        parent: Optional["SvsTiledImage"] = None,
     ):
-        """OpenTiledPage for Svs Tiff-page.
+        """Svs Tiff tiled image.
 
         Parameters
         ----------
@@ -192,8 +192,8 @@ class SvsTiledPage(NativeTiledPage):
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
-        parent: Optional['SvsTiledPage'] = None
-            Parent SvsTiledPage
+        parent: Optional['SvsTiledImage'] = None
+            Parent SvsTiledImage
         """
 
         super().__init__(page, fh, True)

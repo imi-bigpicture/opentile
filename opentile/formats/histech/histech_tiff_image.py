@@ -17,12 +17,12 @@ from typing import List, Optional
 from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, FileHandle, TiffPage
 
 from opentile.geometry import Size, SizeMm
-from opentile.page import NativeTiledPage
+from opentile.tiff_image import NativeTiledTiffImage
 
 
-class HistechTiffTiledPage(NativeTiledPage):
+class HistechTiffImage(NativeTiledTiffImage):
     def __init__(self, page: TiffPage, fh: FileHandle, base_size: Size):
-        """OpenTiledPage for 3DHistech Tiff-page.
+        """OpenTiledPage for 3DHistech Tiff image.
 
         Parameters
         ----------

@@ -111,19 +111,9 @@ class LockableFileHandle:
         self._fh.close()
 
 
-class OpenTilePage(metaclass=ABCMeta):
+class TiffImage(metaclass=ABCMeta):
     """Abstract class for reading tiles from TiffPage. Should be inherited to
-    support different tiff formats:
-
-    OpenTilePage
-        NativeTiledPage - Meta class for pages that are natively tiled
-            PhilipsTiffTiledPage - OpenTiledPage for Philips Tiff-page
-            SvsTiledPage - OpenTiledPage for Svs Tiff-page
-        NdpiPage - Ndpi page that should not be tiled
-            NdpiTiledPage - Metaclass for a tiled Ndpi page
-                NdpiOneFramePage - Tiled Ndpi page of only one frame
-                NdpiStripedPage - Tiled Ndpi page of striped frames
-
+    support different tiff formats.
     """
 
     _pyramid_index: int
@@ -167,7 +157,7 @@ class OpenTilePage(metaclass=ABCMeta):
     @property
     @abstractmethod
     def pixel_spacing(self) -> Optional[SizeMm]:
-        """Should return the pixel size in mm/pixel of the page."""
+        """Should return the pixel size in mm/pixel of the image."""
         raise NotImplementedError()
 
     @property
@@ -189,7 +179,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def compression(self) -> COMPRESSION:
-        """Return compression of page."""
+        """Return compression of image."""
         return COMPRESSION(self._page.compression)
 
     @property
@@ -235,7 +225,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def tile_size(self) -> Size:
-        """The pixel size of the tiles. Returns image size if not tiled page"""
+        """The pixel size of the tiles. Returns image size if not tiled image"""
         return self._tile_size
 
     @property
@@ -316,7 +306,7 @@ class OpenTilePage(metaclass=ABCMeta):
         return [self.get_decoded_tile(tile) for tile in tile_positions]
 
     def get_all_tiles(self, raw: bool = False) -> Iterator[bytes]:
-        """Return iterator of all tiles in page.
+        """Return iterator of all tiles in image.
 
         Parameters
         ----------
@@ -326,7 +316,7 @@ class OpenTilePage(metaclass=ABCMeta):
         Returns
         ----------
         Iterator[bytes]
-            Iterator of all tiles in page.
+            Iterator of all tiles in image.
         """
         if raw:
             return (self._read_frame(index) for index in range(self.tiled_size.area))
@@ -335,12 +325,12 @@ class OpenTilePage(metaclass=ABCMeta):
         )
 
     def get_all_tiles_decoded(self) -> Iterator[np.ndarray]:
-        """Return iterator of all tiles in page decoded.
+        """Return iterator of all tiles in image decoded.
 
         Returns
         ----------
         Iterator[np.ndarray]
-            Iterator of all tiles in page decoded.
+            Iterator of all tiles in image decoded.
         """
         return (
             self.get_decoded_tile(tile.to_tuple())
@@ -356,7 +346,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def tiled_region(self) -> Region:
-        """Tile region covering the OpenTilePage."""
+        """Tile region covering the TiffImage."""
         return self._tiled_region
 
     def valid_tiles(self, region: Region) -> bool:
@@ -420,9 +410,9 @@ class OpenTilePage(metaclass=ABCMeta):
         return base_mpp * pow(2, self.pyramid_index)
 
 
-class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
+class NativeTiledTiffImage(TiffImage, metaclass=ABCMeta):
 
-    """Meta class for pages that are natively tiled (e.g. not ndpi)"""
+    """Meta class for images that are natively tiled (e.g. not ndpi)"""
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return image bytes for tile at tile position.

@@ -19,13 +19,13 @@ from typing import Dict, Optional, Tuple, Union
 
 from tifffile.tifffile import TiffFile, TiffPage
 
-from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
-from opentile.formats.ndpi.ndpi_page import (
-    CroppedNdpiPage,
-    NdpiOneFramePage,
-    NdpiPage,
-    NdpiStripedPage,
+from opentile.formats.ndpi.ndpi_image import (
+    NdpiCroppedImage,
+    NdpiImage,
+    NdpiOneFrameImage,
+    NdpiStripedImage,
 )
+from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.geometry import Size
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
@@ -79,7 +79,7 @@ class NdpiTiler(Tiler):
             if series.name == "Macro":
                 self._overview_series_index = series_index
                 self._label_series_index = self.FAKED_LABEL_SERIES_INDEX
-        self._pages: Dict[Tuple[int, int, int], NdpiPage] = {}
+        self._images: Dict[Tuple[int, int, int], NdpiImage] = {}
         self._metadata = NdpiMetadata(self.base_page)
         self._label_crop_position = label_crop_position
 
@@ -106,11 +106,11 @@ class NdpiTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_ndpi
 
-    def get_page(self, series: int, level: int, page: int) -> NdpiPage:
-        """Return NdpiPage for series, level, page. NdpiPages holds a cache, so
-        store created pages.
+    def get_image(self, series: int, level: int, page: int) -> NdpiImage:
+        """Return NdpiImage for series, level, page. NdpiImages holds a cache, so
+        store created images.
         """
-        if not (series, level, page) in self._pages:
+        if not (series, level, page) in self._images:
             if series == self._level_series_index:
                 ndpi_page = self._create_level_page(level, page)
             elif series == self._overview_series_index:
@@ -119,14 +119,14 @@ class NdpiTiler(Tiler):
                 ndpi_page = self._create_label_page()
             else:
                 raise ValueError("Unknown series {series}.")
-            self._pages[series, level, page] = ndpi_page
-        return self._pages[series, level, page]
+            self._images[series, level, page] = ndpi_page
+        return self._images[series, level, page]
 
     @staticmethod
     def _adjust_tile_size(
         requested_tile_width: int, smallest_stripe_width: Optional[int] = None
     ) -> Size:
-        """Return adjusted tile size. If file contains striped pages the
+        """Return adjusted tile size. If file contains striped images the
         tile size must be an n * smallest stripe width in the file, where n
         is the closest square factor of the ratio between requested tile width
         and smallest stripe width.
@@ -160,13 +160,13 @@ class NdpiTiler(Tiler):
         return Size(adjusted_width, adjusted_width)
 
     def _get_smallest_stripe_width(self) -> Optional[int]:
-        """Return smallest stripe width in file, or None if no page in the
+        """Return smallest stripe width in file, or None if no image in the
         file is striped.
 
         Returns
         ----------
         Optional[int]
-            The smallest stripe width in the file, or None if no page in the
+            The smallest stripe width in the file, or None if no image in the
             file is striped.
         """
         smallest_stripe_width: Optional[int] = None
@@ -183,7 +183,7 @@ class NdpiTiler(Tiler):
         self,
         level: int,
         page: int,
-    ) -> Union[NdpiStripedPage, NdpiOneFramePage]:
+    ) -> Union[NdpiStripedImage, NdpiOneFrameImage]:
         """Create a new level page from TiffPage.
 
         Parameters
@@ -195,7 +195,7 @@ class NdpiTiler(Tiler):
 
         Returns
         ----------
-        NdpiPage
+        NdpiImage
             Created page.
         """
         tiff_page = (
@@ -203,40 +203,40 @@ class NdpiTiler(Tiler):
         )
         assert isinstance(tiff_page, TiffPage)
         if tiff_page.is_tiled:  # Striped ndpi page
-            return NdpiStripedPage(
+            return NdpiStripedImage(
                 tiff_page, self._fh, self.base_size, self.tile_size, self._jpeg
             )
         # Single frame, force tiling
-        return NdpiOneFramePage(
+        return NdpiOneFrameImage(
             tiff_page, self._fh, self.base_size, self.tile_size, self._jpeg
         )
 
-    def _create_label_page(self) -> CroppedNdpiPage:
+    def _create_label_page(self) -> NdpiCroppedImage:
         """Create a new label page from TiffPage.
 
         Returns
         ----------
-        CroppedNdpiPage
+        NdpiCroppedImage
             Created page.
         """
         assert self._overview_series_index is not None
         tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[0]
         assert isinstance(tiff_page, TiffPage)
-        return CroppedNdpiPage(
+        return NdpiCroppedImage(
             tiff_page, self._fh, self._jpeg, (0.0, self._label_crop_position)
         )
 
-    def _create_overview_page(self) -> NdpiPage:
+    def _create_overview_page(self) -> NdpiImage:
         """Create a new overview page from TiffPage.
 
         Returns
         ----------
-        CroppedNdpiPage
+        NdpiCroppedImage
             Created page.
         """
         assert self._overview_series_index is not None
         tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[0]
         assert isinstance(tiff_page, TiffPage)
-        return CroppedNdpiPage(
+        return NdpiCroppedImage(
             tiff_page, self._fh, self._jpeg, (self._label_crop_position, 1.0)
         )

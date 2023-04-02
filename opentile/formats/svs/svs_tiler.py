@@ -18,11 +18,11 @@ from typing import Dict, Optional, Tuple, Union, cast
 from tifffile.tifffile import TiffFile
 
 from opentile.formats.svs.svs_metadata import SvsMetadata
-from opentile.formats.svs.svs_page import SvsLZWPage, SvsStripedPage, SvsTiledPage
+from opentile.formats.svs.svs_image import SvsLZWImage, SvsStripedImage, SvsTiledImage
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
-from opentile.tiler import OpenTilePage, Tiler
+from opentile.tiler import TiffImage, Tiler
 
 
 class SvsTiler(Tiler):
@@ -48,7 +48,7 @@ class SvsTiler(Tiler):
                 self._label_series_index = series_index
             elif series.name == "Macro":
                 self._overview_series_index = series_index
-        self._pages: Dict[Tuple[int, int, int], OpenTilePage] = {}
+        self._images: Dict[Tuple[int, int, int], TiffImage] = {}
         if "InterColorProfile" in self._tiff_file.pages.first.tags:
             icc_profile = self._tiff_file.pages.first.tags["InterColorProfile"].value
             assert isinstance(icc_profile, bytes) or icc_profile is None
@@ -69,14 +69,14 @@ class SvsTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_svs
 
-    def _get_level_page(self, level: int, page: int = 0) -> SvsTiledPage:
+    def _get_level_page(self, level: int, page: int = 0) -> SvsTiledImage:
         series = self._level_series_index
         if level > 0:
-            parent = self.get_page(series, level - 1, page)
-            parent = cast(SvsTiledPage, parent)
+            parent = self.get_image(series, level - 1, page)
+            parent = cast(SvsTiledImage, parent)
         else:
             parent = None
-        svs_page = SvsTiledPage(
+        svs_page = SvsTiledImage(
             self._get_tiff_page(series, level, page),
             self._fh,
             self.base_size,
@@ -85,15 +85,15 @@ class SvsTiler(Tiler):
         )
         return svs_page
 
-    def get_page(self, series: int, level: int, page: int = 0) -> OpenTilePage:
-        """Return SvsTiledPage for series, level, page."""
-        if not (series, level, page) in self._pages:
+    def get_image(self, series: int, level: int, page: int = 0) -> TiffImage:
+        """Return SvsTiledImage for series, level, page."""
+        if not (series, level, page) in self._images:
             if series == self._overview_series_index:
-                svs_page = SvsStripedPage(
+                svs_page = SvsStripedImage(
                     self._get_tiff_page(series, level, page), self._fh, self._jpeg
                 )
             elif series == self._label_series_index:
-                svs_page = SvsLZWPage(
+                svs_page = SvsLZWImage(
                     self._get_tiff_page(series, level, page), self._fh, self._jpeg
                 )
             elif series == self._level_series_index:
@@ -101,5 +101,5 @@ class SvsTiler(Tiler):
             else:
                 raise NotImplementedError()
 
-            self._pages[series, level, page] = svs_page
-        return self._pages[series, level, page]
+            self._images[series, level, page] = svs_page
+        return self._images[series, level, page]

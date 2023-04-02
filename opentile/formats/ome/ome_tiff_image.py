@@ -17,13 +17,13 @@ from typing import List, Optional, Tuple
 import numpy as np
 from tifffile.tifffile import COMPRESSION, FileHandle, TiffPage
 
-from opentile.formats.ndpi.ndpi_tiler import NdpiOneFramePage
+from opentile.formats.ndpi.ndpi_tiler import NdpiOneFrameImage
 from opentile.geometry import Point, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.page import NativeTiledPage, OpenTilePage
+from opentile.tiff_image import NativeTiledTiffImage, TiffImage
 
 
-class OmeTiffPage(OpenTilePage):
+class OmeTiffImage(TiffImage):
     def __init__(
         self,
         page: TiffPage,
@@ -54,7 +54,7 @@ class OmeTiffPage(OpenTilePage):
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         if tile_position != (0, 0):
-            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
@@ -65,7 +65,7 @@ class OmeTiffPage(OpenTilePage):
         return data
 
 
-class OmeTiffOneFramePage(NdpiOneFramePage):
+class OmeTiffOneFrameImage(NdpiOneFrameImage):
     """Some ome tiff files have levels that are not tiled, similar to ndpi.
     Not sure if this is something worth supporting yet, and if so should either
     refactor the ndpi-classes to separate out the ndpi-specific metadata
@@ -109,7 +109,7 @@ class OmeTiffOneFramePage(NdpiOneFramePage):
         raise ValueError(f"Unkown subsampling {subsampling}")
 
     def _get_file_frame_size(self) -> Size:
-        """Return size of the single frame in file. For single framed page
+        """Return size of the single frame in file. For single framed image
         this is equal to the level size.
 
         Returns
@@ -120,7 +120,7 @@ class OmeTiffOneFramePage(NdpiOneFramePage):
         return self.image_size
 
     def _get_frame_size_for_tile(self, tile_position: Point) -> Size:
-        """Return read frame size for tile position. For single frame page
+        """Return read frame size for tile position. For single frame image
         the read frame size is the image size rounded up to the closest tile
         size.
 
@@ -163,7 +163,7 @@ class OmeTiffOneFramePage(NdpiOneFramePage):
         return tile
 
 
-class OmeTiffTiledPage(NativeTiledPage):
+class OmeTiffTiledImage(NativeTiledTiffImage):
     def __init__(
         self,
         page: TiffPage,

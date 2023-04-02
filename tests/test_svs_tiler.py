@@ -22,7 +22,7 @@ from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.formats import SvsTiler
-from opentile.formats.svs.svs_page import SvsTiledPage
+from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.geometry import Point
 
 from .filepaths import svs_file_path
@@ -40,7 +40,7 @@ class SvsTilerTest(unittest.TestCase):
             cls.tiler = SvsTiler(svs_file_path)
         except FileNotFoundError:
             raise unittest.SkipTest("Svs test file not found, skipping")
-        cls.level = cast(SvsTiledPage, cls.tiler.get_level(0))
+        cls.level = cast(SvsTiledImage, cls.tiler.get_level(0))
 
     @classmethod
     def tearDownClass(cls):
@@ -81,7 +81,7 @@ class SvsTilerTest(unittest.TestCase):
         ]
     )
     def test_get_scaled_tile(self, tile_point: Tuple[int, int], hash: str):
-        level = cast(SvsTiledPage, self.tiler.get_level(1))
+        level = cast(SvsTiledImage, self.tiler.get_level(1))
         tile = level._get_scaled_tile(Point.from_tuple(tile_point))
         self.assertEqual(hash, md5(tile).hexdigest())
 
