@@ -147,6 +147,6 @@ Our aim is to provide constructive and positive code reviews for all submissions
 
 ## Acknowledgement
 
-*opentile*: Copyright 2021 Sectra AB, licensed under Apache 2.0.
+*opentile*: Copyright 2021-2023 Sectra AB, licensed under Apache 2.0.
 
 This project is part of a project that has received funding from the Innovative Medicines Initiative 2 Joint Undertaking under grant agreement No 945358. This Joint Undertaking receives support from the European Union’s Horizon 2020 research and innovation programme and EFPIA. IMI website: www.imi.europa.eu
