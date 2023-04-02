@@ -38,10 +38,6 @@ class Tiler(metaclass=ABCMeta):
         """
         self._tiff_file = TiffFile(filepath)
         self._fh = LockableFileHandle(self._tiff_file.filehandle)
-        base_page = self.series[self._level_series_index].pages[0]
-        assert isinstance(base_page, TiffPage)
-        self._base_page = base_page
-        self._base_size = Size(self.base_page.imagewidth, self.base_page.imagelength)
         self._level_series_index = 0
         self._overview_series_index: Optional[int] = None
         self._label_series_index: Optional[int] = None
@@ -53,6 +49,10 @@ class Tiler(metaclass=ABCMeta):
             elif self._is_overview_series(series):
                 self._overview_series_index = series_index
         self._icc_profile: Optional[bytes] = None
+        base_page = self.series[self._level_series_index].pages[0]
+        assert isinstance(base_page, TiffPage)
+        self._base_page = base_page
+        self._base_size = Size(self.base_page.imagewidth, self.base_page.imagelength)
 
     def __enter__(self):
         return self
