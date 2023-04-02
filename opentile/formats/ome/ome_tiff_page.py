@@ -15,16 +15,12 @@
 from typing import List, Optional, Tuple
 
 import numpy as np
-from tifffile.tifffile import (
-    COMPRESSION,
-    FileHandle,
-    TiffPage,
-)
+from tifffile.tifffile import COMPRESSION, FileHandle, TiffPage
 
-from opentile.page import NativeTiledPage, OpenTilePage
+from opentile.formats.ndpi.ndpi_tiler import NdpiOneFramePage
 from opentile.geometry import Point, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.ndpi.ndpi_tiler import NdpiOneFramePage
+from opentile.page import NativeTiledPage, OpenTilePage
 
 
 class OmeTiffPage(OpenTilePage):

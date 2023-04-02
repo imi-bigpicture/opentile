@@ -19,17 +19,17 @@ from typing import Dict, Optional, Tuple, Union
 
 from tifffile.tifffile import TiffFile, TiffPage
 
-from opentile.tiler import Tiler
-from opentile.geometry import Size
-from opentile.jpeg import Jpeg
-from opentile.metadata import Metadata
-from opentile.ndpi.ndpi_metadata import NdpiMetadata
-from opentile.ndpi.ndpi_page import (
+from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
+from opentile.formats.ndpi.ndpi_page import (
     CroppedNdpiPage,
     NdpiOneFramePage,
     NdpiPage,
     NdpiStripedPage,
 )
+from opentile.geometry import Size
+from opentile.jpeg import Jpeg
+from opentile.metadata import Metadata
+from opentile.tiler import Tiler
 
 
 class NdpiTiler(Tiler):

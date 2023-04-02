@@ -15,18 +15,14 @@
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
-from tifffile.tifffile import (
-    TiffFile,
-    TiffPage,
-    TiffPageSeries,
-)
+from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
 
-from opentile.tiler import Tiler
+from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
+from opentile.formats.philips.philips_tiff_tiled_page import PhilipsTiffTiledPage
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
-from opentile.philips.philips_metadata import PhilipsMetadata
-from opentile.philips.philips_page import PhilipsTiffTiledPage
+from opentile.tiler import Tiler
 
 
 class PhilipsTiffTiler(Tiler):
@@ -54,7 +50,7 @@ class PhilipsTiffTiler(Tiler):
                 self._label_series_index = series_index
             elif self.is_overview(series):
                 self._overview_series_index = series_index
-        self._metadata = PhilipsMetadata(self._tiff_file)
+        self._metadata = PhilipsTiffMetadata(self._tiff_file)
         assert self._metadata.pixel_spacing is not None
         self._base_mpp = SizeMm.from_tuple(self._metadata.pixel_spacing) * 1000.0
         self._pages: Dict[Tuple[int, int, int], PhilipsTiffTiledPage] = {}

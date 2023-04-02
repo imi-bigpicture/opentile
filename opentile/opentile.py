@@ -17,12 +17,14 @@ from typing import Dict, Optional, Tuple, Type, Union
 
 from tifffile import TiffFile, TiffFileError
 
-from opentile.histech.histech_tiff_tiler import HistechTiffTiler
+from opentile.formats import (
+    HistechTiffTiler,
+    NdpiTiler,
+    OmeTiffTiler,
+    PhilipsTiffTiler,
+    SvsTiler,
+)
 from opentile.jpeg import find_turbojpeg_path
-from opentile.ndpi import NdpiTiler
-from opentile.ome.ome_tiff_tiler import OmeTiffTiler
-from opentile.philips.philips_tiff_tiler import PhilipsTiffTiler
-from opentile.svs import SvsTiler
 from opentile.tiler import Tiler
 
 
@@ -71,7 +73,7 @@ class OpenTile:
         tilers: Dict[str, Type[Tiler]] = {
             "ndpi": NdpiTiler,
             "svs": SvsTiler,
-            "phillips_tiff": PhilipsTiffTiler,
+            "phillips tiff": PhilipsTiffTiler,
             "3dhistech tiff": HistechTiffTiler,
             "ome-tiff tiler": OmeTiffTiler,
         }

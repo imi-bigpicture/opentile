@@ -17,9 +17,9 @@ from typing import List, Optional
 
 from tifffile.tifffile import COMPRESSION, FileHandle, TiffPage
 
-from opentile.page import NativeTiledPage
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
+from opentile.page import NativeTiledPage
 
 
 class PhilipsTiffTiledPage(NativeTiledPage):

@@ -20,7 +20,7 @@ import pytest
 from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
-from opentile.histech.histech_tiff_tiler import HistechTiffTiler
+from opentile.formats import HistechTiffTiler
 
 from .filepaths import histech_file_path
 

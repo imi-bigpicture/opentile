@@ -19,14 +19,14 @@ import ome_types
 from ome_types.model.simple_types import UnitsLength
 from tifffile.tifffile import TiffFile, TiffPageSeries
 
-from opentile.tiler import OpenTilePage, Tiler
-from opentile.geometry import Size, SizeMm
-from opentile.jpeg import Jpeg
-from opentile.ome.ome_tiff_page import (
+from opentile.formats.ome.ome_tiff_page import (
     OmeTiffOneFramePage,
     OmeTiffPage,
     OmeTiffTiledPage,
 )
+from opentile.geometry import Size, SizeMm
+from opentile.jpeg import Jpeg
+from opentile.tiler import OpenTilePage, Tiler
 
 
 class OmeTiffTiler(Tiler):

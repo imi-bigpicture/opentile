@@ -14,17 +14,10 @@
 
 from datetime import datetime
 from functools import cached_property
-import math
-from abc import ABCMeta, abstractmethod
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional
 
-import numpy as np
-from tifffile.tifffile import COMPRESSION, TIFF, FileHandle, TiffFile, TiffPage
+from tifffile.tifffile import TiffPage
 
-from opentile.tiler import OpenTilePage, Tiler
-from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.jpeg import Jpeg, JpegCropError
 from opentile.metadata import Metadata
 
 

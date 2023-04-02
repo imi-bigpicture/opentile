@@ -24,7 +24,7 @@ from opentile.metadata import Metadata
 CastType = TypeVar("CastType", int, float, str)
 
 
-class PhilipsMetadata(Metadata):
+class PhilipsTiffMetadata(Metadata):
     _scanner_manufacturer: Optional[str] = None
     _scanner_software_versions: Optional[List[str]] = None
     _scanner_serial_number: Optional[str] = None

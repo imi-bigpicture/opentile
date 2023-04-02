@@ -19,9 +19,9 @@ import numpy as np
 from PIL import Image
 from tifffile.tifffile import COMPRESSION, FileHandle, TiffPage
 
-from opentile.page import NativeTiledPage, OpenTilePage
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
+from opentile.page import NativeTiledPage, OpenTilePage
 
 
 class SvsStripedPage(OpenTilePage):

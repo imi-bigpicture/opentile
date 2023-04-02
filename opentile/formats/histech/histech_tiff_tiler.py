@@ -17,10 +17,10 @@ from typing import Dict, Optional, Tuple, Union
 
 from tifffile.tifffile import TiffFile, TiffPageSeries
 
-from opentile.tiler import Tiler
-from opentile.histech.histech_tiff_page import HistechTiffTiledPage
+from opentile.formats.histech.histech_tiff_tiled_page import HistechTiffTiledPage
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
+from opentile.tiler import Tiler
 
 
 class HistechTiffTiler(Tiler):

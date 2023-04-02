@@ -13,7 +13,7 @@
 #    limitations under the License.
 
 
-from abc import ABCMeta, abstractclassmethod, abstractmethod
+from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -122,7 +122,8 @@ class Tiler(metaclass=ABCMeta):
         """Should return a OpenTilePage for series, level, page in file."""
         raise NotImplementedError()
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
         raise NotImplementedError()
 

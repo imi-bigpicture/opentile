@@ -16,7 +16,7 @@ import unittest
 from hashlib import md5
 
 import pytest
-from opentile.ome.ome_tiff_tiler import OmeTiffTiler
+from opentile.formats import OmeTiffTiler
 
 from .filepaths import ome_tiff_file_path
 

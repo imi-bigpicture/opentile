@@ -18,12 +18,12 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from tifffile.tifffile import COMPRESSION, TIFF, FileHandle, TiffPage
-from opentile.config import settings
 
-from opentile.tiler import OpenTilePage
+from opentile.config import settings
+from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
-from opentile.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
+from opentile.tiler import OpenTilePage
 
 
 class NdpiPage(OpenTilePage):

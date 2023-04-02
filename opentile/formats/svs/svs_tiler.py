@@ -13,16 +13,16 @@
 #    limitations under the License.
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union, cast
+from typing import Dict, Optional, Tuple, Union, cast
 
-from tifffile.tifffile import TiffFile, svs_description_metadata
+from tifffile.tifffile import TiffFile
 
-from opentile.tiler import OpenTilePage, Tiler
+from opentile.formats.svs.svs_metadata import SvsMetadata
+from opentile.formats.svs.svs_page import SvsLZWPage, SvsStripedPage, SvsTiledPage
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
-from opentile.svs.svs_metadata import SvsMetadata
-from opentile.svs.svs_page import SvsLZWPage, SvsStripedPage, SvsTiledPage
+from opentile.tiler import OpenTilePage, Tiler
 
 
 class SvsTiler(Tiler):
@@ -88,7 +88,6 @@ class SvsTiler(Tiler):
     def get_page(self, series: int, level: int, page: int = 0) -> OpenTilePage:
         """Return SvsTiledPage for series, level, page."""
         if not (series, level, page) in self._pages:
-
             if series == self._overview_series_index:
                 svs_page = SvsStripedPage(
                     self._get_tiff_page(series, level, page), self._fh, self._jpeg
@@ -104,11 +103,3 @@ class SvsTiler(Tiler):
 
             self._pages[series, level, page] = svs_page
         return self._pages[series, level, page]
-
-    def _get_properties(self) -> Dict[str, Any]:
-        """Return dictionary with svs properties."""
-        svs_metadata = svs_description_metadata(self.base_page.description)
-        magnification = getattr(svs_metadata, "AppMag", None)
-        return {
-            "magnification": magnification,
-        }

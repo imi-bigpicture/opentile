@@ -21,8 +21,9 @@ import pytest
 from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
+from opentile.formats import SvsTiler
+from opentile.formats.svs.svs_page import SvsTiledPage
 from opentile.geometry import Point
-from opentile.svs.svs_tiler import SvsTiledPage, SvsTiler
 
 from .filepaths import svs_file_path
 

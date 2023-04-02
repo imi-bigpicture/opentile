@@ -21,10 +21,10 @@ import pytest
 from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
+from opentile.formats import NdpiTiler
+from opentile.formats.ndpi.ndpi_page import NdpiStripedPage
+from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size
-from opentile.ndpi.ndpi_page import NdpiStripedPage
-from opentile.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
-from opentile.ndpi.ndpi_tiler import NdpiTiler
 
 from .filepaths import ndpi_file_path
 

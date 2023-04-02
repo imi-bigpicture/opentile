@@ -16,8 +16,8 @@ from typing import List, Optional
 
 from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, FileHandle, TiffPage
 
-from opentile.page import NativeTiledPage
 from opentile.geometry import Size, SizeMm
+from opentile.page import NativeTiledPage
 
 
 class HistechTiffTiledPage(NativeTiledPage):

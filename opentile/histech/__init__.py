@@ -1,1 +1,0 @@
-from opentile.histech.histech_tiff_tiler import HistechTiffTiler
