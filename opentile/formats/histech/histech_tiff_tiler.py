@@ -12,9 +12,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Tiler for reading tiles from 3Dhistech tiff files."""
+
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Union
 
 from tifffile.tifffile import TiffFile, TiffPageSeries
 

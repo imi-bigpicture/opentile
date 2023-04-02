@@ -12,6 +12,9 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Extension of turbojpeg to enable replacing a frame with a constant color using the
+same tables."""
+
 import os
 from ctypes import (
     POINTER,
@@ -41,7 +44,6 @@ from turbojpeg import (
     TJXOPT_PERFECT,
     CroppingRegion,
     TurboJPEG,
-    split_byte_into_nibbles,
     tjMCUHeight,
     tjMCUWidth,
 )

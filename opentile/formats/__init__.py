@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Module containing format specific implementations."""
+
 from opentile.formats.ome import OmeTiffTiler
 from opentile.formats.ndpi import NdpiTiler
 from opentile.formats.histech import HistechTiffTiler

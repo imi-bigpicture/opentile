@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Tiler for reading tiles from OME tiff files."""
+
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional, Union
@@ -32,7 +34,7 @@ from opentile.tiler import TiffImage, Tiler
 
 
 class OmeTiffTiler(Tiler):
-    """Simple tiler for ome-tiff. Works with images converted with QuPath using
+    """Simple tiler for OME tiff. Works with images converted with QuPath using
     jpeg. Might report 'wrong' photometric interpretation. Does not support rgb
     images where the colors are separated. This could maybe be supported by
     using turbo-jpeg to losslessly merge the rgb components (assuming they have

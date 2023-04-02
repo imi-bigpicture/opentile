@@ -12,4 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Module containing implementation for reading OME tiff files."""
+
 from opentile.formats.ome.ome_tiff_tiler import OmeTiffTiler

@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Base image classes."""
+
 import math
 import threading
 from abc import ABCMeta, abstractmethod

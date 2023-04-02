@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Image implementation for 3Dhistech tiff files."""
+
 from typing import List, Optional
 
 from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, TiffPage

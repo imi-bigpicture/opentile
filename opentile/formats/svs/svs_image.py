@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Image implementations for svs tiff files."""
+
 import io
 from typing import Dict, List, Optional, Sequence, Tuple
 

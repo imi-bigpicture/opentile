@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Image implementations for ndpi files."""
+
 from abc import ABCMeta, abstractmethod
 from functools import cached_property, lru_cache
 from typing import Dict, List, Optional, Sequence, Tuple

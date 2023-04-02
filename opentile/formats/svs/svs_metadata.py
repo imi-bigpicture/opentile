@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Metadata parser for svs files."""
+
 from datetime import datetime
 from functools import cached_property
 from typing import Optional, Tuple

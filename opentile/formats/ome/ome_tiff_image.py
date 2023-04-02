@@ -12,13 +12,15 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Image implementation for OME tiff files."""
+
 from typing import List, Optional, Tuple
 
 import numpy as np
 from tifffile.tifffile import COMPRESSION, TiffPage
 
 from opentile.formats.ndpi.ndpi_tiler import NdpiOneFrameImage
-from opentile.geometry import Point, Size, SizeMm
+from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage, TiffImage
 

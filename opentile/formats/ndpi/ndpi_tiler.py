@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Tiler for reading tiles from ndpi files."""
 
 import math
 from functools import lru_cache

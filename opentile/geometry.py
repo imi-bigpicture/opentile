@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Geometry classes."""
+
 import math
 from dataclasses import dataclass
 from typing import Generator, Sequence, Tuple, Union
