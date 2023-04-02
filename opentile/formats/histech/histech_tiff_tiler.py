@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
@@ -20,6 +21,7 @@ from tifffile.tifffile import TiffFile, TiffPageSeries
 from opentile.formats.histech.histech_tiff_image import HistechTiffImage
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
+from opentile.tiff_image import TiffImage
 from opentile.tiler import Tiler
 
 
@@ -38,14 +40,6 @@ class HistechTiffTiler(Tiler):
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
 
-        self._level_series_index = 0
-        for series_index, series in enumerate(self.series):
-            if self.is_label(series):
-                self._label_series_index = series_index
-            elif self.is_overview(series):
-                self._overview_series_index = series_index
-        self._images: Dict[Tuple[int, int, int], HistechTiffImage] = {}
-
     @property
     def metadata(self) -> Metadata:
         """No known metadata for 3DHistech tiff files."""
@@ -55,20 +49,30 @@ class HistechTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return "3dh_PixelSizeX" in tiff_file.pages.first.description
 
-    def get_image(self, series: int, level: int, page: int = 0) -> HistechTiffImage:
-        """Return HistechTiffImage for series, level, page."""
-        if not (series, level, page) in self._images:
-            self._images[series, level, page] = HistechTiffImage(
-                self._get_tiff_page(series, level, page), self._fh, self.base_size
-            )
-        return self._images[series, level, page]
+    @lru_cache(None)
+    def get_level(self, level: int, page: int = 0) -> TiffImage:
+        return HistechTiffImage(
+            self._get_tiff_page(self._level_series_index, level, page),
+            self._fh,
+            self.base_size,
+        )
+
+    def get_label(self, page: int = 0) -> TiffImage:
+        return super().get_label(page)
+
+    def get_overview(self, page: int = 0) -> TiffImage:
+        return super().get_overview(page)
 
     @staticmethod
-    def is_overview(series: TiffPageSeries) -> bool:
+    def _is_level_series(series: TiffPageSeries) -> bool:
+        return series.index == 0
+
+    @staticmethod
+    def _is_overview_series(series: TiffPageSeries) -> bool:
         """Return true if series is a overview series."""
         return False
 
     @staticmethod
-    def is_label(series: TiffPageSeries) -> bool:
+    def _is_label_series(series: TiffPageSeries) -> bool:
         """Return true if series is a label series."""
         return False

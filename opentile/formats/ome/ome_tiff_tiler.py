@@ -12,16 +12,17 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Union
 
 import ome_types
 from ome_types.model.simple_types import UnitsLength
 from tifffile.tifffile import TiffFile, TiffPageSeries
 
 from opentile.formats.ome.ome_tiff_image import (
-    OmeTiffOneFrameImage,
     OmeTiffImage,
+    OmeTiffOneFrameImage,
     OmeTiffTiledImage,
 )
 from opentile.geometry import Size, SizeMm
@@ -43,7 +44,6 @@ class OmeTiffTiler(Tiler):
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
         self._base_mpp = self._get_mpp(self._level_series_index)
-        self._images: Dict[Tuple[int, int, int], TiffImage] = {}
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
@@ -80,30 +80,43 @@ class OmeTiffTiler(Tiler):
             return None
         return SizeMm(mpp_x, mpp_y)
 
-    def get_image(self, series: int, level: int, page: int = 0) -> TiffImage:
-        """Return TiffImage for series, level, page."""
-        if (series, level, page) not in self._images:
-            tiff_page = self._get_tiff_page(series, level, page)
-            if tiff_page.is_tiled:
-                self._images[series, level, page] = OmeTiffTiledImage(
-                    tiff_page,
-                    self._fh,
-                    self.base_size,
-                    self._base_mpp,
-                )
-            elif series == self._level_series_index:
-                self._images[series, level, page] = OmeTiffOneFrameImage(
-                    tiff_page,
-                    self._fh,
-                    self.base_size,
-                    Size(self.base_page.tilewidth, self.base_page.tilelength),
-                    self._base_mpp,
-                    self._jpeg,
-                )
-            else:
-                self._images[series, level, page] = OmeTiffImage(
-                    tiff_page,
-                    self._fh,
-                    self._get_optional_mpp(series),
-                )
-        return self._images[series, level, page]
+    @lru_cache(None)
+    def get_level(self, level: int, page: int = 0) -> TiffImage:
+        tiff_page = self._get_tiff_page(self._level_series_index, level, page)
+        if tiff_page.is_tiled:
+            return OmeTiffTiledImage(
+                tiff_page,
+                self._fh,
+                self.base_size,
+                self._base_mpp,
+            )
+        return OmeTiffOneFrameImage(
+            tiff_page,
+            self._fh,
+            self.base_size,
+            Size(self.base_page.tilewidth, self.base_page.tilelength),
+            self._base_mpp,
+            self._jpeg,
+        )
+
+    @lru_cache(None)
+    def get_label(self, page: int = 0) -> TiffImage:
+        if self._label_series_index is None:
+            raise ValueError("No label detected in file")
+        tiff_page = self._get_tiff_page(self._label_series_index, 0, page)
+        return OmeTiffImage(
+            tiff_page,
+            self._fh,
+            self._get_optional_mpp(self._label_series_index),
+        )
+
+    @lru_cache(None)
+    def get_overview(self, page: int = 0) -> TiffImage:
+        if self._overview_series_index is None:
+            raise ValueError("No overview detected in file")
+        tiff_page = self._get_tiff_page(self._overview_series_index, 0, page)
+        return OmeTiffImage(
+            tiff_page,
+            self._fh,
+            self._get_optional_mpp(self._overview_series_index),
+        )

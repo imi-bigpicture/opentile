@@ -12,13 +12,14 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union, cast
+from typing import Optional, Union
 
-from tifffile.tifffile import TiffFile
+from tifffile.tifffile import TiffFile, TiffPageSeries
 
-from opentile.formats.svs.svs_metadata import SvsMetadata
 from opentile.formats.svs.svs_image import SvsLZWImage, SvsStripedImage, SvsTiledImage
+from opentile.formats.svs.svs_metadata import SvsMetadata
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
@@ -39,15 +40,6 @@ class SvsTiler(Tiler):
         super().__init__(Path(filepath))
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
-
-        for series_index, series in enumerate(self.series):
-            if series.name == "Baseline":
-                self._level_series_index = series_index
-            elif series.name == "Label":
-                self._label_series_index = series_index
-            elif series.name == "Macro":
-                self._overview_series_index = series_index
-        self._images: Dict[Tuple[int, int, int], TiffImage] = {}
         if "InterColorProfile" in self._tiff_file.pages.first.tags:
             icc_profile = self._tiff_file.pages.first.tags["InterColorProfile"].value
             assert isinstance(icc_profile, bytes) or icc_profile is None
@@ -68,11 +60,23 @@ class SvsTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_svs
 
-    def _get_level_page(self, level: int, page: int = 0) -> SvsTiledImage:
+    @staticmethod
+    def _is_level_series(series: TiffPageSeries) -> bool:
+        return series.name == "Baseline"
+
+    @staticmethod
+    def _is_label_series(series: TiffPageSeries) -> bool:
+        return series.name == "Label"
+
+    @staticmethod
+    def _is_overview_series(series: TiffPageSeries) -> bool:
+        return series.name == "Macro"
+
+    @lru_cache(None)
+    def get_level(self, level: int, page: int = 0) -> TiffImage:
         series = self._level_series_index
         if level > 0:
-            parent = self.get_image(series, level - 1, page)
-            parent = cast(SvsTiledImage, parent)
+            parent = self.get_level(level - 1, page)
         else:
             parent = None
         svs_page = SvsTiledImage(
@@ -84,21 +88,20 @@ class SvsTiler(Tiler):
         )
         return svs_page
 
-    def get_image(self, series: int, level: int, page: int = 0) -> TiffImage:
-        """Return SvsTiledImage for series, level, page."""
-        if not (series, level, page) in self._images:
-            if series == self._overview_series_index:
-                svs_page = SvsStripedImage(
-                    self._get_tiff_page(series, level, page), self._fh, self._jpeg
-                )
-            elif series == self._label_series_index:
-                svs_page = SvsLZWImage(
-                    self._get_tiff_page(series, level, page), self._fh, self._jpeg
-                )
-            elif series == self._level_series_index:
-                svs_page = self._get_level_page(level, page)
-            else:
-                raise NotImplementedError()
+    @lru_cache(None)
+    def get_label(self, page: int = 0) -> TiffImage:
+        if self._label_series_index is None:
+            raise ValueError("No label detected in file")
+        return SvsLZWImage(
+            self._get_tiff_page(self._label_series_index, 0, page), self._fh, self._jpeg
+        )
 
-            self._images[series, level, page] = svs_page
-        return self._images[series, level, page]
+    @lru_cache(None)
+    def get_overview(self, page: int = 0) -> TiffImage:
+        if self._overview_series_index is None:
+            raise ValueError("No overview detected in file")
+        return SvsStripedImage(
+            self._get_tiff_page(self._overview_series_index, 0, page),
+            self._fh,
+            self._jpeg,
+        )

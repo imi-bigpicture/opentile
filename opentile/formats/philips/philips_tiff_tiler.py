@@ -12,16 +12,18 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
 from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
 
-from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.formats.philips.philips_tiff_image import PhilipsTiffImage
+from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
+from opentile.tiff_image import TiffImage
 from opentile.tiler import Tiler
 
 
@@ -41,17 +43,9 @@ class PhilipsTiffTiler(Tiler):
         super().__init__(Path(filepath))
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
-
-        self._level_series_index = 0
-        for series_index, series in enumerate(self.series):
-            if self.is_label(series):
-                self._label_series_index = series_index
-            elif self.is_overview(series):
-                self._overview_series_index = series_index
         self._metadata = PhilipsTiffMetadata(self._tiff_file)
         assert self._metadata.pixel_spacing is not None
         self._base_mpp = SizeMm.from_tuple(self._metadata.pixel_spacing) * 1000.0
-        self._images: Dict[Tuple[int, int, int], PhilipsTiffImage] = {}
 
     @property
     def metadata(self) -> Metadata:
@@ -61,27 +55,39 @@ class PhilipsTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_philips
 
-    def get_image(self, series: int, level: int, page: int = 0) -> PhilipsTiffImage:
+    def get_level(self, level: int, page: int = 0) -> TiffImage:
+        return self._get_image(self._level_series_index, level, page)
+
+    def get_label(self, page: int = 0) -> TiffImage:
+        return self._get_image(self._label_series_index, 0, page)
+
+    def get_overview(self, page: int = 0) -> TiffImage:
+        return self._get_image(self._overview_series_index, 0, page)
+
+    @lru_cache(None)
+    def _get_image(self, series: int, level: int, page: int = 0) -> TiffImage:
         """Return PhilipsTiffTiledPage for series, level, page."""
-        if not (series, level, page) in self._images:
-            self._images[series, level, page] = PhilipsTiffImage(
-                self._get_tiff_page(series, level, page),
-                self._fh,
-                self.base_size,
-                self._base_mpp,
-                self._jpeg,
-            )
-        return self._images[series, level, page]
+        return PhilipsTiffImage(
+            self._get_tiff_page(series, level, page),
+            self._fh,
+            self.base_size,
+            self._base_mpp,
+            self._jpeg,
+        )
 
     @staticmethod
-    def is_overview(series: TiffPageSeries) -> bool:
+    def _is_level_series(series: TiffPageSeries) -> bool:
+        return series.index == 0
+
+    @staticmethod
+    def _is_overview_series(series: TiffPageSeries) -> bool:
         """Return true if series is a overview series."""
         page = series.pages[0]
         assert isinstance(page, TiffPage)
         return page.description.find("Macro") > -1
 
     @staticmethod
-    def is_label(series: TiffPageSeries) -> bool:
+    def _is_label_series(series: TiffPageSeries) -> bool:
         """Return true if series is a label series."""
         page = series.pages[0]
         assert isinstance(page, TiffPage)

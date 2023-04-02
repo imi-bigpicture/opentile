@@ -14,14 +14,14 @@
 
 
 import math
+from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Union
 
-from tifffile.tifffile import TiffFile, TiffPage
+from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
 
 from opentile.formats.ndpi.ndpi_image import (
     NdpiCroppedImage,
-    NdpiImage,
     NdpiOneFrameImage,
     NdpiStripedImage,
 )
@@ -29,14 +29,11 @@ from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.geometry import Size
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
+from opentile.tiff_image import TiffImage
 from opentile.tiler import Tiler
 
 
 class NdpiTiler(Tiler):
-    # The label and overview is cropped out of the macro image.Use a faked
-    # label series to avoid clashing with series in the file.
-    FAKED_LABEL_SERIES_INDEX = -1
-
     def __init__(
         self,
         filepath: Union[str, Path],
@@ -71,13 +68,6 @@ class NdpiTiler(Tiler):
             raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
         self._turbo_path = turbo_path
         self._jpeg = Jpeg(self._turbo_path)
-
-        self._level_series_index = 0
-        for series_index, series in enumerate(self.series):
-            if series.name == "Macro":
-                self._overview_series_index = series_index
-                self._label_series_index = self.FAKED_LABEL_SERIES_INDEX
-        self._images: Dict[Tuple[int, int, int], NdpiImage] = {}
         self._metadata = NdpiMetadata(self.base_page)
         self._label_crop_position = label_crop_position
 
@@ -104,21 +94,19 @@ class NdpiTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_ndpi
 
-    def get_image(self, series: int, level: int, page: int) -> NdpiImage:
-        """Return NdpiImage for series, level, page. NdpiImages holds a cache, so
-        store created images.
-        """
-        if not (series, level, page) in self._images:
-            if series == self._level_series_index:
-                ndpi_page = self._create_level_page(level, page)
-            elif series == self._overview_series_index:
-                ndpi_page = self._create_overview_page()
-            elif series == self._label_series_index:
-                ndpi_page = self._create_label_page()
-            else:
-                raise ValueError("Unknown series {series}.")
-            self._images[series, level, page] = ndpi_page
-        return self._images[series, level, page]
+    @staticmethod
+    def _is_level_series(series: TiffPageSeries) -> bool:
+        return series.index == 0
+
+    @staticmethod
+    def _is_overview_series(series: TiffPageSeries) -> bool:
+        """Return true if series is a overview series."""
+        return series.name == "Macro"
+
+    @staticmethod
+    def _is_label_series(series: TiffPageSeries) -> bool:
+        """Return true if series is a label series."""
+        return False
 
     @staticmethod
     def _adjust_tile_size(
@@ -177,12 +165,13 @@ class NdpiTiler(Tiler):
                 smallest_stripe_width = stripe_width
         return smallest_stripe_width
 
-    def _create_level_page(
+    @lru_cache(None)
+    def get_level(
         self,
         level: int,
-        page: int,
-    ) -> Union[NdpiStripedImage, NdpiOneFrameImage]:
-        """Create a new level page from TiffPage.
+        page: int = 0,
+    ) -> TiffImage:
+        """Create a level image.
 
         Parameters
         ----------
@@ -193,8 +182,8 @@ class NdpiTiler(Tiler):
 
         Returns
         ----------
-        NdpiImage
-            Created page.
+        TiffImage
+            Created image.
         """
         tiff_page = (
             self._tiff_file.series[self._level_series_index].levels[level].pages[page]
@@ -209,13 +198,14 @@ class NdpiTiler(Tiler):
             tiff_page, self._fh, self.base_size, self.tile_size, self._jpeg
         )
 
-    def _create_label_page(self) -> NdpiCroppedImage:
-        """Create a new label page from TiffPage.
+    @lru_cache(None)
+    def get_label(self) -> TiffImage:
+        """Create a label image.
 
         Returns
         ----------
-        NdpiCroppedImage
-            Created page.
+        TiffImage
+            Created image.
         """
         assert self._overview_series_index is not None
         tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[0]
@@ -224,13 +214,14 @@ class NdpiTiler(Tiler):
             tiff_page, self._fh, self._jpeg, (0.0, self._label_crop_position)
         )
 
-    def _create_overview_page(self) -> NdpiImage:
-        """Create a new overview page from TiffPage.
+    @lru_cache(None)
+    def get_overview(self) -> TiffImage:
+        """Create a overview image.
 
         Returns
         ----------
-        NdpiCroppedImage
-            Created page.
+        TiffImage
+            Created image.
         """
         assert self._overview_series_index is not None
         tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[0]

@@ -178,7 +178,7 @@ class SvsTiledImage(NativeTiledTiffImage):
         fh: LockableFileHandle,
         base_size: Size,
         base_mpp: SizeMm,
-        parent: Optional["SvsTiledImage"] = None,
+        parent: Optional[TiffImage] = None,
     ):
         """Svs Tiff tiled image.
 
@@ -192,8 +192,8 @@ class SvsTiledImage(NativeTiledTiffImage):
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
-        parent: Optional['SvsTiledImage'] = None
-            Parent SvsTiledImage
+        parent: Optional[TiffImage] = None
+            Parent TiffImage
         """
 
         super().__init__(page, fh, True)

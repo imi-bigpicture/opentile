@@ -50,6 +50,13 @@ class Tiler(metaclass=ABCMeta):
         assert isinstance(base_page, TiffPage)
         self._base_page = base_page
         self._base_size = Size(self.base_page.imagewidth, self.base_page.imagelength)
+        for series_index, series in enumerate(self.series):
+            if self._is_level_series(series):
+                self._level_series_index = series_index
+            if self._is_label_series(series):
+                self._label_series_index = series_index
+            elif self._is_overview_series(series):
+                self._overview_series_index = series_index
 
     def __enter__(self):
         return self
@@ -118,14 +125,76 @@ class Tiler(metaclass=ABCMeta):
         """Return icc profile if found in file."""
         return self._icc_profile
 
-    @abstractmethod
-    def get_image(self, series: int, level: int, page: int) -> TiffImage:
-        """Should return a TiffImage for series, level, page in file."""
-        raise NotImplementedError()
-
     @classmethod
     @abstractmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_level(self, level: int, page: int = 0) -> TiffImage:
+        """Return TiffImage for level in pyramid series.
+
+        Parameters
+        ----------
+        level: int
+            Level to get.
+        page: int
+            Index of page to get.
+
+        Returns
+        ----------
+        TiffImage
+            Level TiffImage.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_label(self, page: int = 0) -> TiffImage:
+        """Return TiffImage for label in label series.
+
+        Parameters
+        ----------
+        page: int
+            Index of page to get.
+
+        Returns
+        ----------
+        TiffImage
+            Label TiffImage.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_overview(self, page: int = 0) -> TiffImage:
+        """Return TiffImage for overview in overview series.
+
+        Parameters
+        ----------
+        page: int
+            Index of page to get.
+
+        Returns
+        ----------
+        TiffImage
+            Overview TiffImage.
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    @abstractmethod
+    def _is_level_series(series: TiffPageSeries) -> bool:
+        raise NotImplementedError()
+
+    @staticmethod
+    @abstractmethod
+    def _is_overview_series(series: TiffPageSeries) -> bool:
+        """Return true if series is a overview series."""
+        raise NotImplementedError()
+
+    @staticmethod
+    @abstractmethod
+    def _is_label_series(series: TiffPageSeries) -> bool:
+        """Return true if series is a label series."""
         raise NotImplementedError()
 
     def close(self) -> None:
@@ -153,59 +222,15 @@ class Tiler(metaclass=ABCMeta):
         bytes
             Tile at position.
         """
-        image = self.get_image(series, level, page)
+        if series == self._level_series_index:
+            image = self.get_level(level, page)
+        elif series == self._overview_series_index:
+            image = self.get_overview(page)
+        elif series == self._label_series_index:
+            image = self.get_label(page)
+        else:
+            raise ValueError("Unknown series.")
         return image.get_tile(tile_position)
-
-    def get_level(self, level: int, page: int = 0) -> TiffImage:
-        """Return TiffImage for level in pyramid series.
-
-        Parameters
-        ----------
-        level: int
-            Level to get.
-        page: int
-            Index of page to get.
-
-        Returns
-        ----------
-        TiffImage
-            Level TiffImage.
-        """
-        return self.get_image(self._level_series_index, level, page)
-
-    def get_label(self, page: int = 0) -> TiffImage:
-        """Return TiffImage for label in label series.
-
-        Parameters
-        ----------
-        page: int
-            Index of page to get.
-
-        Returns
-        ----------
-        TiffImage
-            Label TiffImage.
-        """
-        if self._label_series_index is None:
-            raise ValueError("No label detected in file")
-        return self.get_image(self._label_series_index, 0, page)
-
-    def get_overview(self, page: int = 0) -> TiffImage:
-        """Return TiffImage for overview in overview series.
-
-        Parameters
-        ----------
-        page: int
-            Index of page to get.
-
-        Returns
-        ----------
-        TiffImage
-            Overview TiffImage.
-        """
-        if self._overview_series_index is None:
-            raise ValueError("No overview detected in file")
-        return self.get_image(self._overview_series_index, 0, page)
 
     def _get_tiff_page(self, series: int, level: int, page: int) -> TiffPage:
         """Return TiffPage for series, level, page."""
