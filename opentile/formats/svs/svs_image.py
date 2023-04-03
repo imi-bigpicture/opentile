@@ -1,4 +1,4 @@
-#    Copyright 2021 SECTRA AB
+#    Copyright 2021-2023 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -12,39 +12,31 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Image implementations for svs tiff files."""
+
 import io
-from datetime import datetime
-from functools import cached_property
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from PIL import Image
-from tifffile.tifffile import (
-    COMPRESSION,
-    FileHandle,
-    TiffFile,
-    TiffPage,
-    svs_description_metadata,
-)
+from tifffile.tifffile import COMPRESSION, TiffPage
 
-from opentile.common import NativeTiledPage, OpenTilePage, Tiler
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.metadata import Metadata
+from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage, TiffImage
 
 
-class SvsStripedPage(OpenTilePage):
+class SvsStripedImage(TiffImage):
     _pyramid_index = 0
 
-    def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
-        """OpenTiledPage for jpeg striped Svs page, e.g. overview page.
+    def __init__(self, page: TiffPage, fh: LockableFileHandle, jpeg: Jpeg):
+        """OpenTiledPage for jpeg striped Svs image, e.g. overview image.
 
         Parameters
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
@@ -60,6 +52,10 @@ class SvsStripedPage(OpenTilePage):
     def pixel_spacing(self) -> Optional[SizeMm]:
         return None
 
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return [COMPRESSION.JPEG]
+
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return tile for tile position.
 
@@ -74,7 +70,7 @@ class SvsStripedPage(OpenTilePage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         indices = range(len(self.page.dataoffsets))
         scans = (self._read_frame(index) for index in indices)
         jpeg_tables = self.page.jpegtables
@@ -99,17 +95,17 @@ class SvsStripedPage(OpenTilePage):
         return self._jpeg.decode(self.get_tile(tile_position))
 
 
-class SvsLZWPage(OpenTilePage):
+class SvsLZWImage(TiffImage):
     _pyramid_index = 0
 
-    def __init__(self, page: TiffPage, fh: FileHandle, jpeg: Jpeg):
-        """OpenTiledPage for lzw striped Svs page, e.g. label page.
+    def __init__(self, page: TiffPage, fh: LockableFileHandle, jpeg: Jpeg):
+        """OpenTiledPage for lzw striped Svs image, e.g. label image.
 
         Parameters
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
@@ -129,6 +125,10 @@ class SvsLZWPage(OpenTilePage):
     @property
     def pixel_spacing(self) -> Optional[SizeMm]:
         return None
+
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return [COMPRESSION.LZW]
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return tile for tile position.
@@ -159,7 +159,7 @@ class SvsLZWPage(OpenTilePage):
             Produced tile at position.
         """
         if tile_position != (0, 0):
-            raise ValueError("Non-tiled page, expected tile_position (0, 0)")
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
 
         tile = np.concatenate(
             [self._get_row(index) for index in range(len(self.page.dataoffsets))],
@@ -173,34 +173,35 @@ class SvsLZWPage(OpenTilePage):
         return row
 
 
-class SvsTiledPage(NativeTiledPage):
+class SvsTiledImage(NativeTiledTiffImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: FileHandle,
-        base_shape: Size,
+        fh: LockableFileHandle,
+        base_size: Size,
         base_mpp: SizeMm,
-        parent: Optional["SvsTiledPage"] = None,
+        parent: Optional[TiffImage] = None,
     ):
-        """OpenTiledPage for Svs Tiff-page.
+        """Svs Tiff tiled image.
 
         Parameters
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: FileHandle
+        fh: LockableFileHandle
             Filehandler to read data from.
-        base_shape: Size
+        base_size: Size
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
-        parent: Optional['SvsTiledPage'] = None
-            Parent SvsTiledPage
+        parent: Optional[TiffImage] = None
+            Parent TiffImage
         """
+
         super().__init__(page, fh, True)
-        self._base_shape = base_shape
+        self._base_size = base_size
         self._base_mpp = base_mpp
-        self._pyramid_index = self._calculate_pyramidal_index(self._base_shape)
+        self._pyramid_index = self._calculate_pyramidal_index(self._base_size)
         self._mpp = self._calculate_mpp(self._base_mpp)
         self._parent = parent
         (
@@ -212,13 +213,17 @@ class SvsTiledPage(NativeTiledPage):
     def __repr__(self) -> str:
         return (
             f"{type(self).__name__}({self._page}, {self._fh}, "
-            f"{self._base_shape}, {self._base_mpp})"
+            f"{self._base_size}, {self._base_mpp})"
         )
 
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
         return self.mpp / 1000
+
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return [COMPRESSION.JPEG, COMPRESSION.APERIO_JP2000_RGB]
 
     @property
     def mpp(self) -> SizeMm:
@@ -336,7 +341,7 @@ class SvsTiledPage(NativeTiledPage):
             image_format = "jpeg2000"
             image_options = {"irreversible": True}
         else:
-            raise NotImplementedError("Not supported compression")
+            raise NotImplementedError("Non-supported compression")
         with io.BytesIO() as buffer:
             image.save(buffer, format=image_format, **image_options)
             frame = buffer.getvalue()
@@ -423,121 +428,3 @@ class SvsTiledPage(NativeTiledPage):
         return (
             self.right_edge_corrupt and self._tile_is_at_right_edge(tile_point)
         ) or (self.bottom_edge_corrupt and self._tile_is_at_bottom_edge(tile_point))
-
-
-class SvsMetadata(Metadata):
-    def __init__(self, page: TiffPage):
-        self._svs_metadata = svs_description_metadata(page.description)
-
-    @cached_property
-    def magnification(self) -> Optional[float]:
-        try:
-            return float(self._svs_metadata["AppMag"])
-        except (KeyError, ValueError):
-            return None
-
-    @cached_property
-    def aquisition_datetime(self) -> Optional[datetime]:
-        try:
-            date = datetime.strptime(self._svs_metadata["Date"], r"%m/%d/%y")
-            time = datetime.strptime(self._svs_metadata["Time"], r"%H:%M:%S")
-        except (KeyError, ValueError):
-            return None
-        return datetime.combine(date, time.time())
-
-    @property
-    def mpp(self) -> float:
-        return float(self._svs_metadata["MPP"])
-
-    @property
-    def image_offset(self) -> Optional[Tuple[float, float]]:
-        return (float(self._svs_metadata["Left"]), float(self._svs_metadata["Top"]))
-
-
-class SvsTiler(Tiler):
-    def __init__(
-        self, filepath: Union[str, Path], turbo_path: Optional[Union[str, Path]] = None
-    ):
-        """Tiler for svs file.
-
-        Parameters
-        ----------
-        filepath: Union[str, Path]
-            Filepath to a svs TiffFile.
-        """
-        super().__init__(Path(filepath))
-        self._fh = self._tiff_file.filehandle
-        self._turbo_path = turbo_path
-        self._jpeg = Jpeg(self._turbo_path)
-
-        for series_index, series in enumerate(self.series):
-            if series.name == "Baseline":
-                self._level_series_index = series_index
-            elif series.name == "Label":
-                self._label_series_index = series_index
-            elif series.name == "Macro":
-                self._overview_series_index = series_index
-        self._pages: Dict[Tuple[int, int, int], OpenTilePage] = {}
-        if "InterColorProfile" in self._tiff_file.pages.first.tags:
-            icc_profile = self._tiff_file.pages.first.tags["InterColorProfile"].value
-            assert isinstance(icc_profile, bytes) or icc_profile is None
-            self._icc_profile = icc_profile
-        self._metadata = SvsMetadata(self.base_page)
-        self._base_mpp = SizeMm(self._metadata.mpp, self._metadata.mpp)
-
-    @property
-    def base_mpp(self) -> SizeMm:
-        """Return pixel spacing in um/pixel for base level."""
-        return self._base_mpp
-
-    @property
-    def metadata(self) -> Metadata:
-        return self._metadata
-
-    @classmethod
-    def supported(cls, tiff_file: TiffFile) -> bool:
-        return tiff_file.is_svs
-
-    def _get_level_page(self, level: int, page: int = 0) -> SvsTiledPage:
-        series = self._level_series_index
-        if level > 0:
-            parent = self.get_page(series, level - 1, page)
-            parent = cast(SvsTiledPage, parent)
-        else:
-            parent = None
-        svs_page = SvsTiledPage(
-            self._get_tiff_page(series, level, page),
-            self._fh,
-            self.base_size,
-            self.base_mpp,
-            parent,
-        )
-        return svs_page
-
-    def get_page(self, series: int, level: int, page: int = 0) -> OpenTilePage:
-        """Return SvsTiledPage for series, level, page."""
-        if not (series, level, page) in self._pages:
-
-            if series == self._overview_series_index:
-                svs_page = SvsStripedPage(
-                    self._get_tiff_page(series, level, page), self._fh, self._jpeg
-                )
-            elif series == self._label_series_index:
-                svs_page = SvsLZWPage(
-                    self._get_tiff_page(series, level, page), self._fh, self._jpeg
-                )
-            elif series == self._level_series_index:
-                svs_page = self._get_level_page(level, page)
-            else:
-                raise NotImplementedError()
-
-            self._pages[series, level, page] = svs_page
-        return self._pages[series, level, page]
-
-    def _get_properties(self) -> Dict[str, Any]:
-        """Return dictionary with svs properties."""
-        svs_metadata = svs_description_metadata(self.base_page.description)
-        magnification = getattr(svs_metadata, "AppMag", None)
-        return {
-            "magnification": magnification,
-        }

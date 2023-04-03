@@ -1,4 +1,4 @@
-#    Copyright 2021 SECTRA AB
+#    Copyright 2021-2023 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import pytest
 from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
-from opentile.philips_tiff_tiler import PhilipsTiffTiler
+from opentile.formats import PhilipsTiffTiler
 
 from .filepaths import philips_file_path
 

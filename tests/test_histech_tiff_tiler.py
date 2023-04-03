@@ -1,4 +1,4 @@
-#    Copyright 2022 SECTRA AB
+#    Copyright 2022-2023 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import pytest
 from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
-from opentile.histech_tiff_tiler import HistechTiffTiler
+from opentile.formats import HistechTiffTiler
 
 from .filepaths import histech_file_path
 

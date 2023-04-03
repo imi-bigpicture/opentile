@@ -12,7 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from opentile.opentile import OpenTile
-from opentile.metadata import Metadata
+"""Module containing implementation for reading Philips tiff files."""
 
-__version__ = "0.9.0"
+from opentile.formats.philips.philips_tiff_tiler import PhilipsTiffTiler

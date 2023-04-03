@@ -1,4 +1,4 @@
-#    Copyright 2022 SECTRA AB
+#    Copyright 2022-2023 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ def main():
     if test_data_path is None:
         test_data_dir = Path(DEFAULT_DIR)
         print(
-            "Env 'OPENTILE_TESTDIR' not set, downloading to default folder "
+            'Env "OPENTILE_TESTDIR"" not set, downloading to default folder '
             f"{test_data_dir}."
         )
     else:

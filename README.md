@@ -6,7 +6,9 @@
 - Provide unified interface for relevant metadata.
 - Support all file formats supported by tifffile that has a non-overlapping tile structure.
 
-Crrently supported file formats are listed and described under *Supported file formats*.
+*opentile* does `not` provide methods for reading regions from images (e.g. `get_region()`). See [openslide-python](https://github.com/openslide/openslide-python), [tiffslide](https://github.com/bayer-science-for-a-better-life/tiffslide), or [wsidicomizer](https://github.com/imi-bigpicture/wsidicomizer) for such use.
+
+Currently implemented file formats are listed and described under *Implemented file formats*.
 
 ## Installing *opentile*
 
@@ -28,15 +30,15 @@ Please note that this is an early release and the API is not frozen yet. Functio
 
 ## Requirements
 
-*opentile* requires python >=3.8 and uses numpy, Pillow, TiffFile, and PyTurboJPEG (with lib-turbojpeg >= 2.1 ).
+*opentile* requires python >=3.8 and uses numpy, Pillow, TiffFile, and PyTurboJPEG (with lib-turbojpeg >= 2.1 ), imagecodecs, defusedxml, and ome-types.
 
 ## Limitations
 
 Files with z-stacks are currently not fully supported for all formats.
 
-## Supported file formats
+## Implemented file formats
 
-The following description of the workings of the supported file formats does not include the additional specifics for each format that is handled by tifffile. Additional formats supported by tifffile and that have non-overlapping tile layout are likely to be added in future release.
+The following description of the workings of the implemented file formats does not include the additional specifics for each format that is handled by tifffile. Additional formats supported by tifffile and that have non-overlapping tile layout are likely to be added in future release.
 
 ***Hamamatsu Ndpi***
 The Ndpi-format uses non-rectangular tile size typically 8 pixels high, i.e. stripes. To form tiles, first multiple stripes are concatenated to form a frame covering the tile region. Second, if the stripes are longer than the tile width, the tile is croped out of the frame. The concatenation and crop transformations are performed losslessly.
@@ -53,6 +55,9 @@ Some Asperio svs-files have corrupt tile data at edges of non-base pyramidal lev
 
 ***3DHistech tiff***
 Only the pyramidal levels are supported (not overviews or labels).
+
+***OME tiff***
+Metadata parsing is not yet implemented.
 
 ## Metadata
 
@@ -147,6 +152,6 @@ Our aim is to provide constructive and positive code reviews for all submissions
 
 ## Acknowledgement
 
-*opentile*: Copyright 2021 Sectra AB, licensed under Apache 2.0.
+*opentile*: Copyright 2021-2023 Sectra AB, licensed under Apache 2.0.
 
 This project is part of a project that has received funding from the Innovative Medicines Initiative 2 Joint Undertaking under grant agreement No 945358. This Joint Undertaking receives support from the European Union’s Horizon 2020 research and innovation programme and EFPIA. IMI website: www.imi.europa.eu

@@ -1,4 +1,4 @@
-#    Copyright 2021 SECTRA AB
+#    Copyright 2021-2023 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Lossless jpeg handling and encoding and decoding."""
+
 from pathlib import Path
 from struct import pack, unpack
 from typing import Iterator, List, Optional, Sequence, Tuple, Union
@@ -20,8 +22,8 @@ import numpy as np
 from turbojpeg import TJPF_RGB, tjMCUHeight, tjMCUWidth
 
 from opentile.geometry import Size
-from opentile.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.turbojpeg_patch import find_turbojpeg_path
+from opentile.jpeg.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
+from opentile.jpeg.turbojpeg_patch import find_turbojpeg_path
 
 
 class JpegTagNotFound(Exception):
@@ -232,8 +234,8 @@ class Jpeg:
             return self._turbo_jpeg.crop_multiple(frame, crop_parameters)
         except OSError as exception:
             raise JpegCropError(
-                f"Crop of frame failed with parameters {crop_parameters}.", exception
-            )
+                f"Crop of frame failed " f"with parameters {crop_parameters}"
+            ) from exception
 
     @classmethod
     def add_jpeg_tables(

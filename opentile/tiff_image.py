@@ -1,4 +1,4 @@
-#    Copyright 2021 SECTRA AB
+#    Copyright 2021-2023 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -12,26 +12,25 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Base image classes."""
+
 import math
 import threading
-from abc import ABCMeta, abstractclassmethod, abstractmethod
+from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 from tifffile.tifffile import (
     COMPRESSION,
     PHOTOMETRIC,
     FileHandle,
-    TiffFile,
     TiffPage,
-    TiffPageSeries,
     TiffTags,
 )
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.metadata import Metadata
 
 
 class LockableFileHandle:
@@ -114,25 +113,18 @@ class LockableFileHandle:
         self._fh.close()
 
 
-class OpenTilePage(metaclass=ABCMeta):
+class TiffImage(metaclass=ABCMeta):
     """Abstract class for reading tiles from TiffPage. Should be inherited to
-    support different tiff formats:
-
-    OpenTilePage
-        NativeTiledPage - Meta class for pages that are natively tiled
-            PhilipsTiffTiledPage - OpenTiledPage for Philips Tiff-page
-            SvsTiledPage - OpenTiledPage for Svs Tiff-page
-        NdpiPage - Ndpi page that should not be tiled
-            NdpiTiledPage - Metaclass for a tiled Ndpi page
-                NdpiOneFramePage - Tiled Ndpi page of only one frame
-                NdpiStripedPage - Tiled Ndpi page of striped frames
-
+    support different tiff formats.
     """
 
     _pyramid_index: int
 
     def __init__(
-        self, page: TiffPage, fh: FileHandle, add_rgb_colorspace_fix: bool = False
+        self,
+        page: TiffPage,
+        fh: LockableFileHandle,
+        add_rgb_colorspace_fix: bool = False,
     ):
         """Abstract class for reading tiles from TiffPage.
 
@@ -140,15 +132,20 @@ class OpenTilePage(metaclass=ABCMeta):
         ----------
         page: TiffPage
             TiffPage to get tiles from.
-        fh: FileHandle
+        fh: LockableFileHandle
             FileHandle for reading data.
         add_rgb_colorspace_fix: bool = False
             If to add color space fix for rgb image data.
         """
+        if (
+            self.supported_compressions is not None
+            and page.compression not in self.supported_compressions
+        ):
+            raise NotImplementedError(f"Non-supported compression {self.compression}.")
         self._page = page
-        self._fh = LockableFileHandle(fh)
+        self._fh = fh
         self._add_rgb_colorspace_fix = add_rgb_colorspace_fix
-        self._image_size = Size(self._page.shape[1], self._page.shape[0])
+        self._image_size = Size(self._page.imagewidth, self._page.imagelength)
         if self.page.is_tiled:
             self._tile_size = Size(self.page.tilewidth, self.page.tilelength)
         else:
@@ -163,6 +160,19 @@ class OpenTilePage(metaclass=ABCMeta):
         return f"{type(self).__name__} of page {self._page}"
 
     @property
+    @abstractmethod
+    def pixel_spacing(self) -> Optional[SizeMm]:
+        """Should return the pixel size in mm/pixel of the image."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        """Should return list of compressions supported, or None if class is
+        indenpendent on compression."""
+        raise NotImplementedError()
+
+    @property
     def filepath(self) -> Path:
         return self._fh.filepath
 
@@ -174,7 +184,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def compression(self) -> COMPRESSION:
-        """Return compression of page."""
+        """Return compression of image."""
         return COMPRESSION(self._page.compression)
 
     @property
@@ -191,6 +201,11 @@ class OpenTilePage(metaclass=ABCMeta):
     def samples_per_pixel(self) -> int:
         """Return samples per pixel."""
         return self._page.samplesperpixel
+
+    @property
+    def bit_depth(self) -> int:
+        """Return the sample bit depth."""
+        return self._page.bitspersample
 
     @property
     def page(self) -> TiffPage:
@@ -215,7 +230,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def tile_size(self) -> Size:
-        """The pixel size of the tiles. Returns image size if not tiled page"""
+        """The pixel size of the tiles. Returns image size if not tiled image"""
         return self._tile_size
 
     @property
@@ -230,12 +245,6 @@ class OpenTilePage(metaclass=ABCMeta):
         """The pyramidal index in relation to the base layer. Returns 0 for
         images not in pyramidal series."""
         return self._pyramid_index
-
-    @property
-    @abstractmethod
-    def pixel_spacing(self) -> Optional[SizeMm]:
-        """Should return the pixel size in mm/pixel of the page."""
-        raise NotImplementedError()
 
     @abstractmethod
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
@@ -301,6 +310,38 @@ class OpenTilePage(metaclass=ABCMeta):
         """
         return [self.get_decoded_tile(tile) for tile in tile_positions]
 
+    def get_all_tiles(self, raw: bool = False) -> Iterator[bytes]:
+        """Return iterator of all tiles in image.
+
+        Parameters
+        ----------
+        raw: bool = False
+            Set to True to not do any format-specifc processing on the tile.
+
+        Returns
+        ----------
+        Iterator[bytes]
+            Iterator of all tiles in image.
+        """
+        if raw:
+            return (self._read_frame(index) for index in range(self.tiled_size.area))
+        return (
+            self.get_tile(tile.to_tuple()) for tile in self.tiled_region.iterate_all()
+        )
+
+    def get_all_tiles_decoded(self) -> Iterator[np.ndarray]:
+        """Return iterator of all tiles in image decoded.
+
+        Returns
+        ----------
+        Iterator[np.ndarray]
+            Iterator of all tiles in image decoded.
+        """
+        return (
+            self.get_decoded_tile(tile.to_tuple())
+            for tile in self.tiled_region.iterate_all()
+        )
+
     def close(self) -> None:
         """Close filehandle."""
         self._fh.close()
@@ -310,7 +351,7 @@ class OpenTilePage(metaclass=ABCMeta):
 
     @property
     def tiled_region(self) -> Region:
-        """Tile region covering the OpenTilePage."""
+        """Tile region covering the TiffImage."""
         return self._tiled_region
 
     def valid_tiles(self, region: Region) -> bool:
@@ -360,24 +401,23 @@ class OpenTilePage(metaclass=ABCMeta):
     def _get_value_from_tiff_tags(
         tiff_tags: TiffTags, value_name: str
     ) -> Optional[str]:
-        for tag in tiff_tags:
-            if tag.name == value_name:
-                return str(tag.value)
-        return None
+        return next(
+            (str(tag.value) for tag in tiff_tags if tag.name == value_name), None
+        )
 
     def _calculate_pyramidal_index(
         self,
-        base_shape: Size,
+        base_size: Size,
     ) -> int:
-        return int(math.log2(base_shape.width / self.image_size.width))
+        return int(math.log2(base_size.width / self.image_size.width))
 
     def _calculate_mpp(self, base_mpp: SizeMm) -> SizeMm:
         return base_mpp * pow(2, self.pyramid_index)
 
 
-class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
+class NativeTiledTiffImage(TiffImage, metaclass=ABCMeta):
 
-    """Meta class for pages that are natively tiled (e.g. not ndpi)"""
+    """Meta class for images that are natively tiled (e.g. not ndpi)"""
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
         """Return image bytes for tile at tile position.
@@ -462,187 +502,3 @@ class NativeTiledPage(OpenTilePage, metaclass=ABCMeta):
         """Return linear frame index for tile position."""
         frame_index = tile_point.y * self.tiled_size.width + tile_point.x
         return frame_index
-
-
-class Tiler(metaclass=ABCMeta):
-    """Abstract class for reading pages from TiffFile."""
-
-    _level_series_index: int = 0
-    _overview_series_index: Optional[int] = None
-    _label_series_index: Optional[int] = None
-    _icc_profile: Optional[bytes] = None
-
-    def __init__(self, filepath: Path):
-        """Abstract class for reading pages from TiffFile.
-
-        Parameters
-        ----------
-        filepath: Path
-            Filepath to a TiffFile.
-        """
-        self._tiff_file = TiffFile(filepath)
-        base_page = self.series[self._level_series_index].pages[0]
-        assert isinstance(base_page, TiffPage)
-        self._base_page = base_page
-        self._base_size = Size(self.base_page.shape[1], self.base_page.shape[0])
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-    @property
-    def metadata(self) -> Metadata:
-        raise NotImplementedError()
-
-    @property
-    def base_page(self) -> TiffPage:
-        """Return base pyramid level in pyramid series."""
-        return self._base_page
-
-    @property
-    def base_size(self) -> Size:
-        """Return size of base pyramid level in pyramid series."""
-        return self._base_size
-
-    @property
-    def series(self) -> List[TiffPageSeries]:
-        """Return contained TiffPageSeries."""
-        return self._tiff_file.series
-
-    @property
-    def levels(self) -> List[OpenTilePage]:
-        """Return list of pyramid level OpenTilePages."""
-        if self._level_series_index is None:
-            return []
-        return [
-            self.get_level(level_index, page_index)
-            for level_index, level in enumerate(
-                self.series[self._level_series_index].levels
-            )
-            for page_index, page in enumerate(level.pages)
-        ]
-
-    @property
-    def labels(self) -> List[OpenTilePage]:
-        """Return list of label OpenTilePage."""
-        if self._label_series_index is None:
-            return []
-        return [
-            self.get_label(page_index)
-            for page_index, page in enumerate(
-                self.series[self._label_series_index].pages
-            )
-        ]
-
-    @property
-    def overviews(self) -> List[OpenTilePage]:
-        """Return list of overview OpenTilePage."""
-        if self._overview_series_index is None:
-            return []
-        return [
-            self.get_overview(page_index)
-            for page_index, page in enumerate(
-                self.series[self._overview_series_index].pages
-            )
-        ]
-
-    @property
-    def icc_profile(self) -> Optional[bytes]:
-        """Return icc profile if found in file."""
-        return self._icc_profile
-
-    @abstractmethod
-    def get_page(self, series: int, level: int, page: int) -> OpenTilePage:
-        """Should return a OpenTilePage for series, level, page in file."""
-        raise NotImplementedError()
-
-    @abstractclassmethod
-    def supported(cls, tiff_file: TiffFile) -> bool:
-        raise NotImplementedError()
-
-    def close(self) -> None:
-        """CLose tiff-file."""
-        self._tiff_file.close()
-
-    def get_tile(
-        self, series: int, level: int, page: int, tile_position: Tuple[int, int]
-    ) -> bytes:
-        """Return list of image bytes for tiles at tile positions.
-
-        Parameters
-        ----------
-        series: int
-            Series of page to get tile from.
-        level: int
-            Level of page to get tile from.
-        page: int
-            Page to get tile from.
-        tile_position: Tuple[int, int]
-            Position of tile to get.
-
-        Returns
-        ----------
-        bytes
-            Tile at position.
-        """
-        tiled_page = self.get_page(series, level, page)
-        return tiled_page.get_tile(tile_position)
-
-    def get_level(self, level: int, page: int = 0) -> OpenTilePage:
-        """Return OpenTilePage for level in pyramid series.
-
-        Parameters
-        ----------
-        level: int
-            Level to get.
-        page: int
-            Index of page to get.
-
-        Returns
-        ----------
-        OpenTilePage
-            Level OpenTilePage.
-        """
-        return self.get_page(self._level_series_index, level, page)
-
-    def get_label(self, page: int = 0) -> OpenTilePage:
-        """Return OpenTilePage for label in label series.
-
-        Parameters
-        ----------
-        page: int
-            Index of page to get.
-
-        Returns
-        ----------
-        OpenTilePage
-            Label OpenTilePage.
-        """
-        if self._label_series_index is None:
-            raise ValueError("No label detected in file")
-        return self.get_page(self._label_series_index, 0, page)
-
-    def get_overview(self, page: int = 0) -> OpenTilePage:
-        """Return OpenTilePage for overview in overview series.
-
-        Parameters
-        ----------
-        page: int
-            Index of page to get.
-
-        Returns
-        ----------
-        OpenTilePage
-            Overview OpenTilePage.
-        """
-        if self._overview_series_index is None:
-            raise ValueError("No overview detected in file")
-        return self.get_page(self._overview_series_index, 0, page)
-
-    def _get_tiff_page(self, series: int, level: int, page: int) -> TiffPage:
-        """Return TiffPage for series, level, page."""
-        tiff_page = self.series[series].levels[level].pages[page]
-        assert isinstance(tiff_page, TiffPage)
-        return tiff_page

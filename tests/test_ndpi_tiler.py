@@ -1,4 +1,4 @@
-#    Copyright 2021 SECTRA AB
+#    Copyright 2021-2023 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -21,14 +21,10 @@ import pytest
 from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
+from opentile.formats import NdpiTiler
+from opentile.formats.ndpi.ndpi_image import NdpiStripedImage
+from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size
-from opentile.ndpi_tiler import (
-    NdpiCache,
-    NdpiFrameJob,
-    NdpiStripedPage,
-    NdpiTile,
-    NdpiTiler,
-)
 
 from .filepaths import ndpi_file_path
 
@@ -46,7 +42,7 @@ class NdpiTilerTest(unittest.TestCase):
             cls.tiler = NdpiTiler(ndpi_file_path, cls.tile_size.width)
         except FileNotFoundError:
             raise unittest.SkipTest("ndpi test file not found, skipping")
-        cls.level = cast(NdpiStripedPage, cls.tiler.get_level(0))
+        cls.level = cast(NdpiStripedImage, cls.tiler.get_level(0))
 
     @classmethod
     def tearDownClass(cls):
@@ -179,42 +175,6 @@ class NdpiTilerTest(unittest.TestCase):
             self.level._sort_into_frame_jobs(
                 [(index_x, index_y) for index_x in range(8) for index_y in range(2)]
             ),
-        )
-
-    def test_cache(self):
-        cache_size = 10
-        cache = NdpiCache(cache_size)
-        for index in range(10):
-            point = Point(index, index)
-            data = bytes([index])
-            cache[point] = data
-            self.assertEqual(data, cache[point])
-        self.assertEqual(cache_size, len(cache))
-
-        next = 10
-        point = Point(next, next)
-        data = bytes([next])
-        cache[point] = data
-        self.assertEqual(data, cache[point])
-        self.assertEqual(cache_size, len(cache))
-        with self.assertRaises(KeyError):
-            cache[Point(0, 0)]
-
-        update = {Point(index, index): bytes([index]) for index in range(11, 20)}
-        cache.update(update)
-        self.assertEqual(cache_size, len(cache))
-        for index in range(10, 20):
-            point = Point(index, index)
-            data = bytes([index])
-            self.assertEqual(data, cache[point])
-
-        for index in range(10):
-            with self.assertRaises(KeyError):
-                cache[Point(index, index)]
-
-        self.assertEqual(
-            [Point(index, index) for index in range(10, 20)],
-            list(cache._content.keys()),
         )
 
     def test_stripe_size(self):

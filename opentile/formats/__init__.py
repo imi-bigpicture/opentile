@@ -12,7 +12,10 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from opentile.opentile import OpenTile
-from opentile.metadata import Metadata
+"""Module containing format specific implementations."""
 
-__version__ = "0.9.0"
+from opentile.formats.ome import OmeTiffTiler
+from opentile.formats.ndpi import NdpiTiler
+from opentile.formats.histech import HistechTiffTiler
+from opentile.formats.philips import PhilipsTiffTiler
+from opentile.formats.svs import SvsTiler

@@ -12,18 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import os
-from pathlib import Path
+"""Module containing implementation for reading OME tiff files."""
 
-test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
-svs_file_path = Path(test_data_dir).joinpath("slides/svs/CMU-1/CMU-1.svs")
-philips_file_path = Path(test_data_dir).joinpath(
-    "slides/philips_tiff/philips1/input.tif"
-)
-ndpi_file_path = Path(test_data_dir).joinpath("slides/ndpi/CMU-1/CMU-1.ndpi")
-histech_file_path = Path(test_data_dir).joinpath(
-    "slides/3dhistech_tiff/CMU-1/CMU-1_Default_Extended.tif"
-)
-ome_tiff_file_path = Path(test_data_dir).joinpath(
-    "slides/ome_tiff/CMU-1/CMU-1.ome.tiff"
-)
+from opentile.formats.ome.ome_tiff_tiler import OmeTiffTiler

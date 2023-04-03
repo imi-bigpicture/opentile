@@ -1,4 +1,4 @@
-#    Copyright 2022 SECTRA AB
+#    Copyright 2022-2023 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ from .filepaths import (
     ndpi_file_path,
     philips_file_path,
     svs_file_path,
+    ome_tiff_file_path,
 )
 
 
@@ -39,6 +40,9 @@ class InterfaceTest(unittest.TestCase):
 
     def test_open_histech(self):
         self._test_open(histech_file_path)
+
+    def test_open_ome_tiff(self):
+        self._test_open(ome_tiff_file_path)
 
     def _test_open(self, file: Path):
         self._check_file_exists(file)
