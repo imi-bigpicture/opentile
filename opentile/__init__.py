@@ -15,4 +15,4 @@
 from opentile.opentile import OpenTile
 from opentile.metadata import Metadata
 
-__version__ = "0.8.1"
+__version__ = "0.9.0"
