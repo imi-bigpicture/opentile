@@ -189,7 +189,7 @@ class NdpiTiler(Tiler):
         )
 
     @lru_cache(None)
-    def get_label(self) -> TiffImage:
+    def get_label(self, page: int = 0) -> TiffImage:
         """Create a label image.
 
         Returns
@@ -198,14 +198,16 @@ class NdpiTiler(Tiler):
             Created image.
         """
         assert self._overview_series_index is not None
-        tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[0]
+        tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[
+            page
+        ]
         assert isinstance(tiff_page, TiffPage)
         return NdpiCroppedImage(
             tiff_page, self._fh, self._jpeg, (0.0, self._label_crop_position)
         )
 
     @lru_cache(None)
-    def get_overview(self) -> TiffImage:
+    def get_overview(self, page: int = 0) -> TiffImage:
         """Create a overview image.
 
         Returns
@@ -214,7 +216,9 @@ class NdpiTiler(Tiler):
             Created image.
         """
         assert self._overview_series_index is not None
-        tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[0]
+        tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[
+            page
+        ]
         assert isinstance(tiff_page, TiffPage)
         return NdpiCroppedImage(
             tiff_page, self._fh, self._jpeg, (self._label_crop_position, 1.0)
