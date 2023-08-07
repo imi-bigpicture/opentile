@@ -110,7 +110,7 @@ class Jpeg:
     ) -> bytes:
         """Return frame created by horisontal concatenating scans. Scans must
         have the same header content, and only the last scan is allowed to have
-        a different heigth.
+        a different height.
 
         Parameters
         ----------
@@ -215,7 +215,7 @@ class Jpeg:
     def crop_multiple(
         self, frame: bytes, crop_parameters: Sequence[Tuple[int, int, int, int]]
     ) -> List[bytes]:
-        """Crop multipe frames out of frame.
+        """Crop multiple frames out of frame.
 
         Parameters
         ----------
@@ -223,7 +223,7 @@ class Jpeg:
             Frame to crop from.
         crop_parameters: Sequence[Tuple[int, int, int, int]]
             Parameters for each crop, specified as left position, top position,
-            widht, height.
+            width, height.
 
         Returns
         ----------
@@ -244,7 +244,7 @@ class Jpeg:
         jpeg_tables: bytes,
         apply_rgb_colorspace_fix: Optional[bool] = False,
     ) -> bytes:
-        """Add jpeg tables to frame. Tables are insterted before 'start of
+        """Add jpeg tables to frame. Tables are inserted before 'start of
         scan'-tag, and leading 'start of image' and ending 'end of image' tags
         are removed from the header prior to insertion.
 
@@ -260,7 +260,7 @@ class Jpeg:
         Returns
         ----------
         bytes:
-            'Interchange' jpeg frame containg jpeg tables.
+            'Interchange' jpeg frame containing jpeg tables.
 
         """
 
@@ -381,7 +381,7 @@ class Jpeg:
         Returns
         ----------
         bytearray:
-            Manupulated header.
+            Manipulated header.
         """
         if size is not None:
             start_of_frame_index, _ = cls._find_tag(frame, cls.start_of_frame())
@@ -395,7 +395,7 @@ class Jpeg:
             restart_payload = cls.code_short(restart_interval)
             restart_index, _ = cls._find_tag(frame, cls.restart_interval())
             if restart_index is not None:
-                # Modify excisting restart tag
+                # Modify existing restart tag
                 payload_index = restart_index + 4
                 frame[payload_index : payload_index + 2] = restart_payload
             else:

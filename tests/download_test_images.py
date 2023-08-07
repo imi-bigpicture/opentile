@@ -74,7 +74,7 @@ def main():
             with open(saved_file_path, "rb") as saved_file_io:
                 data = saved_file_io.read()
                 if not hash == md5(data).hexdigest():
-                    raise ValueError(f"Checksum faild for {saved_file_path}")
+                    raise ValueError(f"Checksum failed for {saved_file_path}")
                 else:
                     print(f"{saved_file_path} checksum OK")
 

@@ -51,7 +51,7 @@ class Metadata:
 
     @property
     def aquisition_datetime(self) -> Optional[datetime]:
-        """Return the aquisition datetime if present in file."""
+        """Return the acquisition datetime if present in file."""
         return None
 
     @property
