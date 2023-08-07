@@ -51,7 +51,7 @@ class NdpiTiler(Tiler):
             Filepath to a ndpi TiffFile.
         tile_size: int
             Tile size to cache and produce. Must be multiple of 8 and will be
-            adjusted to be an even multipler or divider of the smallest strip
+            adjusted to be an even multiplier or divider of the smallest strip
             width in the file.
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
@@ -66,7 +66,7 @@ class NdpiTiler(Tiler):
             tile_size, self._get_smallest_stripe_width()
         )
         if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
-            raise ValueError(f"Tile size {self.tile_size} not divisable by 8")
+            raise ValueError(f"Tile size {self.tile_size} not divisible by 8")
         self._jpeg = Jpeg(turbo_path)
         self._metadata = NdpiMetadata(self.base_page)
         self._label_crop_position = label_crop_position
