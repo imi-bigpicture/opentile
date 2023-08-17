@@ -114,14 +114,14 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(0, 0, extended_width, extended_height)
 
-        # Create coefficent array, filled with 0:s. The data is arranged in
+        # Create coefficient array, filled with 0:s. The data is arranged in
         # mcus, i.e. first 64 values are for mcu (0, 0), second 64 values for
         # mcu (1, 0)
         coeffs = np.zeros(extended_width * extended_height, dtype=c_short)
         # Fill the mcu corresponding to the original image with 1:s.
         coeffs[0 : original_width * original_height] = 1
 
-        # Make a copy of the original data and change the coefficents for the
+        # Make a copy of the original data and change the coefficients for the
         # extended mcus ((0, 0), (1, 0), (1, 1)) manually.
         expected_results = np.copy(coeffs)
         for index in range(mcu_size, extended_width * extended_height, mcu_size):
@@ -169,12 +169,12 @@ class TurboJpegTest(unittest.TestCase):
 
         crop_region = CroppingRegion(0, 0, extended_width, extended_height)
 
-        # Create coefficent array, filled with 1:s. The data is arranged in
+        # Create coefficient array, filled with 1:s. The data is arranged in
         # mcus, i.e. first 64 values are for mcu (0, 0), second 64 values for
         # mcu (1, 0)
         coeffs = np.ones(extended_width * extended_height, dtype=c_short)
 
-        # The expected result is fileld with 0:s and luminance dc component
+        # The expected result is field with 0:s and luminance dc component
         # changed
 
         planeRegion = CroppingRegion(0, 0, extended_width, extended_width)

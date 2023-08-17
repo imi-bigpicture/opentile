@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Refactored code, renamed OpenTilePage to TiffImage (and reflecting the change to sublcasses). Removed abstract method get_image() and added abstract methods get_level(), get_label(), and get_overview().
+- Refactored code, renamed OpenTilePage to TiffImage (and reflecting the change to subclasses). Removed abstract method get_image() and added abstract methods get_level(), get_label(), and get_overview().
 
 ## [0.8.1] - 2023-03-31
 
@@ -95,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- tifffile minimun version set to 2022.5.4.
+- tifffile minimum version set to 2022.5.4.
 - Replaced Dict property `properties` of tilers with property `metadata` of Metadata-class.
 
 ### Fixed

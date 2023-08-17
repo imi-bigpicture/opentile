@@ -61,14 +61,14 @@ Metadata parsing is not yet implemented.
 
 ## Metadata
 
-File metadata can be accessed through the `metadata`-property of a tiler. Depending on file format and content, the following metadata is avaiable:
+File metadata can be accessed through the `metadata`-property of a tiler. Depending on file format and content, the following metadata is available:
 
 - Magnification
 - Scanner manufacturer
 - Scanner model
 - Scanner software versions
 - Scanner serial number
-- Aquisition datetime
+- Acquisition datetime
 
 ## Basic usage
 
@@ -123,13 +123,13 @@ git clone https://github.com/imi-bigpicture/opentile.git
 poetry install
 ```
 
-By default the tests looks for slides in 'tests/testdata'. This can be overriden by setting the OPENTILE_TESTDIR environment variable. The script 'tests/download_test_images.py' can be used to download publically available [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/) into the set testdata folder:
+By default the tests looks for slides in 'tests/testdata'. This can be overridden by setting the OPENTILE_TESTDIR environment variable. The script 'tests/download_test_images.py' can be used to download publicly available [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/) into the set testdata folder:
 
 ```console
 python tests/download_test_images.py
 ```
 
-The test data used for philips tiff is currently not publically available as we dont have permission to share them. If you have slides in philips tiff format that can be freely shared we would be happy to use them instead.
+The test data used for philips tiff is currently not publicly available as we dont have permission to share them. If you have slides in philips tiff format that can be freely shared we would be happy to use them instead.
 
 To watch unit tests use:
 
