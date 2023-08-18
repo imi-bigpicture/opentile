@@ -73,7 +73,7 @@ jobs:
         run: sudo apt-get install -y libturbojpeg
       - name: Set up libjpegturbo OSX
         if: matrix.os == 'macos-latest'
-        run: brew install jpeg-turbo
+        run: brew install jpeg-turbo@2.1.5.1
       - name: Set up libjpegturbo Windows
         shell: pwsh
         if: matrix.os == 'windows-latest'
