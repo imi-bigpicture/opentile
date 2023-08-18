@@ -12,9 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import unittest
 from ctypes import c_short, pointer
-
+from io import BufferedReader
 import numpy as np
 import pytest
 from turbojpeg import (
@@ -38,69 +37,82 @@ from opentile.jpeg.turbojpeg_patch import (
 
 test_file_path = "tests/testdata/turbojpeg/frame_2048x512.jpg"
 
+@pytest.fixture()
+def jpeg():
+    yield TurboJPEG_patch(find_turbojpeg_path())
+
+@pytest.fixture()
+def test_file():
+    with open(test_file_path, "rb") as file:
+        yield file
+
+@pytest.fixture()
+def buffer(test_file: BufferedReader):
+    yield test_file.read()
 
 @pytest.mark.turbojpeg
-class TurboJpegTest(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class TestTurboJpeg:
 
-    @classmethod
-    def setUpClass(cls):
-        cls.jpeg = TurboJPEG_patch(find_turbojpeg_path())
-        cls.test_file = open(test_file_path, "rb")
-        cls.buffer = cls.test_file.read()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.test_file.close()
-
-    def test__need_fill_background(self):
+    @pytest.mark.parametrize(["region", "background", "expected_result"], [
+        [CroppingRegion(0, 0, 512, 512), 1.0, False],
+        [CroppingRegion(0, 0, 2048, 1024), 1.0, False],
+        [CroppingRegion(1024, 0, 1024, 1024), 1.0, False],
+        [CroppingRegion(0, 0, 2048, 2048), 1.0, True],
+        [CroppingRegion(0, 0, 2048, 2048), 0.5, False],
+    ])
+    def test_need_fill_background(self, jpeg: TurboJPEG_patch, region: CroppingRegion, background: float, expected_result: bool):
+        # Arrange
         image_size = (2048, 1024)
-        crop_region = CroppingRegion(0, 0, 512, 512)
-        self.assertFalse(self.jpeg._need_fill_background(crop_region, image_size, 1.0))
 
-        crop_region = CroppingRegion(0, 0, 2048, 1024)
-        self.assertFalse(self.jpeg._need_fill_background(crop_region, image_size, 1.0))
+        # Act
+        result = jpeg._need_fill_background(region, image_size, background)
 
-        crop_region = CroppingRegion(1024, 0, 1024, 1024)
-        self.assertFalse(self.jpeg._need_fill_background(crop_region, image_size, 1.0))
+        # Assert
+        assert result == expected_result
 
-        crop_region = CroppingRegion(0, 0, 2048, 2048)
-        self.assertTrue(self.jpeg._need_fill_background(crop_region, image_size, 1.0))
-
-        crop_region = CroppingRegion(0, 0, 2048, 2048)
-        self.assertFalse(self.jpeg._need_fill_background(crop_region, image_size, 0.5))
-
-    def test__define_cropping_regions(self):
+    def test_define_cropping_regions(self, jpeg: TurboJPEG_patch):
+        # Arrange
         crop_parameters = [(0, 1, 2, 3), (4, 5, 6, 7)]
         expected_cropping_regions = [
             CroppingRegion(0, 1, 2, 3),
             CroppingRegion(4, 5, 6, 7),
         ]
-        cropping_regions = self.jpeg._define_cropping_regions(crop_parameters)
+
+        # Act
+        cropping_regions = jpeg._define_cropping_regions(crop_parameters)
+
+        # Assert
         for index, region in enumerate(cropping_regions):
             expected = expected_cropping_regions[index]
-            self.assertEqual(
-                (expected.x, expected.y, expected.w, expected.h),
-                (region.x, region.y, region.w, region.h),
-            )
+            assert (expected.x, expected.y, expected.w, expected.h) == (region.x, region.y, region.w, region.h)
 
-    def test_crop_multiple_compare(self):
+    def test_crop_multiple_compare(self, jpeg: TurboJPEG_patch, buffer: bytes):
+        # Arrange
         crop_parameters = [(0, 0, 512, 512), (512, 0, 512, 512)]
-        singe_crops = [
-            self.jpeg.crop(self.buffer, *crop_parameter)
+        single_crops = [
+            jpeg.crop(buffer, *crop_parameter)
             for crop_parameter in crop_parameters
         ]
-        multiple_crops = self.jpeg.crop_multiple(self.buffer, crop_parameters)
-        self.assertEqual(singe_crops, multiple_crops)
 
-    def test_crop_multiple_extend(self):
+        # Act
+        multiple_crops = jpeg.crop_multiple(buffer, crop_parameters)
+
+        # Assert
+        assert single_crops == multiple_crops
+
+    def test_crop_multiple_extend(self, jpeg: TurboJPEG_patch, buffer: bytes):
+        # Arrange
         crop_parameters = [(0, 0, 1024, 1024)]
-        crop = self.jpeg.crop_multiple(self.buffer, crop_parameters)[0]
-        width, height, _, _ = self.jpeg.decode_header(crop)
-        self.assertEqual((1024, 1024), (width, height))
+
+        # Act
+        crop = jpeg.crop_multiple(buffer, crop_parameters)[0]
+
+        # Assert
+        width, height, _, _ = jpeg.decode_header(crop)
+        assert (1024, 1024) == (width, height)
 
     def test_fill_background(self):
+        # Arrange
         mcu_size = 64
         original_width = 8
         original_height = 8
@@ -139,6 +151,7 @@ class TurboJpegTest(unittest.TestCase):
             CUSTOMFILTER(fill_background),
         )
 
+        # Act
         # Iterate the callback with one mcu-row of data.
         for row in range(extended_height // callback_row_heigth):
             data_start = row * callback_row_heigth * extended_width
@@ -155,10 +168,12 @@ class TurboJpegTest(unittest.TestCase):
                 pointer(transform_struct),
             )
 
+        # Assert
         # Compare the modified data with the expected result
-        self.assertTrue(np.array_equal(expected_results, coeffs))
+        assert np.array_equal(expected_results, coeffs)
 
     def test_blank_background(self):
+        # Arrange
         mcu_size = 64
         extended_width = 16
         extended_height = 16
@@ -184,6 +199,7 @@ class TurboJpegTest(unittest.TestCase):
             BlankStruct(0, background_luminance),
         )
 
+        # Act
         # Iterate through components
         for componentID in range(3):
             # Expected result is array with 0
@@ -208,5 +224,6 @@ class TurboJpegTest(unittest.TestCase):
                     pointer(transform_struct),  # type: ignore
                 )
 
+            # Assert
             # Compare the modified component with the expected result
-            self.assertTrue(np.array_equal(expected_results, coeffs))
+            assert np.array_equal(expected_results, coeffs)

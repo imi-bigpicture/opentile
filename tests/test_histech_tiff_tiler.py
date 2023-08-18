@@ -12,48 +12,52 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import unittest
 from hashlib import md5
 from typing import Sequence, Tuple
 
 import pytest
-from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.formats import HistechTiffTiler
+from opentile.tiff_image import TiffImage
 
 from .filepaths import histech_file_path
 
 
+@pytest.fixture()
+def tiler():
+    try:
+        with HistechTiffTiler(histech_file_path) as tiler:
+            yield tiler
+    except FileNotFoundError:
+        pytest.skip("Histech tiff test file not found, skipping")
+
+
+@pytest.fixture()
+def level(tiler: HistechTiffTiler):
+    yield tiler.get_level(0)
+
+
 @pytest.mark.unittest
-class HistechTiffTilerTest(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.tiler: HistechTiffTiler
-
-    @classmethod
-    def setUpClass(cls):
-        try:
-            cls.tiler = HistechTiffTiler(histech_file_path)
-        except FileNotFoundError:
-            raise unittest.SkipTest("Histech tiff test file not found, skipping")
-        cls.level = cls.tiler.get_level(0)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tiler.close()
-
-    @parameterized.expand(
+class TestHistechTiffTiler:
+    @pytest.mark.parametrize(
+        ["tile_point", "hash"],
         [
             ((50, 50), "221f47792ebef7b9e394fc6c8ed7cb64"),
             ((100, 100), "0a2e459e94e9237bb866b3bc1ac10cb8"),
-        ]
+        ],
     )
-    def test_get_tile(self, tile_point: Tuple[int, int], hash: str):
-        tile = self.level.get_tile(tile_point)
-        self.assertEqual(hash, md5(tile).hexdigest())
+    def test_get_tile(self, level: TiffImage, tile_point: Tuple[int, int], hash: str):
+        # Arrange
 
-    @parameterized.expand(
+        # Act
+        tile = level.get_tile(tile_point)
+
+        # Assert
+        assert md5(tile).hexdigest() == hash
+
+    @pytest.mark.parametrize(
+        ["tile_points", "hashes"],
         [
             (
                 [(50, 50), (100, 100)],
@@ -62,22 +66,46 @@ class HistechTiffTilerTest(unittest.TestCase):
                     "0a2e459e94e9237bb866b3bc1ac10cb8",
                 ],
             ),
-        ]
+        ],
     )
     def test_get_tiles(
-        self, tile_points: Sequence[Tuple[int, int]], hashes: Sequence[str]
+        self,
+        level: TiffImage,
+        tile_points: Sequence[Tuple[int, int]],
+        hashes: Sequence[str],
     ):
-        tiles = self.level.get_tiles(tile_points)
+        # Arrange
+
+        # Act
+        tiles = level.get_tiles(tile_points)
+
+        # assert
         for tile, hash in zip(tiles, hashes):
-            self.assertEqual(hash, md5(tile).hexdigest())
+            assert md5(tile).hexdigest() == hash
 
-    def test_photometric_interpretation(self):
-        self.assertEqual(
-            PHOTOMETRIC.YCBCR, self.tiler.get_level(0).photometric_interpretation
-        )
+    def test_photometric_interpretation(self, level: TiffImage):
+        # Arrange
 
-    def test_subsampling(self):
-        self.assertEqual(None, self.tiler.get_level(0).subsampling)
+        # Act
+        photometric_interpretation = level.photometric_interpretation
 
-    def test_sumples_per_pixel(self):
-        self.assertEqual(3, self.tiler.get_level(0).samples_per_pixel)
+        # Assert
+        assert photometric_interpretation == PHOTOMETRIC.YCBCR
+
+    def test_subsampling(self, level: TiffImage):
+        # Arrange
+
+        # Act
+        subsampling = level.subsampling
+
+        # Assert
+        assert subsampling is None
+
+    def test_sumples_per_pixel(self, level: TiffImage):
+        # Arrange
+
+        # Act
+        samples_per_pixel = level.samples_per_pixel
+
+        # Assert
+        assert samples_per_pixel == 3

@@ -13,7 +13,6 @@
 #    limitations under the License.
 
 from pathlib import Path
-import unittest
 
 import pytest
 from opentile import OpenTile
@@ -28,26 +27,22 @@ from .filepaths import (
 
 
 @pytest.mark.unittest
-class InterfaceTest(unittest.TestCase):
-    def test_open_svs(self):
-        self._test_open(svs_file_path)
+class TestInterface:
+    @pytest.mark.parametrize(
+        "file_path",
+        [
+            svs_file_path,
+            ndpi_file_path,
+            philips_file_path,
+            histech_file_path,
+            ome_tiff_file_path,
+        ],
+    )
+    def test_open(self, file_path: Path):
+        # Arrange
+        if not file_path.exists():
+            pytest.skip(f"{file_path} test file not found, skipping")
 
-    def test_open_ndpi(self):
-        self._test_open(ndpi_file_path)
-
-    def test_open_philips(self):
-        self._test_open(philips_file_path)
-
-    def test_open_histech(self):
-        self._test_open(histech_file_path)
-
-    def test_open_ome_tiff(self):
-        self._test_open(ome_tiff_file_path)
-
-    def _test_open(self, file: Path):
-        self._check_file_exists(file)
-        OpenTile.open(file)
-
-    def _check_file_exists(self, file: Path):
-        if not file.exists():
-            raise unittest.SkipTest(f"{file} test file not found, skipping")
+        # Act & Assert
+        with OpenTile.open(file_path):
+            pass

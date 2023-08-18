@@ -12,13 +12,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import unittest
 from datetime import datetime
 from hashlib import md5
 from typing import Sequence, Tuple, cast
 
 import pytest
-from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.formats import SvsTiler
@@ -28,35 +26,42 @@ from opentile.geometry import Point
 from .filepaths import svs_file_path
 
 
+@pytest.fixture()
+def tiler():
+    try:
+        with SvsTiler(svs_file_path) as tiler:
+            yield tiler
+    except FileNotFoundError:
+        pytest.skip("Svs test file not found, skipping")
+
+
+@pytest.fixture()
+def level(tiler: SvsTiler):
+    yield cast(SvsTiledImage, tiler.get_level(0))
+
+
 @pytest.mark.unittest
-class SvsTilerTest(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.tiler: SvsTiler
-
-    @classmethod
-    def setUpClass(cls):
-        try:
-            cls.tiler = SvsTiler(svs_file_path)
-        except FileNotFoundError:
-            raise unittest.SkipTest("Svs test file not found, skipping")
-        cls.level = cast(SvsTiledImage, cls.tiler.get_level(0))
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tiler.close()
-
-    @parameterized.expand(
+class TestSvsTiler:
+    @pytest.mark.parametrize(
+        ["tile_point", "hash"],
         [
             ((15, 25), "dd8402d5a7250ebfe9e33b3dfee3c1e1"),
             ((35, 30), "50f885cd7299bd3fff22743bfb4a4930"),
-        ]
+        ],
     )
-    def test_get_tile(self, tile_point: Tuple[int, int], hash: str):
-        tile = self.level.get_tile(tile_point)
-        self.assertEqual(hash, md5(tile).hexdigest())
+    def test_get_tile(
+        self, level: SvsTiledImage, tile_point: Tuple[int, int], hash: str
+    ):
+        # Arrange
 
-    @parameterized.expand(
+        # Act
+        tile = level.get_tile(tile_point)
+
+        # Assert
+        assert md5(tile).hexdigest() == hash
+
+    @pytest.mark.parametrize(
+        ["tile_points", "hashes"],
         [
             (
                 [(15, 25), (35, 30)],
@@ -65,56 +70,114 @@ class SvsTilerTest(unittest.TestCase):
                     "50f885cd7299bd3fff22743bfb4a4930",
                 ],
             ),
-        ]
+        ],
     )
     def test_get_tiles(
-        self, tile_points: Sequence[Tuple[int, int]], hashes: Sequence[str]
+        self,
+        level: SvsTiledImage,
+        tile_points: Sequence[Tuple[int, int]],
+        hashes: Sequence[str],
     ):
-        tiles = self.level.get_tiles(tile_points)
-        for tile, hash in zip(tiles, hashes):
-            self.assertEqual(hash, md5(tile).hexdigest())
+        # Arrange
 
-    @parameterized.expand(
+        # Act
+        tiles = level.get_tiles(tile_points)
+
+        # Assert
+        for tile, hash in zip(tiles, hashes):
+            assert md5(tile).hexdigest() == hash
+
+    @pytest.mark.parametrize(
+        ["tile_point", "hash"],
         [
             ((0, 0), "d9135db3b0bcc0d9e785754e760f80c4"),
             ((50, 50), "bd0599aa1becf3511fa122582ecc7e3d"),
-        ]
+        ],
     )
-    def test_get_scaled_tile(self, tile_point: Tuple[int, int], hash: str):
-        level = cast(SvsTiledImage, self.tiler.get_level(1))
-        tile = level._get_scaled_tile(Point.from_tuple(tile_point))
-        self.assertEqual(hash, md5(tile).hexdigest())
+    def test_get_scaled_tile(
+        self, tiler: SvsTiler, tile_point: Tuple[int, int], hash: str
+    ):
+        # Arrange
+        level = cast(SvsTiledImage, tiler.get_level(1))
 
-    @parameterized.expand(
+        # Act
+        tile = level._get_scaled_tile(Point.from_tuple(tile_point))
+
+        # Assert
+        assert md5(tile).hexdigest() == hash
+
+    @pytest.mark.parametrize(
+        ["tile", "right", "bottom"],
         [
             (Point(178, 127), False, False),
             (Point(178, 128), False, True),
             (Point(179, 127), True, False),
             (Point(179, 128), True, True),
-        ]
+        ],
     )
-    def test_tile_is_at_edge(self, tile: Point, right: bool, bottom: bool):
-        self.assertEqual(self.level._tile_is_at_right_edge(tile), right)
-        self.assertEqual(self.level._tile_is_at_bottom_edge(tile), bottom)
+    def test_tile_is_at_edge(
+        self, level: SvsTiledImage, tile: Point, right: bool, bottom: bool
+    ):
+        # Arrange
 
-    def test_detect_corrupt_edges(self):
-        self.assertEqual((False, False), self.level._detect_corrupt_edges())
+        # Act
+        tile_is_at_right_edge = level._tile_is_at_right_edge(tile)
+        tile_is_at_bottom_edge = level._tile_is_at_bottom_edge(tile)
 
-    def test_photometric_interpretation(self):
-        self.assertEqual(
-            PHOTOMETRIC.RGB, self.tiler.get_level(0).photometric_interpretation
-        )
+        # Assert
+        assert tile_is_at_right_edge == right
+        assert tile_is_at_bottom_edge == bottom
 
-    def test_subsampling(self):
-        self.assertEqual((2, 2), self.tiler.get_level(0).subsampling)
+    def test_detect_corrupt_edges(self, level: SvsTiledImage):
+        # Arrange
 
-    def test_sumples_per_pixel(self):
-        self.assertEqual(3, self.tiler.get_level(0).samples_per_pixel)
+        # Act
+        is_corrupt = level._detect_corrupt_edges()
 
-    def test_metadata_magnification(self):
-        self.assertEqual(20.0, self.tiler.metadata.magnification)
+        # Assert
+        assert is_corrupt == (False, False)
 
-    def test_metadata_aquisition_datetime(self):
-        self.assertEqual(
-            datetime(2009, 12, 29, 9, 59, 15), self.tiler.metadata.aquisition_datetime
-        )
+    def test_photometric_interpretation(self, level: SvsTiledImage):
+        # Arrange
+
+        # Act
+        photometric_interpretatation = level.photometric_interpretation
+
+        # Assert
+        assert photometric_interpretatation == PHOTOMETRIC.RGB
+
+    def test_subsampling(self, level: SvsTiledImage):
+        # Arrange
+
+        # Act
+        subsampling = level.subsampling
+
+        # Assert
+        assert subsampling == (2, 2)
+
+    def test_sumples_per_pixel(self, level: SvsTiledImage):
+        # Arrange
+
+        # Act
+        samples_per_pixel = level.samples_per_pixel
+
+        # Assert
+        assert samples_per_pixel == 3
+
+    def test_metadata_magnification(self, tiler: SvsTiler):
+        # Arrange
+
+        # Act
+        magnification = tiler.metadata.magnification
+
+        # Assert
+        assert magnification == 20.0
+
+    def test_metadata_aquisition_datetime(self, tiler: SvsTiler):
+        # Arrange
+
+        # Act
+        aquisition_datetime = tiler.metadata.aquisition_datetime
+
+        # Assert
+        assert aquisition_datetime == datetime(2009, 12, 29, 9, 59, 15)

@@ -12,48 +12,63 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import unittest
 from hashlib import md5
+from typing import Tuple
 
 import pytest
+
 from opentile.formats import OmeTiffTiler
+from opentile.tiff_image import TiffImage
 
 from .filepaths import ome_tiff_file_path
 
 
+@pytest.fixture()
+def tiler():
+    try:
+        with OmeTiffTiler(ome_tiff_file_path) as tiler:
+            yield tiler
+    except FileNotFoundError:
+        pytest.skip("Ome tiff test file not found, skipping")
+
+
+@pytest.fixture()
+def level(tiler: OmeTiffTiler):
+    yield tiler.get_level(0)
+
+
 @pytest.mark.unittest
-class OmeTiffTilerTest(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.tiler: OmeTiffTiler
+class TestOmeTiffTiler:
+    @pytest.mark.parametrize(
+        ["tile_point", "hash"],
+        [
+            ((0, 0), "646c70833b30aab095950424b59a0cf7"),
+            ((20, 20), "4c37c335b697aaf1550f77fd9e367f69"),
+        ],
+    )
+    def test_get_tile(self, level: TiffImage, tile_point: Tuple[int, int], hash: str):
+        # Arrange
 
-    @classmethod
-    def setUpClass(cls):
-        try:
-            cls.tiler = OmeTiffTiler(ome_tiff_file_path)
-        except FileNotFoundError:
-            raise unittest.SkipTest("Ome tiff test file not found, skipping")
-        cls.level = cls.tiler.get_level(0)
+        # Act
+        tile = level.get_tile(tile_point)
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.tiler.close()
+        # Assert
+        assert md5(tile).hexdigest() == hash
 
-    def test_get_tile(self):
-        tile = self.level.get_tile((0, 0))
-        self.assertEqual(
-            md5(tile).hexdigest(),
-            "646c70833b30aab095950424b59a0cf7",
-        )
+    def test_subsampling(self, level: TiffImage):
+        # Arrange
 
-        tile = self.level.get_tile((20, 20))
-        self.assertEqual(
-            md5(tile).hexdigest(),
-            "4c37c335b697aaf1550f77fd9e367f69",
-        )
+        # Act
+        subsampling = level.subsampling
 
-    def test_subsampling(self):
-        self.assertIsNone(self.tiler.get_level(0).subsampling)
+        # Assert
+        assert subsampling is None
 
-    def test_sumples_per_pixel(self):
-        self.assertEqual(self.tiler.get_level(0).samples_per_pixel, 3)
+    def test_sumples_per_pixel(self, level: TiffImage):
+        # Arrange
+
+        # Act
+        samples_per_pixel = level.samples_per_pixel
+
+        # Assert
+        assert samples_per_pixel == 3
