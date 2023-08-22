@@ -12,49 +12,53 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import unittest
 from datetime import datetime
 from hashlib import md5
 from typing import Sequence, Tuple
 
 import pytest
-from parameterized import parameterized
 from tifffile.tifffile import PHOTOMETRIC
 
 from opentile.formats import PhilipsTiffTiler
+from opentile.tiff_image import TiffImage
 
 from .filepaths import philips_file_path
 
 
+@pytest.fixture()
+def tiler():
+    try:
+        with PhilipsTiffTiler(philips_file_path) as tiler:
+            yield tiler
+    except FileNotFoundError:
+        pytest.skip("Philips tiff test file not found, skipping")
+
+
+@pytest.fixture()
+def level(tiler: PhilipsTiffTiler):
+    yield tiler.get_level(0)
+
+
 @pytest.mark.unittest
-class PhilipsTiffTilerTest(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.tiler: PhilipsTiffTiler
-
-    @classmethod
-    def setUpClass(cls):
-        try:
-            cls.tiler = PhilipsTiffTiler(philips_file_path)
-        except FileNotFoundError:
-            raise unittest.SkipTest("Philips tiff test file not found, skipping")
-        cls.level = cls.tiler.get_level(0)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tiler.close()
-
-    @parameterized.expand(
+class TestPhilipsTiffTiler:
+    @pytest.mark.parametrize(
+        ["tile_point", "hash"],
         [
             ((0, 0), "570d069f9de5d2716fb0d7167bc79195"),
             ((20, 20), "db28efb73a72ef7e2780fc72c624d7ae"),
-        ]
+        ],
     )
-    def test_get_tile(self, tile_point: Tuple[int, int], hash: str):
-        tile = self.level.get_tile(tile_point)
-        self.assertEqual(hash, md5(tile).hexdigest())
+    def test_get_tile(self, level: TiffImage, tile_point: Tuple[int, int], hash: str):
+        # Arrange
 
-    @parameterized.expand(
+        # Act
+        tile = level.get_tile(tile_point)
+
+        # Assert
+        assert md5(tile).hexdigest() == hash
+
+    @pytest.mark.parametrize(
+        ["tile_points", "hashes"],
         [
             (
                 [(0, 0), (20, 20)],
@@ -63,39 +67,82 @@ class PhilipsTiffTilerTest(unittest.TestCase):
                     "db28efb73a72ef7e2780fc72c624d7ae",
                 ],
             ),
-        ]
+        ],
     )
     def test_get_tiles(
-        self, tile_points: Sequence[Tuple[int, int]], hashes: Sequence[str]
+        self,
+        level: TiffImage,
+        tile_points: Sequence[Tuple[int, int]],
+        hashes: Sequence[str],
     ):
-        tiles = self.level.get_tiles(tile_points)
+        # Arrange
+
+        # Act
+        tiles = level.get_tiles(tile_points)
+
+        # Assert
         for tile, hash in zip(tiles, hashes):
-            self.assertEqual(hash, md5(tile).hexdigest())
+            assert md5(tile).hexdigest() == hash
 
-    def test_photometric_interpretation(self):
-        self.assertEqual(
-            PHOTOMETRIC.YCBCR, self.tiler.get_level(0).photometric_interpretation
-        )
+    def test_photometric_interpretation(self, level: TiffImage):
+        # Arrange
 
-    def test_subsampling(self):
-        self.assertEqual((2, 2), self.tiler.get_level(0).subsampling)
+        # Act
+        photometric_interpretation = level.photometric_interpretation
 
-    def test_sumples_per_pixel(self):
-        self.assertEqual(3, self.tiler.get_level(0).samples_per_pixel)
+        # Assert
+        assert photometric_interpretation == PHOTOMETRIC.YCBCR
 
-    def test_metadata_scanner_manufacturer(self):
-        self.assertEqual("PHILIPS", self.tiler.metadata.scanner_manufacturer)
+    def test_subsampling(self, level: TiffImage):
+        # Arrange
 
-    def test_metadata_scanner_software_versions(self):
-        self.assertEqual(
-            ["1.6.5505", "20111209_R44", "4.0.3"],
-            self.tiler.metadata.scanner_software_versions,
-        )
+        # Act
+        subsampling = level.subsampling
 
-    def test_metadata_scanner_serial_number(self):
-        self.assertIsNotNone(self.tiler.metadata.scanner_serial_number)
+        # Assert
+        assert subsampling == (2, 2)
 
-    def test_metadata_aquisition_datetime(self):
-        self.assertEqual(
-            datetime(2013, 7, 1, 18, 59, 4), self.tiler.metadata.aquisition_datetime
-        )
+    def test_sumples_per_pixel(self, level: TiffImage):
+        # Arrange
+
+        # Act
+        samples_per_pixel = level.samples_per_pixel
+
+        # Assert
+        assert samples_per_pixel == 3
+
+    def test_metadata_scanner_manufacturer(self, tiler: PhilipsTiffTiler):
+        # Arrange
+
+        # Act
+        scanner_manufacturer = tiler.metadata.scanner_manufacturer
+
+        # Assert
+        assert scanner_manufacturer == "PHILIPS"
+
+    def test_metadata_scanner_software_versions(self, tiler: PhilipsTiffTiler):
+        # Arrange
+
+        # Act
+        scanner_software_versions = tiler.metadata.scanner_software_versions
+
+        # Assert
+        assert scanner_software_versions == ["1.6.5505", "20111209_R44", "4.0.3"]
+
+    def test_metadata_scanner_serial_number(self, tiler: PhilipsTiffTiler):
+        # Arrange
+
+        # Act
+        scanner_serial_number = tiler.metadata.scanner_serial_number
+
+        # Assert
+        assert scanner_serial_number is not None
+
+    def test_metadata_aquisition_datetime(self, tiler: PhilipsTiffTiler):
+        # Arrange
+
+        # Act
+        aquisition_datetime = tiler.metadata.aquisition_datetime
+
+        # Assert
+        assert aquisition_datetime == datetime(2013, 7, 1, 18, 59, 4)

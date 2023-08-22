@@ -13,7 +13,6 @@
 #    limitations under the License.
 
 import os
-import unittest
 from hashlib import md5
 from pathlib import Path
 
@@ -27,34 +26,35 @@ ndpi_file_path = Path(test_data_dir).joinpath("slides/ndpi/CMU-1/CMU-1.ndpi")
 svs_file_path = Path(test_data_dir).joinpath("slides/svs/CMU-1/CMU-1.svs")
 
 
+@pytest.fixture()
+def ndpi_tiff():
+    with TiffFile(ndpi_file_path) as tiff:
+        yield tiff
+
+
+@pytest.fixture()
+def ndpi_level(ndpi_tiff: TiffFile):
+    yield ndpi_tiff.series[0].levels[0].pages[0]
+
+
+@pytest.fixture()
+def ndpi_header(ndpi_level: TiffPage):
+    yield ndpi_level.jpegheader
+
+
+@pytest.fixture()
+def svs_tiff():
+    with TiffFile(svs_file_path) as tiff:
+        yield tiff
+
+
+@pytest.fixture()
+def svs_overview(svs_tiff: TiffFile):
+    yield svs_tiff.series[3].pages[0]
+
+
 @pytest.mark.unittest
-class JpegTest(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.jpeg = Jpeg()
-
-    @classmethod
-    def setUpClass(cls):
-        try:
-            cls.ndpi_tiff = TiffFile(ndpi_file_path)
-            ndpi_level = cls.ndpi_tiff.series[0].levels[0].pages[0]
-            assert isinstance(ndpi_level, TiffPage)
-            cls.ndpi_level = ndpi_level
-            header = cls.ndpi_level.jpegheader
-            assert isinstance(header, bytes)
-            cls.ndpi_header = header
-            cls.svs_tiff = TiffFile(svs_file_path)
-            svs_overview = cls.svs_tiff.series[3].pages[0]
-            assert isinstance(svs_overview, TiffPage)
-            cls.svs_overview = svs_overview
-        except FileNotFoundError:
-            raise unittest.SkipTest("Svs or ndpi test file not found, skipping")
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.ndpi_tiff.close()
-        cls.svs_tiff.close()
-
+class TestJpeg:
     @staticmethod
     def read_frame(tiff: TiffFile, level: TiffPage, index: int) -> bytes:
         offset = level.dataoffsets[index]
@@ -62,46 +62,83 @@ class JpegTest(unittest.TestCase):
         tiff.filehandle.seek(offset)
         return tiff.filehandle.read(length)
 
-    def test_tags(self):
-        self.assertEqual(Jpeg.start_of_frame(), bytes([0xFF, 0xC0]))
-        self.assertEqual(Jpeg.end_of_image(), bytes([0xFF, 0xD9]))
-        self.assertEqual(Jpeg.restart_mark(0), bytes([0xD0]))
-        self.assertEqual(Jpeg.restart_mark(7), bytes([0xD7]))
-        self.assertEqual(Jpeg.restart_mark(9), bytes([0xD1]))
+    @pytest.mark.parametrize(
+        ["marker", "expected_bytes"],
+        [
+            (Jpeg.start_of_frame(), bytes([0xFF, 0xC0])),
+            (Jpeg.end_of_image(), bytes([0xFF, 0xD9])),
+            (Jpeg.restart_mark(0), bytes([0xD0])),
+            (Jpeg.restart_mark(7), bytes([0xD7])),
+            (Jpeg.restart_mark(9), bytes([0xD1])),
+        ],
+    )
+    def test_tags(self, marker: bytes, expected_bytes: bytes):
+        # Arrange
 
-    def test_find_tag(self):
-        index, length = Jpeg._find_tag(self.ndpi_header, Jpeg.start_of_frame())
-        self.assertEqual(621, index)
-        self.assertEqual(17, length)
+        # Act
 
-    def test_update_header(self):
+        # Assert
+        assert marker == expected_bytes
+
+    def test_find_tag(self, ndpi_header: bytes):
+        # Arrange
+
+        # Act
+        index, length = Jpeg._find_tag(ndpi_header, Jpeg.start_of_frame())
+
+        # Assert
+        assert index == 621
+        assert length == 17
+
+    def test_update_header(self, ndpi_header: bytes):
+        # Arrange
         target_size = Size(512, 200)
-        updated_header = Jpeg.manipulate_header(self.ndpi_header, target_size)
-        (stripe_width, stripe_height, _, _) = self.jpeg._turbo_jpeg.decode_header(
+        jpeg = Jpeg()
+
+        # Act
+        updated_header = Jpeg.manipulate_header(ndpi_header, target_size)
+
+        # Assert
+        (stripe_width, stripe_height, _, _) = jpeg._turbo_jpeg.decode_header(
             updated_header
         )
-        self.assertEqual(target_size, Size(stripe_width, stripe_height))
+        assert target_size == Size(stripe_width, stripe_height)
 
-    def test_concatenate_fragments(self):
-        frame = self.jpeg.concatenate_fragments(
-            (
-                self.read_frame(self.ndpi_tiff, self.ndpi_level, index)
-                for index in range(10)
-            ),
-            self.ndpi_header,
+    def test_concatenate_fragments(
+        self, ndpi_tiff: TiffFile, ndpi_level: TiffPage, ndpi_header: bytes
+    ):
+        # Arrange
+        jpeg = Jpeg()
+
+        # Act
+        frame = jpeg.concatenate_fragments(
+            (self.read_frame(ndpi_tiff, ndpi_level, index) for index in range(10)),
+            ndpi_header,
         )
-        self.assertEqual("ea40e78b081c42a6aabf8da81f976f11", md5(frame).hexdigest())
 
-    def test_concatenate_scans(self):
-        frame = self.jpeg.concatenate_scans(
+        # Assert
+        assert md5(frame).hexdigest() == "ea40e78b081c42a6aabf8da81f976f11"
+
+    def test_concatenate_scans(self, svs_tiff: TiffFile, svs_overview: TiffPage):
+        # Arrange
+        jpeg = Jpeg()
+
+        # Act
+        frame = jpeg.concatenate_scans(
             (
-                self.read_frame(self.svs_tiff, self.svs_overview, index)
-                for index in range(len(self.svs_overview.databytecounts))
+                self.read_frame(svs_tiff, svs_overview, index)
+                for index in range(len(svs_overview.databytecounts))
             ),
-            self.svs_overview.jpegtables,
+            svs_overview.jpegtables,
             True,
         )
-        self.assertEqual("fdde19f6d10994c5b866b43027ff94ed", md5(frame).hexdigest())
+        assert md5(frame).hexdigest() == "fdde19f6d10994c5b866b43027ff94ed"
 
     def test_code_short(self):
-        self.assertEqual(bytes([0x00, 0x06]), self.jpeg.code_short(6))
+        # Arrange
+        jpeg = Jpeg()
+
+        # Act
+
+        #
+        assert jpeg.code_short(6) == bytes([0x00, 0x06])
