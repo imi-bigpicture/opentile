@@ -22,7 +22,7 @@ PyTurboJPEG = "^1.6.1"
 Pillow = "^9.1.1"
 imagecodecs = "^2022.12.24"
 defusedxml = "^0.7.1"
-ome-types = "^0.3.4"
+ome-types = "^0.4.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.2.0"
