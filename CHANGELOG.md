@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -
 
+## [0.10.2] - 2023-08-29
+
+### Fixed
+
+- Bumped version of ome-types to support pydantic 2.0.
+
 ## [0.10.1] - 2023-07-07
 
 ### Fixed
