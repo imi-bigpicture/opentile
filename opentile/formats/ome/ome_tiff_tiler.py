@@ -76,7 +76,7 @@ class OmeTiffTiler(Tiler):
 
     def _get_optional_mpp(self, series_index: int) -> Optional[SizeMm]:
         assert self._tiff_file.ome_metadata is not None
-        metadata = ome_types.from_xml(self._tiff_file.ome_metadata, parser="lxml")
+        metadata = ome_types.from_xml(self._tiff_file.ome_metadata)
         pixels = metadata.images[series_index].pixels
         if (
             pixels.physical_size_x_unit != UnitsLength.MICROMETER
