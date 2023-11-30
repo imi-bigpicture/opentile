@@ -89,7 +89,7 @@ class PhilipsTiffMetadata(Metadata):
         if self._tags["DICOM_PIXEL_SPACING"] is None:
             return None
         values = self._split_and_cast_text(self._tags["DICOM_PIXEL_SPACING"], float)
-        return values[0], values[1]
+        return values[1], values[0]
 
     @cached_property
     def properties(self) -> Dict[str, Any]:
