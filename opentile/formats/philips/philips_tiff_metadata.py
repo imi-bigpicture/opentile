@@ -52,11 +52,12 @@ class PhilipsTiffMetadata(Metadata):
 
         metadata = ElementTree.fromstring(tiff_file.philips_metadata)
         self._tags: Dict[str, Optional[str]] = {tag: None for tag in self.TAGS}
-        for element in metadata.iter():
-            if element.tag == "Attribute" and element.text is not None:
-                name = element.attrib["Name"]
-                if name in self._tags and self._tags[name] is None:
-                    self._tags[name] = element.text
+        for element in metadata.iter("Attribute"):
+            if element.text is None:
+                continue
+            name = element.attrib["Name"]
+            if name in self._tags and self._tags[name] is None:
+                self._tags[name] = element.text
 
     @property
     def scanner_manufacturer(self) -> Optional[str]:
@@ -64,7 +65,6 @@ class PhilipsTiffMetadata(Metadata):
 
     @cached_property
     def scanner_software_versions(self) -> Optional[List[str]]:
-        print(self._tags["DICOM_SOFTWARE_VERSIONS"])
         if self._tags["DICOM_SOFTWARE_VERSIONS"] is None:
             return None
         return self._split_and_cast_text(self._tags["DICOM_SOFTWARE_VERSIONS"], str)
@@ -88,9 +88,8 @@ class PhilipsTiffMetadata(Metadata):
     def pixel_spacing(self) -> Optional[Tuple[float, float]]:
         if self._tags["DICOM_PIXEL_SPACING"] is None:
             return None
-        return tuple(
-            self._split_and_cast_text(self._tags["DICOM_PIXEL_SPACING"], float)[0:2]
-        )
+        values = self._split_and_cast_text(self._tags["DICOM_PIXEL_SPACING"], float)
+        return values[0], values[1]
 
     @cached_property
     def properties(self) -> Dict[str, Any]:
