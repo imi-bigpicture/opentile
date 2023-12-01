@@ -14,12 +14,12 @@
 
 """Image implementations for svs tiff files."""
 
-import io
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
+from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode
 from PIL import Image
-from tifffile.tifffile import COMPRESSION, TiffPage
+from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
@@ -335,23 +335,32 @@ class SvsTiledImage(NativeTiledTiffImage):
 
         # Return compressed image
         if self.compression == COMPRESSION.JPEG:
-            image_format = "jpeg"
-            image_options = {"quality": 95}
-        elif self.compression == COMPRESSION.APERIO_JP2000_RGB:
-            image_format = "jpeg2000"
-            image_options = {"irreversible": True}
-        else:
-            raise NotImplementedError("Non-supported compression")
-        with io.BytesIO() as buffer:
-            image.save(buffer, format=image_format, **image_options)
-            frame = buffer.getvalue()
-
+            if self._page.photometric == PHOTOMETRIC.RGB:
+                colorspace = JPEG8.CS.RGB
+            elif self._page.photometric == PHOTOMETRIC.YCBCR:
+                colorspace = JPEG8.CS.YCbCr
+            else:
+                raise NotImplementedError("Non-supported color space")
+            subsampling = self._page.subsampling
+            return jpeg8_encode(
+                np.array(image),
+                level=95,
+                colorspace=colorspace,
+                subsampling=subsampling,
+                lossless=False,
+                bitspersample=8,
+            )
         if self.compression == COMPRESSION.APERIO_JP2000_RGB:
-            # PIL encodes in jp2, find start of j2k and return from there.
-            START_TAGS = bytes([0xFF, 0x4F, 0xFF, 0x51])
-            start_index = frame.find(START_TAGS)
-            return frame[start_index:]
-        return frame
+            return jpeg2k_encode(
+                np.array(image),
+                level=80,
+                codecformat=JPEG2K.CODEC.J2K,
+                colorspace=JPEG2K.CLRSPC.SRGB,
+                bitspersample=8,
+                reversible=False,
+                mct=True,
+            )
+        raise NotImplementedError("Non-supported compression")
 
     def _get_fixed_tile(self, tile_point: Point) -> bytes:
         """Get or create a fixed tile inplace for a corrupt tile.
