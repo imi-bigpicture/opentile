@@ -14,7 +14,7 @@
 
 """Image implementations for svs tiff files."""
 
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode
@@ -321,11 +321,10 @@ class SvsTiledImage(NativeTiledTiffImage):
         # Insert decoded_tiles into image_data
         for y in range(scale):
             for x in range(scale):
-                image_data_index = y * scale + x
                 image_data[
                     y * self.tile_size.width : (y + 1) * self.tile_size.width,
                     x * self.tile_size.height : (x + 1) * self.tile_size.height,
-                ] = decoded_tiles[image_data_index]
+                ] = next(decoded_tiles)
 
         # Resize image_data using Pillow
         image: Image.Image = Image.fromarray(image_data)
@@ -401,7 +400,7 @@ class SvsTiledImage(NativeTiledTiffImage):
 
         return super().get_tile(tile_position)
 
-    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> List[bytes]:
+    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
         """Return list of image bytes for tiles at tile positions.
 
         Parameters
@@ -418,7 +417,7 @@ class SvsTiledImage(NativeTiledTiffImage):
             Point.from_tuple(tile_position) for tile_position in tile_positions
         ]
         if any(self._tile_is_corrupt(tile_point) for tile_point in tile_points):
-            return [self.get_tile(tile) for tile in tile_positions]
+            return (self.get_tile(tile) for tile in tile_positions)
         return super().get_tiles(tile_positions)
 
     def _tile_is_corrupt(self, tile_point: Point) -> bool:

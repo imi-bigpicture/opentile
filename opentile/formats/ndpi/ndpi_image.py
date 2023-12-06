@@ -16,7 +16,7 @@
 
 from abc import ABCMeta, abstractmethod
 from functools import cached_property, lru_cache
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 from tifffile.tifffile import COMPRESSION, TIFF, TiffPage
@@ -284,9 +284,9 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
         bytes
             Produced tile at position.
         """
-        return self.get_tiles([tile_position])[0]
+        return next(self.get_tiles([tile_position]))
 
-    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> List[bytes]:
+    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
         """Return list of image bytes for tile positions.
 
         Parameters
@@ -300,11 +300,11 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
             List of tile bytes.
         """
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
-        return [
+        return (
             tile
             for frame_job in frame_jobs
             for tile in self._create_tiles(frame_job).values()
-        ]
+        )
 
     def get_decoded_tiles(
         self, tile_positions: Sequence[Tuple[int, int]]
