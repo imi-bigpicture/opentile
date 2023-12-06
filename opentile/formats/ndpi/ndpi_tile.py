@@ -123,7 +123,7 @@ class NdpiFrameJob:
         first_tile = tiles.pop(0)
         self._position = first_tile.frame_position
         self._frame_size = first_tile.frame_size
-        self._tiles: List[NdpiTile] = [first_tile]
+        self._tiles = [first_tile]
         for tile in tiles:
             self.append(tile)
 

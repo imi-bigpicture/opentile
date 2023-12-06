@@ -278,7 +278,7 @@ class TiffImage(metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> List[bytes]:
+    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
         """Return list of image bytes for tiles at tile positions.
 
         Parameters
@@ -288,14 +288,14 @@ class TiffImage(metaclass=ABCMeta):
 
         Returns
         ----------
-        List[bytes]
-            List of tile bytes.
+        Iterator[bytes]
+            Iterator of tile bytes.
         """
-        return [self.get_tile(tile) for tile in tile_positions]
+        return (self.get_tile(tile) for tile in tile_positions)
 
     def get_decoded_tiles(
         self, tile_positions: Sequence[Tuple[int, int]]
-    ) -> List[np.ndarray]:
+    ) -> Iterator[np.ndarray]:
         """Return list of decoded tiles for tiles at tile positions.
 
         Parameters
@@ -305,10 +305,10 @@ class TiffImage(metaclass=ABCMeta):
 
         Returns
         ----------
-        List[np.ndarray]
+        Iterator[np.ndarray]
             List of decoded tiles.
         """
-        return [self.get_decoded_tile(tile) for tile in tile_positions]
+        return (self.get_decoded_tile(tile) for tile in tile_positions)
 
     def get_all_tiles(self, raw: bool = False) -> Iterator[bytes]:
         """Return iterator of all tiles in image.
@@ -441,7 +441,7 @@ class NativeTiledTiffImage(TiffImage, metaclass=ABCMeta):
             )
         return tile
 
-    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> List[bytes]:
+    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
         """Return image bytes for tiles at tile positions.
 
         Parameters
@@ -451,7 +451,7 @@ class NativeTiledTiffImage(TiffImage, metaclass=ABCMeta):
 
         Returns
         ----------
-        List[bytes]
+        Iterator[bytes]
             Produced tiles at positions.
         """
         tile_points = [
@@ -462,13 +462,13 @@ class NativeTiledTiffImage(TiffImage, metaclass=ABCMeta):
         ]
         tiles = self._read_frames(frame_indices)
         if self.page.jpegtables is not None:
-            tiles = [
+            return (
                 Jpeg.add_jpeg_tables(
                     tile, self.page.jpegtables, self._add_rgb_colorspace_fix
                 )
                 for tile in tiles
-            ]
-        return tiles
+            )
+        return iter(tiles)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         """Return decoded tile for tile position. Returns a white tile if tile

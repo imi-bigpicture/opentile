@@ -12,14 +12,13 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Lossless jpeg handling and encoding and decoding."""
+"""Lossless jpeg handling."""
 
 from pathlib import Path
 from struct import pack, unpack
 from typing import Iterator, List, Optional, Sequence, Tuple, Union
 
-import numpy as np
-from turbojpeg import TJPF_RGB, tjMCUHeight, tjMCUWidth
+from turbojpeg import tjMCUHeight, tjMCUWidth
 
 from opentile.geometry import Size
 from opentile.jpeg.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
@@ -181,36 +180,6 @@ class Jpeg:
             Frame with constant color from luminance.
         """
         return self._turbo_jpeg.fill_image(frame, luminance)
-
-    def decode(self, frame: bytes) -> np.ndarray:
-        """Decode frame to np array.
-
-        Parameters
-        ----------
-        frame: bytes
-            Frame to decode.
-
-        Returns
-        ----------
-        np.ndarray:
-            Decoded frame as np array.
-        """
-        return self._turbo_jpeg.decode(frame, pixel_format=TJPF_RGB)
-
-    def encode(self, data: np.ndarray) -> bytes:
-        """Encode np array to bytes.
-
-        Parameters
-        ----------
-        data: np.ndarray
-            Numpy array to encode.
-
-        Returns
-        ----------
-        bytes:
-            Encoded frame of data.
-        """
-        return self._turbo_jpeg.encode(data, pixel_format=TJPF_RGB)
 
     def crop_multiple(
         self, frame: bytes, crop_parameters: Sequence[Tuple[int, int, int, int]]

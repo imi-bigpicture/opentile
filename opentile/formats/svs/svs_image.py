@@ -14,12 +14,12 @@
 
 """Image implementations for svs tiff files."""
 
-import io
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
+from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode, jpeg8_decode
 from PIL import Image
-from tifffile.tifffile import COMPRESSION, TiffPage
+from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
@@ -92,7 +92,7 @@ class SvsStripedImage(TiffImage):
         bytes
             Produced tile at position.
         """
-        return self._jpeg.decode(self.get_tile(tile_position))
+        return jpeg8_decode(self.get_tile(tile_position))
 
 
 class SvsLZWImage(TiffImage):
@@ -143,7 +143,7 @@ class SvsLZWImage(TiffImage):
         bytes
             Produced tile at position.
         """
-        return self._jpeg.encode(self.get_decoded_tile(tile_position))
+        return jpeg8_encode(self.get_decoded_tile(tile_position))
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         """Return decoded tile for tile position.
@@ -321,11 +321,10 @@ class SvsTiledImage(NativeTiledTiffImage):
         # Insert decoded_tiles into image_data
         for y in range(scale):
             for x in range(scale):
-                image_data_index = y * scale + x
                 image_data[
                     y * self.tile_size.width : (y + 1) * self.tile_size.width,
                     x * self.tile_size.height : (x + 1) * self.tile_size.height,
-                ] = decoded_tiles[image_data_index]
+                ] = next(decoded_tiles)
 
         # Resize image_data using Pillow
         image: Image.Image = Image.fromarray(image_data)
@@ -335,23 +334,32 @@ class SvsTiledImage(NativeTiledTiffImage):
 
         # Return compressed image
         if self.compression == COMPRESSION.JPEG:
-            image_format = "jpeg"
-            image_options = {"quality": 95}
-        elif self.compression == COMPRESSION.APERIO_JP2000_RGB:
-            image_format = "jpeg2000"
-            image_options = {"irreversible": True}
-        else:
-            raise NotImplementedError("Non-supported compression")
-        with io.BytesIO() as buffer:
-            image.save(buffer, format=image_format, **image_options)
-            frame = buffer.getvalue()
-
+            if self._page.photometric == PHOTOMETRIC.RGB:
+                colorspace = JPEG8.CS.RGB
+            elif self._page.photometric == PHOTOMETRIC.YCBCR:
+                colorspace = JPEG8.CS.YCbCr
+            else:
+                raise NotImplementedError("Non-supported color space")
+            subsampling = self._page.subsampling
+            return jpeg8_encode(
+                np.array(image),
+                level=95,
+                colorspace=colorspace,
+                subsampling=subsampling,
+                lossless=False,
+                bitspersample=8,
+            )
         if self.compression == COMPRESSION.APERIO_JP2000_RGB:
-            # PIL encodes in jp2, find start of j2k and return from there.
-            START_TAGS = bytes([0xFF, 0x4F, 0xFF, 0x51])
-            start_index = frame.find(START_TAGS)
-            return frame[start_index:]
-        return frame
+            return jpeg2k_encode(
+                np.array(image),
+                level=80,
+                codecformat=JPEG2K.CODEC.J2K,
+                colorspace=JPEG2K.CLRSPC.SRGB,
+                bitspersample=8,
+                reversible=False,
+                mct=True,
+            )
+        raise NotImplementedError("Non-supported compression")
 
     def _get_fixed_tile(self, tile_point: Point) -> bytes:
         """Get or create a fixed tile inplace for a corrupt tile.
@@ -392,7 +400,7 @@ class SvsTiledImage(NativeTiledTiffImage):
 
         return super().get_tile(tile_position)
 
-    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> List[bytes]:
+    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
         """Return list of image bytes for tiles at tile positions.
 
         Parameters
@@ -402,14 +410,14 @@ class SvsTiledImage(NativeTiledTiffImage):
 
         Returns
         ----------
-        List[bytes]
+        Iterator[bytes]
             List of tile bytes.
         """
         tile_points = [
             Point.from_tuple(tile_position) for tile_position in tile_positions
         ]
         if any(self._tile_is_corrupt(tile_point) for tile_point in tile_points):
-            return [self.get_tile(tile) for tile in tile_positions]
+            return (self.get_tile(tile) for tile in tile_positions)
         return super().get_tiles(tile_positions)
 
     def _tile_is_corrupt(self, tile_point: Point) -> bool:
