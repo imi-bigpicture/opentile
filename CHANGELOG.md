@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -
 
+## [0.11.1] - 2023-12-06
+
+### Fixed
+
+- Missing jpeg headers when using TurboJpeg 3.
+- Check for either `libturbojpeg.dll` or `turbojpeg.dll`.
+
 ## [0.11.0] - 2023-12-06
 
 ### Changed
