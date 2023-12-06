@@ -58,13 +58,15 @@ def find_turbojpeg_path() -> Optional[Path]:
         return Path(turbojpeg_lib_path)
     turbojpeg_lib_dir = os.environ.get("TURBOJPEG")
     if turbojpeg_lib_dir is not None:
-        turbojpeg_lib_path = Path(turbojpeg_lib_dir).joinpath("turbojpeg.dll")
-        if turbojpeg_lib_path.exists():
-            return turbojpeg_lib_path
+        dll_names = ("libturbojpeg.dll", "turbojpeg.dll")
+        for dll_name in dll_names:
+            turbojpeg_lib_path = Path(turbojpeg_lib_dir).joinpath(dll_name)
+            if turbojpeg_lib_path.exists():
+                return turbojpeg_lib_path
     raise ModuleNotFoundError(
-        "Could not find turbojpeg.dll in the directories specified "
+        "Could not find libturbojpeg.dll or turbojpeg.dll in the directories specified "
         "in the `Path` or `TURBOJPEG` environmental variable. Please add the "
-        "directory with turbojpeg.dll to the `Path` or `TURBOJPEG` "
+        "directory with libturbojpeg.dll or turbojpeg.dll to the `Path` or `TURBOJPEG` "
         "environmental variable."
     )
 
