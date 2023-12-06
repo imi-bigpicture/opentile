@@ -181,7 +181,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.10.4..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.11.1..HEAD
+[0.11.1]: https://github.com/imi-bigpicture/opentile/compare/v0.11.0..v0.11.1
+[0.11.0]: https://github.com/imi-bigpicture/opentile/compare/v0.10.4..v0.11.0
 [0.10.4]: https://github.com/imi-bigpicture/opentile/compare/v0.10.3..v0.10.4
 [0.10.3]: https://github.com/imi-bigpicture/opentile/compare/v0.10.2..v0.10.3
 [0.10.2]: https://github.com/imi-bigpicture/opentile/compare/v0.10.1..v0.10.2
