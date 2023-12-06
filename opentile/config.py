@@ -28,7 +28,7 @@ class Settings:
         return self._ndpi_frame_cache
 
     @ndpi_frame_cache.setter
-    def ndpi_frame_cache(self, value: bool) -> None:
+    def ndpi_frame_cache(self, value: int) -> None:
         self._ndpi_frame_cache = value
 
 
