@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -
 
+## [0.11.0] - 2023-12-06
+
+### Change
+
+- Return iterators of tiles instead of lists.
+- Encode Jpeg and Jpeg 2000 using imagecodecs.
+
 ## [0.10.4] - 2023-11-30
 
 ### Fixed

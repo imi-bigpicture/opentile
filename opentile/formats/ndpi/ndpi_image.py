@@ -19,6 +19,7 @@ from functools import cached_property, lru_cache
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
+from imagecodecs import jpeg8_decode
 from tifffile.tifffile import COMPRESSION, TIFF, TiffPage
 
 from opentile.config import settings
@@ -119,7 +120,7 @@ class NdpiImage(TiffImage):
             Produced tile at position.
         """
         tile = self.get_tile(tile_position)
-        return self._jpeg.decode(tile)
+        return jpeg8_decode(tile)
 
     def _get_mpp_from_page(self) -> SizeMm:
         """Return pixel spacing in um/pixel."""
@@ -296,7 +297,7 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
 
         Returns
         ----------
-        List[bytes]
+        Iterator[bytes]
             List of tile bytes.
         """
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
@@ -308,7 +309,7 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
 
     def get_decoded_tiles(
         self, tile_positions: Sequence[Tuple[int, int]]
-    ) -> List[np.ndarray]:
+    ) -> Iterator[np.ndarray]:
         """Return list of decoded tiles for tiles at tile positions.
 
         Parameters
@@ -318,15 +319,15 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
 
         Returns
         ----------
-        List[np.ndarray]
-            List of decoded tiles.
+        Iterator[np.ndarray]
+            Iterator of decoded tiles.
         """
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
-        return [
-            self._jpeg.decode(tile)
+        return (
+            jpeg8_decode(tile)
             for frame_job in frame_jobs
             for tile in self._create_tiles(frame_job).values()
-        ]
+        )
 
     def _create_tiles(self, frame_job: NdpiFrameJob) -> Dict[Point, bytes]:
         """Return tiles defined by frame job. Read frames are cached by
@@ -365,7 +366,7 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
             Created tiles ordered by tile coordinate.
         """
         try:
-            tiles: List[bytes] = self._jpeg.crop_multiple(
+            tiles = self._jpeg.crop_multiple(
                 frame, frame_job.crop_parameters
             )
         except JpegCropError:

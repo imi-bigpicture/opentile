@@ -288,8 +288,8 @@ class TiffImage(metaclass=ABCMeta):
 
         Returns
         ----------
-        List[bytes]
-            List of tile bytes.
+        Iterator[bytes]
+            Iterator of tile bytes.
         """
         return (self.get_tile(tile) for tile in tile_positions)
 
@@ -305,7 +305,7 @@ class TiffImage(metaclass=ABCMeta):
 
         Returns
         ----------
-        List[np.ndarray]
+        Iterator[np.ndarray]
             List of decoded tiles.
         """
         return (self.get_decoded_tile(tile) for tile in tile_positions)
@@ -451,7 +451,7 @@ class NativeTiledTiffImage(TiffImage, metaclass=ABCMeta):
 
         Returns
         ----------
-        List[bytes]
+        Iterator[bytes]
             Produced tiles at positions.
         """
         tile_points = [

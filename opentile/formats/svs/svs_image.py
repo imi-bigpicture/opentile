@@ -17,7 +17,7 @@
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
-from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode
+from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode, jpeg8_decode
 from PIL import Image
 from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
@@ -92,7 +92,7 @@ class SvsStripedImage(TiffImage):
         bytes
             Produced tile at position.
         """
-        return self._jpeg.decode(self.get_tile(tile_position))
+        return jpeg8_decode(self.get_tile(tile_position))
 
 
 class SvsLZWImage(TiffImage):
@@ -143,7 +143,7 @@ class SvsLZWImage(TiffImage):
         bytes
             Produced tile at position.
         """
-        return self._jpeg.encode(self.get_decoded_tile(tile_position))
+        return jpeg8_encode(self.get_decoded_tile(tile_position))
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         """Return decoded tile for tile position.
@@ -410,7 +410,7 @@ class SvsTiledImage(NativeTiledTiffImage):
 
         Returns
         ----------
-        List[bytes]
+        Iterator[bytes]
             List of tile bytes.
         """
         tile_points = [

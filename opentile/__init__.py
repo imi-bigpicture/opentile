@@ -12,7 +12,9 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+__all__ = ["OpenTile", "Metadata"]
+
 from opentile.opentile import OpenTile
 from opentile.metadata import Metadata
 
-__version__ = "0.10.4"
+__version__ = "0.11.0"
