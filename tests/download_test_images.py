@@ -29,6 +29,7 @@ FILES: Dict[str, Dict[str, Any]] = {
     },
 }
 
+DEFAULT_SLIDE_FOLDER = "tests/testdata/slides"
 DOWNLOAD_CHUNK_SIZE = 8192
 
 
@@ -42,7 +43,6 @@ def download_file(url: str, filename: Path):
 
 def main():
     print("Downloading and/or checking testdata from cytomine.")
-    DEFAULT_SLIDE_FOLDER = "tests/testdata/slides"
 
     slide_folder = os.environ.get("OPENTILE_TESTDIR")
     if slide_folder is None:
