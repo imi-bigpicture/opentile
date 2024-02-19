@@ -19,11 +19,11 @@ import requests
 from hashlib import md5
 
 FILES: Dict[str, Dict[str, Any]] = {
-    "slides/svs/CMU-1/CMU-1.svs": {
+    "svs/CMU-1/CMU-1.svs": {
         "url": "https://data.cytomine.coop/open/openslide/aperio-svs/CMU-1.svs",  # NOQA
         "md5": {"CMU-1.svs": "751b0b86a3c5ff4dfc8567cf24daaa85"},
     },
-    "slides/ndpi/CMU-1/CMU-1.ndpi": {
+    "ndpi/CMU-1/CMU-1.ndpi": {
         "url": "https://data.cytomine.coop/open/openslide/hamamatsu-ndpi/CMU-1.ndpi",  # NOQA
         "md5": {"CMU-1.ndpi": "fb89dea54f85fb112e418a3cf4c7888a"},
     },
