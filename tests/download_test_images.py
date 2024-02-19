@@ -44,15 +44,15 @@ def download_file(url: str, filename: Path):
 def main():
     print("Downloading and/or checking testdata from cytomine.")
 
-    slide_folder = os.environ.get("OPENTILE_TESTDIR")
-    if slide_folder is None:
+    test_data_folder = os.environ.get("OPENTILE_TESTDIR")
+    if test_data_folder is None:
         slide_folder = Path(DEFAULT_SLIDE_FOLDER)
         print(
             'Env "OPENTILE_TESTDIR"" not set, downloading to default folder '
             f"{slide_folder}."
         )
     else:
-        slide_folder = Path(slide_folder)
+        slide_folder = Path(test_data_folder).joinpath("slides")
         print(f"Downloading to {slide_folder}")
     os.makedirs(slide_folder, exist_ok=True)
     for file, file_settings in FILES.items():
