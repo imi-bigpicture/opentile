@@ -14,7 +14,7 @@ jobs:
         uses: actions/cache@v4
         with:
           key: test-images-cache-${{ hashFiles('tests/download_test_images.py') }}
-          path: OPENTILE_TESTDATA
+          path: tests/testdata/slides
           enableCrossOsArchive: true
       - name: Download test images
         if: ${{ steps.cache-test-images.outputs.cache-hit != 'true' }}
@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache@v4
         with:
           key: test-images-cache-${{ hashFiles('tests/download_test_images.py') }}
-          path: OPENTILE_TESTDATA
+          path: tests/testdata/slides
           enableCrossOsArchive: true
           fail-on-cache-miss: true
       - name: Set up Ubuntu
