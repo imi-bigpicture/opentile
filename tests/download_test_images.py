@@ -19,17 +19,17 @@ import requests
 from hashlib import md5
 
 FILES: Dict[str, Dict[str, Any]] = {
-    "slides/svs/CMU-1/CMU-1.svs": {
+    "svs/CMU-1/CMU-1.svs": {
         "url": "https://data.cytomine.coop/open/openslide/aperio-svs/CMU-1.svs",  # NOQA
         "md5": {"CMU-1.svs": "751b0b86a3c5ff4dfc8567cf24daaa85"},
     },
-    "slides/ndpi/CMU-1/CMU-1.ndpi": {
+    "ndpi/CMU-1/CMU-1.ndpi": {
         "url": "https://data.cytomine.coop/open/openslide/hamamatsu-ndpi/CMU-1.ndpi",  # NOQA
         "md5": {"CMU-1.ndpi": "fb89dea54f85fb112e418a3cf4c7888a"},
     },
 }
 
-DEFAULT_DIR = "testdata"
+DEFAULT_SLIDE_FOLDER = "tests/testdata/slides"
 DOWNLOAD_CHUNK_SIZE = 8192
 
 
@@ -43,19 +43,20 @@ def download_file(url: str, filename: Path):
 
 def main():
     print("Downloading and/or checking testdata from cytomine.")
-    test_data_path = os.environ.get("OPENTILE_TESTDIR")
-    if test_data_path is None:
-        test_data_dir = Path(DEFAULT_DIR)
+
+    test_data_folder = os.environ.get("OPENTILE_TESTDIR")
+    if test_data_folder is None:
+        slide_folder = Path(DEFAULT_SLIDE_FOLDER)
         print(
             'Env "OPENTILE_TESTDIR"" not set, downloading to default folder '
-            f"{test_data_dir}."
+            f"{slide_folder}."
         )
     else:
-        test_data_dir = Path(test_data_path)
-        print(f"Downloading to {test_data_dir}")
-    os.makedirs(test_data_dir, exist_ok=True)
+        slide_folder = Path(test_data_folder).joinpath("slides")
+        print(f"Downloading to {slide_folder}")
+    os.makedirs(slide_folder, exist_ok=True)
     for file, file_settings in FILES.items():
-        file_path = test_data_dir.joinpath(file)
+        file_path = slide_folder.joinpath(file)
         if file_path.exists():
             print(f"{file} found, skipping download")
         else:
