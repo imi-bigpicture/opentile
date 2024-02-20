@@ -15,7 +15,7 @@
 """Main interface for OpenTile."""
 
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Type, Union
+from typing import Any, BinaryIO, Dict, Optional, Tuple, Type, Union
 
 from tifffile import TiffFile, TiffFileError
 
@@ -26,15 +26,18 @@ from opentile.formats import (
     PhilipsTiffTiler,
     SvsTiler,
 )
+from fsspec.core import open
 from opentile.tiler import Tiler
+from upath import UPath
 
 
 class OpenTile:
     @classmethod
     def open(
         cls,
-        filepath: Union[str, Path],
+        filepath: Union[str, Path, UPath],
         tile_size: int = 512,
+        file_options: Optional[Dict[str, str]] = None,
         turbo_path: Optional[Union[str, Path]] = None,
     ) -> Tiler:
         """Return a file type specific tiler for tiff file in filepath.
@@ -43,14 +46,16 @@ class OpenTile:
 
         Parameters
         ----------
-        filepath: Union[str, Path]
+        filepath: Union[str, Path, UPath]
             Path to tiff file.
         tile_size: int = 512
             Tile size for creating tiles, if needed for file format.
+        file_options: Optional[Dict[str, str]] = None
+            Options to pass to filesystem when opening file.
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
         """
-        format, supported_tiler = cls.get_tiler(filepath)
+        format, supported_tiler = cls.get_tiler(filepath, file_options)
         if supported_tiler is NdpiTiler:
             return NdpiTiler(filepath, tile_size, turbo_path)
 
@@ -70,7 +75,8 @@ class OpenTile:
 
     @staticmethod
     def get_tiler(
-        filepath: Union[str, Path]
+        filepath: Union[str, Path, UPath],
+        file_options: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Optional[str], Optional[Type[Tiler]]]:
         """Return tiler that supports the tiff file in filepath, or None if
         not supported"""
@@ -82,7 +88,8 @@ class OpenTile:
             "ome-tiff tiler": OmeTiffTiler,
         }
         try:
-            tiff_file = TiffFile(filepath)
+            file: BinaryIO = open(str(filepath), **file_options or {})  # type: ignore
+            tiff_file = TiffFile(file)
             return next(
                 (tiler_name, tiler)
                 for (tiler_name, tiler) in tilers.items()
@@ -92,6 +99,10 @@ class OpenTile:
             return None, None
 
     @classmethod
-    def detect_format(cls, filepath: Union[str, Path]) -> Optional[str]:
-        format, supported_tiler = cls.get_tiler(filepath)
+    def detect_format(
+        cls,
+        filepath: Union[str, Path, UPath],
+        file_options: Optional[Dict[str, str]] = None,
+    ) -> Optional[str]:
+        format, supported_tiler = cls.get_tiler(filepath, file_options)
         return format

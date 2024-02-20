@@ -16,27 +16,36 @@
 
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
 from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
+from upath import UPath
 
 from opentile.geometry import Size
 from opentile.metadata import Metadata
 from opentile.tiff_image import LockableFileHandle, TiffImage
+from fsspec.core import open
 
 
 class Tiler(metaclass=ABCMeta):
     """Base class for reading images from TiffFile."""
 
-    def __init__(self, filepath: Path):
+    def __init__(
+        self,
+        filepath: Union[str, Path, UPath],
+        file_options: Optional[Dict[str, Any]] = None,
+    ):
         """Base class for reading images from TiffFile.
 
         Parameters
         ----------
-        filepath: Path
+        filepath: Union[str, Path, UPath]
             Filepath to a TiffFile.
+        file_options: Optional[Dict[str, Any]]
+            Options to pass to filesystem when opening file.
         """
-        self._tiff_file = TiffFile(filepath)
+        file: BinaryIO = open(str(filepath), **file_options or {})  # type: ignore
+        self._tiff_file = TiffFile(file)
         self._fh = LockableFileHandle(self._tiff_file.filehandle)
         self._level_series_index = 0
         self._overview_series_index: Optional[int] = None

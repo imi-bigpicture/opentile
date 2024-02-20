@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from tifffile.tifffile import TiffFile, TiffPageSeries
+from upath import UPath
 
 from opentile.formats.svs.svs_image import SvsLZWImage, SvsStripedImage, SvsTiledImage
 from opentile.formats.svs.svs_metadata import SvsMetadata
@@ -30,16 +31,18 @@ from opentile.tiler import TiffImage, Tiler
 
 class SvsTiler(Tiler):
     def __init__(
-        self, filepath: Union[str, Path], turbo_path: Optional[Union[str, Path]] = None
+        self,
+        filepath: Union[str, Path, UPath],
+        turbo_path: Optional[Union[str, Path]] = None,
     ):
         """Tiler for svs file.
 
         Parameters
         ----------
-        filepath: Union[str, Path]
+        filepath: Union[str, Path, UPath]
             Filepath to a svs TiffFile.
         """
-        super().__init__(Path(filepath))
+        super().__init__(filepath)
         self._jpeg = Jpeg(turbo_path)
         if "InterColorProfile" in self._tiff_file.pages.first.tags:
             icc_profile = self._tiff_file.pages.first.tags["InterColorProfile"].value

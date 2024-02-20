@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
+from upath import UPath
 
 from opentile.formats.philips.philips_tiff_image import PhilipsTiffImage
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
@@ -31,18 +32,20 @@ from opentile.tiler import Tiler
 
 class PhilipsTiffTiler(Tiler):
     def __init__(
-        self, filepath: Union[str, Path], turbo_path: Optional[Union[str, Path]] = None
+        self,
+        filepath: Union[str, Path, UPath],
+        turbo_path: Optional[Union[str, Path]] = None,
     ):
         """Tiler for Philips tiff file.
 
         Parameters
         ----------
-        filepath: Union[str, Path]
+        filepath: Union[str, Path, UPath]
             Filepath to a Philips-TiffFile.
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
         """
-        super().__init__(Path(filepath))
+        super().__init__(filepath)
         self._jpeg = Jpeg(turbo_path)
         self._metadata = PhilipsTiffMetadata(self._tiff_file)
         assert self._metadata.pixel_spacing is not None

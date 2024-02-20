@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from tifffile.tifffile import TiffFile, TiffPageSeries
+from upath import UPath
 
 from opentile.formats.histech.histech_tiff_image import HistechTiffImage
 from opentile.jpeg import Jpeg
@@ -29,18 +30,19 @@ from opentile.tiler import Tiler
 
 class HistechTiffTiler(Tiler):
     def __init__(
-        self, filepath: Union[str, Path], turbo_path: Optional[Union[str, Path]] = None
+        self,
+        filepath: Union[str, Path, UPath],
+        turbo_path: Optional[Union[str, Path]] = None,
     ):
         """Tiler for 3DHistech tiff file.
 
         Parameters
         ----------
-        filepath: Union[str, Path]
+        filepath: Union[str, Path, UPath]
             Filepath to a 3DHistech-TiffFile.
         """
-        super().__init__(Path(filepath))
-        self._turbo_path = turbo_path
-        self._jpeg = Jpeg(self._turbo_path)
+        super().__init__(UPath(filepath))
+        self._jpeg = Jpeg(turbo_path)
 
     @property
     def metadata(self) -> Metadata:
@@ -60,10 +62,10 @@ class HistechTiffTiler(Tiler):
         )
 
     def get_label(self, page: int = 0) -> TiffImage:
-        return super().get_label(page)
+        raise NotImplementedError()
 
     def get_overview(self, page: int = 0) -> TiffImage:
-        return super().get_overview(page)
+        raise NotImplementedError()
 
     @staticmethod
     def _is_level_series(series: TiffPageSeries) -> bool:

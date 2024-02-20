@@ -366,9 +366,7 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
             Created tiles ordered by tile coordinate.
         """
         try:
-            tiles = self._jpeg.crop_multiple(
-                frame, frame_job.crop_parameters
-            )
+            tiles = self._jpeg.crop_multiple(frame, frame_job.crop_parameters)
         except JpegCropError:
             raise ValueError(
                 f"Failed to crop at position {frame_job.position} with "
