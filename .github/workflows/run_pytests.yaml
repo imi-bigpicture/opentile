@@ -7,6 +7,10 @@ jobs:
     name: cache test images
     runs-on: ubuntu-latest
     steps:
+      - name: Prevent cache-miss on windows
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Load test images from cache
@@ -34,6 +38,10 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
+      - name: Prevent cache-miss on windows
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up Python
