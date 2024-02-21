@@ -1,4 +1,4 @@
-#    Copyright 2021-2023 SECTRA AB
+#    Copyright 2021-2024 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -366,9 +366,7 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
             Created tiles ordered by tile coordinate.
         """
         try:
-            tiles = self._jpeg.crop_multiple(
-                frame, frame_job.crop_parameters
-            )
+            tiles = self._jpeg.crop_multiple(frame, frame_job.crop_parameters)
         except JpegCropError:
             raise ValueError(
                 f"Failed to crop at position {frame_job.position} with "

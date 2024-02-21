@@ -1,4 +1,4 @@
-name: opentile pytest
+name: pytest
 
 on: [push, pull_request]
 

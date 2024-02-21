@@ -1,4 +1,4 @@
-#    Copyright 2021-2023 SECTRA AB
+#    Copyright 2021-2024 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
+from upath import UPath
 
 from opentile.formats.ndpi.ndpi_image import (
     NdpiCroppedImage,
@@ -37,7 +38,7 @@ from opentile.tiler import Tiler
 class NdpiTiler(Tiler):
     def __init__(
         self,
-        filepath: Union[str, Path],
+        filepath: Union[str, Path, UPath],
         tile_size: int,
         turbo_path: Optional[Union[str, Path]] = None,
         label_crop_position: float = 0.3,
@@ -47,7 +48,7 @@ class NdpiTiler(Tiler):
 
         Parameters
         ----------
-        filepath: Union[str, Path]
+        filepath: Union[str, Path, UPath]
             Filepath to a ndpi TiffFile.
         tile_size: int
             Tile size to cache and produce. Must be multiple of 8 and will be
@@ -60,7 +61,7 @@ class NdpiTiler(Tiler):
             the label and overview image from the macro image.
 
         """
-        super().__init__(Path(filepath))
+        super().__init__(filepath)
         self._tile_size = Size(tile_size, tile_size)
         self._tile_size = self._adjust_tile_size(
             tile_size, self._get_smallest_stripe_width()

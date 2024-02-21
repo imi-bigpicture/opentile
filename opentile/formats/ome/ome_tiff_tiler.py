@@ -1,4 +1,4 @@
-#    Copyright 2022-2023 SECTRA AB
+#    Copyright 2022-2024 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from typing import Optional, Union
 import ome_types
 from ome_types.model.simple_types import UnitsLength
 from tifffile.tifffile import TiffFile, TiffPageSeries
+from upath import UPath
 
 from opentile.formats.ome.ome_tiff_image import (
     OmeTiffImage,
@@ -41,11 +42,12 @@ class OmeTiffTiler(Tiler):
     the same tables)."""
 
     def __init__(
-        self, filepath: Union[str, Path], turbo_path: Optional[Union[str, Path]] = None
+        self,
+        filepath: Union[str, Path, UPath],
+        turbo_path: Optional[Union[str, Path]] = None,
     ):
-        super().__init__(Path(filepath))
-        self._turbo_path = turbo_path
-        self._jpeg = Jpeg(self._turbo_path)
+        super().__init__(filepath)
+        self._jpeg = Jpeg(turbo_path)
         self._base_mpp = self._get_mpp(self._level_series_index)
 
     @property

@@ -15,3 +15,5 @@
 """Module containing implementation for reading OME tiff files."""
 
 from opentile.formats.ome.ome_tiff_tiler import OmeTiffTiler
+
+__all__ = ["OmeTiffTiler"]

@@ -15,3 +15,5 @@
 """Module containing implementation for reading Philips tiff files."""
 
 from opentile.formats.philips.philips_tiff_tiler import PhilipsTiffTiler
+
+__all__ = ["PhilipsTiffTiler"]

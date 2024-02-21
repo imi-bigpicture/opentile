@@ -416,7 +416,6 @@ class TiffImage(metaclass=ABCMeta):
 
 
 class NativeTiledTiffImage(TiffImage, metaclass=ABCMeta):
-
     """Meta class for images that are natively tiled (e.g. not ndpi)"""
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:

@@ -1,4 +1,4 @@
-#    Copyright 2021-2023 SECTRA AB
+#    Copyright 2021-2024 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -17,4 +17,4 @@ __all__ = ["OpenTile", "Metadata"]
 from opentile.opentile import OpenTile
 from opentile.metadata import Metadata
 
-__version__ = "0.11.2"
+__version__ = "0.12.0"

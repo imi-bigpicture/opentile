@@ -15,3 +15,5 @@
 """Module containing jpeg handling."""
 
 from opentile.jpeg.jpeg import Jpeg, JpegCropError
+
+__all__ = ["Jpeg", "JpegCropError"]

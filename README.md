@@ -80,6 +80,13 @@ tile_size = (1024, 1024)
 tiler = OpenTile.open(path_to_ndpi_file, tile_size)
 ```
 
+***Load a file using fsspec and with some file options.***
+
+```python
+from opentile import OpenTile
+tiler = OpenTile.open("s3://bucket/key", file_options={"s3": "anon": True})
+```
+
 ***If turbo jpeg library path is not found.***
 
 ```python
@@ -152,6 +159,6 @@ Our aim is to provide constructive and positive code reviews for all submissions
 
 ## Acknowledgement
 
-*opentile*: Copyright 2021-2023 Sectra AB, licensed under Apache 2.0.
+*opentile*: Copyright 2021-2024 Sectra AB, licensed under Apache 2.0.
 
 This project is part of a project that has received funding from the Innovative Medicines Initiative 2 Joint Undertaking under grant agreement No 945358. This Joint Undertaking receives support from the European Union’s Horizon 2020 research and innovation programme and EFPIA. IMI website: www.imi.europa.eu
