@@ -15,3 +15,5 @@
 """Module containing implementation for reading 3Dhistech tiff files."""
 
 from opentile.formats.histech.histech_tiff_tiler import HistechTiffTiler
+
+__all__ = ["HistechTiffTiler"]

@@ -15,3 +15,5 @@
 """Module containing implementation for reading ndpi files."""
 
 from opentile.formats.ndpi.ndpi_tiler import NdpiTiler
+
+__all__ = ["NdpiTiler"]
