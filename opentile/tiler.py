@@ -50,7 +50,6 @@ class Tiler(metaclass=ABCMeta):
             self._file = file
         else:
             self._file = OpenTileFile(file, file_options)
-        self._fh = self._file.fh
         self._level_series_index = 0
         self._overview_series_index: Optional[int] = None
         self._label_series_index: Optional[int] = None

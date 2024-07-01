@@ -63,7 +63,7 @@ class HistechTiffTiler(Tiler):
     def get_level(self, level: int, page: int = 0) -> TiffImage:
         return HistechTiffImage(
             self._get_tiff_page(self._level_series_index, level, page),
-            self._file.fh,
+            self._file,
             self.base_size,
         )
 

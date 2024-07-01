@@ -19,25 +19,28 @@ from typing import List, Optional, Tuple
 import numpy as np
 from tifffile import COMPRESSION, TiffPage
 
+from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tiler import NdpiOneFrameImage
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage, TiffImage
+from opentile.tiff_image import NativeTiledTiffImage, TiffImage
 
 
 class OmeTiffImage(TiffImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: LockableFileHandle,
+        file: OpenTileFile,
         base_mpp: Optional[SizeMm] = None,
     ):
-        super().__init__(page, fh)
+        super().__init__(page, file)
         self._base_mpp = base_mpp
         self._mpp = base_mpp
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._page}, {self._fh}, " f"{self._base_mpp})"
+        return (
+            f"{type(self).__name__}({self._page}, {self._file}, " f"{self._base_mpp})"
+        )
 
     @property
     def mpp(self) -> Optional[SizeMm]:
@@ -76,13 +79,13 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: LockableFileHandle,
+        file: OpenTileFile,
         base_size: Size,
         tile_size: Size,
         base_mpp: SizeMm,
         jpeg: Jpeg,
     ):
-        super().__init__(page, fh, base_size, tile_size, jpeg)
+        super().__init__(page, file, base_size, tile_size, jpeg)
         self._pyramid_index = self._calculate_pyramidal_index(base_size)
         self._mpp = self._calculate_mpp(base_mpp)
         self._jpeg = jpeg
@@ -104,11 +107,11 @@ class OmeTiffTiledImage(NativeTiledTiffImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: LockableFileHandle,
+        file: OpenTileFile,
         base_size: Size,
         base_mpp: SizeMm,
     ):
-        super().__init__(page, fh)
+        super().__init__(page, file)
         self._image_size = Size(self._page.imagewidth, self._page.imagelength)
         self._base_size = base_size
         self._base_mpp = base_mpp
@@ -117,7 +120,7 @@ class OmeTiffTiledImage(NativeTiledTiffImage):
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._page}, {self._fh}, "
+            f"{type(self).__name__}({self._page}, {self._file}, "
             f"{self._base_size}, {self._base_mpp})"
         )
 

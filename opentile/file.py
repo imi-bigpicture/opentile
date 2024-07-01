@@ -16,30 +16,55 @@
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, Optional, Union
 
-from tifffile import TiffPageSeries, TiffPages, TiffFile, FileHandle
+from tifffile import TiffPageSeries, TiffPages, TiffFile
 from upath import UPath
 from fsspec.core import open
 
 import threading
 from typing import List, Sequence, Tuple
 
+"""Wrapper around a TiffFile to provide thread safe access to the file handle."""
 
-class LockableFileHandle:
-    """A lockable file handle for reading frames."""
 
-    def __init__(self, fh: FileHandle):
-        self._fh = fh
+class OpenTileFile:
+
+    def __init__(
+        self,
+        file: Union[str, Path, UPath],
+        options: Optional[Dict[str, Any]] = None,
+    ):
+        """Open a file as TiffFIle and provide thread safe access to the file handle.
+
+        Parameters
+        ----------
+        file: Union[str, Path, UPath]
+            Path to file.
+        options: Optional[Dict[str, Any]]
+            Options to pass to open function.
+        """
+        opened_file: BinaryIO = open(str(file), **options or {})  # type: ignore
+        try:
+            self._tiff_file = TiffFile(opened_file)
+        except Exception as exception:
+            opened_file.close()
+            raise Exception(f"Failed to open file {file}") from exception
         self._lock = threading.Lock()
 
-    def __str__(self) -> str:
-        return f"{type(self).__name__} for FileHandle {self._fh}"
+    @property
+    def tiff(self) -> TiffFile:
+        return self._tiff_file
 
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._fh})"
+    @property
+    def pages(self) -> TiffPages:
+        return self._tiff_file.pages
+
+    @property
+    def series(self) -> List[TiffPageSeries]:
+        return self._tiff_file.series
 
     @property
     def filepath(self) -> Path:
-        return Path(self._fh.path)
+        return Path(self._tiff_file.filehandle.path)
 
     def read(self, offset: int, bytecount: int) -> bytes:
         """Return bytes from single location from file handle. Is thread safe.
@@ -96,43 +121,8 @@ class LockableFileHandle:
         bytes
             Requested bytes.
         """
-        self._fh.seek(offset)
-        return self._fh.read(bytecount)
-
-    def close(self) -> None:
-        """Close the file handle"""
-        self._fh.close()
-
-
-class OpenTileFile:
-    def __init__(
-        self,
-        file: Union[str, Path, UPath],
-        options: Optional[Dict[str, Any]] = None,
-    ):
-        opened_file: BinaryIO = open(str(file), **options or {})  # type: ignore
-        try:
-            self._tiff_file = TiffFile(opened_file)
-        except Exception as exception:
-            opened_file.close()
-            raise Exception(f"Failed to open file {file}") from exception
-        self._fh = LockableFileHandle(self._tiff_file.filehandle)
-
-    @property
-    def tiff(self) -> TiffFile:
-        return self._tiff_file
-
-    @property
-    def pages(self) -> TiffPages:
-        return self._tiff_file.pages
-
-    @property
-    def series(self) -> List[TiffPageSeries]:
-        return self._tiff_file.series
-
-    @property
-    def fh(self) -> LockableFileHandle:
-        return self._fh
+        self._tiff_file.filehandle.seek(offset)
+        return self._tiff_file.filehandle.read(bytecount)
 
     def close(self):
         self._tiff_file.close()

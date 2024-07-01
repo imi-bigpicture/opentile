@@ -27,7 +27,7 @@ from tifffile import (
     TiffTags,
 )
 
-from opentile.file import LockableFileHandle
+from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
 
@@ -42,7 +42,7 @@ class TiffImage(metaclass=ABCMeta):
     def __init__(
         self,
         page: TiffPage,
-        fh: LockableFileHandle,
+        file: OpenTileFile,
         add_rgb_colorspace_fix: bool = False,
     ):
         """Abstract class for reading tiles from TiffPage.
@@ -51,7 +51,7 @@ class TiffImage(metaclass=ABCMeta):
         ----------
         page: TiffPage
             TiffPage to get tiles from.
-        fh: LockableFileHandle
+        file: OpenTileFile
             FileHandle for reading data.
         add_rgb_colorspace_fix: bool = False
             If to add color space fix for rgb image data.
@@ -62,7 +62,7 @@ class TiffImage(metaclass=ABCMeta):
         ):
             raise NotImplementedError(f"Non-supported compression {self.compression}.")
         self._page = page
-        self._fh = fh
+        self._file = file
         self._add_rgb_colorspace_fix = add_rgb_colorspace_fix
         self._image_size = Size(self._page.imagewidth, self._page.imagelength)
         if self.page.is_tiled:
@@ -93,7 +93,7 @@ class TiffImage(metaclass=ABCMeta):
 
     @property
     def filepath(self) -> Path:
-        return self._fh.filepath
+        return self._file.filepath
 
     @property
     def suggested_minimum_chunk_size(self) -> int:
@@ -263,7 +263,7 @@ class TiffImage(metaclass=ABCMeta):
 
     def close(self) -> None:
         """Close filehandle."""
-        self._fh.close()
+        self._file.close()
 
     def pretty_str(self, indent: int = 0, depth: Optional[int] = None) -> str:
         return str(self)
@@ -297,12 +297,12 @@ class TiffImage(metaclass=ABCMeta):
         bytes
             Frame bytes.
         """
-        return self._fh.read(
+        return self._file.read(
             self._page.dataoffsets[index], self._page.databytecounts[index]
         )
 
     def _read_frames(self, indices: Sequence[int]) -> List[bytes]:
-        return self._fh.read_multiple(
+        return self._file.read_multiple(
             [
                 (self._page.dataoffsets[index], self._page.databytecounts[index])
                 for index in indices

@@ -91,7 +91,7 @@ class SvsTiler(Tiler):
             parent = None
         svs_page = SvsTiledImage(
             self._get_tiff_page(series, level, page),
-            self._file.fh,
+            self._file,
             self.base_size,
             self.base_mpp,
             parent,
@@ -104,7 +104,7 @@ class SvsTiler(Tiler):
             raise ValueError("No label detected in file")
         return SvsLZWImage(
             self._get_tiff_page(self._label_series_index, 0, page),
-            self._file.fh,
+            self._file,
             self._jpeg,
         )
 
@@ -114,6 +114,6 @@ class SvsTiler(Tiler):
             raise ValueError("No overview detected in file")
         return SvsStripedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
-            self._file.fh,
+            self._file,
             self._jpeg,
         )

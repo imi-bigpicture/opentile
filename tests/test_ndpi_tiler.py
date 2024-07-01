@@ -68,7 +68,7 @@ class TestNdpiTiler:
         length = level._page.databytecounts[50]
 
         # Act
-        data = level._fh.read(offset, length)
+        data = level._file.read(offset, length)
 
         # Assert
         assert md5(data).hexdigest() == "2a903c6e05bd10f10d856eecceb591f0"

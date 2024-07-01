@@ -18,30 +18,33 @@ from typing import List, Optional
 
 from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
+from opentile.file import OpenTileFile
 from opentile.geometry import Size, SizeMm
-from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage
+from opentile.tiff_image import NativeTiledTiffImage
 
 
 class HistechTiffImage(NativeTiledTiffImage):
-    def __init__(self, page: TiffPage, fh: LockableFileHandle, base_size: Size):
+    def __init__(self, page: TiffPage, file: OpenTileFile, base_size: Size):
         """OpenTiledPage for 3DHistech Tiff image.
 
         Parameters
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: LockableFileHandle
-            Filehandler to read data from.
+        file: OpenTileFile
+            Fileto read data from.
         base_size: Size
             Size of base level in pyramid.
         """
-        super().__init__(page, fh)
+        super().__init__(page, file)
         self._base_size = base_size
         self._pyramid_index = self._calculate_pyramidal_index(self._base_size)
         self._mpp = self._get_mpp_from_page()
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._page}, {self._fh}, " f"{self._base_size})"
+        return (
+            f"{type(self).__name__}({self._page}, {self._file}, " f"{self._base_size})"
+        )
 
     @property
     def pixel_spacing(self) -> SizeMm:

@@ -186,11 +186,11 @@ class NdpiTiler(Tiler):
         assert isinstance(tiff_page, TiffPage)
         if tiff_page.is_tiled:  # Striped ndpi page
             return NdpiStripedImage(
-                tiff_page, self._file.fh, self.base_size, self.tile_size, self._jpeg
+                tiff_page, self._file, self.base_size, self.tile_size, self._jpeg
             )
         # Single frame, force tiling
         return NdpiOneFrameImage(
-            tiff_page, self._file.fh, self.base_size, self.tile_size, self._jpeg
+            tiff_page, self._file, self.base_size, self.tile_size, self._jpeg
         )
 
     @lru_cache(None)
@@ -206,7 +206,7 @@ class NdpiTiler(Tiler):
         tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
         return NdpiCroppedImage(
-            tiff_page, self._file.fh, self._jpeg, (0.0, self._label_crop_position)
+            tiff_page, self._file, self._jpeg, (0.0, self._label_crop_position)
         )
 
     @lru_cache(None)
@@ -222,5 +222,5 @@ class NdpiTiler(Tiler):
         tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
         return NdpiCroppedImage(
-            tiff_page, self._file.fh, self._jpeg, (self._label_crop_position, 1.0)
+            tiff_page, self._file, self._jpeg, (self._label_crop_position, 1.0)
         )

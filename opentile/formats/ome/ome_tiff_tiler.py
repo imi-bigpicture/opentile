@@ -109,13 +109,13 @@ class OmeTiffTiler(Tiler):
         if tiff_page.is_tiled:
             return OmeTiffTiledImage(
                 tiff_page,
-                self._file.fh,
+                self._file,
                 self.base_size,
                 self._base_mpp,
             )
         return OmeTiffOneFrameImage(
             tiff_page,
-            self._file.fh,
+            self._file,
             self.base_size,
             Size(self.base_page.tilewidth, self.base_page.tilelength),
             self._base_mpp,
@@ -138,6 +138,6 @@ class OmeTiffTiler(Tiler):
         tiff_page = self._get_tiff_page(series, 0, page)
         return OmeTiffImage(
             tiff_page,
-            self._file.fh,
+            self._file,
             self._get_optional_mpp(series),
         )

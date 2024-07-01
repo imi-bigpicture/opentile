@@ -21,7 +21,7 @@ from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode, jpeg8_decode
 from PIL import Image
 from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
-from opentile.file import LockableFileHandle
+from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.tiff_image import NativeTiledTiffImage, TiffImage
@@ -30,24 +30,24 @@ from opentile.tiff_image import NativeTiledTiffImage, TiffImage
 class SvsStripedImage(TiffImage):
     _pyramid_index = 0
 
-    def __init__(self, page: TiffPage, fh: LockableFileHandle, jpeg: Jpeg):
+    def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
         """OpenTiledPage for jpeg striped Svs image, e.g. overview image.
 
         Parameters
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: LockableFileHandle
-            Filehandler to read data from.
+        file: OpenTileFile
+            Fileto read data from.
         jpeg: Jpeg
             Jpeg instance to use.
 
         """
-        super().__init__(page, fh, True)
+        super().__init__(page, file, True)
         self._jpeg = jpeg
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
+        return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
 
     @property
     def pixel_spacing(self) -> Optional[SizeMm]:
@@ -99,24 +99,24 @@ class SvsStripedImage(TiffImage):
 class SvsLZWImage(TiffImage):
     _pyramid_index = 0
 
-    def __init__(self, page: TiffPage, fh: LockableFileHandle, jpeg: Jpeg):
+    def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
         """OpenTiledPage for lzw striped Svs image, e.g. label image.
 
         Parameters
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: LockableFileHandle
-            Filehandler to read data from.
+        file: OpenTileFile
+            Fileto read data from.
         jpeg: Jpeg
             Jpeg instance to use.
 
         """
-        super().__init__(page, fh)
+        super().__init__(page, file)
         self._jpeg = jpeg
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
+        return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
 
     @property
     def compression(self) -> COMPRESSION:
@@ -178,7 +178,7 @@ class SvsTiledImage(NativeTiledTiffImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: LockableFileHandle,
+        file: OpenTileFile,
         base_size: Size,
         base_mpp: SizeMm,
         parent: Optional[TiffImage] = None,
@@ -189,8 +189,8 @@ class SvsTiledImage(NativeTiledTiffImage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: LockableFileHandle
-            Filehandler to read data from.
+        file: OpenTileFile
+            Fileto read data from.
         base_size: Size
             Size of base level in pyramid.
         base_mpp: SizeMm
@@ -199,7 +199,7 @@ class SvsTiledImage(NativeTiledTiffImage):
             Parent TiffImage
         """
 
-        super().__init__(page, fh, True)
+        super().__init__(page, file, True)
         self._base_size = base_size
         self._base_mpp = base_mpp
         self._pyramid_index = self._calculate_pyramidal_index(self._base_size)
@@ -213,7 +213,7 @@ class SvsTiledImage(NativeTiledTiffImage):
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._page}, {self._fh}, "
+            f"{type(self).__name__}({self._page}, {self._file}, "
             f"{self._base_size}, {self._base_mpp})"
         )
 

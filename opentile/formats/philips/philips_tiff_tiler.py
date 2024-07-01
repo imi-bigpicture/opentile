@@ -77,7 +77,7 @@ class PhilipsTiffTiler(Tiler):
         """Return PhilipsTiffTiledPage for series, level, page."""
         return PhilipsTiffImage(
             self._get_tiff_page(series, level, page),
-            self._file.fh,
+            self._file,
             self.base_size,
             self._base_mpp,
             self._jpeg,

@@ -23,7 +23,7 @@ from imagecodecs import jpeg8_decode
 from tifffile import COMPRESSION, TiffPage, RESUNIT
 
 from opentile.config import settings
-from opentile.file import LockableFileHandle
+from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
@@ -33,7 +33,7 @@ from opentile.tiler import TiffImage
 class NdpiImage(TiffImage):
     _pyramid_index = 0
 
-    def __init__(self, page: TiffPage, fh: LockableFileHandle, jpeg: Jpeg):
+    def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
         """Ndpi image that should not be tiled (e.g. overview or label).
         Image data is assumed to be jpeg.
 
@@ -41,12 +41,12 @@ class NdpiImage(TiffImage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: LockableFileHandle
-            Filehandler to read data from.
+        file: OpenTileFile
+            Fileto read data from.
         jpeg: Jpeg
             Jpeg instance to use.
         """
-        super().__init__(page, fh)
+        super().__init__(page, file)
         if self.compression != COMPRESSION.JPEG:
             raise NotImplementedError(
                 f"{self.compression} is unsupported for ndpi "
@@ -63,7 +63,7 @@ class NdpiImage(TiffImage):
         self._mpp = self._get_mpp_from_page()
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._page}, {self._fh}, {self._jpeg}"
+        return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
 
     @property
     def focal_plane(self) -> float:
@@ -139,7 +139,7 @@ class NdpiCroppedImage(NdpiImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: LockableFileHandle,
+        file: OpenTileFile,
         jpeg: Jpeg,
         crop: Tuple[float, float],
     ):
@@ -150,14 +150,14 @@ class NdpiCroppedImage(NdpiImage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: LockableFileHandle
-            Filehandler to read data from.
+        file: OpenTileFile
+            Fileto read data from.
         jpeg: Jpeg
             Jpeg instance to use.
         crop: Tuple[float, float]
             Crop start and end in x-direction relative to image width.
         """
-        super().__init__(page, fh, jpeg)
+        super().__init__(page, file, jpeg)
         crop_from = self._calculate_crop(crop[0])
         crop_to = self._calculate_crop(crop[1])
 
@@ -209,7 +209,7 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
     def __init__(
         self,
         page: TiffPage,
-        fh: LockableFileHandle,
+        file: OpenTileFile,
         base_size: Size,
         tile_size: Size,
         jpeg: Jpeg,
@@ -220,8 +220,8 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: LockableFileHandle
-            Filehandler to read data from.
+        file: OpenTileFile
+            Fileto read data from.
         base_size: Size
             Size of base level in pyramid.
         tile_size: Size
@@ -229,7 +229,7 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
         jpeg: Jpeg
             Jpeg instance to use.
         """
-        super().__init__(page, fh, jpeg)
+        super().__init__(page, file, jpeg)
         self._base_size = base_size
         self._tile_size = tile_size
         self._file_frame_size = self._get_file_frame_size()
@@ -239,7 +239,7 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._page}, {self._fh}, "
+            f"{type(self).__name__}({self._page}, {self._file}, "
             f"{self._base_size}, {self.tile_size}, {self._jpeg}"
         )
 
@@ -478,7 +478,7 @@ class NdpiStripedImage(NdpiTiledImage):
     def __init__(
         self,
         page: TiffPage,
-        fh: LockableFileHandle,
+        file: OpenTileFile,
         base_size: Size,
         tile_size: Size,
         jpeg: Jpeg,
@@ -489,8 +489,8 @@ class NdpiStripedImage(NdpiTiledImage):
         ----------
         page: TiffPage
             TiffPage defining the page.
-        fh: LockableFileHandle
-            Filehandler to read data from.
+        file: OpenTileFile
+            Fileto read data from.
         base_size: Size
             Size of base level in pyramid.
         tile_size: Size
@@ -498,7 +498,7 @@ class NdpiStripedImage(NdpiTiledImage):
         jpeg: Jpeg
             Jpeg instance to use.
         """
-        super().__init__(page, fh, base_size, tile_size, jpeg)
+        super().__init__(page, file, base_size, tile_size, jpeg)
         self._striped_size = Size(self.page.chunked[1], self.page.chunked[0])
         jpeg_header = self.page.jpegheader
         assert isinstance(jpeg_header, bytes)
