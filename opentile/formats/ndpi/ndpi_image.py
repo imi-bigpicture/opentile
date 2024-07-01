@@ -20,7 +20,7 @@ from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 from imagecodecs import jpeg8_decode
-from tifffile.tifffile import COMPRESSION, TIFF, TiffPage
+from tifffile import COMPRESSION, TiffPage, RESUNIT
 
 from opentile.config import settings
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
@@ -127,7 +127,7 @@ class NdpiImage(TiffImage):
         x_resolution = self.page.tags["XResolution"].value[0]
         y_resolution = self.page.tags["YResolution"].value[0]
         resolution_unit = self.page.tags["ResolutionUnit"].value
-        if resolution_unit != TIFF.RESUNIT.CENTIMETER:
+        if resolution_unit != RESUNIT.CENTIMETER:
             raise ValueError("Unknown resolution unit")
         # 10*1000 um per cm
         mpp_x = 10 * 1000 / x_resolution
