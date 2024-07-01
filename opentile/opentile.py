@@ -24,7 +24,7 @@ from typing import (
     Union,
 )
 
-from tifffile import TiffFile, TiffFileError
+from tifffile import TiffFileError
 
 from opentile.file import OpenTileFile
 from opentile.formats import (
