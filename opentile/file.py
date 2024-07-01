@@ -16,7 +16,7 @@
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, Optional, Union
 
-from tifffile import TiffPageSeries, TiffPages, TiffFile
+from tifffile import TiffFileError, TiffPageSeries, TiffPages, TiffFile
 from upath import UPath
 from fsspec.core import open
 
@@ -45,6 +45,9 @@ class OpenTileFile:
         opened_file: BinaryIO = open(str(file), **options or {})  # type: ignore
         try:
             self._tiff_file = TiffFile(opened_file)
+        except (FileNotFoundError, TiffFileError):
+            opened_file.close()
+            raise
         except Exception as exception:
             opened_file.close()
             raise Exception(f"Failed to open file {file}") from exception
