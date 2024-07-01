@@ -32,20 +32,27 @@ class Tiler(metaclass=ABCMeta):
 
     def __init__(
         self,
-        filepath: Union[str, Path, UPath],
+        file: Union[str, Path, UPath, TiffFile],
         file_options: Optional[Dict[str, Any]] = None,
     ):
         """Base class for reading images from TiffFile.
 
         Parameters
         ----------
-        filepath: Union[str, Path, UPath]
-            Filepath to a TiffFile.
+        file: Union[str, Path, UPath, TiffFile]
+            Filepath to a TiffFile or a TiffFile.
         file_options: Optional[Dict[str, Any]]
             Options to pass to filesystem when opening file.
         """
-        file: BinaryIO = open(str(filepath), **file_options or {})  # type: ignore
-        self._tiff_file = TiffFile(file)
+        if isinstance(file, TiffFile):
+            if not self.supported(file):
+                raise ValueError("Unsupported file.")
+            self._tiff_file = file
+            self._file_owned = False
+        else:
+            opened_file: BinaryIO = open(str(file), **file_options or {})  # type: ignore
+            self._tiff_file = TiffFile(opened_file)
+            self._file_owned = True
         self._fh = LockableFileHandle(self._tiff_file.filehandle)
         self._level_series_index = 0
         self._overview_series_index: Optional[int] = None
@@ -208,7 +215,8 @@ class Tiler(metaclass=ABCMeta):
 
     def close(self) -> None:
         """Close tiff file."""
-        self._tiff_file.close()
+        if self._file_owned:
+            self._tiff_file.close()
 
     def get_tile(
         self, series: int, level: int, page: int, tile_position: Tuple[int, int]

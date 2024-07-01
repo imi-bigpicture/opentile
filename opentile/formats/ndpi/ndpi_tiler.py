@@ -38,7 +38,7 @@ from opentile.tiler import Tiler
 class NdpiTiler(Tiler):
     def __init__(
         self,
-        filepath: Union[str, Path, UPath],
+        file: Union[str, Path, UPath, TiffFile],
         tile_size: int,
         turbo_path: Optional[Union[str, Path]] = None,
         label_crop_position: float = 0.3,
@@ -48,8 +48,8 @@ class NdpiTiler(Tiler):
 
         Parameters
         ----------
-        filepath: Union[str, Path, UPath]
-            Filepath to a ndpi TiffFile.
+        file: Union[str, Path, UPath, TiffFile]
+            Filepath to a ndpi TiffFile or a ndpi TiffFile.
         tile_size: int
             Tile size to cache and produce. Must be multiple of 8 and will be
             adjusted to be an even multiplier or divider of the smallest strip
@@ -61,7 +61,7 @@ class NdpiTiler(Tiler):
             the label and overview image from the macro image.
 
         """
-        super().__init__(filepath)
+        super().__init__(file)
         self._tile_size = Size(tile_size, tile_size)
         self._tile_size = self._adjust_tile_size(
             tile_size, self._get_smallest_stripe_width()

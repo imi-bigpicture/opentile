@@ -33,19 +33,19 @@ from opentile.tiler import Tiler
 class PhilipsTiffTiler(Tiler):
     def __init__(
         self,
-        filepath: Union[str, Path, UPath],
+        file: Union[str, Path, UPath, TiffFile],
         turbo_path: Optional[Union[str, Path]] = None,
     ):
         """Tiler for Philips tiff file.
 
         Parameters
         ----------
-        filepath: Union[str, Path, UPath]
-            Filepath to a Philips-TiffFile.
+        file: Union[str, Path, UPath, TiffFile]
+            Filepath to a Philips TiffFile or a Philips TiffFile.
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
         """
-        super().__init__(filepath)
+        super().__init__(file)
         self._jpeg = Jpeg(turbo_path)
         self._metadata = PhilipsTiffMetadata(self._tiff_file)
         assert self._metadata.pixel_spacing is not None

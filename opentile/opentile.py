@@ -14,8 +14,17 @@
 
 """Main interface for OpenTile."""
 
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, BinaryIO, Dict, Optional, Tuple, Type, Union
+from typing import (
+    Dict,
+    Generator,
+    Iterator,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 from tifffile import TiffFile, TiffFileError
 
@@ -32,6 +41,14 @@ from upath import UPath
 
 
 class OpenTile:
+    _tilers: Dict[str, Type[Tiler]] = {
+        "ndpi": NdpiTiler,
+        "svs": SvsTiler,
+        "phillips tiff": PhilipsTiffTiler,
+        "3dhistech tiff": HistechTiffTiler,
+        "ome-tiff tiler": OmeTiffTiler,
+    }
+
     @classmethod
     def open(
         cls,
@@ -55,48 +72,22 @@ class OpenTile:
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
         """
-        format, supported_tiler = cls.get_tiler(filepath, file_options)
-        if supported_tiler is NdpiTiler:
-            return NdpiTiler(filepath, tile_size, turbo_path)
-
-        if supported_tiler is SvsTiler:
-            return SvsTiler(filepath, turbo_path)
-
-        if supported_tiler is PhilipsTiffTiler:
-            return PhilipsTiffTiler(filepath, turbo_path)
-
-        if supported_tiler is HistechTiffTiler:
-            return HistechTiffTiler(filepath)
-
-        if supported_tiler is OmeTiffTiler:
-            return OmeTiffTiler(filepath)
-
-        raise NotImplementedError("Non supported tiff file")
-
-    @staticmethod
-    def get_tiler(
-        filepath: Union[str, Path, UPath],
-        file_options: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[Optional[str], Optional[Type[Tiler]]]:
-        """Return tiler that supports the tiff file in filepath, or None if
-        not supported"""
-        tilers: Dict[str, Type[Tiler]] = {
-            "ndpi": NdpiTiler,
-            "svs": SvsTiler,
-            "phillips tiff": PhilipsTiffTiler,
-            "3dhistech tiff": HistechTiffTiler,
-            "ome-tiff tiler": OmeTiffTiler,
-        }
         try:
-            file: BinaryIO = open(str(filepath), **file_options or {})  # type: ignore
-            tiff_file = TiffFile(file)
-            return next(
-                (tiler_name, tiler)
-                for (tiler_name, tiler) in tilers.items()
-                if tiler.supported(tiff_file)
-            )
+            with cls._open_tifffile(filepath, file_options) as tiff_file:
+                _, supported_tiler = next(cls._get_supported_tilers(tiff_file))
+                if supported_tiler is NdpiTiler:
+                    return NdpiTiler(tiff_file, tile_size, turbo_path)
+                if supported_tiler is SvsTiler:
+                    return SvsTiler(tiff_file, turbo_path)
+                if supported_tiler is PhilipsTiffTiler:
+                    return PhilipsTiffTiler(tiff_file, turbo_path)
+                if supported_tiler is HistechTiffTiler:
+                    return HistechTiffTiler(tiff_file)
+                if supported_tiler is OmeTiffTiler:
+                    return OmeTiffTiler(tiff_file)
         except (TiffFileError, StopIteration):
-            return None, None
+            pass
+        raise NotImplementedError("Non supported tiff file")
 
     @classmethod
     def detect_format(
@@ -104,5 +95,29 @@ class OpenTile:
         filepath: Union[str, Path, UPath],
         file_options: Optional[Dict[str, str]] = None,
     ) -> Optional[str]:
-        format, supported_tiler = cls.get_tiler(filepath, file_options)
-        return format
+
+        try:
+            with cls._open_tifffile(filepath, file_options) as tiff_file:
+                tiler_name, _ = next(cls._get_supported_tilers(tiff_file))
+                return tiler_name
+        except (TiffFileError, StopIteration):
+            return None
+
+    @staticmethod
+    @contextmanager
+    def _open_tifffile(
+        filepath: Union[str, Path, UPath], file_options: Optional[Dict[str, str]] = None
+    ) -> Generator[TiffFile, None, None]:
+        with open(str(filepath), **file_options or {}) as file:
+            with TiffFile(file) as tiff_file:  # type: ignore
+                yield tiff_file
+
+    @classmethod
+    def _get_supported_tilers(
+        cls, tiff_file: TiffFile
+    ) -> Iterator[Tuple[str, Type[Tiler]]]:
+        return (
+            (tiler_name, tiler)
+            for (tiler_name, tiler) in cls._tilers.items()
+            if tiler.supported(tiff_file)
+        )

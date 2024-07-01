@@ -32,17 +32,19 @@ from opentile.tiler import TiffImage, Tiler
 class SvsTiler(Tiler):
     def __init__(
         self,
-        filepath: Union[str, Path, UPath],
+        file: Union[str, Path, UPath, TiffFile],
         turbo_path: Optional[Union[str, Path]] = None,
     ):
         """Tiler for svs file.
 
         Parameters
         ----------
-        filepath: Union[str, Path, UPath]
-            Filepath to a svs TiffFile.
+        file: Union[str, Path, UPath, TiffFile]
+            Filepath to a svs TiffFile or a svs TiffFile.
+        turbo_path: Optional[Union[str, Path]] = None
+            Path to turbojpeg (dll or so).
         """
-        super().__init__(filepath)
+        super().__init__(file)
         self._jpeg = Jpeg(turbo_path)
         if "InterColorProfile" in self._tiff_file.pages.first.tags:
             icc_profile = self._tiff_file.pages.first.tags["InterColorProfile"].value

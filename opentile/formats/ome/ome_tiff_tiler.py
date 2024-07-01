@@ -43,10 +43,19 @@ class OmeTiffTiler(Tiler):
 
     def __init__(
         self,
-        filepath: Union[str, Path, UPath],
+        file: Union[str, Path, UPath, TiffFile],
         turbo_path: Optional[Union[str, Path]] = None,
     ):
-        super().__init__(filepath)
+        """Tiler for ome tiff file.
+
+        Parameters
+        ----------
+        file: Union[str, Path, UPath, TiffFile]
+            Filepath to a ome tiff TiffFile or a ome tiff TiffFile.
+        turbo_path: Optional[Union[str, Path]] = None
+            Path to turbojpeg (dll or so).
+        """
+        super().__init__(file)
         self._jpeg = Jpeg(turbo_path)
         self._base_mpp = self._get_mpp(self._level_series_index)
 
