@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.13.0] - 2024-07-01
 
-### Removed
-
-- `OpenTile.get_tiler()` method removed. Use `OpenTile.detect_format()` to get the format of a file or `OpenTile.open()` to get an opened instance of a tiler instead.
-
 ### Changed
 
 - More efficient `OpenTile.open()` by reusing the `TiffFile` instance.
+
+### Removed
+
+- `OpenTile.get_tiler()` method removed. Use `OpenTile.detect_format()` to get the format of a file or `OpenTile.open()` to get an opened instance of a tiler instead.
 
 ### Fixed
 
