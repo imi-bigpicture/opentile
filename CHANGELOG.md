@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -
 
+## [0.13.0] - 2024-07-01
+
+### Removed
+
+- `OpenTile.get_tiler()` method removed. Use `OpenTile.detect_format()` to get the format of a file or `OpenTile.open()` to get an opened instance of a tiler instead.
+
+### Changed
+
+- More efficient `OpenTile.open()` by reusing the `TiffFile` instance.
+
+### Fixed
+
+- Missing to close file handle when using `OpenTile.open()` or `OpenTile.detect_format()`.
+
 ## [0.12.0] - 2024-02-20
 
 ### Added
@@ -193,7 +207,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.12.0..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.13.0..HEAD
+[0.13.0]: https://github.com/imi-bigpicture/opentile/compare/v0.12.0..v0.13.0
 [0.12.0]: https://github.com/imi-bigpicture/opentile/compare/v0.11.2..v0.12.0
 [0.11.2]: https://github.com/imi-bigpicture/opentile/compare/v0.11.1..v0.11.2
 [0.11.1]: https://github.com/imi-bigpicture/opentile/compare/v0.11.0..v0.11.1
