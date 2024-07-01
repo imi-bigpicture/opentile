@@ -55,18 +55,22 @@ class OpenTileFile:
 
     @property
     def tiff(self) -> TiffFile:
+        """Return the TiffFile object."""
         return self._tiff_file
 
     @property
     def pages(self) -> TiffPages:
+        """Return the pages in the TiffFile."""
         return self._tiff_file.pages
 
     @property
     def series(self) -> List[TiffPageSeries]:
+        """Return the series in the TiffFile."""
         return self._tiff_file.series
 
     @property
     def filepath(self) -> Path:
+        """Return the path to the file."""
         return Path(self._tiff_file.filehandle.path)
 
     def read(self, offset: int, bytecount: int) -> bytes:
@@ -128,6 +132,7 @@ class OpenTileFile:
         return self._tiff_file.filehandle.read(bytecount)
 
     def close(self):
+        """Close the TiffFile."""
         self._tiff_file.close()
 
     def __enter__(self):
