@@ -24,8 +24,6 @@ from typing import (
     Union,
 )
 
-from tifffile import TiffFileError
-
 from opentile.file import OpenTileFile
 from opentile.formats import (
     HistechTiffTiler,
@@ -70,12 +68,7 @@ class OpenTile:
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
         """
-        try:
-            file = OpenTileFile(filepath, file_options)
-        except TiffFileError as exception:
-            raise NotImplementedError(
-                f"File {filepath} failed to open with TiffFile", exception
-            )
+        file = OpenTileFile(filepath, file_options)
         _, supported_tiler = next(cls._get_supported_tilers(file), (None, None))
         if supported_tiler is NdpiTiler:
             return NdpiTiler(file, tile_size, turbo_path)
@@ -100,7 +93,7 @@ class OpenTile:
             with OpenTileFile(filepath, file_options) as file:
                 tiler_name, _ = next(cls._get_supported_tilers(file), (None, None))
                 return tiler_name
-        except TiffFileError:
+        except Exception:
             return None
 
     @classmethod

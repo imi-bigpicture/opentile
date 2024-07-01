@@ -115,7 +115,7 @@ class OpenTileFile:
             self._tiff_file = TiffFile(opened_file)
         except Exception as exception:
             opened_file.close()
-            raise exception
+            raise Exception(f"Failed to open file {file}") from exception
         self._fh = LockableFileHandle(self._tiff_file.filehandle)
 
     @property
