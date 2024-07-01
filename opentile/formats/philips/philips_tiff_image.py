@@ -16,11 +16,12 @@
 
 from typing import List, Optional
 
-from tifffile.tifffile import COMPRESSION, TiffPage
+from tifffile import COMPRESSION, TiffPage
 
+from opentile.file import LockableFileHandle
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage
+from opentile.tiff_image import NativeTiledTiffImage
 
 
 class PhilipsTiffImage(NativeTiledTiffImage):

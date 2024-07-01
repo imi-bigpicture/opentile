@@ -17,7 +17,7 @@ from hashlib import md5
 from typing import Sequence, Tuple
 
 import pytest
-from tifffile.tifffile import PHOTOMETRIC
+from tifffile import PHOTOMETRIC
 
 from opentile.formats import PhilipsTiffTiler
 from opentile.tiff_image import TiffImage

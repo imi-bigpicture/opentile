@@ -16,7 +16,7 @@
 
 from typing import List, Optional
 
-from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
+from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
 from opentile.geometry import Size, SizeMm
 from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage

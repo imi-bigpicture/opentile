@@ -19,7 +19,7 @@ from functools import cached_property
 from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar
 
 from defusedxml import ElementTree
-from tifffile.tifffile import TiffFile
+from tifffile import TiffFile
 
 from opentile.metadata import Metadata
 

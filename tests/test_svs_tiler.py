@@ -17,7 +17,7 @@ from hashlib import md5
 from typing import Sequence, Tuple, cast
 
 import pytest
-from tifffile.tifffile import PHOTOMETRIC
+from tifffile import PHOTOMETRIC
 
 from opentile.formats import SvsTiler
 from opentile.formats.svs.svs_image import SvsTiledImage

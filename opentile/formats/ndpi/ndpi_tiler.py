@@ -17,11 +17,12 @@
 import math
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
-from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
+from tifffile import TiffFile, TiffPage, TiffPageSeries
 from upath import UPath
 
+from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_image import (
     NdpiCroppedImage,
     NdpiOneFrameImage,
@@ -38,18 +39,19 @@ from opentile.tiler import Tiler
 class NdpiTiler(Tiler):
     def __init__(
         self,
-        file: Union[str, Path, UPath, TiffFile],
+        file: Union[str, Path, UPath, OpenTileFile],
         tile_size: int,
         turbo_path: Optional[Union[str, Path]] = None,
         label_crop_position: float = 0.3,
+        file_options: Optional[Dict[str, Any]] = None,
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
         size.
 
         Parameters
         ----------
-        file: Union[str, Path, UPath, TiffFile]
-            Filepath to a ndpi TiffFile or a ndpi TiffFile.
+        file: Union[str, Path, UPath, OpenTileFile]
+            Filepath to a ndpi TiffFile or an opened ndpi OpenTileFile.
         tile_size: int
             Tile size to cache and produce. Must be multiple of 8 and will be
             adjusted to be an even multiplier or divider of the smallest strip
@@ -59,9 +61,11 @@ class NdpiTiler(Tiler):
         label_crop_position: float = 0.3
             The position (relative to the image width) to use for cropping out
             the label and overview image from the macro image.
+        file_options: Optional[Dict[str, Any]] = None
+            Options to pass to filesystem when opening file.
 
         """
-        super().__init__(file)
+        super().__init__(file, file_options)
         self._tile_size = Size(tile_size, tile_size)
         self._tile_size = self._adjust_tile_size(
             tile_size, self._get_smallest_stripe_width()
@@ -147,7 +151,7 @@ class NdpiTiler(Tiler):
             file is striped.
         """
         smallest_stripe_width: Optional[int] = None
-        for page in self._tiff_file.pages:
+        for page in self._file.pages:
             assert isinstance(page, TiffPage)
             stripe_width = page.chunks[1]
             if page.is_tiled and (
@@ -177,16 +181,16 @@ class NdpiTiler(Tiler):
             Created image.
         """
         tiff_page = (
-            self._tiff_file.series[self._level_series_index].levels[level].pages[page]
+            self._file.series[self._level_series_index].levels[level].pages[page]
         )
         assert isinstance(tiff_page, TiffPage)
         if tiff_page.is_tiled:  # Striped ndpi page
             return NdpiStripedImage(
-                tiff_page, self._fh, self.base_size, self.tile_size, self._jpeg
+                tiff_page, self._file.fh, self.base_size, self.tile_size, self._jpeg
             )
         # Single frame, force tiling
         return NdpiOneFrameImage(
-            tiff_page, self._fh, self.base_size, self.tile_size, self._jpeg
+            tiff_page, self._file.fh, self.base_size, self.tile_size, self._jpeg
         )
 
     @lru_cache(None)
@@ -199,12 +203,10 @@ class NdpiTiler(Tiler):
             Created image.
         """
         assert self._overview_series_index is not None
-        tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[
-            page
-        ]
+        tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
         return NdpiCroppedImage(
-            tiff_page, self._fh, self._jpeg, (0.0, self._label_crop_position)
+            tiff_page, self._file.fh, self._jpeg, (0.0, self._label_crop_position)
         )
 
     @lru_cache(None)
@@ -217,10 +219,8 @@ class NdpiTiler(Tiler):
             Created image.
         """
         assert self._overview_series_index is not None
-        tiff_page = self._tiff_file.series[self._overview_series_index].pages.pages[
-            page
-        ]
+        tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
         return NdpiCroppedImage(
-            tiff_page, self._fh, self._jpeg, (self._label_crop_position, 1.0)
+            tiff_page, self._file.fh, self._jpeg, (self._label_crop_position, 1.0)
         )

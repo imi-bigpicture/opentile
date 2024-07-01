@@ -16,13 +16,14 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import ome_types
 from ome_types.model.simple_types import UnitsLength
-from tifffile.tifffile import TiffFile, TiffPageSeries
+from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
+from opentile.file import OpenTileFile
 from opentile.formats.ome.ome_tiff_image import (
     OmeTiffImage,
     OmeTiffOneFrameImage,
@@ -43,19 +44,22 @@ class OmeTiffTiler(Tiler):
 
     def __init__(
         self,
-        file: Union[str, Path, UPath, TiffFile],
+        file: Union[str, Path, UPath, OpenTileFile],
         turbo_path: Optional[Union[str, Path]] = None,
+        file_options: Optional[Dict[str, Any]] = None,
     ):
         """Tiler for ome tiff file.
 
         Parameters
         ----------
-        file: Union[str, Path, UPath, TiffFile]
-            Filepath to a ome tiff TiffFile or a ome tiff TiffFile.
+        file: Union[str, Path, UPath, OpenTileFile]
+            Filepath to a ome tiff TiffFile or an opened ome tiff OpenTileFile.
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
+        file_options: Optional[Dict[str, Any]] = None
+            Options to pass to filesystem when opening file.
         """
-        super().__init__(file)
+        super().__init__(file, file_options)
         self._jpeg = Jpeg(turbo_path)
         self._base_mpp = self._get_mpp(self._level_series_index)
 
@@ -86,8 +90,8 @@ class OmeTiffTiler(Tiler):
         return mpp
 
     def _get_optional_mpp(self, series_index: int) -> Optional[SizeMm]:
-        assert self._tiff_file.ome_metadata is not None
-        metadata = ome_types.from_xml(self._tiff_file.ome_metadata)
+        assert self._file.tiff.ome_metadata is not None
+        metadata = ome_types.from_xml(self._file.tiff.ome_metadata)
         pixels = metadata.images[series_index].pixels
         if (
             pixels.physical_size_x_unit != UnitsLength.MICROMETER
@@ -105,13 +109,13 @@ class OmeTiffTiler(Tiler):
         if tiff_page.is_tiled:
             return OmeTiffTiledImage(
                 tiff_page,
-                self._fh,
+                self._file.fh,
                 self.base_size,
                 self._base_mpp,
             )
         return OmeTiffOneFrameImage(
             tiff_page,
-            self._fh,
+            self._file.fh,
             self.base_size,
             Size(self.base_page.tilewidth, self.base_page.tilelength),
             self._base_mpp,
@@ -134,6 +138,6 @@ class OmeTiffTiler(Tiler):
         tiff_page = self._get_tiff_page(series, 0, page)
         return OmeTiffImage(
             tiff_page,
-            self._fh,
+            self._file.fh,
             self._get_optional_mpp(series),
         )

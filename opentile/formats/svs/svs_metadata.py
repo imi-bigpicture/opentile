@@ -18,7 +18,8 @@ from datetime import datetime
 from functools import cached_property
 from typing import Optional, Tuple
 
-from tifffile.tifffile import TiffPage, svs_description_metadata
+from tifffile import TiffPage
+from tifffile.tifffile import svs_description_metadata
 
 from opentile.metadata import Metadata
 

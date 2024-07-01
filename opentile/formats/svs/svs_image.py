@@ -19,11 +19,12 @@ from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 import numpy as np
 from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode, jpeg8_decode
 from PIL import Image
-from tifffile.tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
+from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
+from opentile.file import LockableFileHandle
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import LockableFileHandle, NativeTiledTiffImage, TiffImage
+from opentile.tiff_image import NativeTiledTiffImage, TiffImage
 
 
 class SvsStripedImage(TiffImage):

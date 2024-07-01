@@ -23,10 +23,10 @@ from imagecodecs import jpeg8_decode
 from tifffile import COMPRESSION, TiffPage, RESUNIT
 
 from opentile.config import settings
+from opentile.file import LockableFileHandle
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
-from opentile.tiff_image import LockableFileHandle
 from opentile.tiler import TiffImage
 
 

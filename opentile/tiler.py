@@ -16,15 +16,15 @@
 
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
+from tifffile import TiffFile, TiffPage, TiffPageSeries
 from upath import UPath
 
+from opentile.file import OpenTileFile
 from opentile.geometry import Size
 from opentile.metadata import Metadata
-from opentile.tiff_image import LockableFileHandle, TiffImage
-from fsspec.core import open
+from opentile.tiff_image import TiffImage
 
 
 class Tiler(metaclass=ABCMeta):
@@ -32,28 +32,25 @@ class Tiler(metaclass=ABCMeta):
 
     def __init__(
         self,
-        file: Union[str, Path, UPath, TiffFile],
-        file_options: Optional[Dict[str, Any]] = None,
+        file: Union[str, Path, UPath, OpenTileFile],
+        file_options: Optional[Dict[str, Any]],
     ):
         """Base class for reading images from TiffFile.
 
         Parameters
         ----------
-        file: Union[str, Path, UPath, TiffFile]
+        file: Union[str, Path, UPath, OpenTileFile]
             Filepath to a TiffFile or a TiffFile.
         file_options: Optional[Dict[str, Any]]
             Options to pass to filesystem when opening file.
         """
-        if isinstance(file, TiffFile):
-            if not self.supported(file):
+        if isinstance(file, OpenTileFile):
+            if not self.supported(file.tiff):
                 raise ValueError("Unsupported file.")
-            self._tiff_file = file
-            self._file_owned = False
+            self._file = file
         else:
-            opened_file: BinaryIO = open(str(file), **file_options or {})  # type: ignore
-            self._tiff_file = TiffFile(opened_file)
-            self._file_owned = True
-        self._fh = LockableFileHandle(self._tiff_file.filehandle)
+            self._file = OpenTileFile(file, file_options)
+        self._fh = self._file.fh
         self._level_series_index = 0
         self._overview_series_index: Optional[int] = None
         self._label_series_index: Optional[int] = None
@@ -89,7 +86,7 @@ class Tiler(metaclass=ABCMeta):
     @property
     def series(self) -> List[TiffPageSeries]:
         """Return contained TiffPageSeries."""
-        return self._tiff_file.series
+        return self._file.series
 
     @property
     def levels(self) -> List[TiffImage]:
@@ -215,8 +212,7 @@ class Tiler(metaclass=ABCMeta):
 
     def close(self) -> None:
         """Close tiff file."""
-        if self._file_owned:
-            self._tiff_file.close()
+        self._file.close()
 
     def get_tile(
         self, series: int, level: int, page: int, tile_position: Tuple[int, int]

@@ -16,11 +16,12 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
-from tifffile.tifffile import TiffFile, TiffPageSeries
+from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
+from opentile.file import OpenTileFile
 from opentile.formats.histech.histech_tiff_image import HistechTiffImage
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
@@ -31,19 +32,22 @@ from opentile.tiler import Tiler
 class HistechTiffTiler(Tiler):
     def __init__(
         self,
-        file: Union[str, Path, UPath, TiffFile],
+        file: Union[str, Path, UPath, OpenTileFile],
         turbo_path: Optional[Union[str, Path]] = None,
+        file_options: Optional[Dict[str, Any]] = None,
     ):
         """Tiler for 3DHistech tiff file.
 
         Parameters
         ----------
-        file: Union[str, Path, UPath, TiffFile]
-            Filepath to a 3DHistech TiffFile or a 3DHistech TiffFile.
+        file: Union[str, Path, UPath, OpenTileFile]
+            Filepath to a 3DHistech TiffFile or an opened 3DHistech OpenTileFile.
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
+        file_options: Optional[Dict[str, Any]] = None
+            Options to pass to filesystem when opening file.
         """
-        super().__init__(file)
+        super().__init__(file, file_options)
         self._jpeg = Jpeg(turbo_path)
 
     @property
@@ -59,7 +63,7 @@ class HistechTiffTiler(Tiler):
     def get_level(self, level: int, page: int = 0) -> TiffImage:
         return HistechTiffImage(
             self._get_tiff_page(self._level_series_index, level, page),
-            self._fh,
+            self._file.fh,
             self.base_size,
         )
 

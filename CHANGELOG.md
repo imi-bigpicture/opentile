@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -
 
+## [0.13.1] - 2024-07-01
+
+### Fixed
+
+- Fix for not closing file handle when `OpenTile.open()` is not used as a context manager.
+
 ## [0.13.0] - 2024-07-01
 
 ### Changed

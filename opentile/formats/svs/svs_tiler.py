@@ -16,11 +16,12 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
-from tifffile.tifffile import TiffFile, TiffPageSeries
+from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
+from opentile.file import OpenTileFile
 from opentile.formats.svs.svs_image import SvsLZWImage, SvsStripedImage, SvsTiledImage
 from opentile.formats.svs.svs_metadata import SvsMetadata
 from opentile.geometry import SizeMm
@@ -32,22 +33,25 @@ from opentile.tiler import TiffImage, Tiler
 class SvsTiler(Tiler):
     def __init__(
         self,
-        file: Union[str, Path, UPath, TiffFile],
+        file: Union[str, Path, UPath, OpenTileFile],
         turbo_path: Optional[Union[str, Path]] = None,
+        file_options: Optional[Dict[str, Any]] = None,
     ):
         """Tiler for svs file.
 
         Parameters
         ----------
-        file: Union[str, Path, UPath, TiffFile]
-            Filepath to a svs TiffFile or a svs TiffFile.
+        file: Union[str, Path, UPath, OpenTileFile]
+            Filepath to a svs TiffFile or an opened svs OpenTileFile.
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
+        file_options: Optional[Dict[str, Any]] = None
+            Options to pass to filesystem when opening file.
         """
-        super().__init__(file)
+        super().__init__(file, file_options)
         self._jpeg = Jpeg(turbo_path)
-        if "InterColorProfile" in self._tiff_file.pages.first.tags:
-            icc_profile = self._tiff_file.pages.first.tags["InterColorProfile"].value
+        if "InterColorProfile" in self._file.pages.first.tags:
+            icc_profile = self._file.pages.first.tags["InterColorProfile"].value
             assert isinstance(icc_profile, bytes) or icc_profile is None
             self._icc_profile = icc_profile
         self._metadata = SvsMetadata(self.base_page)
@@ -87,7 +91,7 @@ class SvsTiler(Tiler):
             parent = None
         svs_page = SvsTiledImage(
             self._get_tiff_page(series, level, page),
-            self._fh,
+            self._file.fh,
             self.base_size,
             self.base_mpp,
             parent,
@@ -99,7 +103,9 @@ class SvsTiler(Tiler):
         if self._label_series_index is None:
             raise ValueError("No label detected in file")
         return SvsLZWImage(
-            self._get_tiff_page(self._label_series_index, 0, page), self._fh, self._jpeg
+            self._get_tiff_page(self._label_series_index, 0, page),
+            self._file.fh,
+            self._jpeg,
         )
 
     @lru_cache(None)
@@ -108,6 +114,6 @@ class SvsTiler(Tiler):
             raise ValueError("No overview detected in file")
         return SvsStripedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
-            self._fh,
+            self._file.fh,
             self._jpeg,
         )

@@ -18,7 +18,7 @@ from datetime import datetime
 from functools import cached_property
 from typing import Any, Dict, List, Optional
 
-from tifffile.tifffile import TiffPage
+from tifffile import TiffPage
 
 from opentile.metadata import Metadata
 

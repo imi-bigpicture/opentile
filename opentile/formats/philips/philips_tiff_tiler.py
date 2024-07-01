@@ -16,11 +16,12 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
-from tifffile.tifffile import TiffFile, TiffPage, TiffPageSeries
+from tifffile import TiffFile, TiffPage, TiffPageSeries
 from upath import UPath
 
+from opentile.file import OpenTileFile
 from opentile.formats.philips.philips_tiff_image import PhilipsTiffImage
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.geometry import SizeMm
@@ -33,21 +34,24 @@ from opentile.tiler import Tiler
 class PhilipsTiffTiler(Tiler):
     def __init__(
         self,
-        file: Union[str, Path, UPath, TiffFile],
+        file: Union[str, Path, UPath, OpenTileFile],
         turbo_path: Optional[Union[str, Path]] = None,
+        file_options: Optional[Dict[str, Any]] = None,
     ):
         """Tiler for Philips tiff file.
 
         Parameters
         ----------
-        file: Union[str, Path, UPath, TiffFile]
-            Filepath to a Philips TiffFile or a Philips TiffFile.
+        file: Union[str, Path, UPath, OpenTileFile]
+            Filepath to a Philips TiffFile or an opened Philips OpenTileFile.
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
+        file_options: Optional[Dict[str, Any]] = None
+            Options to pass to filesystem when opening file.
         """
-        super().__init__(file)
+        super().__init__(file, file_options)
         self._jpeg = Jpeg(turbo_path)
-        self._metadata = PhilipsTiffMetadata(self._tiff_file)
+        self._metadata = PhilipsTiffMetadata(self._file.tiff)
         assert self._metadata.pixel_spacing is not None
         self._base_mpp = SizeMm.from_tuple(self._metadata.pixel_spacing) * 1000.0
 
@@ -73,7 +77,7 @@ class PhilipsTiffTiler(Tiler):
         """Return PhilipsTiffTiledPage for series, level, page."""
         return PhilipsTiffImage(
             self._get_tiff_page(series, level, page),
-            self._fh,
+            self._file.fh,
             self.base_size,
             self._base_mpp,
             self._jpeg,

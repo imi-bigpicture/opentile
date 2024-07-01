@@ -15,102 +15,21 @@
 """Base image classes."""
 
 import math
-import threading
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
-from tifffile.tifffile import (
+from tifffile import (
     COMPRESSION,
     PHOTOMETRIC,
-    FileHandle,
     TiffPage,
     TiffTags,
 )
 
+from opentile.file import LockableFileHandle
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
-
-
-class LockableFileHandle:
-    """A lockable file handle for reading frames."""
-
-    def __init__(self, fh: FileHandle):
-        self._fh = fh
-        self._lock = threading.Lock()
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__} for FileHandle {self._fh}"
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._fh})"
-
-    @property
-    def filepath(self) -> Path:
-        return Path(self._fh.path)
-
-    def read(self, offset: int, bytecount: int) -> bytes:
-        """Return bytes from single location from file handle. Is thread safe.
-
-        Parameters
-        ----------
-        offset: int
-            Offset in bytes.
-        bytecount: int
-            Length in bytes.
-
-        Returns
-        ----------
-        bytes
-            Requested bytes.
-        """
-        with self._lock:
-            return self._read(offset, bytecount)
-
-    def read_multiple(
-        self, offsets_bytecounts: Sequence[Tuple[int, int]]
-    ) -> List[bytes]:
-        """Return bytes from multiple locations from file handle. Is thread
-        safe.
-
-        Parameters
-        ----------
-        offsets_bytecounts: Sequence[Tuple[int, int]]
-            List of tuples with offset and lengths to read.
-
-        Returns
-        ----------
-        List[bytes]
-            List of requested bytes.
-        """
-        with self._lock:
-            return [
-                self._read(offset, bytecount)
-                for (offset, bytecount) in offsets_bytecounts
-            ]
-
-    def _read(self, offset: int, bytecount: int):
-        """Read bytes from file handle. Is not thread safe.
-
-        Parameters
-        ----------
-        offset: int
-            Offset in bytes.
-        bytecount: int
-            Length in bytes.
-
-        Returns
-        ----------
-        bytes
-            Requested bytes.
-        """
-        self._fh.seek(offset)
-        return self._fh.read(bytecount)
-
-    def close(self) -> None:
-        """Close the file handle"""
-        self._fh.close()
 
 
 class TiffImage(metaclass=ABCMeta):

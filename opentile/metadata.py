@@ -17,7 +17,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from tifffile.tifffile import TiffTags
+from tifffile import TiffTags
 
 
 class Metadata:

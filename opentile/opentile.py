@@ -14,11 +14,9 @@
 
 """Main interface for OpenTile."""
 
-from contextlib import contextmanager
 from pathlib import Path
 from typing import (
     Dict,
-    Generator,
     Iterator,
     Optional,
     Tuple,
@@ -28,6 +26,7 @@ from typing import (
 
 from tifffile import TiffFile, TiffFileError
 
+from opentile.file import OpenTileFile
 from opentile.formats import (
     HistechTiffTiler,
     NdpiTiler,
@@ -35,7 +34,6 @@ from opentile.formats import (
     PhilipsTiffTiler,
     SvsTiler,
 )
-from fsspec.core import open
 from opentile.tiler import Tiler
 from upath import UPath
 
@@ -73,21 +71,23 @@ class OpenTile:
             Path to turbojpeg (dll or so).
         """
         try:
-            with cls._open_tifffile(filepath, file_options) as tiff_file:
-                _, supported_tiler = next(cls._get_supported_tilers(tiff_file))
-                if supported_tiler is NdpiTiler:
-                    return NdpiTiler(tiff_file, tile_size, turbo_path)
-                if supported_tiler is SvsTiler:
-                    return SvsTiler(tiff_file, turbo_path)
-                if supported_tiler is PhilipsTiffTiler:
-                    return PhilipsTiffTiler(tiff_file, turbo_path)
-                if supported_tiler is HistechTiffTiler:
-                    return HistechTiffTiler(tiff_file)
-                if supported_tiler is OmeTiffTiler:
-                    return OmeTiffTiler(tiff_file)
-        except (TiffFileError, StopIteration):
-            pass
-        raise NotImplementedError("Non supported tiff file")
+            file = OpenTileFile(filepath, file_options)
+        except TiffFileError as exception:
+            raise NotImplementedError(
+                f"File {filepath} failed to open with TiffFile", exception
+            )
+        _, supported_tiler = next(cls._get_supported_tilers(file), (None, None))
+        if supported_tiler is NdpiTiler:
+            return NdpiTiler(file, tile_size, turbo_path)
+        if supported_tiler is SvsTiler:
+            return SvsTiler(file, turbo_path)
+        if supported_tiler is PhilipsTiffTiler:
+            return PhilipsTiffTiler(file, turbo_path)
+        if supported_tiler is HistechTiffTiler:
+            return HistechTiffTiler(file)
+        if supported_tiler is OmeTiffTiler:
+            return OmeTiffTiler(file)
+        raise NotImplementedError(f"Support for tiff file {filepath} not implemented.")
 
     @classmethod
     def detect_format(
@@ -97,27 +97,18 @@ class OpenTile:
     ) -> Optional[str]:
 
         try:
-            with cls._open_tifffile(filepath, file_options) as tiff_file:
-                tiler_name, _ = next(cls._get_supported_tilers(tiff_file))
+            with OpenTileFile(filepath, file_options) as file:
+                tiler_name, _ = next(cls._get_supported_tilers(file), (None, None))
                 return tiler_name
-        except (TiffFileError, StopIteration):
+        except TiffFileError:
             return None
-
-    @staticmethod
-    @contextmanager
-    def _open_tifffile(
-        filepath: Union[str, Path, UPath], file_options: Optional[Dict[str, str]] = None
-    ) -> Generator[TiffFile, None, None]:
-        with open(str(filepath), **file_options or {}) as file:
-            with TiffFile(file) as tiff_file:  # type: ignore
-                yield tiff_file
 
     @classmethod
     def _get_supported_tilers(
-        cls, tiff_file: TiffFile
+        cls, file: OpenTileFile
     ) -> Iterator[Tuple[str, Type[Tiler]]]:
         return (
             (tiler_name, tiler)
             for (tiler_name, tiler) in cls._tilers.items()
-            if tiler.supported(tiff_file)
+            if tiler.supported(file.tiff)
         )
