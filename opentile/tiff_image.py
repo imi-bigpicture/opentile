@@ -328,7 +328,7 @@ class TiffImage(metaclass=ABCMeta):
         self,
         base_size: Size,
     ) -> int:
-        return int(math.log2(base_size.width / self.image_size.width))
+        return round(math.log2(base_size.width / self.image_size.width))
 
     def _calculate_mpp(self, base_mpp: SizeMm) -> SizeMm:
         return base_mpp * pow(2, self.pyramid_index)

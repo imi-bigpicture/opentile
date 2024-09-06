@@ -17,4 +17,4 @@ __all__ = ["OpenTile", "Metadata"]
 from opentile.opentile import OpenTile
 from opentile.metadata import Metadata
 
-__version__ = "0.13.1"
+__version__ = "0.13.2"
