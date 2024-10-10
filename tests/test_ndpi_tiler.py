@@ -20,7 +20,7 @@ import pytest
 from tifffile import PHOTOMETRIC
 
 from opentile.formats import NdpiTiler
-from opentile.formats.ndpi.ndpi_image import NdpiStripedImage
+from opentile.formats.ndpi.ndpi_image import NdpiStripedImage, NdpiOneFrameImage
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size
 from opentile.tiff_image import TiffImage
@@ -44,6 +44,11 @@ def tiler(tile_size: Size):
 @pytest.fixture()
 def level(tiler: NdpiTiler):
     yield tiler.get_level(0)
+
+
+@pytest.fixture()
+def one_frame_level(tiler: NdpiTiler):
+    yield tiler.get_level(3)
 
 
 @pytest.mark.unittest
@@ -113,6 +118,24 @@ class TestNdpiTiler:
 
         # Act
         tile = level.get_tile(tile_point)
+
+        # Assert
+        assert md5(tile).hexdigest() == hash
+
+    @pytest.mark.parametrize(
+        ["tile_point", "hash"],
+        [
+            ((0, 0), "170165575a3e9cc564e7ac18d5520f1b"),
+            ((1, 1), "4a48dc3f72584170497e793d44a2372d"),
+        ],
+    )
+    def test_get_tile_one_frame_level(
+        self, one_frame_level: NdpiOneFrameImage, tile_point: Tuple[int, int], hash: str
+    ):
+        # Arrange
+
+        # Act
+        tile = one_frame_level.get_tile(tile_point)
 
         # Assert
         assert md5(tile).hexdigest() == hash

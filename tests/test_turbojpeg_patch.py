@@ -14,6 +14,7 @@
 
 from ctypes import c_short, pointer
 from io import BufferedReader
+from typing import Tuple
 import numpy as np
 import pytest
 from turbojpeg import (
@@ -117,16 +118,19 @@ class TestTurboJpeg:
         # Assert
         assert single_crops == multiple_crops
 
-    def test_crop_multiple_extend(self, jpeg: TurboJPEG_patch, buffer: bytes):
+    @pytest.mark.parametrize("size", [(1024, 512), (1024, 1024)])
+    def test_crop_multiple_extend(
+        self, jpeg: TurboJPEG_patch, buffer: bytes, size: Tuple[int, int]
+    ):
         # Arrange
-        crop_parameters = [(0, 0, 1024, 1024)]
+        crop_parameters = [(0, 0, size[0], size[1])]
 
         # Act
         crop = jpeg.crop_multiple(buffer, crop_parameters)[0]
 
         # Assert
         width, height, _, _ = jpeg.decode_header(crop)
-        assert (1024, 1024) == (width, height)
+        assert size == (width, height)
 
     def test_fill_background(self):
         # Arrange

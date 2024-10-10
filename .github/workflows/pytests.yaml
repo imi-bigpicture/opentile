@@ -62,13 +62,13 @@ jobs:
         run: sudo apt-get install -y libturbojpeg
       - name: Set up libjpegturbo OSX
         if: matrix.os == 'macos-latest'
-        run: brew install jpeg-turbo
+        run: brew unlink jpeg-turbo && brew install jpeg-turbo --HEAD
       - name: Set up libjpegturbo Windows
         shell: pwsh
         if: matrix.os == 'windows-latest'
         run: |
-          Invoke-WebRequest -Uri https://sourceforge.net/projects/libjpeg-turbo/files/2.1.4/libjpeg-turbo-2.1.4-vc64.exe/download -OutFile libjpeg-turbo-2.1.4-vc64.exe -UserAgent "NativeHost"
-          7z e libjpeg-turbo-2.1.4-vc64.exe -oC:\turbojpeg bin/turbojpeg.dll
+          Invoke-WebRequest -Uri https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.0.90/libjpeg-turbo-3.0.90-vc64.exe -OutFile libjpeg-turbo-3.0.90-vc64.exe -UserAgent "NativeHost"
+          7z e libjpeg-turbo-3.0.90-vc64.exe -oC:\turbojpeg bin/turbojpeg.dll
       - name: Set up paths in windows
         if: matrix.os == 'windows-latest'
         uses: actions/github-script@v7
