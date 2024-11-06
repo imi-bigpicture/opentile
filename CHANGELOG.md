@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -
 
+## [0.13.4] - 2024-11-06
+
+### Fixed
+
+- Added `APERIO_JP2000_YCBC` as supported compression format for svs files.
+
 ## [0.13.3] - 2024-10-10
 
 ### Fixed
@@ -225,7 +231,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.13.3..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.13.4..HEAD
+[0.13.4]: https://github.com/imi-bigpicture/opentile/compare/v0.13.2..v0.13.3
 [0.13.3]: https://github.com/imi-bigpicture/opentile/compare/v0.13.2..v0.13.3
 [0.13.2]: https://github.com/imi-bigpicture/opentile/compare/v0.13.1..v0.13.2
 [0.13.1]: https://github.com/imi-bigpicture/opentile/compare/v0.13.0..v0.13.1

@@ -224,7 +224,11 @@ class SvsTiledImage(NativeTiledTiffImage):
 
     @property
     def supported_compressions(self) -> Optional[List[COMPRESSION]]:
-        return [COMPRESSION.JPEG, COMPRESSION.APERIO_JP2000_RGB]
+        return [
+            COMPRESSION.JPEG,
+            COMPRESSION.APERIO_JP2000_RGB,
+            COMPRESSION.APERIO_JP2000_YCBC,
+        ]
 
     @property
     def mpp(self) -> SizeMm:

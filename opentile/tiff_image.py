@@ -60,7 +60,7 @@ class TiffImage(metaclass=ABCMeta):
             self.supported_compressions is not None
             and page.compression not in self.supported_compressions
         ):
-            raise NotImplementedError(f"Non-supported compression {self.compression}.")
+            raise NotImplementedError(f"Non-supported compression {page.compression}.")
         self._page = page
         self._file = file
         self._add_rgb_colorspace_fix = add_rgb_colorspace_fix
