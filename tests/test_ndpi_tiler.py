@@ -484,3 +484,12 @@ class TestNdpiTiler:
 
         # Assert
         assert md5(overview).hexdigest() == "c663698334b10cd57484a2d503b3bafa"
+
+    def test_compressed_size(self, level: TiffImage):
+        # Arrange
+
+        # Act
+        compressed_size = level.compressed_size
+
+        # Assert
+        assert compressed_size == 262256667

@@ -146,3 +146,12 @@ class TestPhilipsTiffTiler:
 
         # Assert
         assert aquisition_datetime == datetime(2013, 7, 1, 18, 59, 4)
+
+    def test_compressed_size(self, level: TiffImage):
+        # Arrange
+
+        # Act
+        compressed_size = level.compressed_size
+
+        # Assert
+        assert compressed_size == 486105413

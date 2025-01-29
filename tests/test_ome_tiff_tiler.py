@@ -72,3 +72,12 @@ class TestOmeTiffTiler:
 
         # Assert
         assert samples_per_pixel == 3
+
+    def test_compressed_size(self, level: TiffImage):
+        # Arrange
+
+        # Act
+        compressed_size = level.compressed_size
+
+        # Assert
+        assert compressed_size == 104115549
