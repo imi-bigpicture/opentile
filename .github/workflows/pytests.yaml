@@ -60,9 +60,6 @@ jobs:
       - name: Set up Ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get install -y libturbojpeg
-      - name: Set up libjpegturbo OSX
-        if: matrix.os == 'macos-latest'
-        run: brew unlink jpeg-turbo && brew install jpeg-turbo --HEAD
       - name: Set up libjpegturbo Windows
         shell: pwsh
         if: matrix.os == 'windows-latest'
