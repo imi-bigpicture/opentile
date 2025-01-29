@@ -20,11 +20,11 @@ from hashlib import md5
 
 FILES: Dict[str, Dict[str, Any]] = {
     "svs/CMU-1/CMU-1.svs": {
-        "url": "https://data.cytomine.coop/open/openslide/aperio-svs/CMU-1.svs",  # NOQA
+        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs",  # NOQA
         "md5": {"CMU-1.svs": "751b0b86a3c5ff4dfc8567cf24daaa85"},
     },
     "ndpi/CMU-1/CMU-1.ndpi": {
-        "url": "https://data.cytomine.coop/open/openslide/hamamatsu-ndpi/CMU-1.ndpi",  # NOQA
+        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi",  # NOQA
         "md5": {"CMU-1.ndpi": "fb89dea54f85fb112e418a3cf4c7888a"},
     },
 }

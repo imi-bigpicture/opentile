@@ -21,6 +21,7 @@ from tifffile import PHOTOMETRIC
 
 from opentile.formats import SvsTiler
 from opentile.formats.svs.svs_image import SvsTiledImage
+from opentile.tiff_image import TiffImage
 from opentile.geometry import Point
 
 from .filepaths import svs_file_path
@@ -181,3 +182,12 @@ class TestSvsTiler:
 
         # Assert
         assert aquisition_datetime == datetime(2009, 12, 29, 9, 59, 15)
+
+    def test_compressed_size(self, level: TiffImage):
+        # Arrange
+
+        # Act
+        compressed_size = level.compressed_size
+
+        # Assert
+        assert compressed_size == 163831603

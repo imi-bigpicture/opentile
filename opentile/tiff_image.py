@@ -14,6 +14,7 @@
 
 """Base image classes."""
 
+from functools import cached_property
 import math
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
@@ -164,6 +165,18 @@ class TiffImage(metaclass=ABCMeta):
         """The pyramidal index in relation to the base layer. Returns 0 for
         images not in pyramidal series."""
         return self._pyramid_index
+
+    @cached_property
+    def compressed_size(self) -> int:
+        """Return the size of the compressed image data."""
+        frames = sum(self._page.databytecounts)
+        if self._page.jpegheader is not None:
+            jpeg_header_length = len(self._page.jpegheader)
+        elif self._page.jpegtables is not None:
+            jpeg_header_length = len(self._page.jpegtables)
+        else:
+            jpeg_header_length = 0
+        return frames + len(self._page.dataoffsets) * jpeg_header_length
 
     @abstractmethod
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
