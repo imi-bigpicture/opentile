@@ -72,6 +72,9 @@ class PhilipsTiffTiler(Tiler):
     def get_overview(self, page: int = 0) -> TiffImage:
         return self._get_image(self._overview_series_index, 0, page)
 
+    def get_thumbnail(self, page: int = 0) -> TiffImage:
+        return self._get_image(self._thumbnail_series_index, 0, page)
+
     @lru_cache(None)
     def _get_image(self, series: int, level: int, page: int = 0) -> TiffImage:
         """Return PhilipsTiffTiledPage for series, level, page."""
@@ -100,6 +103,13 @@ class PhilipsTiffTiler(Tiler):
         page = series.pages[0]
         assert isinstance(page, TiffPage)
         return page.description.find("Label") > -1
+
+    @staticmethod
+    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+        """Return true if series is a thumbnail series."""
+        page = series.pages[0]
+        assert isinstance(page, TiffPage)
+        return page.description.find("Thumbnail") > -1
 
     @staticmethod
     def _get_associated_mpp_from_page(page: TiffPage):

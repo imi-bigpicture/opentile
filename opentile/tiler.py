@@ -53,6 +53,7 @@ class Tiler(metaclass=ABCMeta):
         self._level_series_index = 0
         self._overview_series_index: Optional[int] = None
         self._label_series_index: Optional[int] = None
+        self._thumbnail_series_index: Optional[int] = None
         for series_index, series in enumerate(self.series):
             if self._is_level_series(series):
                 self._level_series_index = series_index
@@ -60,6 +61,8 @@ class Tiler(metaclass=ABCMeta):
                 self._label_series_index = series_index
             elif self._is_overview_series(series):
                 self._overview_series_index = series_index
+            elif self._is_thumbnail_series(series):
+                self._thumbnail_series_index = series_index
         self._icc_profile: Optional[bytes] = None
         base_page = self.series[self._level_series_index].pages[0]
         assert isinstance(base_page, TiffPage)
@@ -121,6 +124,18 @@ class Tiler(metaclass=ABCMeta):
             self.get_overview(page_index)
             for page_index, page in enumerate(
                 self.series[self._overview_series_index].pages
+            )
+        ]
+
+    @property
+    def thumbnails(self) -> List[TiffImage]:
+        """Return list of thumbnail TiffImage."""
+        if self._thumbnail_series_index is None:
+            return []
+        return [
+            self.get_thumbnail(page_index)
+            for page_index, page in enumerate(
+                self.series[self._thumbnail_series_index].pages
             )
         ]
 
@@ -191,6 +206,22 @@ class Tiler(metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
+    @abstractmethod
+    def get_thumbnail(self, page: int = 0) -> TiffImage:
+        """Return thumbnail TiffImage.
+
+        Parameters
+        ----------
+        page: int = 0
+            Index of page to get.
+
+        Returns
+        ----------
+        TiffImage
+            Thumbnail TiffImage.
+        """
+        raise NotImplementedError()
+
     @staticmethod
     @abstractmethod
     def _is_level_series(series: TiffPageSeries) -> bool:
@@ -207,6 +238,12 @@ class Tiler(metaclass=ABCMeta):
     @abstractmethod
     def _is_label_series(series: TiffPageSeries) -> bool:
         """Return true if series is a label series."""
+        raise NotImplementedError()
+
+    @staticmethod
+    @abstractmethod
+    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+        """Return true if series is a thumbnail series."""
         raise NotImplementedError()
 
     def close(self) -> None:

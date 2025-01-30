@@ -104,6 +104,11 @@ class NdpiTiler(Tiler):
         return False
 
     @staticmethod
+    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+        """Return true if series is a thumbnail series."""
+        return False
+
+    @staticmethod
     def _adjust_tile_size(
         requested_tile_width: int, smallest_stripe_width: Optional[int] = None
     ) -> Size:
@@ -224,3 +229,6 @@ class NdpiTiler(Tiler):
         return NdpiCroppedImage(
             tiff_page, self._file, self._jpeg, (self._label_crop_position, 1.0)
         )
+
+    def get_thumbnail(self, page: int = 0) -> TiffImage:
+        raise NotImplementedError()

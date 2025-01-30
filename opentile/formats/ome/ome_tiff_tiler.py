@@ -73,8 +73,10 @@ class OmeTiffTiler(Tiler):
         return tiff_file.is_ome
 
     def _is_level_series(self, series: TiffPageSeries) -> bool:
-        return not self._is_label_series(series) and not self._is_overview_series(
-            series
+        return (
+            not self._is_label_series(series)
+            and not self._is_overview_series(series)
+            and not self._is_thumbnail_series(series)
         )
 
     def _is_label_series(self, series: TiffPageSeries) -> bool:
@@ -82,6 +84,9 @@ class OmeTiffTiler(Tiler):
 
     def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return series.name.strip() == "macro"
+
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
+        return series.name.strip() == "thumbnail"
 
     def _get_mpp(self, series_index: int) -> SizeMm:
         mpp = self._get_optional_mpp(series_index)
@@ -133,6 +138,12 @@ class OmeTiffTiler(Tiler):
         if self._overview_series_index is None:
             raise ValueError("No overview detected in file")
         return self._get_associated_image(self._overview_series_index, page)
+
+    @lru_cache(None)
+    def get_thumbnail(self, page: int = 0) -> TiffImage:
+        if self._thumbnail_series_index is None:
+            raise ValueError("No thumbnail detected in file")
+        return self._get_associated_image(self._thumbnail_series_index, page)
 
     def _get_associated_image(self, series: int, page: int = 0) -> TiffImage:
         tiff_page = self._get_tiff_page(series, 0, page)

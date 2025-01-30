@@ -82,6 +82,10 @@ class SvsTiler(Tiler):
     def _is_overview_series(series: TiffPageSeries) -> bool:
         return series.name == "Macro"
 
+    @staticmethod
+    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+        return series.name == "Thumbnail"
+
     @lru_cache(None)
     def get_level(self, level: int, page: int = 0) -> TiffImage:
         series = self._level_series_index
@@ -114,6 +118,16 @@ class SvsTiler(Tiler):
             raise ValueError("No overview detected in file")
         return SvsStripedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
+            self._file,
+            self._jpeg,
+        )
+
+    @lru_cache(None)
+    def get_thumbnail(self, page: int = 0) -> TiffImage:
+        if self._thumbnail_series_index is None:
+            raise ValueError("No overview detected in file")
+        return SvsStripedImage(
+            self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
             self._jpeg,
         )
