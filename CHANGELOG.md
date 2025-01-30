@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Reading out thumbnails from supported formats.
+
 ## [0.14.0] - 2025-01-29
 
 ### Added

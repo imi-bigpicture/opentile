@@ -73,6 +73,9 @@ class HistechTiffTiler(Tiler):
     def get_overview(self, page: int = 0) -> TiffImage:
         raise NotImplementedError()
 
+    def get_thumbnail(self, page: int = 0) -> TiffImage:
+        raise NotImplementedError()
+
     @staticmethod
     def _is_level_series(series: TiffPageSeries) -> bool:
         return series.index == 0
@@ -85,4 +88,9 @@ class HistechTiffTiler(Tiler):
     @staticmethod
     def _is_label_series(series: TiffPageSeries) -> bool:
         """Return true if series is a label series."""
+        return False
+
+    @staticmethod
+    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+        """Return true if series is a thumbnail series."""
         return False

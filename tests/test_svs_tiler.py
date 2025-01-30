@@ -183,6 +183,33 @@ class TestSvsTiler:
         # Assert
         assert aquisition_datetime == datetime(2009, 12, 29, 9, 59, 15)
 
+    def test_get_label(self, tiler: SvsTiler):
+        # Arrange
+
+        # Act
+        label = tiler.get_label().get_tile((0, 0))
+
+        # Assert
+        assert md5(label).hexdigest() == "174c17e92ab40c0517410425998a67f1"
+
+    def test_get_overview(self, tiler: SvsTiler):
+        # Arrange
+
+        # Act
+        overview = tiler.get_overview().get_tile((0, 0))
+
+        # Assert
+        assert md5(overview).hexdigest() == "fdde19f6d10994c5b866b43027ff94ed"
+
+    def test_get_thumbnail(self, tiler: SvsTiler):
+        # Arrange
+
+        # Act
+        thumbnail = tiler.get_thumbnail().get_tile((0, 0))
+
+        # Assert
+        assert md5(thumbnail).hexdigest() == "a2f04a9c90c64063117748caa561a4c9"
+
     def test_compressed_size(self, level: TiffImage):
         # Arrange
 
