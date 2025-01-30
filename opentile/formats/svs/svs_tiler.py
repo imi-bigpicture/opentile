@@ -84,7 +84,6 @@ class SvsTiler(Tiler):
 
     @staticmethod
     def _is_thumbnail_series(series: TiffPageSeries) -> bool:
-        print("is_thumbnail_series", series.name, series.name == "Thumbnail")
         return series.name == "Thumbnail"
 
     @lru_cache(None)
