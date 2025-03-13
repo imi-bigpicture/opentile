@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 2025-03-13
+
+### Fixed
+
+- Incorrect pixel spacing parsing for philips and histech tilers.
+
 ## [0.15.0] - 2025-01-30
 
 ### Added
@@ -243,7 +249,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.15.0..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.15.1..HEAD
+[0.15.1]: https://github.com/imi-bigpicture/opentile/compare/v0.15.0..v0.15.1
 [0.15.0]: https://github.com/imi-bigpicture/opentile/compare/v0.14.0..v0.15.0
 [0.14.0]: https://github.com/imi-bigpicture/opentile/compare/v0.13.3..v0.14.0
 [0.13.4]: https://github.com/imi-bigpicture/opentile/compare/v0.13.2..v0.13.3

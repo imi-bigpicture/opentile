@@ -73,7 +73,7 @@ class NdpiImage(TiffImage):
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
-        return self.mpp / 1000.0
+        return self.mpp / 1000
 
     @property
     def supported_compressions(self) -> Optional[List[COMPRESSION]]:

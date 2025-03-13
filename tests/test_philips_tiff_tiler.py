@@ -20,6 +20,7 @@ import pytest
 from tifffile import PHOTOMETRIC
 
 from opentile.formats import PhilipsTiffTiler
+from opentile.geometry import SizeMm
 from opentile.tiff_image import TiffImage
 
 from .filepaths import philips_file_path
@@ -155,3 +156,23 @@ class TestPhilipsTiffTiler:
 
         # Assert
         assert compressed_size == 486105413
+
+    @pytest.mark.parametrize(
+        ["level", "expected_size"],
+        [
+            (0, SizeMm(0.00025, 0.00025)),
+            (1, SizeMm(0.0005, 0.0005)),
+            (2, SizeMm(0.001, 0.001)),
+        ],
+    )
+    def test_pixel_spacing(
+        self, tiler: PhilipsTiffTiler, level: int, expected_size: SizeMm
+    ):
+        # Arrange
+        base_level = tiler.get_level(level)
+
+        # Act
+        base_pixel_spacing = base_level.pixel_spacing
+
+        # Assert
+        assert base_pixel_spacing == expected_size

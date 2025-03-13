@@ -19,6 +19,7 @@ import pytest
 from tifffile import PHOTOMETRIC
 
 from opentile.formats import HistechTiffTiler
+from opentile.geometry import SizeMm
 from opentile.tiff_image import TiffImage
 
 from .filepaths import histech_file_path
@@ -118,3 +119,21 @@ class TestHistechTiffTiler:
 
         # Assert
         assert compressed_size == 425684721
+
+    @pytest.mark.parametrize(
+        ["level", "expected_size"],
+        [
+            (0, SizeMm(0.0002325, 0.0002325)),
+        ],
+    )
+    def test_pixel_spacing(
+        self, tiler: HistechTiffTiler, level: int, expected_size: SizeMm
+    ):
+        # Arrange
+        base_level = tiler.get_level(level)
+
+        # Act
+        base_pixel_spacing = base_level.pixel_spacing
+
+        # Assert
+        assert base_pixel_spacing == expected_size

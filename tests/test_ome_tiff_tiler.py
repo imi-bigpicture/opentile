@@ -18,6 +18,7 @@ from typing import Tuple
 import pytest
 
 from opentile.formats import OmeTiffTiler
+from opentile.geometry import SizeMm
 from opentile.tiff_image import TiffImage
 
 from .filepaths import ome_tiff_file_path
@@ -81,3 +82,23 @@ class TestOmeTiffTiler:
 
         # Assert
         assert compressed_size == 104115549
+
+    @pytest.mark.parametrize(
+        ["level", "expected_size"],
+        [
+            (0, SizeMm(0.000499, 0.000499)),
+            (1, SizeMm(0.001996, 0.001996)),
+            (2, SizeMm(0.007984, 0.007984)),
+        ],
+    )
+    def test_pixel_spacing(
+        self, tiler: OmeTiffTiler, level: int, expected_size: SizeMm
+    ):
+        # Arrange
+        base_level = tiler.get_level(level)
+
+        # Act
+        base_pixel_spacing = base_level.pixel_spacing
+
+        # Assert
+        assert base_pixel_spacing == expected_size
