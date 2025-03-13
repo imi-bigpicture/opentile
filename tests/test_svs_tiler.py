@@ -22,7 +22,7 @@ from tifffile import PHOTOMETRIC
 from opentile.formats import SvsTiler
 from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.tiff_image import TiffImage
-from opentile.geometry import Point
+from opentile.geometry import Point, SizeMm
 
 from .filepaths import svs_file_path
 
@@ -218,3 +218,21 @@ class TestSvsTiler:
 
         # Assert
         assert compressed_size == 163831603
+
+    @pytest.mark.parametrize(
+        ["level", "expected_size"],
+        [
+            (0, SizeMm(0.000499, 0.000499)),
+            (1, SizeMm(0.001996, 0.001996)),
+            (2, SizeMm(0.007984, 0.007984)),
+        ],
+    )
+    def test_pixel_spacing(self, tiler: SvsTiler, level: int, expected_size: SizeMm):
+        # Arrange
+        base_level = tiler.get_level(level)
+
+        # Act
+        base_pixel_spacing = base_level.pixel_spacing
+
+        # Assert
+        assert base_pixel_spacing == expected_size

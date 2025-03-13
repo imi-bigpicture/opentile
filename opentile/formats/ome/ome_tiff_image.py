@@ -51,7 +51,7 @@ class OmeTiffImage(TiffImage):
         """Return pixel spacing in mm per pixel."""
         if self.mpp is None:
             return None
-        return self.mpp / 1000.0
+        return self.mpp / 1000
 
     @property
     def supported_compressions(self) -> Optional[List[COMPRESSION]]:
@@ -100,7 +100,7 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage):
 
     @property
     def pixel_spacing(self) -> SizeMm:
-        return self.mpp / 1000.0
+        return self.mpp / 1000
 
 
 class OmeTiffTiledImage(NativeTiledTiffImage):
@@ -132,7 +132,7 @@ class OmeTiffTiledImage(NativeTiledTiffImage):
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
-        return self.mpp / 1000.0
+        return self.mpp / 1000
 
     @property
     def supported_compressions(self) -> Optional[List[COMPRESSION]]:

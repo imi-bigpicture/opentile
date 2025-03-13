@@ -49,7 +49,7 @@ class HistechTiffImage(NativeTiledTiffImage):
     @property
     def pixel_spacing(self) -> SizeMm:
         """Return pixel spacing in mm per pixel."""
-        return self.mpp * 1000
+        return self.mpp / 1000
 
     @property
     def supported_compressions(self) -> Optional[List[COMPRESSION]]:
@@ -74,8 +74,5 @@ class HistechTiffImage(NativeTiledTiffImage):
             key: value
             for (key, value) in (item.split(" = ", 1) for item in items_split)
         }
-        return (
-            SizeMm(float(items["3dh_PixelSizeX"]), float(items["3dh_PixelSizeY"]))
-            / 1000
-            / 1000
-        )
+        mpp = float(items["MPP"])
+        return SizeMm(mpp, mpp)

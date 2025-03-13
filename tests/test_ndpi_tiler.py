@@ -22,7 +22,7 @@ from tifffile import PHOTOMETRIC
 from opentile.formats import NdpiTiler
 from opentile.formats.ndpi.ndpi_image import NdpiStripedImage, NdpiOneFrameImage
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
-from opentile.geometry import Point, Size
+from opentile.geometry import Point, Size, SizeMm
 from opentile.tiff_image import TiffImage
 from .filepaths import ndpi_file_path
 
@@ -493,3 +493,21 @@ class TestNdpiTiler:
 
         # Assert
         assert compressed_size == 262256667
+
+    @pytest.mark.parametrize(
+        ["level", "expected_size"],
+        [
+            (0, SizeMm(0.00045641259698767686, 0.0004550625711035267)),
+            (1, SizeMm(0.0018258170531312763, 0.0018204988166757691)),
+            (2, SizeMm(0.007304601899196494, 0.007283321194464677)),
+        ],
+    )
+    def test_pixel_spacing(self, tiler: NdpiTiler, level: int, expected_size: SizeMm):
+        # Arrange
+        base_level = tiler.get_level(level)
+
+        # Act
+        base_pixel_spacing = base_level.pixel_spacing
+
+        # Assert
+        assert base_pixel_spacing == expected_size
