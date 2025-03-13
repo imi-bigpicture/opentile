@@ -356,7 +356,7 @@ class TurboJPEG_patch(TurboJPEG):
 
     @staticmethod
     def _define_cropping_regions(
-        crop_parameters: List[Tuple[int, int, int, int]]
+        crop_parameters: List[Tuple[int, int, int, int]],
     ) -> List[CroppingRegion]:
         return TurboJPEG._TurboJPEG__define_cropping_regions(  # type: ignore
             crop_parameters

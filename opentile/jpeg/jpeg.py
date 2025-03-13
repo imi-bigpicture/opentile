@@ -144,7 +144,7 @@ class Jpeg:
                 scan_start = start_of_scan + length + 2
 
             frame += scan[scan_start:-2]
-            frame += b"\xFF" + self.restart_mark(scan_index)
+            frame += b"\xff" + self.restart_mark(scan_index)
 
         frame[-2:] = self.end_of_image()
 
@@ -399,7 +399,7 @@ class Jpeg:
         start_of_scan = frame.find(cls.start_of_scan())
         frame[start_of_scan:start_of_scan] = (
             jpegtables[2:-2]
-            + b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62"
+            + b"\xff\xee\x00\x0e\x41\x64\x6f\x62"
             + b"\x65\x00\x64\x80\x00\x00\x00\x00"
         )
         return frame
