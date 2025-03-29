@@ -21,7 +21,7 @@ from tifffile import PHOTOMETRIC
 
 from opentile.formats import SvsTiler
 from opentile.formats.svs.svs_image import SvsTiledImage
-from opentile.tiff_image import TiffImage
+from opentile.tiff_image import BaseTiffImage
 from opentile.geometry import Point, SizeMm
 
 from .filepaths import svs_file_path
@@ -210,7 +210,7 @@ class TestSvsTiler:
         # Assert
         assert md5(thumbnail).hexdigest() == "a2f04a9c90c64063117748caa561a4c9"
 
-    def test_compressed_size(self, level: TiffImage):
+    def test_compressed_size(self, level: BaseTiffImage):
         # Arrange
 
         # Act
@@ -236,3 +236,12 @@ class TestSvsTiler:
 
         # Assert
         assert base_pixel_spacing == expected_size
+
+    def test_thumbnail_pixel_spacing(self, tiler: SvsTiler):
+        # Arrange
+
+        # Act
+        thumbnail_pixel_spacing = tiler.get_thumbnail().pixel_spacing
+
+        # Assert
+        assert thumbnail_pixel_spacing == SizeMm(0.022416015625, 0.022416015625)

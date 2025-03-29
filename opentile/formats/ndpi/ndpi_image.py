@@ -14,7 +14,7 @@
 
 """Image implementations for ndpi files."""
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from functools import cached_property, lru_cache
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
@@ -27,12 +27,10 @@ from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
-from opentile.tiler import TiffImage
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, BaseTiffImage
 
 
-class NdpiImage(TiffImage):
-    _pyramid_index = 0
-
+class NdpiImage(BaseTiffImage):
     def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
         """Ndpi image that should not be tiled (e.g. overview or label).
         Image data is assumed to be jpeg.
@@ -67,12 +65,10 @@ class NdpiImage(TiffImage):
 
     @property
     def focal_plane(self) -> float:
-        """Return focal plane (in um)."""
         return self._focal_plane
 
     @property
     def pixel_spacing(self) -> SizeMm:
-        """Return pixel spacing in mm per pixel."""
         return self.mpp / 1000
 
     @property
@@ -81,7 +77,6 @@ class NdpiImage(TiffImage):
 
     @property
     def mpp(self) -> SizeMm:
-        """Return pixel spacing in um per pixel."""
         return self._mpp
 
     @cached_property
@@ -90,43 +85,19 @@ class NdpiImage(TiffImage):
         return self._jpeg.get_mcu(self._read_frame(0))
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
-        """Return tile for tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
-        """Return decoded tile for tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
         tile = self.get_tile(tile_position)
         return jpeg8_decode(tile)
 
     def _get_mpp_from_page(self) -> SizeMm:
         """Return pixel spacing in um/pixel."""
-        x_resolution = self.page.tags["XResolution"].value[0]
-        y_resolution = self.page.tags["YResolution"].value[0]
-        resolution_unit = self.page.tags["ResolutionUnit"].value
+        x_resolution = self._page.tags["XResolution"].value[0]
+        y_resolution = self._page.tags["YResolution"].value[0]
+        resolution_unit = self._page.tags["ResolutionUnit"].value
         if resolution_unit != RESUNIT.CENTIMETER:
             raise ValueError("Unknown resolution unit")
         # 10*1000 um per cm
@@ -135,7 +106,7 @@ class NdpiImage(TiffImage):
         return SizeMm(mpp_x, mpp_y)
 
 
-class NdpiCroppedImage(NdpiImage):
+class NdpiCroppedImage(NdpiImage, AssociatedTiffImage):
     def __init__(
         self,
         page: TiffPage,
@@ -170,18 +141,6 @@ class NdpiCroppedImage(NdpiImage):
         )
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
-        """Return tile for tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         full_frame = super().get_tile(tile_position)
@@ -205,7 +164,7 @@ class NdpiCroppedImage(NdpiImage):
         return int(width * crop / self.mcu.width) * self.mcu.width
 
 
-class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
+class NdpiTiledImage(NdpiImage, LevelTiffImage):
     def __init__(
         self,
         page: TiffPage,
@@ -234,7 +193,8 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
         self._tile_size = tile_size
         self._file_frame_size = self._get_file_frame_size()
         self._frame_size = Size.max(self.tile_size, self._file_frame_size)
-        self._pyramid_index = self._calculate_pyramidal_index(self._base_size)
+        self._scale = self._calculate_scale(self._base_size)
+        self._pyramid_index = self._calculate_pyramidal_index(self._scale)
         self._headers: Dict[Size, bytes] = {}
 
     def __repr__(self) -> str:
@@ -257,6 +217,14 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
         """The default read size used for reading frames."""
         return self._frame_size
 
+    @property
+    def scale(self) -> float:
+        return self._scale
+
+    @property
+    def pyramid_index(self) -> int:
+        return self._pyramid_index
+
     @abstractmethod
     def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Read a frame of size frame_size covering position."""
@@ -273,33 +241,9 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
         raise NotImplementedError()
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
-        """Return image bytes for tile at tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
         return next(self.get_tiles([tile_position]))
 
     def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
-        """Return list of image bytes for tile positions.
-
-        Parameters
-        ----------
-        tile_positions: Sequence[Tuple[int, int]]
-            Tile positions to get.
-
-        Returns
-        ----------
-        Iterator[bytes]
-            List of tile bytes.
-        """
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
         return (
             tile
@@ -310,18 +254,6 @@ class NdpiTiledImage(NdpiImage, metaclass=ABCMeta):
     def get_decoded_tiles(
         self, tile_positions: Sequence[Tuple[int, int]]
     ) -> Iterator[np.ndarray]:
-        """Return list of decoded tiles for tiles at tile positions.
-
-        Parameters
-        ----------
-        tile_positions: Sequence[Tuple[int, int]]
-            Tile positions to get.
-
-        Returns
-        ----------
-        Iterator[np.ndarray]
-            Iterator of decoded tiles.
-        """
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
         return (
             jpeg8_decode(tile)
@@ -499,8 +431,8 @@ class NdpiStripedImage(NdpiTiledImage):
             Jpeg instance to use.
         """
         super().__init__(page, file, base_size, tile_size, jpeg)
-        self._striped_size = Size(self.page.chunked[1], self.page.chunked[0])
-        jpeg_header = self.page.jpegheader
+        self._striped_size = Size(self._page.chunked[1], self._page.chunked[0])
+        jpeg_header = self._page.jpegheader
         assert isinstance(jpeg_header, bytes)
         self._jpeg_header = jpeg_header
 
@@ -528,7 +460,7 @@ class NdpiStripedImage(NdpiTiledImage):
         Size
             The size of stripes in the file.
         """
-        stripe_height, stripe_width, _ = self.page.chunks
+        stripe_height, stripe_width, _ = self._page.chunks
         return Size(stripe_width, stripe_height)
 
     def _is_partial_frame(self, tile_position: Point) -> Tuple[bool, bool]:

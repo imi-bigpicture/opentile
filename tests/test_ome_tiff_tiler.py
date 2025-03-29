@@ -19,7 +19,7 @@ import pytest
 
 from opentile.formats import OmeTiffTiler
 from opentile.geometry import SizeMm
-from opentile.tiff_image import TiffImage
+from opentile.tiff_image import BaseTiffImage
 
 from .filepaths import ome_tiff_file_path
 
@@ -47,7 +47,9 @@ class TestOmeTiffTiler:
             ((20, 20), "4c37c335b697aaf1550f77fd9e367f69"),
         ],
     )
-    def test_get_tile(self, level: TiffImage, tile_point: Tuple[int, int], hash: str):
+    def test_get_tile(
+        self, level: BaseTiffImage, tile_point: Tuple[int, int], hash: str
+    ):
         # Arrange
 
         # Act
@@ -56,7 +58,7 @@ class TestOmeTiffTiler:
         # Assert
         assert md5(tile).hexdigest() == hash
 
-    def test_subsampling(self, level: TiffImage):
+    def test_subsampling(self, level: BaseTiffImage):
         # Arrange
 
         # Act
@@ -65,7 +67,7 @@ class TestOmeTiffTiler:
         # Assert
         assert subsampling is None
 
-    def test_sumples_per_pixel(self, level: TiffImage):
+    def test_sumples_per_pixel(self, level: BaseTiffImage):
         # Arrange
 
         # Act
@@ -74,7 +76,7 @@ class TestOmeTiffTiler:
         # Assert
         assert samples_per_pixel == 3
 
-    def test_compressed_size(self, level: TiffImage):
+    def test_compressed_size(self, level: BaseTiffImage):
         # Arrange
 
         # Act

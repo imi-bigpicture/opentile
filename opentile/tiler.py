@@ -24,7 +24,11 @@ from upath import UPath
 from opentile.file import OpenTileFile
 from opentile.geometry import Size
 from opentile.metadata import Metadata
-from opentile.tiff_image import TiffImage
+from opentile.tiff_image import (
+    AssociatedTiffImage,
+    LevelTiffImage,
+    ThumbnailTiffImage,
+)
 
 
 class Tiler(metaclass=ABCMeta):
@@ -54,7 +58,7 @@ class Tiler(metaclass=ABCMeta):
         self._overview_series_index: Optional[int] = None
         self._label_series_index: Optional[int] = None
         self._thumbnail_series_index: Optional[int] = None
-        for series_index, series in enumerate(self.series):
+        for series_index, series in enumerate(self._file.series):
             if self._is_level_series(series):
                 self._level_series_index = series_index
             if self._is_label_series(series):
@@ -64,10 +68,10 @@ class Tiler(metaclass=ABCMeta):
             elif self._is_thumbnail_series(series):
                 self._thumbnail_series_index = series_index
         self._icc_profile: Optional[bytes] = None
-        base_page = self.series[self._level_series_index].pages[0]
+        base_page = self._file.series[self._level_series_index].pages[0]
         assert isinstance(base_page, TiffPage)
         self._base_page = base_page
-        self._base_size = Size(self.base_page.imagewidth, self.base_page.imagelength)
+        self._base_size = Size(self._base_page.imagewidth, self._base_page.imagelength)
 
     def __enter__(self):
         return self
@@ -76,66 +80,51 @@ class Tiler(metaclass=ABCMeta):
         self.close()
 
     @property
-    def base_page(self) -> TiffPage:
-        """Return base pyramid level in pyramid series."""
-        return self._base_page
-
-    @property
-    def base_size(self) -> Size:
-        """Return size of base pyramid level in pyramid series."""
-        return self._base_size
-
-    @property
-    def series(self) -> List[TiffPageSeries]:
-        """Return contained TiffPageSeries."""
-        return self._file.series
-
-    @property
-    def levels(self) -> List[TiffImage]:
+    def levels(self) -> List[LevelTiffImage]:
         """Return list of pyramid level TiffImages."""
         if self._level_series_index is None:
             return []
         return [
             self.get_level(level_index, page_index)
             for level_index, level in enumerate(
-                self.series[self._level_series_index].levels
+                self._file.series[self._level_series_index].levels
             )
             for page_index, page in enumerate(level.pages)
         ]
 
     @property
-    def labels(self) -> List[TiffImage]:
+    def labels(self) -> List[AssociatedTiffImage]:
         """Return list of label TiffImage."""
         if self._label_series_index is None:
             return []
         return [
             self.get_label(page_index)
             for page_index, page in enumerate(
-                self.series[self._label_series_index].pages
+                self._file.series[self._label_series_index].pages
             )
         ]
 
     @property
-    def overviews(self) -> List[TiffImage]:
+    def overviews(self) -> List[AssociatedTiffImage]:
         """Return list of overview TiffImage."""
         if self._overview_series_index is None:
             return []
         return [
             self.get_overview(page_index)
             for page_index, page in enumerate(
-                self.series[self._overview_series_index].pages
+                self._file.series[self._overview_series_index].pages
             )
         ]
 
     @property
-    def thumbnails(self) -> List[TiffImage]:
+    def thumbnails(self) -> List[ThumbnailTiffImage]:
         """Return list of thumbnail TiffImage."""
         if self._thumbnail_series_index is None:
             return []
         return [
             self.get_thumbnail(page_index)
             for page_index, page in enumerate(
-                self.series[self._thumbnail_series_index].pages
+                self._file.series[self._thumbnail_series_index].pages
             )
         ]
 
@@ -157,7 +146,7 @@ class Tiler(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_level(self, level: int, page: int = 0) -> TiffImage:
+    def get_level(self, level: int, page: int = 0) -> LevelTiffImage:
         """Return TiffImage for level in pyramid series.
 
         Parameters
@@ -175,7 +164,7 @@ class Tiler(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_label(self, page: int = 0) -> TiffImage:
+    def get_label(self, page: int = 0) -> AssociatedTiffImage:
         """Return label TiffImage.
 
         Parameters
@@ -191,7 +180,7 @@ class Tiler(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_overview(self, page: int = 0) -> TiffImage:
+    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
         """Return overview TiffImage.
 
         Parameters
@@ -207,7 +196,7 @@ class Tiler(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_thumbnail(self, page: int = 0) -> TiffImage:
+    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         """Return thumbnail TiffImage.
 
         Parameters
@@ -283,6 +272,6 @@ class Tiler(metaclass=ABCMeta):
 
     def _get_tiff_page(self, series: int, level: int, page: int) -> TiffPage:
         """Return TiffPage for series, level, page."""
-        tiff_page = self.series[series].levels[level].pages[page]
+        tiff_page = self._file.series[series].levels[level].pages[page]
         assert isinstance(tiff_page, TiffPage)
         return tiff_page

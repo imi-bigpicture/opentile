@@ -25,14 +25,16 @@ from upath import UPath
 
 from opentile.file import OpenTileFile
 from opentile.formats.ome.ome_tiff_image import (
-    OmeTiffImage,
+    OmeTiffAssociatedImage,
     OmeTiffOneFrameImage,
+    OmeTiffThumbnailImage,
     OmeTiffTiledImage,
 )
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
-from opentile.tiler import TiffImage, Tiler
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiler import Tiler
 
 
 class OmeTiffTiler(Tiler):
@@ -109,45 +111,51 @@ class OmeTiffTiler(Tiler):
         return SizeMm(mpp_x, mpp_y)
 
     @lru_cache(None)
-    def get_level(self, level: int, page: int = 0) -> TiffImage:
+    def get_level(self, level: int, page: int = 0) -> LevelTiffImage:
         tiff_page = self._get_tiff_page(self._level_series_index, level, page)
         if tiff_page.is_tiled:
             return OmeTiffTiledImage(
                 tiff_page,
                 self._file,
-                self.base_size,
+                self._base_size,
                 self._base_mpp,
             )
         return OmeTiffOneFrameImage(
             tiff_page,
             self._file,
-            self.base_size,
-            Size(self.base_page.tilewidth, self.base_page.tilelength),
+            self._base_size,
+            Size(self._base_page.tilewidth, self._base_page.tilelength),
             self._base_mpp,
             self._jpeg,
         )
 
     @lru_cache(None)
-    def get_label(self, page: int = 0) -> TiffImage:
+    def get_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
             raise ValueError("No label detected in file")
         return self._get_associated_image(self._label_series_index, page)
 
     @lru_cache(None)
-    def get_overview(self, page: int = 0) -> TiffImage:
+    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
             raise ValueError("No overview detected in file")
         return self._get_associated_image(self._overview_series_index, page)
 
     @lru_cache(None)
-    def get_thumbnail(self, page: int = 0) -> TiffImage:
+    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
             raise ValueError("No thumbnail detected in file")
-        return self._get_associated_image(self._thumbnail_series_index, page)
+        tiff_page = self._get_tiff_page(self._thumbnail_series_index, 0, page)
+        return OmeTiffThumbnailImage(
+            tiff_page,
+            self._file,
+            self._base_size,
+            self._get_mpp(self._thumbnail_series_index),
+        )
 
-    def _get_associated_image(self, series: int, page: int = 0) -> TiffImage:
+    def _get_associated_image(self, series: int, page: int = 0) -> AssociatedTiffImage:
         tiff_page = self._get_tiff_page(series, 0, page)
-        return OmeTiffImage(
+        return OmeTiffAssociatedImage(
             tiff_page,
             self._file,
             self._get_optional_mpp(series),

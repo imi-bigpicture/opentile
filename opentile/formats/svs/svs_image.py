@@ -24,12 +24,16 @@ from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import NativeTiledTiffImage, TiffImage
+from opentile.tiff_image import (
+    AssociatedTiffImage,
+    LevelTiffImage,
+    ThumbnailTiffImage,
+    NativeTiledTiffImage,
+    BaseTiffImage,
+)
 
 
-class SvsStripedImage(TiffImage):
-    _pyramid_index = 0
-
+class SvsStripedImage(BaseTiffImage):
     def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
         """OpenTiledPage for jpeg striped Svs image, e.g. overview image.
 
@@ -50,55 +54,71 @@ class SvsStripedImage(TiffImage):
         return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
 
     @property
-    def pixel_spacing(self) -> Optional[SizeMm]:
-        return None
-
-    @property
     def supported_compressions(self) -> Optional[List[COMPRESSION]]:
         return [COMPRESSION.JPEG]
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
-        """Return tile for tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        indices = range(len(self.page.dataoffsets))
+        indices = range(len(self._page.dataoffsets))
         scans = (self._read_frame(index) for index in indices)
-        jpeg_tables = self.page.jpegtables
+        jpeg_tables = self._page.jpegtables
         frame = self._jpeg.concatenate_scans(
             scans, jpeg_tables, self._add_rgb_colorspace_fix
         )
         return frame
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
-        """Return decoded tile for tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
         return jpeg8_decode(self.get_tile(tile_position))
 
 
-class SvsLZWImage(TiffImage):
-    _pyramid_index = 0
+class SvsThumbnailImage(SvsStripedImage, ThumbnailTiffImage):
+    def __init__(
+        self,
+        page: TiffPage,
+        file: OpenTileFile,
+        base_size: Size,
+        base_mpp: SizeMm,
+        jpeg: Jpeg,
+    ):
+        """OpenTiledPage for jpeg striped Svs image, e.g. overview image.
 
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        file: OpenTileFile
+            Fileto read data from.
+        jpeg: Jpeg
+            Jpeg instance to use.
+
+        """
+        super().__init__(page, file, jpeg)
+        self._base_size = base_size
+        self._base_mpp = base_mpp
+        self._scale = self._calculate_scale(base_size)
+        self._mpp = self._calculate_mpp(base_mpp, self._scale)
+
+    @property
+    def mpp(self) -> SizeMm:
+        return self._mpp
+
+    @property
+    def pixel_spacing(self) -> SizeMm:
+        return self.mpp / 1000
+
+    @property
+    def scale(self) -> float:
+        return self._scale
+
+
+class SvsOverviewImage(SvsStripedImage, AssociatedTiffImage):
+    @property
+    def pixel_spacing(self) -> Optional[SizeMm]:
+        return None
+
+
+class SvsLabelImage(BaseTiffImage, AssociatedTiffImage):
     def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
         """OpenTiledPage for lzw striped Svs image, e.g. label image.
 
@@ -120,7 +140,6 @@ class SvsLZWImage(TiffImage):
 
     @property
     def compression(self) -> COMPRESSION:
-        """Return compression of page."""
         return COMPRESSION.JPEG
 
     @property
@@ -132,56 +151,32 @@ class SvsLZWImage(TiffImage):
         return [COMPRESSION.LZW]
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
-        """Return tile for tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
         return jpeg8_encode(self.get_decoded_tile(tile_position))
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
-        """Return decoded tile for tile position.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
 
         tile = np.concatenate(
-            [self._get_row(index) for index in range(len(self.page.dataoffsets))],
+            [self._get_row(index) for index in range(len(self._page.dataoffsets))],
             axis=1,
         )
         return np.squeeze(tile)
 
     def _get_row(self, index: int) -> np.ndarray:
-        row = self.page.decode(self._read_frame(index), index)[0]
+        row = self._page.decode(self._read_frame(index), index)[0]
         assert isinstance(row, np.ndarray)
         return row
 
 
-class SvsTiledImage(NativeTiledTiffImage):
+class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
     def __init__(
         self,
         page: TiffPage,
         file: OpenTileFile,
         base_size: Size,
         base_mpp: SizeMm,
-        parent: Optional[TiffImage] = None,
+        parent: Optional["SvsTiledImage"] = None,
     ):
         """Svs Tiff tiled image.
 
@@ -202,8 +197,9 @@ class SvsTiledImage(NativeTiledTiffImage):
         super().__init__(page, file, True)
         self._base_size = base_size
         self._base_mpp = base_mpp
-        self._pyramid_index = self._calculate_pyramidal_index(self._base_size)
-        self._mpp = self._calculate_mpp(self._base_mpp)
+        self._scale = self._calculate_scale(base_size)
+        self._pyramid_index = self._calculate_pyramidal_index(self._scale)
+        self._mpp = self._calculate_mpp(self._base_mpp, self._scale)
         self._parent = parent
         (
             self._right_edge_corrupt,
@@ -219,7 +215,6 @@ class SvsTiledImage(NativeTiledTiffImage):
 
     @property
     def pixel_spacing(self) -> SizeMm:
-        """Return pixel spacing in mm per pixel."""
         return self.mpp / 1000
 
     @property
@@ -232,8 +227,15 @@ class SvsTiledImage(NativeTiledTiffImage):
 
     @property
     def mpp(self) -> SizeMm:
-        """Return pixel spacing in um per pixel."""
         return self._mpp
+
+    @property
+    def scale(self) -> float:
+        return self._scale
+
+    @property
+    def pyramid_index(self) -> int:
+        return self._pyramid_index
 
     @property
     def right_edge_corrupt(self) -> bool:
@@ -274,7 +276,7 @@ class SvsTiledImage(NativeTiledTiffImage):
             Tuple indicating if right and/or bottom edge is corrupt.
 
         """
-        if self.pyramid_index == 0:
+        if self._parent is None:
             return False, False
         right_edge = Region(
             Point(self.tiled_size.width - 1, 0), Size(1, self.tiled_size.height - 1)
@@ -386,19 +388,6 @@ class SvsTiledImage(NativeTiledTiffImage):
         return self._fixed_tiles[tile_point]
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
-        """Return image bytes for tile at tile position. If tile is marked as
-        corrupt, return a fixed tile. Add color space fix if jpeg compression.
-
-        Parameters
-        ----------
-        tile_position: Tuple[int, int]
-            Tile position to get.
-
-        Returns
-        ----------
-        bytes
-            Produced tile at position.
-        """
         tile_point = Point.from_tuple(tile_position)
         if self._tile_is_corrupt(tile_point):
             return self._get_fixed_tile(tile_point)
@@ -406,18 +395,6 @@ class SvsTiledImage(NativeTiledTiffImage):
         return super().get_tile(tile_position)
 
     def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
-        """Return list of image bytes for tiles at tile positions.
-
-        Parameters
-        ----------
-        tile_positions: Sequence[Tuple[int, int]]
-            Tile positions to get.
-
-        Returns
-        ----------
-        Iterator[bytes]
-            List of tile bytes.
-        """
         tile_points = [
             Point.from_tuple(tile_position) for tile_position in tile_positions
         ]

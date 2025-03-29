@@ -25,7 +25,11 @@ from opentile.file import OpenTileFile
 from opentile.formats.histech.histech_tiff_image import HistechTiffImage
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
-from opentile.tiff_image import TiffImage
+from opentile.tiff_image import (
+    AssociatedTiffImage,
+    LevelTiffImage,
+    ThumbnailTiffImage,
+)
 from opentile.tiler import Tiler
 
 
@@ -60,20 +64,20 @@ class HistechTiffTiler(Tiler):
         return "3dh_PixelSizeX" in tiff_file.pages.first.description
 
     @lru_cache(None)
-    def get_level(self, level: int, page: int = 0) -> TiffImage:
+    def get_level(self, level: int, page: int = 0) -> LevelTiffImage:
         return HistechTiffImage(
             self._get_tiff_page(self._level_series_index, level, page),
             self._file,
-            self.base_size,
+            self._base_size,
         )
 
-    def get_label(self, page: int = 0) -> TiffImage:
+    def get_label(self, page: int = 0) -> AssociatedTiffImage:
         raise NotImplementedError()
 
-    def get_overview(self, page: int = 0) -> TiffImage:
+    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
         raise NotImplementedError()
 
-    def get_thumbnail(self, page: int = 0) -> TiffImage:
+    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         raise NotImplementedError()
 
     @staticmethod
@@ -82,15 +86,12 @@ class HistechTiffTiler(Tiler):
 
     @staticmethod
     def _is_overview_series(series: TiffPageSeries) -> bool:
-        """Return true if series is a overview series."""
         return False
 
     @staticmethod
     def _is_label_series(series: TiffPageSeries) -> bool:
-        """Return true if series is a label series."""
         return False
 
     @staticmethod
     def _is_thumbnail_series(series: TiffPageSeries) -> bool:
-        """Return true if series is a thumbnail series."""
         return False

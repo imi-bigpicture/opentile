@@ -22,12 +22,20 @@ from tifffile import TiffFile, TiffPage, TiffPageSeries
 from upath import UPath
 
 from opentile.file import OpenTileFile
-from opentile.formats.philips.philips_tiff_image import PhilipsTiffImage
+from opentile.formats.philips.philips_tiff_image import (
+    PhilipsAssociatedTiffImage,
+    PhilipsLevelTiffImage,
+    PhilipsThumbnailTiffImage,
+)
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
-from opentile.tiff_image import TiffImage
+from opentile.tiff_image import (
+    AssociatedTiffImage,
+    LevelTiffImage,
+    ThumbnailTiffImage,
+)
 from opentile.tiler import Tiler
 
 
@@ -63,27 +71,41 @@ class PhilipsTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_philips
 
-    def get_level(self, level: int, page: int = 0) -> TiffImage:
-        return self._get_image(self._level_series_index, level, page)
-
-    def get_label(self, page: int = 0) -> TiffImage:
-        return self._get_image(self._label_series_index, 0, page)
-
-    def get_overview(self, page: int = 0) -> TiffImage:
-        return self._get_image(self._overview_series_index, 0, page)
-
-    def get_thumbnail(self, page: int = 0) -> TiffImage:
-        return self._get_image(self._thumbnail_series_index, 0, page)
-
     @lru_cache(None)
-    def _get_image(self, series: int, level: int, page: int = 0) -> TiffImage:
-        """Return PhilipsTiffTiledPage for series, level, page."""
-        return PhilipsTiffImage(
-            self._get_tiff_page(series, level, page),
+    def get_level(self, level: int, page: int = 0) -> LevelTiffImage:
+        return PhilipsLevelTiffImage(
+            self._get_tiff_page(self._level_series_index, level, page),
             self._file,
-            self.base_size,
+            self._base_size,
             self._base_mpp,
             self._jpeg,
+        )
+
+    @lru_cache(None)
+    def get_label(self, page: int = 0) -> AssociatedTiffImage:
+        if self._label_series_index is None:
+            raise ValueError("No label series found in this file.")
+        return PhilipsAssociatedTiffImage(
+            self._get_tiff_page(self._label_series_index, 0, page), self._file
+        )
+
+    @lru_cache(None)
+    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
+        if self._overview_series_index is None:
+            raise ValueError("No overview series found in this file.")
+        return PhilipsAssociatedTiffImage(
+            self._get_tiff_page(self._overview_series_index, 0, page), self._file
+        )
+
+    @lru_cache(None)
+    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
+        if self._thumbnail_series_index is None:
+            raise ValueError("No thumbnail series found in this file.")
+        return PhilipsThumbnailTiffImage(
+            self._get_tiff_page(self._thumbnail_series_index, 0, page),
+            self._file,
+            self._base_size,
+            self._base_mpp,
         )
 
     @staticmethod
@@ -92,21 +114,18 @@ class PhilipsTiffTiler(Tiler):
 
     @staticmethod
     def _is_overview_series(series: TiffPageSeries) -> bool:
-        """Return true if series is a overview series."""
         page = series.pages[0]
         assert isinstance(page, TiffPage)
         return page.description.find("Macro") > -1
 
     @staticmethod
     def _is_label_series(series: TiffPageSeries) -> bool:
-        """Return true if series is a label series."""
         page = series.pages[0]
         assert isinstance(page, TiffPage)
         return page.description.find("Label") > -1
 
     @staticmethod
     def _is_thumbnail_series(series: TiffPageSeries) -> bool:
-        """Return true if series is a thumbnail series."""
         page = series.pages[0]
         assert isinstance(page, TiffPage)
         return page.description.find("Thumbnail") > -1

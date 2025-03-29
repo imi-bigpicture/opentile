@@ -22,12 +22,18 @@ from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
 from opentile.file import OpenTileFile
-from opentile.formats.svs.svs_image import SvsLZWImage, SvsStripedImage, SvsTiledImage
+from opentile.formats.svs.svs_image import (
+    SvsLabelImage,
+    SvsOverviewImage,
+    SvsThumbnailImage,
+    SvsTiledImage,
+)
 from opentile.formats.svs.svs_metadata import SvsMetadata
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
-from opentile.tiler import TiffImage, Tiler
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiler import Tiler
 
 
 class SvsTiler(Tiler):
@@ -54,13 +60,8 @@ class SvsTiler(Tiler):
             icc_profile = self._file.pages.first.tags["InterColorProfile"].value
             assert isinstance(icc_profile, bytes) or icc_profile is None
             self._icc_profile = icc_profile
-        self._metadata = SvsMetadata(self.base_page)
+        self._metadata = SvsMetadata(self._base_page)
         self._base_mpp = SizeMm(self._metadata.mpp, self._metadata.mpp)
-
-    @property
-    def base_mpp(self) -> SizeMm:
-        """Return pixel spacing in um/pixel for base level."""
-        return self._base_mpp
 
     @property
     def metadata(self) -> Metadata:
@@ -87,47 +88,52 @@ class SvsTiler(Tiler):
         return series.name == "Thumbnail"
 
     @lru_cache(None)
-    def get_level(self, level: int, page: int = 0) -> TiffImage:
+    def get_level(self, level: int, page: int = 0) -> LevelTiffImage:
+        return self._get_level(level, page)
+
+    def _get_level(self, level: int, page: int = 0) -> SvsTiledImage:
         series = self._level_series_index
         if level > 0:
-            parent = self.get_level(level - 1, page)
+            parent = self._get_level(level - 1, page)
         else:
             parent = None
         svs_page = SvsTiledImage(
             self._get_tiff_page(series, level, page),
             self._file,
-            self.base_size,
-            self.base_mpp,
+            self._base_size,
+            self._base_mpp,
             parent,
         )
         return svs_page
 
     @lru_cache(None)
-    def get_label(self, page: int = 0) -> TiffImage:
+    def get_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
             raise ValueError("No label detected in file")
-        return SvsLZWImage(
+        return SvsLabelImage(
             self._get_tiff_page(self._label_series_index, 0, page),
             self._file,
             self._jpeg,
         )
 
     @lru_cache(None)
-    def get_overview(self, page: int = 0) -> TiffImage:
+    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
             raise ValueError("No overview detected in file")
-        return SvsStripedImage(
+        return SvsOverviewImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
             self._jpeg,
         )
 
     @lru_cache(None)
-    def get_thumbnail(self, page: int = 0) -> TiffImage:
+    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
             raise ValueError("No overview detected in file")
-        return SvsStripedImage(
+        return SvsThumbnailImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
+            self._base_size,
+            self._base_mpp,
             self._jpeg,
         )

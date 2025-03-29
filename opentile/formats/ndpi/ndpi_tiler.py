@@ -32,7 +32,7 @@ from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.geometry import Size
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
-from opentile.tiff_image import TiffImage
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 from opentile.tiler import Tiler
 
 
@@ -70,16 +70,11 @@ class NdpiTiler(Tiler):
         self._tile_size = self._adjust_tile_size(
             tile_size, self._get_smallest_stripe_width()
         )
-        if self.tile_size.width % 8 != 0 or self.tile_size.height % 8 != 0:
-            raise ValueError(f"Tile size {self.tile_size} not divisible by 8")
+        if self._tile_size.width % 8 != 0 or self._tile_size.height % 8 != 0:
+            raise ValueError(f"Tile size {self._tile_size} not divisible by 8")
         self._jpeg = Jpeg(turbo_path)
-        self._metadata = NdpiMetadata(self.base_page)
+        self._metadata = NdpiMetadata(self._base_page)
         self._label_crop_position = label_crop_position
-
-    @property
-    def tile_size(self) -> Size:
-        """The size of the tiles to generate."""
-        return self._tile_size
 
     @property
     def metadata(self) -> Metadata:
@@ -95,17 +90,14 @@ class NdpiTiler(Tiler):
 
     @staticmethod
     def _is_overview_series(series: TiffPageSeries) -> bool:
-        """Return true if series is a overview series."""
         return series.name == "Macro"
 
     @staticmethod
     def _is_label_series(series: TiffPageSeries) -> bool:
-        """Return true if series is a label series."""
         return False
 
     @staticmethod
     def _is_thumbnail_series(series: TiffPageSeries) -> bool:
-        """Return true if series is a thumbnail series."""
         return False
 
     @staticmethod
@@ -170,43 +162,22 @@ class NdpiTiler(Tiler):
         self,
         level: int,
         page: int = 0,
-    ) -> TiffImage:
-        """Create a level image.
-
-        Parameters
-        ----------
-        level: int
-            Level of page.
-        page: int
-            Page to use.
-
-        Returns
-        ----------
-        TiffImage
-            Created image.
-        """
+    ) -> LevelTiffImage:
         tiff_page = (
             self._file.series[self._level_series_index].levels[level].pages[page]
         )
         assert isinstance(tiff_page, TiffPage)
         if tiff_page.is_tiled:  # Striped ndpi page
             return NdpiStripedImage(
-                tiff_page, self._file, self.base_size, self.tile_size, self._jpeg
+                tiff_page, self._file, self._base_size, self._tile_size, self._jpeg
             )
         # Single frame, force tiling
         return NdpiOneFrameImage(
-            tiff_page, self._file, self.base_size, self.tile_size, self._jpeg
+            tiff_page, self._file, self._base_size, self._tile_size, self._jpeg
         )
 
     @lru_cache(None)
-    def get_label(self, page: int = 0) -> TiffImage:
-        """Create a label image.
-
-        Returns
-        ----------
-        TiffImage
-            Created image.
-        """
+    def get_label(self, page: int = 0) -> AssociatedTiffImage:
         assert self._overview_series_index is not None
         tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
@@ -215,14 +186,7 @@ class NdpiTiler(Tiler):
         )
 
     @lru_cache(None)
-    def get_overview(self, page: int = 0) -> TiffImage:
-        """Create a overview image.
-
-        Returns
-        ----------
-        TiffImage
-            Created image.
-        """
+    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
         assert self._overview_series_index is not None
         tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
@@ -230,5 +194,5 @@ class NdpiTiler(Tiler):
             tiff_page, self._file, self._jpeg, (self._label_crop_position, 1.0)
         )
 
-    def get_thumbnail(self, page: int = 0) -> TiffImage:
+    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         raise NotImplementedError()
