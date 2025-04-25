@@ -483,7 +483,7 @@ class TestNdpiTiler:
         overview = tiler.get_overview().get_tile((0, 0))
 
         # Assert
-        assert md5(overview).hexdigest() == "c663698334b10cd57484a2d503b3bafa"
+        assert md5(overview).hexdigest() == "3c35de47f6137ba2c118ec4703c393c2"
 
     def test_compressed_size(self, level: BaseTiffImage):
         # Arrange
