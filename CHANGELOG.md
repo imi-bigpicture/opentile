@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2025-04-25
+
+### Changed
+
+- Overview images from ndpi files covers whole slide.
+
+### Removed
+
+- Image offset from (svs) metadata.
+
 ## [0.16.0] - 2025-03-29
 
 ### Added
@@ -260,7 +270,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.16.0..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.17.0..HEAD
+[0.17.0]: https://github.com/imi-bigpicture/opentile/compare/v0.16.0..v0.17.0
 [0.16.0]: https://github.com/imi-bigpicture/opentile/compare/v0.15.1..v0.16.0
 [0.15.1]: https://github.com/imi-bigpicture/opentile/compare/v0.15.0..v0.15.1
 [0.15.0]: https://github.com/imi-bigpicture/opentile/compare/v0.14.0..v0.15.0
