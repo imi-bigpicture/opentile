@@ -40,7 +40,7 @@ class NdpiImage(BaseTiffImage):
         page: TiffPage
             TiffPage defining the page.
         file: OpenTileFile
-            Fileto read data from.
+            File to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
         """
@@ -122,7 +122,7 @@ class NdpiCroppedImage(NdpiImage, AssociatedTiffImage):
         page: TiffPage
             TiffPage defining the page.
         file: OpenTileFile
-            Fileto read data from.
+            File to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
         crop: Tuple[float, float]
@@ -180,7 +180,7 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         page: TiffPage
             TiffPage defining the page.
         file: OpenTileFile
-            Fileto read data from.
+            File to read data from.
         base_size: Size
             Size of base level in pyramid.
         tile_size: Size
@@ -422,7 +422,7 @@ class NdpiStripedImage(NdpiTiledImage):
         page: TiffPage
             TiffPage defining the page.
         file: OpenTileFile
-            Fileto read data from.
+            File to read data from.
         base_size: Size
             Size of base level in pyramid.
         tile_size: Size

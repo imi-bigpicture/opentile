@@ -32,7 +32,7 @@ class HistechTiffImage(NativeTiledTiffImage, LevelTiffImage):
         page: TiffPage
             TiffPage defining the page.
         file: OpenTileFile
-            Fileto read data from.
+            File to read data from.
         base_size: Size
             Size of base level in pyramid.
         """

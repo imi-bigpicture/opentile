@@ -42,7 +42,7 @@ class SvsStripedImage(BaseTiffImage):
         page: TiffPage
             TiffPage defining the page.
         file: OpenTileFile
-            Fileto read data from.
+            File to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
 
@@ -88,7 +88,7 @@ class SvsThumbnailImage(SvsStripedImage, ThumbnailTiffImage):
         page: TiffPage
             TiffPage defining the page.
         file: OpenTileFile
-            Fileto read data from.
+            File to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
 
@@ -127,7 +127,7 @@ class SvsLabelImage(BaseTiffImage, AssociatedTiffImage):
         page: TiffPage
             TiffPage defining the page.
         file: OpenTileFile
-            Fileto read data from.
+            File to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
 
@@ -185,7 +185,7 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         page: TiffPage
             TiffPage defining the page.
         file: OpenTileFile
-            Fileto read data from.
+            File to read data from.
         base_size: Size
             Size of base level in pyramid.
         base_mpp: SizeMm
