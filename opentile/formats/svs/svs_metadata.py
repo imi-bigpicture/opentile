@@ -16,7 +16,7 @@
 
 from datetime import datetime
 from functools import cached_property
-from typing import Optional, Tuple
+from typing import Optional
 
 from tifffile import TiffPage
 from tifffile.tifffile import svs_description_metadata
@@ -48,6 +48,6 @@ class SvsMetadata(Metadata):
     def mpp(self) -> float:
         return float(self._svs_metadata["MPP"])
 
-    @property
-    def image_offset(self) -> Optional[Tuple[float, float]]:
-        return (float(self._svs_metadata["Left"]), float(self._svs_metadata["Top"]))
+    # @property
+    # def image_offset(self) -> Optional[Tuple[float, float]]:
+    #     return (float(self._svs_metadata["Left"]), float(self._svs_metadata["Top"]))
