@@ -106,7 +106,11 @@ class NdpiImage(BaseTiffImage):
         return SizeMm(mpp_x, mpp_y)
 
 
-class NdpiCroppedImage(NdpiImage, AssociatedTiffImage):
+class NdpiOverviewImage(NdpiImage, AssociatedTiffImage):
+    pass
+
+
+class NdpiLabelImage(NdpiImage, AssociatedTiffImage):
     def __init__(
         self,
         page: TiffPage,

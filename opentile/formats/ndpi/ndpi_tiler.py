@@ -24,8 +24,9 @@ from upath import UPath
 
 from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_image import (
-    NdpiCroppedImage,
+    NdpiLabelImage,
     NdpiOneFrameImage,
+    NdpiOverviewImage,
     NdpiStripedImage,
 )
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
@@ -181,7 +182,7 @@ class NdpiTiler(Tiler):
         assert self._overview_series_index is not None
         tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
-        return NdpiCroppedImage(
+        return NdpiLabelImage(
             tiff_page, self._file, self._jpeg, (0.0, self._label_crop_position)
         )
 
@@ -190,9 +191,7 @@ class NdpiTiler(Tiler):
         assert self._overview_series_index is not None
         tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
-        return NdpiCroppedImage(
-            tiff_page, self._file, self._jpeg, (self._label_crop_position, 1.0)
-        )
+        return NdpiOverviewImage(tiff_page, self._file, self._jpeg)
 
     def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         raise NotImplementedError()
