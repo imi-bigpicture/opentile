@@ -24,13 +24,22 @@ from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.tiff_image import BaseTiffImage
 from opentile.geometry import Point, SizeMm
 
-from .filepaths import svs_file_path
+from .filepaths import svs_file_path, svs_z_file_path
 
 
 @pytest.fixture()
 def tiler():
     try:
         with SvsTiler(svs_file_path) as tiler:
+            yield tiler
+    except FileNotFoundError:
+        pytest.skip("Svs test file not found, skipping")
+
+
+@pytest.fixture()
+def z_tiler():
+    try:
+        with SvsTiler(svs_z_file_path) as tiler:
             yield tiler
     except FileNotFoundError:
         pytest.skip("Svs test file not found, skipping")
@@ -245,3 +254,22 @@ class TestSvsTiler:
 
         # Assert
         assert thumbnail_pixel_spacing == SizeMm(0.022416015625, 0.022416015625)
+
+    def test_focal_planes(self, tiler: SvsTiler):
+        # Arrange
+
+        # Act
+        focal_planes = set([level.focal_plane for level in tiler.levels])
+
+        # Assert
+        assert focal_planes == {0}
+
+    def test_focal_planes_z_tiler(self, z_tiler: SvsTiler):
+        # Arrange
+        expected = {0.0, 0.9, 2.7, 3.6, 1.8, 4.5, 5.4}
+
+        # Act
+        focal_planes = set([level.focal_plane for level in z_tiler.levels])
+
+        # Assert
+        assert focal_planes == expected

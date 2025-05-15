@@ -20,6 +20,7 @@ import numpy as np
 from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode, jpeg8_decode
 from PIL import Image
 from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
+from tifffile.tifffile import svs_description_metadata
 
 from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
@@ -200,6 +201,7 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         self._scale = self._calculate_scale(base_size)
         self._pyramid_index = self._calculate_pyramidal_index(self._scale)
         self._mpp = self._calculate_mpp(self._base_mpp, self._scale)
+        self._focal_plane = self._get_focal_plane()
         self._parent = parent
         (
             self._right_edge_corrupt,
@@ -238,12 +240,20 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         return self._pyramid_index
 
     @property
+    def focal_plane(self) -> float:
+        return self._focal_plane
+
+    @property
     def right_edge_corrupt(self) -> bool:
         return self._right_edge_corrupt
 
     @property
     def bottom_edge_corrupt(self) -> bool:
         return self._bottom_edge_corrupt
+
+    def _get_focal_plane(self) -> float:
+        metadata = svs_description_metadata(self._page.description)
+        return float(metadata.get("OffsetZ", 0.0))
 
     def _detect_corrupt_edge(self, edge: Region) -> bool:
         """Return true if tiles at edge are corrupt (any tile has a frame

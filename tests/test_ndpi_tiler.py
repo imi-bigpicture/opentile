@@ -24,7 +24,7 @@ from opentile.formats.ndpi.ndpi_image import NdpiStripedImage, NdpiOneFrameImage
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size, SizeMm
 from opentile.tiff_image import BaseTiffImage
-from .filepaths import ndpi_file_path
+from .filepaths import ndpi_file_path, ndpi_z_file_path
 
 
 @pytest.fixture()
@@ -36,6 +36,15 @@ def tile_size():
 def tiler(tile_size: Size):
     try:
         with NdpiTiler(ndpi_file_path, tile_size.width) as tiler:
+            yield tiler
+    except FileNotFoundError:
+        pytest.skip("Ndpi test file not found, skipping")
+
+
+@pytest.fixture()
+def z_tiler(tile_size: Size):
+    try:
+        with NdpiTiler(ndpi_z_file_path, tile_size.width) as tiler:
             yield tiler
     except FileNotFoundError:
         pytest.skip("Ndpi test file not found, skipping")
@@ -511,3 +520,22 @@ class TestNdpiTiler:
 
         # Assert
         assert base_pixel_spacing == expected_size
+
+    def test_focal_planes(self, tiler: NdpiTiler):
+        # Arrange
+
+        # Act
+        focal_planes = set([level.focal_plane for level in tiler.levels])
+
+        # Assert
+        assert focal_planes == {0}
+
+    def test_focal_planes_z_tiler(self, z_tiler: NdpiTiler):
+        # Arrange
+        expected = {0.0, 1.2, 2.4, 3.6, -3.6, -2.4, -1.2}
+
+        # Act
+        focal_planes = set([level.focal_plane for level in z_tiler.levels])
+
+        # Assert
+        assert focal_planes == expected
