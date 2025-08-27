@@ -56,7 +56,7 @@ class OmeTiffImage(BaseTiffImage):
         frame = self.get_tile(tile_position)
         data, _, _ = self._page.decode(frame, 0)
         assert isinstance(data, np.ndarray)
-        return data.squeeze()
+        return data.squeeze((0, 3) if self.samples_per_pixel == 1 else 0)
 
 
 class OmeTiffAssociatedImage(OmeTiffImage, AssociatedTiffImage):

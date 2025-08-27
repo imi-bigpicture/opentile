@@ -162,7 +162,7 @@ class SvsLabelImage(BaseTiffImage, AssociatedTiffImage):
             [self._get_row(index) for index in range(len(self._page.dataoffsets))],
             axis=1,
         )
-        return np.squeeze(tile)
+        return tile.squeeze((0, 3) if self.samples_per_pixel == 1 else 0)
 
     def _get_row(self, index: int) -> np.ndarray:
         row = self._page.decode(self._read_frame(index), index)[0]
@@ -332,10 +332,10 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         decoded_tiles = self._parent.get_decoded_tiles(
             [tile.to_tuple() for tile in scaled_tile_region.iterate_all()]
         )
-        image_data = np.zeros(
-            (self.tile_size * scale).to_tuple() + (self.samples_per_pixel,),
-            dtype=self.np_dtype,
-        ).squeeze()
+        shape = (self.tile_size * scale).to_tuple()
+        if self.samples_per_pixel > 1:
+            shape = shape + (self.samples_per_pixel,)
+        image_data = np.zeros(shape, dtype=self.np_dtype)
         # Insert decoded_tiles into image_data
         for y in range(scale):
             for x in range(scale):

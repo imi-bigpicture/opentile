@@ -517,17 +517,21 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         tile_point = Point.from_tuple(tile_position)
         if not self._check_if_tile_inside_image(tile_point):
+            shape = self.tile_size.to_tuple()
+            if self.samples_per_pixel > 1:
+                shape = self.tile_size.to_tuple() + (self.samples_per_pixel,)
+
             return np.full(
-                self.tile_size.to_tuple() + (self.samples_per_pixel,),
+                shape,
                 fill_value=self.fill_value,
                 dtype=self.np_dtype,
-            ).squeeze()
+            )
 
         frame = self.get_tile(tile_position)
         frame_index = self._tile_point_to_frame_index(tile_point)
         data, _, _ = self._page.decode(frame, frame_index)
         assert isinstance(data, np.ndarray)
-        return np.squeeze(data)
+        return data.squeeze((0, 3) if self.samples_per_pixel == 1 else 0)
 
     def _tile_point_to_frame_index(self, tile_point: Point) -> int:
         """Return linear frame index for tile position."""
