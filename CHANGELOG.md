@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Squeeze returned data from `get_decoded_tile()`.
+- Use correct bit deepth and fill color for out-of-bounds tiles.
+
 ## [0.18.0] - 2025-05-15
 
 ### Added
