@@ -221,6 +221,32 @@ class TiffImage(metaclass=ABCMeta):
         """Close filehandle."""
         raise NotImplementedError()
 
+    @cached_property
+    def np_dtype(self) -> np.dtype:
+        """Numpy dtype of the image data."""
+        if self.bit_depth <= 8:
+            return np.dtype(np.uint8)
+        if self.bit_depth <= 16:
+            return np.dtype(np.uint16)
+        if self.bit_depth <= 32:
+            return np.dtype(np.uint32)
+        raise NotImplementedError(f"Bit depth {self.bit_depth} not supported.")
+
+    @cached_property
+    def fill_value(self) -> int:
+        data_type = self.np_dtype
+        if (
+            self.photometric_interpretation == PHOTOMETRIC.RGB
+            or self.photometric_interpretation == PHOTOMETRIC.YCBCR
+            or self.photometric_interpretation == PHOTOMETRIC.MINISWHITE
+        ):
+            return int(np.iinfo(data_type).max)
+        if self.photometric_interpretation == PHOTOMETRIC.MINISBLACK:
+            return int(np.iinfo(data_type).min)
+        raise NotImplementedError(
+            f"Fill color not defined for photometric interpretation {self.photometric_interpretation}."
+        )
+
 
 class AssociatedTiffImage(TiffImage):
     """Abstract class for associated image."""
@@ -492,16 +518,16 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
         tile_point = Point.from_tuple(tile_position)
         if not self._check_if_tile_inside_image(tile_point):
             return np.full(
-                self.tile_size.to_tuple() + (3,), 255, dtype=np.dtype(np.uint8)
-            )
+                self.tile_size.to_tuple() + (self.samples_per_pixel,),
+                fill_value=self.fill_value,
+                dtype=self.np_dtype,
+            ).squeeze()
 
-        shape: tuple[int, int, int, int]
         frame = self.get_tile(tile_position)
         frame_index = self._tile_point_to_frame_index(tile_point)
-        data, _, shape = self._page.decode(frame, frame_index)
+        data, _, _ = self._page.decode(frame, frame_index)
         assert isinstance(data, np.ndarray)
-        data.shape = shape[1:]
-        return data
+        return np.squeeze(data)
 
     def _tile_point_to_frame_index(self, tile_point: Point) -> int:
         """Return linear frame index for tile position."""

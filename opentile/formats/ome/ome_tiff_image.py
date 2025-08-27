@@ -54,10 +54,9 @@ class OmeTiffImage(BaseTiffImage):
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         frame = self.get_tile(tile_position)
-        data, _, shape = self._page.decode(frame, 0)
+        data, _, _ = self._page.decode(frame, 0)
         assert isinstance(data, np.ndarray)
-        data.shape = shape[1:]
-        return data
+        return data.squeeze()
 
 
 class OmeTiffAssociatedImage(OmeTiffImage, AssociatedTiffImage):

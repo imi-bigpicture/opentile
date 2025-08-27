@@ -333,8 +333,9 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
             [tile.to_tuple() for tile in scaled_tile_region.iterate_all()]
         )
         image_data = np.zeros(
-            (self.tile_size * scale).to_tuple() + (3,), dtype=np.uint8
-        )
+            (self.tile_size * scale).to_tuple() + (self.samples_per_pixel,),
+            dtype=self.np_dtype,
+        ).squeeze()
         # Insert decoded_tiles into image_data
         for y in range(scale):
             for x in range(scale):
@@ -364,7 +365,7 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
                 colorspace=colorspace,
                 subsampling=subsampling,
                 lossless=False,
-                bitspersample=8,
+                bitspersample=self.bit_depth,
             )
         if self.compression == COMPRESSION.APERIO_JP2000_RGB:
             return jpeg2k_encode(
@@ -372,7 +373,7 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
                 level=80,
                 codecformat=JPEG2K.CODEC.J2K,
                 colorspace=JPEG2K.CLRSPC.SRGB,
-                bitspersample=8,
+                bitspersample=self.bit_depth,
                 reversible=False,
                 mct=True,
             )
