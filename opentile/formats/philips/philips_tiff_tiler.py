@@ -18,7 +18,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-from tifffile import TiffFile, TiffPage, TiffPageSeries
+from tifffile import TiffFile, TiffPage, TiffPageSeries, TiffFrame
 from upath import UPath
 
 from opentile.file import OpenTileFile
@@ -115,18 +115,24 @@ class PhilipsTiffTiler(Tiler):
     @staticmethod
     def _is_overview_series(series: TiffPageSeries) -> bool:
         page = series.pages[0]
+        if isinstance(page, TiffFrame):
+            page = page.aspage()
         assert isinstance(page, TiffPage)
         return page.description.find("Macro") > -1
 
     @staticmethod
     def _is_label_series(series: TiffPageSeries) -> bool:
         page = series.pages[0]
+        if isinstance(page, TiffFrame):
+            page = page.aspage()
         assert isinstance(page, TiffPage)
         return page.description.find("Label") > -1
 
     @staticmethod
     def _is_thumbnail_series(series: TiffPageSeries) -> bool:
         page = series.pages[0]
+        if isinstance(page, TiffFrame):
+            page = page.aspage()
         assert isinstance(page, TiffPage)
         return page.description.find("Thumbnail") > -1
 
