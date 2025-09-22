@@ -199,7 +199,7 @@ class TestSvsTiler:
         label = tiler.get_label().get_tile((0, 0))
 
         # Assert
-        assert md5(label).hexdigest() == "174c17e92ab40c0517410425998a67f1"
+        assert md5(label).hexdigest() == "ccf1bfe9a9a82a4988caead8137f739d"
 
     def test_get_overview(self, tiler: SvsTiler):
         # Arrange

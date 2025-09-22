@@ -53,10 +53,9 @@ class OmeTiffImage(BaseTiffImage):
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
-        frame = self.get_tile(tile_position)
-        data, _, _ = self._page.decode(frame, 0)
-        assert isinstance(data, np.ndarray)
-        return data.squeeze((0, 3) if self.samples_per_pixel == 1 else 0)
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
+        return self._page.asarray(squeeze=True, lock=self._file.lock)
 
 
 class OmeTiffAssociatedImage(OmeTiffImage, AssociatedTiffImage):
@@ -135,10 +134,6 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage, LevelTiffImage):
             f"{type(self).__name__}({self._page}, {self._file}, "
             f"{self._base_size}, {self._tile_size}, {self._base_mpp}, {self._jpeg})"
         )
-
-    @property
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
-        return [COMPRESSION.JPEG]
 
     @property
     def scale(self) -> float:

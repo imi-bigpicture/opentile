@@ -17,7 +17,7 @@
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
-from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode, jpeg8_decode
+from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode
 from PIL import Image
 from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 from tifffile.tifffile import svs_description_metadata
@@ -32,6 +32,10 @@ from opentile.tiff_image import (
     NativeTiledTiffImage,
     BaseTiffImage,
 )
+
+
+class NonSupportedCompressionException(Exception):
+    pass
 
 
 class SvsStripedImage(BaseTiffImage):
@@ -56,6 +60,7 @@ class SvsStripedImage(BaseTiffImage):
 
     @property
     def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        """Handling of stripes in `get_tile()` assumes JPEG compression."""
         return [COMPRESSION.JPEG]
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
@@ -70,7 +75,9 @@ class SvsStripedImage(BaseTiffImage):
         return frame
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
-        return jpeg8_decode(self.get_tile(tile_position))
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
+        return self._page.asarray(squeeze=True, lock=self._file.lock)
 
 
 class SvsThumbnailImage(SvsStripedImage, ThumbnailTiffImage):
@@ -140,34 +147,22 @@ class SvsLabelImage(BaseTiffImage, AssociatedTiffImage):
         return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
 
     @property
-    def compression(self) -> COMPRESSION:
-        return COMPRESSION.JPEG
-
-    @property
     def pixel_spacing(self) -> Optional[SizeMm]:
         return None
 
     @property
     def supported_compressions(self) -> Optional[List[COMPRESSION]]:
-        return [COMPRESSION.LZW]
+        return None
 
     def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
-        return jpeg8_encode(self.get_decoded_tile(tile_position))
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
+        return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-
-        tile = np.concatenate(
-            [self._get_row(index) for index in range(len(self._page.dataoffsets))],
-            axis=1,
-        )
-        return tile.squeeze((0, 3) if self.samples_per_pixel == 1 else 0)
-
-    def _get_row(self, index: int) -> np.ndarray:
-        row = self._page.decode(self._read_frame(index), index)[0]
-        assert isinstance(row, np.ndarray)
-        return row
+        return self._page.asarray(squeeze=True, lock=self._file.lock)
 
 
 class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
@@ -221,11 +216,7 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
 
     @property
     def supported_compressions(self) -> Optional[List[COMPRESSION]]:
-        return [
-            COMPRESSION.JPEG,
-            COMPRESSION.APERIO_JP2000_RGB,
-            COMPRESSION.APERIO_JP2000_YCBC,
-        ]
+        return None
 
     @property
     def mpp(self) -> SizeMm:
@@ -377,7 +368,9 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
                 reversible=False,
                 mct=True,
             )
-        raise NotImplementedError("Non-supported compression")
+        raise NonSupportedCompressionException(
+            f"Non-supported compression {self.compression.name}"
+        )
 
     def _get_fixed_tile(self, tile_point: Point) -> bytes:
         """Get or create a fixed tile inplace for a corrupt tile.
@@ -394,7 +387,12 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
 
         """
         if tile_point not in self._fixed_tiles:
-            fixed_tile = self._get_scaled_tile(tile_point)
+            try:
+                fixed_tile = self._get_scaled_tile(tile_point)
+            except NonSupportedCompressionException as exception:
+                raise ValueError(
+                    "Failed to fix corrupt tile as parent level has a non-supported compression."
+                ) from exception
             self._fixed_tiles[tile_point] = fixed_tile
         return self._fixed_tiles[tile_point]
 
