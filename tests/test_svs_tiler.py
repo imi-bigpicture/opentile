@@ -71,6 +71,24 @@ class TestSvsTiler:
         assert md5(tile).hexdigest() == hash
 
     @pytest.mark.parametrize(
+        ["tile_point", "hash"],
+        [
+            ((15, 25), "9270f20e5f71f16280a2161e3afcd78f"),
+            ((35, 30), "6a6af2f9aeabae92580e41515b596a25"),
+        ],
+    )
+    def test_decoded_get_tile(
+        self, level: SvsTiledImage, tile_point: Tuple[int, int], hash: str
+    ):
+        # Arrange
+
+        # Act
+        tile = level.get_decoded_tile(tile_point)
+
+        # Assert
+        assert md5(tile).hexdigest() == hash
+
+    @pytest.mark.parametrize(
         ["tile_points", "hashes"],
         [
             (

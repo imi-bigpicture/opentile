@@ -68,16 +68,15 @@ class SvsStripedImage(BaseTiffImage):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         indices = range(len(self._page.dataoffsets))
         scans = (self._read_frame(index) for index in indices)
-        jpeg_tables = self._page.jpegtables
         frame = self._jpeg.concatenate_scans(
-            scans, jpeg_tables, self._add_rgb_colorspace_fix
+            scans, self._page.jpegtables, self._add_rgb_colorspace_fix
         )
         return frame
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        return self._page.asarray(squeeze=True, lock=self._file.lock)
+        return self._page.asarray(squeeze=True)
 
 
 class SvsThumbnailImage(SvsStripedImage, ThumbnailTiffImage):
@@ -162,7 +161,7 @@ class SvsLabelImage(BaseTiffImage, AssociatedTiffImage):
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        return self._page.asarray(squeeze=True, lock=self._file.lock)
+        return self._page.asarray(squeeze=True)
 
 
 class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
@@ -404,10 +403,11 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         return super().get_tile(tile_position)
 
     def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
-        tile_points = [
-            Point.from_tuple(tile_position) for tile_position in tile_positions
-        ]
-        if any(self._tile_is_corrupt(tile_point) for tile_point in tile_points):
+
+        if any(
+            self._tile_is_corrupt(Point.from_tuple(tile_point))
+            for tile_point in tile_positions
+        ):
             return (self.get_tile(tile) for tile in tile_positions)
         return super().get_tiles(tile_positions)
 

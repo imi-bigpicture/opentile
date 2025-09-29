@@ -119,6 +119,7 @@ class OmeTiffTiler(Tiler):
                 self._file,
                 self._base_size,
                 self._base_mpp,
+                page,
             )
         return OmeTiffOneFrameImage(
             tiff_page,
@@ -126,6 +127,7 @@ class OmeTiffTiler(Tiler):
             self._base_size,
             Size(self._base_page.tilewidth, self._base_page.tilelength),
             self._base_mpp,
+            page,
             self._jpeg,
         )
 
