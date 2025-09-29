@@ -29,13 +29,7 @@ from opentile.tiff_image import (
 )
 
 
-class PhilipsTiffImage(NativeTiledTiffImage):
-    @property
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
-        return [COMPRESSION.JPEG]
-
-
-class PhilipsAssociatedTiffImage(PhilipsTiffImage, AssociatedTiffImage):
+class PhilipsAssociatedTiffImage(NativeTiledTiffImage, AssociatedTiffImage):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._page}, {self._file}"
 
@@ -43,8 +37,12 @@ class PhilipsAssociatedTiffImage(PhilipsTiffImage, AssociatedTiffImage):
     def pixel_spacing(self) -> Optional[SizeMm]:
         return None
 
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return None
 
-class PhilipsThumbnailTiffImage(PhilipsTiffImage, ThumbnailTiffImage):
+
+class PhilipsThumbnailTiffImage(NativeTiledTiffImage, ThumbnailTiffImage):
     def __init__(
         self,
         page: TiffPage,
@@ -72,8 +70,12 @@ class PhilipsThumbnailTiffImage(PhilipsTiffImage, ThumbnailTiffImage):
     def pixel_spacing(self) -> SizeMm:
         return self._mpp / 1000
 
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        return None
 
-class PhilipsLevelTiffImage(PhilipsTiffImage, LevelTiffImage):
+
+class PhilipsLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
     def __init__(
         self,
         page: TiffPage,
@@ -111,6 +113,11 @@ class PhilipsLevelTiffImage(PhilipsTiffImage, LevelTiffImage):
             f"{type(self).__name__}({self._page}, {self._file}, "
             f"{self._base_size}, {self._base_mpp}, {self._jpeg})"
         )
+
+    @property
+    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+        """Handling of sparse tiles assumes JPEG compression."""
+        return [COMPRESSION.JPEG]
 
     @property
     def pixel_spacing(self) -> SizeMm:

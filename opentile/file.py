@@ -73,6 +73,11 @@ class OpenTileFile:
         """Return the path to the file."""
         return Path(self._tiff_file.filehandle.path)
 
+    @property
+    def lock(self) -> threading.Lock:
+        """Return the lock for thread safe access to the file handle."""
+        return self._lock
+
     def read(self, offset: int, bytecount: int) -> bytes:
         """Return bytes from single location from file handle. Is thread safe.
 

@@ -53,10 +53,9 @@ class OmeTiffImage(BaseTiffImage):
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
-        frame = self.get_tile(tile_position)
-        data, _, _ = self._page.decode(frame, 0)
-        assert isinstance(data, np.ndarray)
-        return data.squeeze((0, 3) if self.samples_per_pixel == 1 else 0)
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
+        return self._page.asarray(squeeze=True)
 
 
 class OmeTiffAssociatedImage(OmeTiffImage, AssociatedTiffImage):
@@ -121,6 +120,7 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage, LevelTiffImage):
         base_size: Size,
         tile_size: Size,
         base_mpp: SizeMm,
+        page_index: int,
         jpeg: Jpeg,
     ):
         super().__init__(page, file, base_size, tile_size, jpeg)
@@ -129,16 +129,13 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage, LevelTiffImage):
         self._pyramid_index = self._calculate_pyramidal_index(self._scale)
         self._mpp = self._calculate_mpp(base_mpp, self._scale)
         self._jpeg = jpeg
+        self._page_index = page_index
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}({self._page}, {self._file}, "
-            f"{self._base_size}, {self._tile_size}, {self._base_mpp}, {self._jpeg})"
+            f"{type(self).__name__}({self._page}, {self._file}, {self._base_size}, "
+            f"{self._tile_size}, {self._base_mpp}, {self._page_index}, {self._jpeg})"
         )
-
-    @property
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
-        return [COMPRESSION.JPEG]
 
     @property
     def scale(self) -> float:
@@ -152,6 +149,10 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage, LevelTiffImage):
     def pixel_spacing(self) -> SizeMm:
         return self.mpp / 1000
 
+    @property
+    def optical_path(self) -> str:
+        return str(self._page_index)
+
 
 class OmeTiffTiledImage(NativeTiledTiffImage, LevelTiffImage):
     def __init__(
@@ -160,6 +161,7 @@ class OmeTiffTiledImage(NativeTiledTiffImage, LevelTiffImage):
         file: OpenTileFile,
         base_size: Size,
         base_mpp: SizeMm,
+        page_index: int,
     ):
         super().__init__(page, file)
         self._image_size = Size(self._page.imagewidth, self._page.imagelength)
@@ -168,11 +170,12 @@ class OmeTiffTiledImage(NativeTiledTiffImage, LevelTiffImage):
         self._scale = self._calculate_scale(base_size)
         self._pyramid_index = self._calculate_pyramidal_index(self.scale)
         self._mpp = self._calculate_mpp(base_mpp, self._scale)
+        self._page_index = page_index
 
     def __repr__(self) -> str:
         return (
             f"{type(self).__name__}({self._page}, {self._file}, "
-            f"{self._base_size}, {self._base_mpp})"
+            f"{self._base_size}, {self._base_mpp}, {self._page_index})"
         )
 
     @property
@@ -194,3 +197,7 @@ class OmeTiffTiledImage(NativeTiledTiffImage, LevelTiffImage):
     @property
     def pyramid_index(self) -> int:
         return self._pyramid_index
+
+    @property
+    def optical_path(self) -> str:
+        return str(self._page_index)

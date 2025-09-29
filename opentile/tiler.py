@@ -18,7 +18,7 @@ from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from tifffile import TiffFile, TiffPage, TiffPageSeries
+from tifffile import TiffFile, TiffPage, TiffPageSeries, TiffFrame
 from upath import UPath
 
 from opentile.file import OpenTileFile
@@ -273,5 +273,7 @@ class Tiler(metaclass=ABCMeta):
     def _get_tiff_page(self, series: int, level: int, page: int) -> TiffPage:
         """Return TiffPage for series, level, page."""
         tiff_page = self._file.series[series].levels[level].pages[page]
+        if isinstance(tiff_page, TiffFrame):
+            tiff_page = tiff_page.aspage()
         assert isinstance(tiff_page, TiffPage)
         return tiff_page
