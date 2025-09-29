@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2025-09-29
+
+### Changed
+
+- Relax compression restriction for svs images.
+
 ### Fixed
 
 - Squeeze returned data from `get_decoded_tile()`.
