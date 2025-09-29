@@ -20,6 +20,7 @@ from tifffile import TiffFileError, TiffPageSeries, TiffPages, TiffFile
 from upath import UPath
 from fsspec.core import open
 
+import threading
 from typing import List, Sequence, Tuple
 
 """Wrapper around a TiffFile to provide thread safe access to the file handle."""
@@ -50,6 +51,7 @@ class OpenTileFile:
         except Exception as exception:
             opened_file.close()
             raise Exception(f"Failed to open file {file}") from exception
+        self._lock = threading.Lock()
 
     @property
     def tiff(self) -> TiffFile:
@@ -71,11 +73,6 @@ class OpenTileFile:
         """Return the path to the file."""
         return Path(self._tiff_file.filehandle.path)
 
-    @property
-    def lock(self):
-        """Return the lock for the file handle."""
-        return self._tiff_file.filehandle.lock
-
     def read(self, offset: int, bytecount: int) -> bytes:
         """Return bytes from single location from file handle. Is thread safe.
 
@@ -91,7 +88,7 @@ class OpenTileFile:
         bytes
             Requested bytes.
         """
-        with self.lock:
+        with self._lock:
             return self._read(offset, bytecount)
 
     def read_multiple(
@@ -110,7 +107,7 @@ class OpenTileFile:
         List[bytes]
             List of requested bytes.
         """
-        with self.lock:
+        with self._lock:
             return [
                 self._read(offset, bytecount)
                 for (offset, bytecount) in offsets_bytecounts
