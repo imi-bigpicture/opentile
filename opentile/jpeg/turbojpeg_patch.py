@@ -53,12 +53,19 @@ def find_turbojpeg_path() -> Optional[Path]:
     # Only windows installs libraries on strange places
     if os.name != "nt":
         return None
-    turbojpeg_lib_path = find_library("turbojpeg")
+    dll_names = ("libturbojpeg.dll", "turbojpeg.dll")
+    turbojpeg_lib_path = next(
+        (
+            dll_path
+            for dll_path in (find_library(dll_name) for dll_name in dll_names)
+            if dll_path is not None
+        ),
+        None,
+    )
     if turbojpeg_lib_path is not None:
         return Path(turbojpeg_lib_path)
     turbojpeg_lib_dir = os.environ.get("TURBOJPEG")
     if turbojpeg_lib_dir is not None:
-        dll_names = ("libturbojpeg.dll", "turbojpeg.dll")
         for dll_name in dll_names:
             turbojpeg_lib_path = Path(turbojpeg_lib_dir).joinpath(dll_name)
             if turbojpeg_lib_path.exists():
