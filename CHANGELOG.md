@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Search for both `libturbojpeg.dll` and `turbojpeg.dll` when initiating TurboJpeg on Windows.
+
 ## [0.19.0] - 2025-09-29
 
 ### Changed
