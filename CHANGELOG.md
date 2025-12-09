@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2025-12-09
+
+### Changed
+
+- Changed from poetry to uv.
+
 ### Fixed
 
 - Search for both `libturbojpeg.dll` and `turbojpeg.dll` when initiating TurboJpeg on Windows.
@@ -291,7 +297,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.18.0..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.20.0..HEAD
+[0.20.0]: https://github.com/imi-bigpicture/opentile/compare/v0.19.0..v0.20.0
+[0.19.0]: https://github.com/imi-bigpicture/opentile/compare/v0.18.0..v0.19.0
 [0.18.0]: https://github.com/imi-bigpicture/opentile/compare/v0.17.0..v0.18.0
 [0.17.0]: https://github.com/imi-bigpicture/opentile/compare/v0.16.0..v0.17.0
 [0.16.0]: https://github.com/imi-bigpicture/opentile/compare/v0.15.1..v0.16.0

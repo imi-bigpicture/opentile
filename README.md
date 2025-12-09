@@ -123,11 +123,11 @@ with OpenTile.open(path_to_ndpi_file, tile_size) as tiler:
 
 ## Setup environment for development
 
-Requires poetry and pytest and pytest-watch installed in the virtual environment.
+Requires uv installed.
 
 ```console
 git clone https://github.com/imi-bigpicture/opentile.git
-poetry install
+uv sync --all-extras
 ```
 
 By default the tests looks for slides in 'tests/testdata'. This can be overridden by setting the OPENTILE_TESTDIR environment variable. The script 'tests/download_test_images.py' can be used to download publicly available [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/) into the set testdata folder:
@@ -141,7 +141,7 @@ The test data used for philips tiff is currently not publicly available as we do
 To watch unit tests use:
 
 ```console
-poetry run pytest-watch -- -m unittest
+uv run pytest-watch -- -m unittest
 ```
 
 ## Other TIFF python tools
