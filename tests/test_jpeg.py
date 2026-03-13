@@ -100,7 +100,7 @@ class TestJpeg:
         updated_header = Jpeg.manipulate_header(ndpi_header, target_size)
 
         # Assert
-        (stripe_width, stripe_height, _, _) = jpeg._turbo_jpeg.decode_header(
+        stripe_width, stripe_height, _, _ = jpeg._turbo_jpeg.decode_header(
             updated_header
         )
         assert target_size == Size(stripe_width, stripe_height)
