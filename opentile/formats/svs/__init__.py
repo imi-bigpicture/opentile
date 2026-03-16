@@ -16,5 +16,4 @@
 
 from opentile.formats.svs.svs_tiler import SvsTiler
 
-
 __all__ = ["SvsTiler"]

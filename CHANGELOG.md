@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Relaxed upper version bounds for Pillow, defusedxml, ome-types, fsspec, universal-pathlib, and dev dependencies.
+
 ## [0.20.0] - 2025-12-09
 
 ### Changed
