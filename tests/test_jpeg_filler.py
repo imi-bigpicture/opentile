@@ -13,10 +13,11 @@
 #    limitations under the License.
 
 from ctypes import c_short, pointer
-from io import BufferedReader
-from typing import Tuple
+from io import BytesIO
+
 import numpy as np
 import pytest
+from PIL import Image
 from turbojpeg import (
     CUSTOMFILTER,
     TJXOP_NONE,
@@ -25,69 +26,58 @@ from turbojpeg import (
     TJXOPT_PERFECT,
     BackgroundStruct,
     CroppingRegion,
-    TurboJPEG,
     TransformStruct,
     fill_background,
 )
 
+from opentile.jpeg.jpeg import find_turbojpeg_path
 from opentile.jpeg.jpeg_filler import (
     BlankImage,
     BlankStruct,
     JpegFiller,
-    find_turbojpeg_path,
 )
 
 test_file_path = "tests/testdata/turbojpeg/frame_2048x512.jpg"
 
 
 @pytest.fixture()
-def jpeg():
-    turbo_path = find_turbojpeg_path()
-    yield TurboJPEG(str(turbo_path) if turbo_path is not None else None)
+def filler():
+    yield JpegFiller(find_turbojpeg_path())
 
 
 @pytest.fixture()
-def test_file():
+def buffer():
     with open(test_file_path, "rb") as file:
-        yield file
+        yield file.read()
 
 
-@pytest.fixture()
-def buffer(test_file: BufferedReader):
-    yield test_file.read()
+@pytest.mark.unittest
+class TestJpegFiller:
 
-
-@pytest.mark.turbojpeg
-class TestTurboJpeg:
-
-    def test_crop_multiple_compare(self, jpeg: TurboJPEG, buffer: bytes):
-        # Arrange
-        crop_parameters = [(0, 0, 512, 512), (512, 0, 512, 512)]
-        single_crops = [
-            jpeg.crop(buffer, *crop_parameter) for crop_parameter in crop_parameters
-        ]
-
-        # Act
-        multiple_crops = jpeg.crop_multiple(buffer, crop_parameters)
-
-        # Assert
-        assert single_crops == multiple_crops
-
-    @pytest.mark.parametrize("size", [(1024, 512), (1024, 1024)])
-    def test_crop_multiple_extend(
-        self, jpeg: TurboJPEG, buffer: bytes, size: Tuple[int, int]
+    @pytest.mark.parametrize(
+        ["luminance", "expected_value"],
+        [
+            (0.0, 0),
+            (0.5, 128),
+            (1.0, 255),
+        ],
+    )
+    def test_fill_image(
+        self,
+        filler: JpegFiller,
+        buffer: bytes,
+        luminance: float,
+        expected_value: int,
     ):
-        # Arrange
-        crop_parameters = [(0, 0, size[0], size[1])]
-
         # Act
-        crop = jpeg.crop_multiple(buffer, crop_parameters)[0]
+        filled = filler.fill_image(buffer, background_luminance=luminance)
 
         # Assert
-        width, height, _, _ = jpeg.decode_header(crop)
-        assert size == (width, height)
+        image = Image.open(BytesIO(filled))
+        pixels = np.array(image.convert("L"))
+        assert (pixels == expected_value).all()
 
-    def test_fill_background(self):
+    def test_fill_background_callback(self):
         # Arrange
         mcu_size = 64
         original_width = 8
@@ -148,7 +138,7 @@ class TestTurboJpeg:
         # Compare the modified data with the expected result
         assert np.array_equal(expected_results, coeffs)
 
-    def test_blank_background(self):
+    def test_blank_background_callback(self):
         # Arrange
         mcu_size = 64
         extended_width = 16

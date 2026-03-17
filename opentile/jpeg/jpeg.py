@@ -14,6 +14,8 @@
 
 """Lossless jpeg handling."""
 
+import os
+from ctypes.util import find_library
 from pathlib import Path
 from struct import pack, unpack
 from typing import Iterator, List, Optional, Sequence, Tuple, Union
@@ -21,7 +23,40 @@ from typing import Iterator, List, Optional, Sequence, Tuple, Union
 from turbojpeg import TurboJPEG, tjMCUHeight, tjMCUWidth
 
 from opentile.geometry import Size
-from opentile.jpeg.jpeg_filler import JpegFiller, find_turbojpeg_path
+from opentile.jpeg.jpeg_filler import JpegFiller
+
+
+def find_turbojpeg_path() -> Path:
+    """Find the turbojpeg library path.
+
+    Searches using find_library with both 'libturbojpeg' and 'turbojpeg' names,
+    then falls back to the TURBOJPEG environment variable.
+
+    Raises FileNotFoundError if the library cannot be found.
+    """
+    lib_names = ("libturbojpeg", "turbojpeg")
+    lib_extensions: dict[str, tuple[str, ...]] = {
+        "nt": (".dll",),
+        "posix": (".so", ".so.0", ".dylib"),
+    }
+    for name in lib_names:
+        lib_path = find_library(name)
+        if lib_path is not None:
+            return Path(lib_path)
+    turbojpeg_lib_dir = os.environ.get("TURBOJPEG")
+    if turbojpeg_lib_dir is not None:
+        turbojpeg_path = Path(turbojpeg_lib_dir)
+        if turbojpeg_path.is_file():
+            return turbojpeg_path
+        for name in lib_names:
+            for ext in lib_extensions.get(os.name, ()):
+                lib_path = turbojpeg_path / (name + ext)
+                if lib_path.exists():
+                    return lib_path
+    raise FileNotFoundError(
+        "Could not find turbojpeg library. Install libjpeg-turbo or set the "
+        "`TURBOJPEG` environment variable to the library path."
+    )
 
 
 class JpegTagNotFound(Exception):
@@ -53,8 +88,8 @@ class Jpeg:
     def __init__(self, turbo_path: Optional[Union[str, Path]] = None) -> None:
         if turbo_path is None:
             turbo_path = find_turbojpeg_path()
-        turbo_str = str(turbo_path) if turbo_path is not None else None
-        self._turbo_jpeg = TurboJPEG(turbo_str)
+        turbo_path = str(turbo_path)
+        self._turbo_jpeg = TurboJPEG(turbo_path)
         self._jpeg_filler = JpegFiller(turbo_path)
 
     def get_mcu(self, frame: bytes) -> Size:

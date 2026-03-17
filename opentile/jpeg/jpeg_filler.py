@@ -14,7 +14,6 @@
 
 """Lossless filling of a JPEG image with a constant color using the same tables."""
 
-import os
 from ctypes import (
     POINTER,
     Structure,
@@ -31,7 +30,6 @@ from ctypes import (
     memmove,
     pointer,
 )
-from ctypes.util import find_library
 from pathlib import Path
 from struct import calcsize, unpack
 from typing import Optional, Union
@@ -51,35 +49,6 @@ TJINIT_TRANSFORM = 2
 TJPARAM_SUBSAMP = 4
 TJPARAM_JPEGWIDTH = 5
 TJPARAM_JPEGHEIGHT = 6
-
-
-def find_turbojpeg_path() -> Optional[Path]:
-    # Only windows installs libraries on strange places
-    if os.name != "nt":
-        return None
-    dll_names = ("libturbojpeg.dll", "turbojpeg.dll")
-    turbojpeg_lib_path = next(
-        (
-            dll_path
-            for dll_path in (find_library(dll_name) for dll_name in dll_names)
-            if dll_path is not None
-        ),
-        None,
-    )
-    if turbojpeg_lib_path is not None:
-        return Path(turbojpeg_lib_path)
-    turbojpeg_lib_dir = os.environ.get("TURBOJPEG")
-    if turbojpeg_lib_dir is not None:
-        for dll_name in dll_names:
-            turbojpeg_lib_path = Path(turbojpeg_lib_dir).joinpath(dll_name)
-            if turbojpeg_lib_path.exists():
-                return turbojpeg_lib_path
-    raise ModuleNotFoundError(
-        "Could not find libturbojpeg.dll or turbojpeg.dll in the directories specified "
-        "in the `Path` or `TURBOJPEG` environmental variable. Please add the "
-        "directory with libturbojpeg.dll or turbojpeg.dll to the `Path` or `TURBOJPEG` "
-        "environmental variable."
-    )
 
 
 class BlankStruct(Structure):
@@ -210,11 +179,8 @@ class JpegFiller:
     the original encoding tables.
     """
 
-    def __init__(self, lib_path: Optional[Union[str, Path]] = None):
-        if lib_path is None:
-            lib_path = find_turbojpeg_path()
-        lib_str = str(lib_path) if lib_path is not None else "turbojpeg"
-        turbo_jpeg = cdll.LoadLibrary(lib_str)
+    def __init__(self, lib_path: Union[str, Path]):
+        turbo_jpeg = cdll.LoadLibrary(str(lib_path))
 
         self._tj_init = turbo_jpeg.tj3Init
         self._tj_init.argtypes = [c_int]
