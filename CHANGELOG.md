@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Compatibility with PyTurboJPEG 2.x.
+
 ### Changed
 
 - Relaxed upper version bounds for Pillow, defusedxml, ome-types, fsspec, universal-pathlib, and dev dependencies.

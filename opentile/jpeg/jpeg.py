@@ -18,11 +18,10 @@ from pathlib import Path
 from struct import pack, unpack
 from typing import Iterator, List, Optional, Sequence, Tuple, Union
 
-from turbojpeg import tjMCUHeight, tjMCUWidth
+from turbojpeg import TurboJPEG, tjMCUHeight, tjMCUWidth
 
 from opentile.geometry import Size
-from opentile.jpeg.turbojpeg_patch import TurboJPEG_patch as TurboJPEG
-from opentile.jpeg.turbojpeg_patch import find_turbojpeg_path
+from opentile.jpeg.jpeg_filler import JpegFiller, find_turbojpeg_path
 
 
 class JpegTagNotFound(Exception):
@@ -54,7 +53,9 @@ class Jpeg:
     def __init__(self, turbo_path: Optional[Union[str, Path]] = None) -> None:
         if turbo_path is None:
             turbo_path = find_turbojpeg_path()
-        self._turbo_jpeg = TurboJPEG(turbo_path)
+        turbo_str = str(turbo_path) if turbo_path is not None else None
+        self._turbo_jpeg = TurboJPEG(turbo_str)
+        self._jpeg_filler = JpegFiller(turbo_path)
 
     def get_mcu(self, frame: bytes) -> Size:
         """Return MCU size read from frame header.
@@ -179,7 +180,7 @@ class Jpeg:
         bytes:
             Frame with constant color from luminance.
         """
-        return self._turbo_jpeg.fill_image(frame, luminance)
+        return self._jpeg_filler.fill_image(frame, luminance)
 
     def crop_multiple(
         self, frame: bytes, crop_parameters: Sequence[Tuple[int, int, int, int]]

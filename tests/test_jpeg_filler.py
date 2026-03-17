@@ -25,14 +25,15 @@ from turbojpeg import (
     TJXOPT_PERFECT,
     BackgroundStruct,
     CroppingRegion,
+    TurboJPEG,
     TransformStruct,
     fill_background,
 )
 
-from opentile.jpeg.turbojpeg_patch import (
+from opentile.jpeg.jpeg_filler import (
     BlankImage,
     BlankStruct,
-    TurboJPEG_patch,
+    JpegFiller,
     find_turbojpeg_path,
 )
 
@@ -41,7 +42,8 @@ test_file_path = "tests/testdata/turbojpeg/frame_2048x512.jpg"
 
 @pytest.fixture()
 def jpeg():
-    yield TurboJPEG_patch(find_turbojpeg_path())
+    turbo_path = find_turbojpeg_path()
+    yield TurboJPEG(str(turbo_path) if turbo_path is not None else None)
 
 
 @pytest.fixture()
@@ -58,54 +60,7 @@ def buffer(test_file: BufferedReader):
 @pytest.mark.turbojpeg
 class TestTurboJpeg:
 
-    @pytest.mark.parametrize(
-        ["region", "background", "expected_result"],
-        [
-            [CroppingRegion(0, 0, 512, 512), 1.0, False],
-            [CroppingRegion(0, 0, 2048, 1024), 1.0, False],
-            [CroppingRegion(1024, 0, 1024, 1024), 1.0, False],
-            [CroppingRegion(0, 0, 2048, 2048), 1.0, True],
-            [CroppingRegion(0, 0, 2048, 2048), 0.5, False],
-        ],
-    )
-    def test_need_fill_background(
-        self,
-        jpeg: TurboJPEG_patch,
-        region: CroppingRegion,
-        background: float,
-        expected_result: bool,
-    ):
-        # Arrange
-        image_size = (2048, 1024)
-
-        # Act
-        result = jpeg._need_fill_background(region, image_size, background)
-
-        # Assert
-        assert result == expected_result
-
-    def test_define_cropping_regions(self, jpeg: TurboJPEG_patch):
-        # Arrange
-        crop_parameters = [(0, 1, 2, 3), (4, 5, 6, 7)]
-        expected_cropping_regions = [
-            CroppingRegion(0, 1, 2, 3),
-            CroppingRegion(4, 5, 6, 7),
-        ]
-
-        # Act
-        cropping_regions = jpeg._define_cropping_regions(crop_parameters)
-
-        # Assert
-        for index, region in enumerate(cropping_regions):
-            expected = expected_cropping_regions[index]
-            assert (expected.x, expected.y, expected.w, expected.h) == (
-                region.x,
-                region.y,
-                region.w,
-                region.h,
-            )
-
-    def test_crop_multiple_compare(self, jpeg: TurboJPEG_patch, buffer: bytes):
+    def test_crop_multiple_compare(self, jpeg: TurboJPEG, buffer: bytes):
         # Arrange
         crop_parameters = [(0, 0, 512, 512), (512, 0, 512, 512)]
         single_crops = [
@@ -120,7 +75,7 @@ class TestTurboJpeg:
 
     @pytest.mark.parametrize("size", [(1024, 512), (1024, 1024)])
     def test_crop_multiple_extend(
-        self, jpeg: TurboJPEG_patch, buffer: bytes, size: Tuple[int, int]
+        self, jpeg: TurboJPEG, buffer: bytes, size: Tuple[int, int]
     ):
         # Arrange
         crop_parameters = [(0, 0, size[0], size[1])]
