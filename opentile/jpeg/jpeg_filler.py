@@ -192,15 +192,26 @@ class JpegFiller:
 
         self._decompress_header = lib.tjDecompressHeader3
         self._decompress_header.argtypes = [
-            c_void_p, POINTER(c_ubyte), c_ulong,
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int),
+            c_void_p,
+            POINTER(c_ubyte),
+            c_ulong,
+            POINTER(c_int),
+            POINTER(c_int),
+            POINTER(c_int),
+            POINTER(c_int),
         ]
         self._decompress_header.restype = c_int
 
         self._transform = lib.tjTransform
         self._transform.argtypes = [
-            c_void_p, POINTER(c_ubyte), c_ulong, c_int,
-            POINTER(c_void_p), POINTER(c_ulong), POINTER(BlankTransformStruct), c_int,
+            c_void_p,
+            POINTER(c_ubyte),
+            c_ulong,
+            c_int,
+            POINTER(c_void_p),
+            POINTER(c_ulong),
+            POINTER(BlankTransformStruct),
+            c_int,
         ]
         self._transform.restype = c_int
 
@@ -244,8 +255,13 @@ class JpegFiller:
             subsample = c_int()
             colorspace = c_int()
             status = self._decompress_header(
-                handle, src_addr, jpeg_array.size,
-                byref(width), byref(height), byref(subsample), byref(colorspace),
+                handle,
+                src_addr,
+                jpeg_array.size,
+                byref(width),
+                byref(height),
+                byref(subsample),
+                byref(colorspace),
             )
             if status != 0:
                 self._raise_error(handle)
@@ -264,8 +280,13 @@ class JpegFiller:
             )
 
             transform_status = self._transform(
-                handle, src_addr, jpeg_array.size, 1,
-                byref(dest_array), byref(dest_size), byref(transform),
+                handle,
+                src_addr,
+                jpeg_array.size,
+                1,
+                byref(dest_array),
+                byref(dest_size),
+                byref(transform),
                 TJFLAG_ACCURATEDCT,
             )
 
