@@ -18,11 +18,12 @@ from ctypes import (
     POINTER,
     Structure,
     _Pointer,
+    byref,
     c_char_p,
     c_int,
     c_short,
-    c_size_t,
     c_ubyte,
+    c_ulong,
     c_void_p,
     cast,
     cdll,
@@ -44,11 +45,9 @@ from turbojpeg import (
     tjMCUWidth,
 )
 
-# libjpeg-turbo 3.x constants, defined in PyTurboJPEG 2.x but not 1.x.
-TJINIT_TRANSFORM = 2
-TJPARAM_SUBSAMP = 4
-TJPARAM_JPEGWIDTH = 5
-TJPARAM_JPEGHEIGHT = 6
+# Uses the libjpeg-turbo 2.x C API (tjInitTransform, tjTransform, etc.)
+# which is also available in libjpeg-turbo 3.x for backwards compatibility.
+TJFLAG_ACCURATEDCT = 4096
 
 
 class BlankStruct(Structure):
@@ -174,49 +173,44 @@ class BlankImage:
 class JpegFiller:
     """Lossless filling of a JPEG image with a constant color.
 
-    Uses libjpeg-turbo's tj3Transform with a custom callback to replace
+    Uses libjpeg-turbo's 2.x transform API with a custom callback to replace
     all DCT coefficients, producing a solid-color image that preserves
-    the original encoding tables.
+    the original encoding tables. The 2.x API is also supported by
+    libjpeg-turbo 3.x for backwards compatibility.
     """
 
     def __init__(self, lib_path: Union[str, Path]):
-        turbo_jpeg = cdll.LoadLibrary(str(lib_path))
+        lib = cdll.LoadLibrary(str(lib_path))
 
-        self._tj_init = turbo_jpeg.tj3Init
-        self._tj_init.argtypes = [c_int]
-        self._tj_init.restype = c_void_p
+        self._init_transform = lib.tjInitTransform
+        self._init_transform.argtypes = []
+        self._init_transform.restype = c_void_p
 
-        self._tj_destroy = turbo_jpeg.tj3Destroy
-        self._tj_destroy.argtypes = [c_void_p]
-        self._tj_destroy.restype = None
+        self._destroy = lib.tjDestroy
+        self._destroy.argtypes = [c_void_p]
+        self._destroy.restype = c_int
 
-        self._tj_get = turbo_jpeg.tj3Get
-        self._tj_get.argtypes = [c_void_p, c_int]
-        self._tj_get.restype = c_int
-
-        self._tj_decompress_header = turbo_jpeg.tj3DecompressHeader
-        self._tj_decompress_header.argtypes = [c_void_p, POINTER(c_ubyte), c_size_t]
-        self._tj_decompress_header.restype = c_int
-
-        self._tj_transform = turbo_jpeg.tj3Transform
-        self._tj_transform.argtypes = [
-            c_void_p,
-            POINTER(c_ubyte),
-            c_size_t,
-            c_int,
-            POINTER(c_void_p),
-            POINTER(c_size_t),
-            POINTER(BlankTransformStruct),
+        self._decompress_header = lib.tjDecompressHeader3
+        self._decompress_header.argtypes = [
+            c_void_p, POINTER(c_ubyte), c_ulong,
+            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int),
         ]
-        self._tj_transform.restype = c_int
+        self._decompress_header.restype = c_int
 
-        self._tj_free = turbo_jpeg.tj3Free
-        self._tj_free.argtypes = [c_void_p]
-        self._tj_free.restype = None
+        self._transform = lib.tjTransform
+        self._transform.argtypes = [
+            c_void_p, POINTER(c_ubyte), c_ulong, c_int,
+            POINTER(c_void_p), POINTER(c_ulong), POINTER(BlankTransformStruct), c_int,
+        ]
+        self._transform.restype = c_int
 
-        self._tj_get_error_str = turbo_jpeg.tj3GetErrorStr
-        self._tj_get_error_str.argtypes = [c_void_p]
-        self._tj_get_error_str.restype = c_char_p
+        self._free = lib.tjFree
+        self._free.argtypes = [c_void_p]
+        self._free.restype = None
+
+        self._get_error_str = lib.tjGetErrorStr2
+        self._get_error_str.argtypes = [c_void_p]
+        self._get_error_str.restype = c_char_p
 
         self._blank_image_transform = BlankImage()
 
@@ -240,47 +234,46 @@ class JpegFiller:
         bytes
             Filled jpeg image.
         """
-        handle = self._tj_init(TJINIT_TRANSFORM)
+        handle = self._init_transform()
         try:
             jpeg_array: np.ndarray = np.frombuffer(jpeg_buf, dtype=np.uint8)
             src_addr = cast(jpeg_array.__array_interface__["data"][0], POINTER(c_ubyte))
 
-            status = self._tj_decompress_header(handle, src_addr, jpeg_array.size)
+            width = c_int()
+            height = c_int()
+            subsample = c_int()
+            colorspace = c_int()
+            status = self._decompress_header(
+                handle, src_addr, jpeg_array.size,
+                byref(width), byref(height), byref(subsample), byref(colorspace),
+            )
             if status != 0:
                 self._raise_error(handle)
 
-            image_width = self._tj_get(handle, TJPARAM_JPEGWIDTH)
-            image_height = self._tj_get(handle, TJPARAM_JPEGHEIGHT)
-            jpeg_subsample = self._tj_get(handle, TJPARAM_SUBSAMP)
-
             callback_data = self._blank_image_transform.callback_data(
-                jpeg_subsample,
+                subsample.value,
                 self._map_luminance_to_dc_dct_coefficient(
                     jpeg_buf, background_luminance
                 ),
             )
             dest_array = c_void_p()
-            dest_size = c_size_t()
+            dest_size = c_ulong()
             transform = self._blank_image_transform.transform(
-                CroppingRegion(0, 0, image_width, image_height),
+                CroppingRegion(0, 0, width, height),
                 callback_data,
             )
 
-            transform_status = self._tj_transform(
-                handle,
-                src_addr,
-                jpeg_array.size,
-                1,
-                dest_array,
-                dest_size,
-                transform,
+            transform_status = self._transform(
+                handle, src_addr, jpeg_array.size, 1,
+                byref(dest_array), byref(dest_size), byref(transform),
+                TJFLAG_ACCURATEDCT,
             )
 
             dest_buf = create_string_buffer(dest_size.value)
             assert dest_array.value is not None
             memmove(dest_buf, dest_array.value, dest_size.value)
 
-            self._tj_free(dest_array)
+            self._free(dest_array)
 
             if transform_status != 0:
                 self._raise_error(handle)
@@ -288,7 +281,7 @@ class JpegFiller:
             return dest_buf.raw
 
         finally:
-            self._tj_destroy(handle)
+            self._destroy(handle)
 
     @classmethod
     def _map_luminance_to_dc_dct_coefficient(
@@ -339,6 +332,6 @@ class JpegFiller:
         return dc_value
 
     def _raise_error(self, handle: c_void_p) -> None:
-        error_str = self._tj_get_error_str(handle)
+        error_str = self._get_error_str(handle)
         msg = error_str.decode() if error_str else "Unknown TurboJPEG error"
         raise IOError(msg)
