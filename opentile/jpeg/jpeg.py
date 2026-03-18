@@ -15,12 +15,13 @@
 """Lossless jpeg handling."""
 
 import os
+import platform
 from ctypes.util import find_library
 from pathlib import Path
 from struct import pack, unpack
 from typing import Iterator, List, Optional, Sequence, Tuple, Union
 
-from turbojpeg import TurboJPEG, tjMCUHeight, tjMCUWidth
+from turbojpeg import DEFAULT_LIB_PATHS, TurboJPEG, tjMCUHeight, tjMCUWidth
 
 from opentile.geometry import Size
 from opentile.jpeg.jpeg_filler import JpegFiller
@@ -29,7 +30,7 @@ from opentile.jpeg.jpeg_filler import JpegFiller
 def find_turbojpeg_path() -> Path:
     """Find the turbojpeg library path.
 
-    Searches using find_library with both 'libturbojpeg' and 'turbojpeg' names,
+    Searches using find_library, then DEFAULT_LIB_PATHS from PyTurboJPEG,
     then falls back to the TURBOJPEG environment variable.
 
     Raises FileNotFoundError if the library cannot be found.
@@ -43,6 +44,10 @@ def find_turbojpeg_path() -> Path:
         lib_path = find_library(name)
         if lib_path is not None:
             return Path(lib_path)
+    for lib_path_str in DEFAULT_LIB_PATHS.get(platform.system(), []):
+        lib_path = Path(lib_path_str)
+        if lib_path.exists():
+            return lib_path
     turbojpeg_lib_dir = os.environ.get("TURBOJPEG")
     if turbojpeg_lib_dir is not None:
         turbojpeg_path = Path(turbojpeg_lib_dir)
