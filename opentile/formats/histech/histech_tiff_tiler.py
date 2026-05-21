@@ -64,20 +64,20 @@ class HistechTiffTiler(Tiler):
         return "3dh_PixelSizeX" in tiff_file.pages.first.description
 
     @lru_cache(None)
-    def get_level(self, level: int, page: int = 0) -> LevelTiffImage:
+    def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
         return HistechTiffImage(
             self._get_tiff_page(self._level_series_index, level, page),
             self._file,
             self._base_size,
         )
 
-    def get_label(self, page: int = 0) -> AssociatedTiffImage:
+    def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         raise NotImplementedError()
 
-    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
+    def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         raise NotImplementedError()
 
-    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
+    def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         raise NotImplementedError()
 
     @staticmethod

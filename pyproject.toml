@@ -16,6 +16,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "cachetools>=5.0.0",
     "tifffile>=2022.5.4",
     "numpy>=1.22.0",
     "PyTurboJPEG>=1.7.3,<2.0.0",

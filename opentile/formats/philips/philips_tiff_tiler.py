@@ -14,7 +14,6 @@
 
 """Tiler for reading tiles from Philips tiff files."""
 
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -71,8 +70,7 @@ class PhilipsTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_philips
 
-    @lru_cache(None)
-    def get_level(self, level: int, page: int = 0) -> LevelTiffImage:
+    def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
         return PhilipsLevelTiffImage(
             self._get_tiff_page(self._level_series_index, level, page),
             self._file,
@@ -81,24 +79,21 @@ class PhilipsTiffTiler(Tiler):
             self._jpeg,
         )
 
-    @lru_cache(None)
-    def get_label(self, page: int = 0) -> AssociatedTiffImage:
+    def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
             raise ValueError("No label series found in this file.")
         return PhilipsAssociatedTiffImage(
             self._get_tiff_page(self._label_series_index, 0, page), self._file
         )
 
-    @lru_cache(None)
-    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
+    def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
             raise ValueError("No overview series found in this file.")
         return PhilipsAssociatedTiffImage(
             self._get_tiff_page(self._overview_series_index, 0, page), self._file
         )
 
-    @lru_cache(None)
-    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
+    def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
             raise ValueError("No thumbnail series found in this file.")
         return PhilipsThumbnailTiffImage(

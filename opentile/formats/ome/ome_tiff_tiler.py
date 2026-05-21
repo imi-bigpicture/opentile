@@ -14,7 +14,6 @@
 
 """Tiler for reading tiles from OME tiff files."""
 
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -110,8 +109,7 @@ class OmeTiffTiler(Tiler):
             return None
         return SizeMm(mpp_x, mpp_y)
 
-    @lru_cache(None)
-    def get_level(self, level: int, page: int = 0) -> LevelTiffImage:
+    def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
         tiff_page = self._get_tiff_page(self._level_series_index, level, page)
         if tiff_page.is_tiled:
             return OmeTiffTiledImage(
@@ -131,20 +129,17 @@ class OmeTiffTiler(Tiler):
             self._jpeg,
         )
 
-    @lru_cache(None)
-    def get_label(self, page: int = 0) -> AssociatedTiffImage:
+    def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
             raise ValueError("No label detected in file")
         return self._get_associated_image(self._label_series_index, page)
 
-    @lru_cache(None)
-    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
+    def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
             raise ValueError("No overview detected in file")
         return self._get_associated_image(self._overview_series_index, page)
 
-    @lru_cache(None)
-    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
+    def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
             raise ValueError("No thumbnail detected in file")
         tiff_page = self._get_tiff_page(self._thumbnail_series_index, 0, page)

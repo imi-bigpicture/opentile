@@ -15,13 +15,14 @@
 """Image implementations for ndpi files."""
 
 from abc import abstractmethod
-from functools import cached_property, lru_cache
+from functools import cached_property
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 from imagecodecs import jpeg8_decode
 from tifffile import COMPRESSION, TiffPage, RESUNIT
 
+from opentile.cache import lru_cached_method
 from opentile.config import settings
 from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
@@ -372,7 +373,7 @@ class NdpiOneFrameImage(NdpiTiledImage):
         """
         return ((self.frame_size) // self.tile_size + 1) * self.tile_size
 
-    @lru_cache(settings.ndpi_frame_cache)
+    @lru_cached_method(maxsize=lambda: settings.ndpi_frame_cache)
     def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Return padded image covering tile coordinate as valid jpeg bytes.
 
@@ -524,7 +525,7 @@ class NdpiStripedImage(NdpiTiledImage):
             height = self.frame_size.height
         return Size(width, height)
 
-    @lru_cache(settings.ndpi_frame_cache)
+    @lru_cached_method(maxsize=lambda: settings.ndpi_frame_cache)
     def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Return extended frame of frame size starting at frame position.
         Returned frame is jpeg bytes including header with correct image size.

@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from tifffile import TiffFile, TiffPage, TiffPageSeries, TiffFrame
 from upath import UPath
 
+from opentile.cache import lru_cached_method
 from opentile.file import OpenTileFile
 from opentile.geometry import Size
 from opentile.metadata import Metadata
@@ -145,7 +146,7 @@ class Tiler(metaclass=ABCMeta):
         """Return true if file is supported by tiler."""
         raise NotImplementedError()
 
-    @abstractmethod
+    @lru_cached_method(maxsize=None)
     def get_level(self, level: int, page: int = 0) -> LevelTiffImage:
         """Return TiffImage for level in pyramid series.
 
@@ -161,9 +162,9 @@ class Tiler(metaclass=ABCMeta):
         TiffImage
             Level TiffImage.
         """
-        raise NotImplementedError()
+        return self._create_level(level, page)
 
-    @abstractmethod
+    @lru_cached_method(maxsize=None)
     def get_label(self, page: int = 0) -> AssociatedTiffImage:
         """Return label TiffImage.
 
@@ -177,9 +178,9 @@ class Tiler(metaclass=ABCMeta):
         TiffImage
             Label TiffImage.
         """
-        raise NotImplementedError()
+        return self._create_label(page)
 
-    @abstractmethod
+    @lru_cached_method(maxsize=None)
     def get_overview(self, page: int = 0) -> AssociatedTiffImage:
         """Return overview TiffImage.
 
@@ -193,9 +194,9 @@ class Tiler(metaclass=ABCMeta):
         TiffImage
             Overview TiffImage.
         """
-        raise NotImplementedError()
+        return self._create_overview(page)
 
-    @abstractmethod
+    @lru_cached_method(maxsize=None)
     def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         """Return thumbnail TiffImage.
 
@@ -209,6 +210,26 @@ class Tiler(metaclass=ABCMeta):
         TiffImage
             Thumbnail TiffImage.
         """
+        return self._create_thumbnail(page)
+
+    @abstractmethod
+    def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
+        """Create the TiffImage for a pyramid level."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _create_label(self, page: int = 0) -> AssociatedTiffImage:
+        """Create the label TiffImage."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
+        """Create the overview TiffImage."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
+        """Create the thumbnail TiffImage."""
         raise NotImplementedError()
 
     @staticmethod

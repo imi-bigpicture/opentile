@@ -15,7 +15,6 @@
 """Tiler for reading tiles from ndpi files."""
 
 import math
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -158,8 +157,7 @@ class NdpiTiler(Tiler):
                 smallest_stripe_width = stripe_width
         return smallest_stripe_width
 
-    @lru_cache(None)
-    def get_level(
+    def _create_level(
         self,
         level: int,
         page: int = 0,
@@ -177,8 +175,7 @@ class NdpiTiler(Tiler):
             tiff_page, self._file, self._base_size, self._tile_size, self._jpeg
         )
 
-    @lru_cache(None)
-    def get_label(self, page: int = 0) -> AssociatedTiffImage:
+    def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         assert self._overview_series_index is not None
         tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
@@ -186,12 +183,11 @@ class NdpiTiler(Tiler):
             tiff_page, self._file, self._jpeg, (0.0, self._label_crop_position)
         )
 
-    @lru_cache(None)
-    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
+    def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         assert self._overview_series_index is not None
         tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
         return NdpiOverviewImage(tiff_page, self._file, self._jpeg)
 
-    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
+    def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         raise NotImplementedError()

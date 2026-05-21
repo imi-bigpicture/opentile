@@ -87,8 +87,7 @@ class SvsTiler(Tiler):
     def _is_thumbnail_series(series: TiffPageSeries) -> bool:
         return series.name == "Thumbnail"
 
-    @lru_cache(None)
-    def get_level(self, level: int, page: int = 0) -> LevelTiffImage:
+    def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
         return self._get_level(level, page)
 
     def _get_level(self, level: int, page: int = 0) -> SvsTiledImage:
@@ -106,8 +105,7 @@ class SvsTiler(Tiler):
         )
         return svs_page
 
-    @lru_cache(None)
-    def get_label(self, page: int = 0) -> AssociatedTiffImage:
+    def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
             raise ValueError("No label detected in file")
         return SvsLabelImage(
@@ -116,8 +114,7 @@ class SvsTiler(Tiler):
             self._jpeg,
         )
 
-    @lru_cache(None)
-    def get_overview(self, page: int = 0) -> AssociatedTiffImage:
+    def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
             raise ValueError("No overview detected in file")
         return SvsOverviewImage(
@@ -126,8 +123,7 @@ class SvsTiler(Tiler):
             self._jpeg,
         )
 
-    @lru_cache(None)
-    def get_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
+    def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
             raise ValueError("No overview detected in file")
         return SvsThumbnailImage(

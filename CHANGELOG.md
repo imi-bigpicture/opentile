@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Relaxed upper version bounds for Pillow, defusedxml, ome-types, fsspec, universal-pathlib, and dev dependencies.
 
+### Fixed
+
+- Memory leak from `lru_cache` on tiler and image methods keeping every opened file alive for the lifetime of the process; method caches are now per-instance and released when the tiler is closed.
+
 ## [0.20.0] - 2025-12-09
 
 ### Changed
