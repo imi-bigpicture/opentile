@@ -200,9 +200,8 @@ class Jpeg:
         assert (
             image_size is not None and scan_size is not None and subsample is not None
         )
-        frame = self._manipulate_header(
-            frame, image_size, scan_size.area // self.subsample_to_mcu_size(subsample)
-        )
+        restart_interval = scan_size.ceil_div(self.subsample_to_mcu(subsample)).area
+        frame = self._manipulate_header(frame, image_size, restart_interval)
         return bytes(frame)
 
     def fill_frame(self, frame: bytes, luminance: float) -> bytes:
@@ -341,8 +340,9 @@ class Jpeg:
         return pack(">H", value)
 
     @staticmethod
-    def subsample_to_mcu_size(subsample: int) -> int:
-        return tjMCUWidth[subsample] * tjMCUHeight[subsample]
+    def subsample_to_mcu(subsample: int) -> Size:
+        """Return the MCU size (in pixels) for a turbojpeg subsample value."""
+        return Size(tjMCUWidth[subsample], tjMCUHeight[subsample])
 
     @staticmethod
     def _find_tag(

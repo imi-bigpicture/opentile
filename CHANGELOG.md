@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Memory leak from `lru_cache` on tiler and image methods keeping every opened file alive for the lifetime of the process; method caches are now per-instance and released when the tiler is closed.
+- Corrupt jpeg produced by `Jpeg.concatenate_scans()` for striped svs images (thumbnail and overview) when the scan width or height is not a multiple of the mcu size.
 
 ## [0.20.0] - 2025-12-09
 

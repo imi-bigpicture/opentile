@@ -16,7 +16,9 @@ import os
 from hashlib import md5
 from pathlib import Path
 
+import numpy as np
 import pytest
+from imagecodecs import jpeg8_decode, jpeg8_encode
 from opentile.geometry import Size
 from opentile.jpeg import Jpeg
 from tifffile import TiffFile, TiffPage
@@ -134,6 +136,45 @@ class TestJpeg:
             True,
         )
         assert md5(frame).hexdigest() == "fdde19f6d10994c5b866b43027ff94ed"
+
+    @pytest.mark.parametrize(
+        "width",
+        [
+            64,  # multiple of the mcu width (8): restart interval is unchanged
+            70,  # not a multiple of the mcu width (8): minimal reproducer
+            574,  # not a multiple of the mcu width (8): width from issue #155
+        ],
+    )
+    def test_concatenate_scans_decodes_to_expected_pixels(self, width: int):
+        """Concatenated scans must decode to the same pixels as the individual
+        scans stacked vertically. Regression test for a too small restart
+        interval being written when the scan width is not a multiple of the mcu
+        size, corrupting e.g. odd-width svs thumbnails."""
+        # Arrange
+        jpeg = Jpeg()
+        strip_height = 16  # rows per strip, matching striped svs images
+        strip_count = 3  # >= 2 so restart markers are inserted between strips
+        # Fill each pixel from its coordinates (a ramp that wraps at 256).
+        height = strip_height * strip_count
+        image = np.fromfunction(
+            lambda r, c, ch: (c * 3 + r * 5 + ch * 2) % 256, (height, width, 3)
+        ).astype(np.uint8)
+        # Encode each strip as no subsampling jpeg
+        scans = [
+            jpeg8_encode(
+                image[index * strip_height : (index + 1) * strip_height],
+                subsampling="444",
+                optimize=False,
+            )
+            for index in range(strip_count)
+        ]
+        expected = np.concatenate([jpeg8_decode(scan) for scan in scans], axis=0)
+
+        # Act
+        frame = jpeg.concatenate_scans(iter(scans), None, False)
+
+        # Assert
+        assert np.array_equal(jpeg8_decode(frame), expected)
 
     def test_code_short(self):
         # Arrange
