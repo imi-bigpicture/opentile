@@ -1,4 +1,4 @@
-#    Copyright 2021-2024 SECTRA AB
+#    Copyright 2024 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -12,10 +12,14 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-__all__ = ["OpenTile", "Metadata", "TiffFormat"]
+"""Enum for supported TIFF formats."""
 
-from opentile.opentile import OpenTile
-from opentile.metadata import Metadata
-from opentile.tiff_format import TiffFormat
+from enum import Enum
 
-__version__ = "0.21.0"
+
+class TiffFormat(Enum):
+    NDPI = "ndpi"
+    SVS = "svs"
+    PHILIPS_TIFF = "philips"
+    HISTECH_TIFF = "3dhistech"
+    OME_TIFF = "ome-tiff"

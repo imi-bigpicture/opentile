@@ -32,6 +32,7 @@ from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.geometry import Size
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
+from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 from opentile.tiler import Tiler
 
@@ -79,6 +80,10 @@ class NdpiTiler(Tiler):
     @property
     def metadata(self) -> Metadata:
         return self._metadata
+
+    @property
+    def format(self) -> TiffFormat:
+        return TiffFormat.NDPI
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:

@@ -1,6 +1,6 @@
 [project]
 name = "opentile"
-version = "0.20.1"
+version = "0.21.0"
 description = "Read tiles from wsi-TIFF files"
 authors = [
     { name = "Erik O Gabrielsson", email = "erik.o.gabrielsson@sectra.com" }

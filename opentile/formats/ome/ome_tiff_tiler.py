@@ -33,6 +33,7 @@ from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_format import TiffFormat
 from opentile.tiler import Tiler
 
 
@@ -68,6 +69,10 @@ class OmeTiffTiler(Tiler):
     def metadata(self) -> Metadata:
         """Metadata parsing not implemented for OmeTiff."""
         return Metadata()
+
+    @property
+    def format(self) -> TiffFormat:
+        return TiffFormat.OME_TIFF
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:

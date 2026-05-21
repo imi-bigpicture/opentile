@@ -25,6 +25,7 @@ from opentile.cache import lru_cached_method
 from opentile.file import OpenTileFile
 from opentile.geometry import Size
 from opentile.metadata import Metadata
+from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
@@ -138,6 +139,12 @@ class Tiler(metaclass=ABCMeta):
     @abstractmethod
     def metadata(self) -> Metadata:
         """Return metadata parsed from file."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def format(self) -> TiffFormat:
+        """Return the format of the tiff file."""
         raise NotImplementedError()
 
     @classmethod

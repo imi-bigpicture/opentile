@@ -32,17 +32,18 @@ from opentile.formats import (
     PhilipsTiffTiler,
     SvsTiler,
 )
+from opentile.tiff_format import TiffFormat
 from opentile.tiler import Tiler
 from upath import UPath
 
 
 class OpenTile:
-    _tilers: Dict[str, Type[Tiler]] = {
-        "ndpi": NdpiTiler,
-        "svs": SvsTiler,
-        "phillips tiff": PhilipsTiffTiler,
-        "3dhistech tiff": HistechTiffTiler,
-        "ome-tiff tiler": OmeTiffTiler,
+    _tilers: Dict[TiffFormat, Type[Tiler]] = {
+        TiffFormat.NDPI: NdpiTiler,
+        TiffFormat.SVS: SvsTiler,
+        TiffFormat.PHILIPS_TIFF: PhilipsTiffTiler,
+        TiffFormat.HISTECH_TIFF: HistechTiffTiler,
+        TiffFormat.OME_TIFF: OmeTiffTiler,
     }
 
     @classmethod
@@ -87,21 +88,21 @@ class OpenTile:
         cls,
         filepath: Union[str, Path, UPath],
         file_options: Optional[Dict[str, str]] = None,
-    ) -> Optional[str]:
+    ) -> Optional[TiffFormat]:
 
         try:
             with OpenTileFile(filepath, file_options) as file:
-                tiler_name, _ = next(cls._get_supported_tilers(file), (None, None))
-                return tiler_name
+                tiff_format, _ = next(cls._get_supported_tilers(file), (None, None))
+                return tiff_format
         except Exception:
             return None
 
     @classmethod
     def _get_supported_tilers(
         cls, file: OpenTileFile
-    ) -> Iterator[Tuple[str, Type[Tiler]]]:
+    ) -> Iterator[Tuple[TiffFormat, Type[Tiler]]]:
         return (
-            (tiler_name, tiler)
-            for (tiler_name, tiler) in cls._tilers.items()
+            (tiff_format, tiler)
+            for (tiff_format, tiler) in cls._tilers.items()
             if tiler.supported(file.tiff)
         )

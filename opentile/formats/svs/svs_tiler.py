@@ -14,7 +14,6 @@
 
 """Tiler for reading tiles from svs files."""
 
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -32,6 +31,7 @@ from opentile.formats.svs.svs_metadata import SvsMetadata
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
+from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 from opentile.tiler import Tiler
 
@@ -66,6 +66,10 @@ class SvsTiler(Tiler):
     @property
     def metadata(self) -> Metadata:
         return self._metadata
+
+    @property
+    def format(self) -> TiffFormat:
+        return TiffFormat.SVS
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:

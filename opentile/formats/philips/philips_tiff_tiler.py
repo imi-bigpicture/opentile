@@ -35,6 +35,7 @@ from opentile.tiff_image import (
     LevelTiffImage,
     ThumbnailTiffImage,
 )
+from opentile.tiff_format import TiffFormat
 from opentile.tiler import Tiler
 
 
@@ -65,6 +66,10 @@ class PhilipsTiffTiler(Tiler):
     @property
     def metadata(self) -> Metadata:
         return self._metadata
+
+    @property
+    def format(self) -> TiffFormat:
+        return TiffFormat.PHILIPS_TIFF
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:

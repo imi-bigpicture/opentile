@@ -14,7 +14,6 @@
 
 """Tiler for reading tiles from 3Dhistech tiff files."""
 
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -30,6 +29,7 @@ from opentile.tiff_image import (
     LevelTiffImage,
     ThumbnailTiffImage,
 )
+from opentile.tiff_format import TiffFormat
 from opentile.tiler import Tiler
 
 
@@ -59,11 +59,14 @@ class HistechTiffTiler(Tiler):
         """No known metadata for 3DHistech tiff files."""
         return Metadata()
 
+    @property
+    def format(self) -> TiffFormat:
+        return TiffFormat.HISTECH_TIFF
+
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
         return "3dh_PixelSizeX" in tiff_file.pages.first.description
 
-    @lru_cache(None)
     def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
         return HistechTiffImage(
             self._get_tiff_page(self._level_series_index, level, page),
