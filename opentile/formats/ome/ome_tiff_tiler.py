@@ -15,7 +15,7 @@
 """Tiler for reading tiles from OME tiff files."""
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import ome_types
 from ome_types.model.simple_types import UnitsLength
@@ -32,8 +32,8 @@ from opentile.formats.ome.ome_tiff_image import (
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
-from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 from opentile.tiff_format import TiffFormat
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 from opentile.tiler import Tiler
 
 
@@ -48,7 +48,7 @@ class OmeTiffTiler(Tiler):
         self,
         file: Union[str, Path, UPath, OpenTileFile],
         turbo_path: Optional[Union[str, Path]] = None,
-        file_options: Optional[Dict[str, Any]] = None,
+        file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for ome tiff file.
 
@@ -78,20 +78,24 @@ class OmeTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_ome
 
-    def _is_level_series(self, series: TiffPageSeries) -> bool:
+    @staticmethod
+    def _is_level_series(series: TiffPageSeries) -> bool:
         return (
-            not self._is_label_series(series)
-            and not self._is_overview_series(series)
-            and not self._is_thumbnail_series(series)
+            not OmeTiffTiler._is_label_series(series)
+            and not OmeTiffTiler._is_overview_series(series)
+            and not OmeTiffTiler._is_thumbnail_series(series)
         )
 
-    def _is_label_series(self, series: TiffPageSeries) -> bool:
+    @staticmethod
+    def _is_label_series(series: TiffPageSeries) -> bool:
         return series.name.strip() == "label"
 
-    def _is_overview_series(self, series: TiffPageSeries) -> bool:
+    @staticmethod
+    def _is_overview_series(series: TiffPageSeries) -> bool:
         return series.name.strip() == "macro"
 
-    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
+    @staticmethod
+    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
         return series.name.strip() == "thumbnail"
 
     def _get_mpp(self, series_index: int) -> SizeMm:

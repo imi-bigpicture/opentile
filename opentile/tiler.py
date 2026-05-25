@@ -16,9 +16,9 @@
 
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
-from tifffile import TiffFile, TiffPage, TiffPageSeries, TiffFrame
+from tifffile import TiffFile, TiffFrame, TiffPage, TiffPageSeries
 from upath import UPath
 
 from opentile.cache import lru_cached_method
@@ -39,7 +39,7 @@ class Tiler(metaclass=ABCMeta):
     def __init__(
         self,
         file: Union[str, Path, UPath, OpenTileFile],
-        file_options: Optional[Dict[str, Any]],
+        file_options: Optional[dict[str, Any]],
     ):
         """Base class for reading images from TiffFile.
 
@@ -82,7 +82,7 @@ class Tiler(metaclass=ABCMeta):
         self.close()
 
     @property
-    def levels(self) -> List[LevelTiffImage]:
+    def levels(self) -> list[LevelTiffImage]:
         """Return list of pyramid level TiffImages."""
         if self._level_series_index is None:
             return []
@@ -95,7 +95,7 @@ class Tiler(metaclass=ABCMeta):
         ]
 
     @property
-    def labels(self) -> List[AssociatedTiffImage]:
+    def labels(self) -> list[AssociatedTiffImage]:
         """Return list of label TiffImage."""
         if self._label_series_index is None:
             return []
@@ -107,7 +107,7 @@ class Tiler(metaclass=ABCMeta):
         ]
 
     @property
-    def overviews(self) -> List[AssociatedTiffImage]:
+    def overviews(self) -> list[AssociatedTiffImage]:
         """Return list of overview TiffImage."""
         if self._overview_series_index is None:
             return []
@@ -119,7 +119,7 @@ class Tiler(metaclass=ABCMeta):
         ]
 
     @property
-    def thumbnails(self) -> List[ThumbnailTiffImage]:
+    def thumbnails(self) -> list[ThumbnailTiffImage]:
         """Return list of thumbnail TiffImage."""
         if self._thumbnail_series_index is None:
             return []
@@ -268,7 +268,7 @@ class Tiler(metaclass=ABCMeta):
         self._file.close()
 
     def get_tile(
-        self, series: int, level: int, page: int, tile_position: Tuple[int, int]
+        self, series: int, level: int, page: int, tile_position: tuple[int, int]
     ) -> bytes:
         """Return list of image bytes for tiles at tile positions.
 

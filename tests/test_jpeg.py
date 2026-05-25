@@ -19,9 +19,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 from imagecodecs import jpeg8_decode, jpeg8_encode
+from tifffile import TiffFile, TiffPage
+
 from opentile.geometry import Size
 from opentile.jpeg import Jpeg
-from tifffile import TiffFile, TiffPage
 
 test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
 slide_folder = Path(test_data_dir).joinpath("slides")

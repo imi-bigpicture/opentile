@@ -16,7 +16,7 @@
 
 import math
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 from tifffile import TiffFile, TiffPage, TiffPageSeries
 from upath import UPath
@@ -44,7 +44,7 @@ class NdpiTiler(Tiler):
         tile_size: int,
         turbo_path: Optional[Union[str, Path]] = None,
         label_crop_position: float = 0.3,
-        file_options: Optional[Dict[str, Any]] = None,
+        file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for ndpi file, with functions to produce tiles of specified
         size.

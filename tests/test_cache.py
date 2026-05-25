@@ -45,7 +45,6 @@ class TestLruCachedMethod:
     def test_separate_instances_have_separate_caches(self):
         # Arrange
         class Example:
-
             @lru_cached_method()
             def value(self, x: int):
                 return object()

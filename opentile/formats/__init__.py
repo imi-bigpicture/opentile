@@ -14,9 +14,9 @@
 
 """Module containing format specific implementations."""
 
-from opentile.formats.ome import OmeTiffTiler
-from opentile.formats.ndpi import NdpiTiler
 from opentile.formats.histech import HistechTiffTiler
+from opentile.formats.ndpi import NdpiTiler
+from opentile.formats.ome import OmeTiffTiler
 from opentile.formats.philips import PhilipsTiffTiler
 from opentile.formats.svs import SvsTiler
 

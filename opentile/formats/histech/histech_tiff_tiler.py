@@ -15,7 +15,7 @@
 """Tiler for reading tiles from 3Dhistech tiff files."""
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
@@ -24,12 +24,12 @@ from opentile.file import OpenTileFile
 from opentile.formats.histech.histech_tiff_image import HistechTiffImage
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
+from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
     ThumbnailTiffImage,
 )
-from opentile.tiff_format import TiffFormat
 from opentile.tiler import Tiler
 
 
@@ -38,7 +38,7 @@ class HistechTiffTiler(Tiler):
         self,
         file: Union[str, Path, UPath, OpenTileFile],
         turbo_path: Optional[Union[str, Path]] = None,
-        file_options: Optional[Dict[str, Any]] = None,
+        file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for 3DHistech tiff file.
 

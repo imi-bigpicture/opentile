@@ -13,18 +13,19 @@
 #    limitations under the License.
 
 import os
-from pathlib import Path
-from typing import Any, Dict
-import requests
 from hashlib import md5
+from pathlib import Path
+from typing import Any
 
-FILES: Dict[str, Dict[str, Any]] = {
+import requests
+
+FILES: dict[str, dict[str, Any]] = {
     "svs/CMU-1/CMU-1.svs": {
-        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs",  # NOQA
+        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs",
         "md5": {"CMU-1.svs": "751b0b86a3c5ff4dfc8567cf24daaa85"},
     },
     "ndpi/CMU-1/CMU-1.ndpi": {
-        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi",  # NOQA
+        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi",
         "md5": {"CMU-1.ndpi": "fb89dea54f85fb112e418a3cf4c7888a"},
     },
 }
@@ -34,7 +35,7 @@ DOWNLOAD_CHUNK_SIZE = 8192
 
 
 def download_file(url: str, filename: Path):
-    with requests.get(url, stream=True) as request:
+    with requests.get(url, stream=True, timeout=30) as request:
         request.raise_for_status()
         with open(filename, "wb") as file:
             for chunk in request.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):

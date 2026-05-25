@@ -23,14 +23,16 @@ condition.
 """
 
 import threading
-from typing import Callable, Optional, Union
+from typing import Any, Callable, Optional, TypeVar, Union, cast
 
 from cachetools import LRUCache, cachedmethod
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def lru_cached_method(
     maxsize: Optional[Union[int, Callable[[], Optional[int]]]] = 128,
-):
+) -> Callable[[F], F]:
     """Cache a method's return values in a per-instance LRU cache.
 
     Like ``functools.lru_cache`` but bound to the instance rather than the class.
@@ -48,7 +50,7 @@ def lru_cached_method(
         runtime configuration is honoured.
     """
 
-    def decorator(method: Callable):
+    def decorator(method: F) -> F:
         cache_attr = f"_{method.__name__}_cache"
         condition_attr = f"_{method.__name__}_condition"
 
@@ -69,6 +71,6 @@ def lru_cached_method(
                 )
             return condition
 
-        return cachedmethod(get_cache, condition=get_condition)(method)
+        return cast(F, cachedmethod(get_cache, condition=get_condition)(method))
 
     return decorator

@@ -15,7 +15,6 @@
 """Metadata parser for svs files."""
 
 from datetime import datetime
-from functools import cached_property
 from typing import Optional
 
 from tifffile import TiffPage
@@ -28,14 +27,14 @@ class SvsMetadata(Metadata):
     def __init__(self, page: TiffPage):
         self._svs_metadata = svs_description_metadata(page.description)
 
-    @cached_property
+    @property
     def magnification(self) -> Optional[float]:
         try:
             return float(self._svs_metadata["AppMag"])
         except (KeyError, ValueError):
             return None
 
-    @cached_property
+    @property
     def aquisition_datetime(self) -> Optional[datetime]:
         try:
             date = datetime.strptime(self._svs_metadata["Date"], r"%m/%d/%y")

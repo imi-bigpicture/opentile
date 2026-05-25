@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced `black` and `flake8` with `ruff` (lint + format) and added `pyright` for type checking, matching the dev tooling used in `wsidicom`. CI lint workflow updated accordingly and type hints modernized to PEP 585 builtins / `collections.abc` imports.
+
 ## [0.21.0] - 2026-05-21
 
 ### Added

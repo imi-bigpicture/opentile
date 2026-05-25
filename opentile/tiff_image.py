@@ -14,11 +14,12 @@
 
 """Base image classes."""
 
-from functools import cached_property
 import math
 from abc import ABCMeta, abstractmethod
+from collections.abc import Iterator, Sequence
+from functools import cached_property
 from pathlib import Path
-from typing import Iterator, List, Optional, Sequence, Tuple
+from typing import Optional
 
 import numpy as np
 from tifffile import (
@@ -38,7 +39,7 @@ class TiffImage(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         """List of compressions supported, or None if image is indenpendent on
         compression."""
         raise NotImplementedError()
@@ -70,7 +71,7 @@ class TiffImage(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def subsampling(self) -> Optional[Tuple[int, int]]:
+    def subsampling(self) -> Optional[tuple[int, int]]:
         """Subsampling of image, or None if only one component."""
         raise NotImplementedError()
 
@@ -124,7 +125,7 @@ class TiffImage(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         """Read image bytes for tile at tile position.
 
         Parameters
@@ -140,7 +141,7 @@ class TiffImage(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
         """Read decoded tile for tile position.
 
         Parameters
@@ -156,7 +157,7 @@ class TiffImage(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
+    def get_tiles(self, tile_positions: Sequence[tuple[int, int]]) -> Iterator[bytes]:
         """Read image bytes for tiles at tile positions.
 
         Parameters
@@ -173,7 +174,7 @@ class TiffImage(metaclass=ABCMeta):
 
     @abstractmethod
     def get_decoded_tiles(
-        self, tile_positions: Sequence[Tuple[int, int]]
+        self, tile_positions: Sequence[tuple[int, int]]
     ) -> Iterator[np.ndarray]:
         """Read decoded tiles for tiles at tile positions.
 
@@ -244,7 +245,8 @@ class TiffImage(metaclass=ABCMeta):
         if self.photometric_interpretation == PHOTOMETRIC.MINISBLACK:
             return int(np.iinfo(data_type).min)
         raise NotImplementedError(
-            f"Fill color not defined for photometric interpretation {self.photometric_interpretation}."
+            "Fill color not defined for photometric interpretation "
+            f"{self.photometric_interpretation}."
         )
 
 
@@ -353,7 +355,7 @@ class BaseTiffImage(TiffImage):
         return PHOTOMETRIC(self._page.photometric)
 
     @property
-    def subsampling(self) -> Optional[Tuple[int, int]]:
+    def subsampling(self) -> Optional[tuple[int, int]]:
         return self._page.subsampling
 
     @property
@@ -398,11 +400,11 @@ class BaseTiffImage(TiffImage):
             jpeg_header_length = 0
         return frames + len(self._page.dataoffsets) * jpeg_header_length
 
-    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
+    def get_tiles(self, tile_positions: Sequence[tuple[int, int]]) -> Iterator[bytes]:
         return (self.get_tile(tile) for tile in tile_positions)
 
     def get_decoded_tiles(
-        self, tile_positions: Sequence[Tuple[int, int]]
+        self, tile_positions: Sequence[tuple[int, int]]
     ) -> Iterator[np.ndarray]:
         return (self.get_decoded_tile(tile) for tile in tile_positions)
 
@@ -439,7 +441,7 @@ class BaseTiffImage(TiffImage):
             self._page.dataoffsets[index], self._page.databytecounts[index]
         )
 
-    def _read_frames(self, indices: Sequence[int]) -> List[bytes]:
+    def _read_frames(self, indices: Sequence[int]) -> list[bytes]:
         return self._file.read_multiple(
             [
                 (self._page.dataoffsets[index], self._page.databytecounts[index])
@@ -475,7 +477,8 @@ class BaseTiffImage(TiffImage):
         TOLERANCE = 1e-2
         if not math.isclose(float_index, index, abs_tol=TOLERANCE):
             raise NotImplementedError(
-                f"Pyramid index needs to be integer. Got {float_index} that is more than set"
+                f"Pyramid index needs to be integer. Got {float_index} that is "
+                f"more than set"
                 f"tolerance {TOLERANCE} from the closest integer {index}. "
             )
         return index
@@ -487,7 +490,7 @@ class BaseTiffImage(TiffImage):
 class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
     """Meta class for images that are natively tiled (e.g. not ndpi)"""
 
-    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         tile_point = Point.from_tuple(tile_position)
         frame_index = self._tile_point_to_frame_index(tile_point)
         tile = self._read_frame(frame_index)
@@ -497,7 +500,7 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
             )
         return tile
 
-    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
+    def get_tiles(self, tile_positions: Sequence[tuple[int, int]]) -> Iterator[bytes]:
         tile_points = [
             Point.from_tuple(tile_position) for tile_position in tile_positions
         ]
@@ -514,7 +517,7 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
             )
         return iter(tiles)
 
-    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
         tile_point = Point.from_tuple(tile_position)
         if not self._check_if_tile_inside_image(tile_point):
             shape = self.tile_size.to_tuple()

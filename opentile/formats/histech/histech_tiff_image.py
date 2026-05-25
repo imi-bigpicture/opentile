@@ -14,7 +14,7 @@
 
 """Image implementation for 3Dhistech tiff files."""
 
-from typing import List, Optional
+from typing import Optional
 
 from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
@@ -43,16 +43,14 @@ class HistechTiffImage(NativeTiledTiffImage, LevelTiffImage):
         self._mpp = self._get_mpp_from_page()
 
     def __repr__(self) -> str:
-        return (
-            f"{type(self).__name__}({self._page}, {self._file}, " f"{self._base_size})"
-        )
+        return f"{type(self).__name__}({self._page}, {self._file}, {self._base_size})"
 
     @property
     def pixel_spacing(self) -> SizeMm:
         return self.mpp / 1000
 
     @property
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         return None
 
     @property

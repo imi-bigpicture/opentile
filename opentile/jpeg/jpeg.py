@@ -16,10 +16,11 @@
 
 import os
 import platform
+from collections.abc import Iterator, Sequence
 from ctypes.util import find_library
 from pathlib import Path
 from struct import pack, unpack
-from typing import Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Optional, Union
 
 from turbojpeg import DEFAULT_LIB_PATHS, TurboJPEG, tjMCUHeight, tjMCUWidth
 
@@ -114,7 +115,7 @@ class Jpeg:
         try:
             return Size(tjMCUWidth[subsampling], tjMCUHeight[subsampling])
         except IndexError:
-            raise ValueError(f"Unknown subsampling {subsampling}.")
+            raise ValueError(f"Unknown subsampling {subsampling}.") from None
 
     def concatenate_fragments(self, fragments: Iterator[bytes], header: bytes) -> bytes:
         """Return frame created by vertically concatenating fragments.
@@ -144,7 +145,7 @@ class Jpeg:
 
     def concatenate_scans(
         self,
-        scans: Iterator[bytes],
+        scans: Iterator[Union[bytes, bytearray]],
         jpeg_tables: Optional[bytes],
         rgb_colorspace_fix: bool = False,
     ) -> bytes:
@@ -222,8 +223,8 @@ class Jpeg:
         return self._jpeg_filler.fill_image(frame, luminance)
 
     def crop_multiple(
-        self, frame: bytes, crop_parameters: Sequence[Tuple[int, int, int, int]]
-    ) -> List[bytes]:
+        self, frame: bytes, crop_parameters: Sequence[tuple[int, int, int, int]]
+    ) -> list[bytes]:
         """Crop multiple frames out of frame.
 
         Parameters
@@ -243,7 +244,7 @@ class Jpeg:
             return self._turbo_jpeg.crop_multiple(frame, crop_parameters)
         except OSError as exception:
             raise JpegCropError(
-                f"Crop of frame failed " f"with parameters {crop_parameters}"
+                f"Crop of frame failed with parameters {crop_parameters}"
             ) from exception
 
     @classmethod
@@ -274,12 +275,12 @@ class Jpeg:
         """
 
         if apply_rgb_colorspace_fix:
-            frame = cls._add_jpeg_tables_and_rgb_color_space_fix(
+            frame_with_tables = cls._add_jpeg_tables_and_rgb_color_space_fix(
                 bytearray(frame), jpeg_tables
             )
         else:
-            frame = cls._add_jpeg_tables(bytearray(frame), jpeg_tables)
-        return bytes(frame)
+            frame_with_tables = cls._add_jpeg_tables(bytearray(frame), jpeg_tables)
+        return bytes(frame_with_tables)
 
     @classmethod
     def manipulate_header(
@@ -347,7 +348,7 @@ class Jpeg:
     @staticmethod
     def _find_tag(
         frame: Union[bytes, bytearray], tag: bytes
-    ) -> Tuple[Optional[int], Optional[int]]:
+    ) -> tuple[Optional[int], Optional[int]]:
         """Return first index and length of payload of tag in header.
 
         Parameters

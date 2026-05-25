@@ -15,7 +15,7 @@
 """Base metadata class."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from tifffile import TiffTags
 
@@ -40,7 +40,7 @@ class Metadata:
         return None
 
     @property
-    def scanner_software_versions(self) -> Optional[List[str]]:
+    def scanner_software_versions(self) -> Optional[list[str]]:
         """Return the scanner software versions if present in file."""
         return None
 
@@ -55,7 +55,7 @@ class Metadata:
         return None
 
     @property
-    def properties(self) -> Dict[str, Any]:
+    def properties(self) -> dict[str, Any]:
         """Return a dictionary of other metadata present in file."""
         return {}
 

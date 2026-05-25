@@ -355,4 +355,4 @@ class JpegFiller:
     def _raise_error(self, handle: c_void_p) -> None:
         error_str = self._get_error_str(handle)
         msg = error_str.decode() if error_str else "Unknown TurboJPEG error"
-        raise IOError(msg)
+        raise OSError(msg)

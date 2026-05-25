@@ -13,7 +13,7 @@
 #    limitations under the License.
 
 
-from typing import List, Tuple, Union
+from typing import Union
 
 from opentile.geometry import Point, Size
 
@@ -109,7 +109,7 @@ class NdpiFrameJob:
     """A list of tiles to create from a frame. Tiles need to have the same
     frame position."""
 
-    def __init__(self, tiles: Union[NdpiTile, List[NdpiTile]]) -> None:
+    def __init__(self, tiles: Union[NdpiTile, list[NdpiTile]]) -> None:
         """Create a frame job from given tile(s).
 
         Parameters
@@ -149,12 +149,12 @@ class NdpiFrameJob:
         return self._frame_size
 
     @property
-    def tiles(self) -> List[NdpiTile]:
+    def tiles(self) -> list[NdpiTile]:
         """Tiles in NdpiFrameJob."""
         return self._tiles
 
     @property
-    def crop_parameters(self) -> List[Tuple[int, int, int, int]]:
+    def crop_parameters(self) -> list[tuple[int, int, int, int]]:
         """Parameters for croping tiles from frame in NdpiFrameJob."""
         return [(tile.left, tile.top, tile.width, tile.height) for tile in self._tiles]
 

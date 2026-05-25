@@ -13,25 +13,23 @@
 #    limitations under the License.
 
 
-from pathlib import Path
-from typing import Any, BinaryIO, Dict, Optional, Union
-
-from tifffile import TiffFileError, TiffPageSeries, TiffPages, TiffFile
-from upath import UPath
-from fsspec.core import open
-
 import threading
-from typing import List, Sequence, Tuple
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any, BinaryIO, Optional, Union
+
+from fsspec.core import open
+from tifffile import TiffFile, TiffFileError, TiffPages, TiffPageSeries
+from upath import UPath
 
 """Wrapper around a TiffFile to provide thread safe access to the file handle."""
 
 
 class OpenTileFile:
-
     def __init__(
         self,
         file: Union[str, Path, UPath],
-        options: Optional[Dict[str, Any]] = None,
+        options: Optional[dict[str, Any]] = None,
     ):
         """Open a file as TiffFIle and provide thread safe access to the file handle.
 
@@ -64,7 +62,7 @@ class OpenTileFile:
         return self._tiff_file.pages
 
     @property
-    def series(self) -> List[TiffPageSeries]:
+    def series(self) -> list[TiffPageSeries]:
         """Return the series in the TiffFile."""
         return self._tiff_file.series
 
@@ -97,8 +95,8 @@ class OpenTileFile:
             return self._read(offset, bytecount)
 
     def read_multiple(
-        self, offsets_bytecounts: Sequence[Tuple[int, int]]
-    ) -> List[bytes]:
+        self, offsets_bytecounts: Sequence[tuple[int, int]]
+    ) -> list[bytes]:
         """Return bytes from multiple locations from file handle. Is thread
         safe.
 

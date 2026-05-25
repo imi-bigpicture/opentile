@@ -15,8 +15,7 @@
 """Metadata parser for ndpi files."""
 
 from datetime import datetime
-from functools import cached_property
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from tifffile import TiffPage
 
@@ -41,7 +40,7 @@ class NdpiMetadata(Metadata):
         else:
             self._ndpi_tags = {}
 
-    @cached_property
+    @property
     def magnification(self) -> Optional[float]:
         try:
             return float(self._ndpi_tags["Magnification"])
@@ -57,7 +56,7 @@ class NdpiMetadata(Metadata):
         return self._ndpi_tags.get("Model")
 
     @property
-    def scanner_software_versions(self) -> Optional[List[str]]:
+    def scanner_software_versions(self) -> Optional[list[str]]:
         software_version = self._ndpi_tags.get("Software")
         if software_version is not None:
             return [software_version]
@@ -67,7 +66,7 @@ class NdpiMetadata(Metadata):
     def scanner_serial_number(self) -> Optional[str]:
         return self._ndpi_tags.get("ScannerSerialNumber")
 
-    @cached_property
+    @property
     def aquisition_datetime(self) -> Optional[datetime]:
         datetime_tag = self._tags.get("DateTime")
         if datetime_tag is None:
@@ -77,8 +76,8 @@ class NdpiMetadata(Metadata):
         except ValueError:
             return None
 
-    @cached_property
-    def properties(self) -> Dict[str, Any]:
+    @property
+    def properties(self) -> dict[str, Any]:
         x_offset_from_slide_center = self._ndpi_tags.get("XOffsetFromSlideCenter")
         y_offset_from_slide_center = self._ndpi_tags.get("YOffsetFromSlideCenter")
         z_offset_from_slide_center = self._ndpi_tags.get("ZXOffsetFromSlideCenter")

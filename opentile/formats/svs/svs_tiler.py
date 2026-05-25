@@ -15,7 +15,7 @@
 """Tiler for reading tiles from svs files."""
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
@@ -41,7 +41,7 @@ class SvsTiler(Tiler):
         self,
         file: Union[str, Path, UPath, OpenTileFile],
         turbo_path: Optional[Union[str, Path]] = None,
-        file_options: Optional[Dict[str, Any]] = None,
+        file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for svs file.
 
@@ -96,10 +96,7 @@ class SvsTiler(Tiler):
 
     def _get_level(self, level: int, page: int = 0) -> SvsTiledImage:
         series = self._level_series_index
-        if level > 0:
-            parent = self._get_level(level - 1, page)
-        else:
-            parent = None
+        parent = self._get_level(level - 1, page) if level > 0 else None
         svs_page = SvsTiledImage(
             self._get_tiff_page(series, level, page),
             self._file,

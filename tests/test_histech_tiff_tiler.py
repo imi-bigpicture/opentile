@@ -12,8 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from collections.abc import Sequence
 from hashlib import md5
-from typing import Sequence, Tuple
 
 import pytest
 from tifffile import PHOTOMETRIC
@@ -49,7 +49,7 @@ class TestHistechTiffTiler:
         ],
     )
     def test_get_tile(
-        self, level: BaseTiffImage, tile_point: Tuple[int, int], hash: str
+        self, level: BaseTiffImage, tile_point: tuple[int, int], hash: str
     ):
         # Arrange
 
@@ -74,7 +74,7 @@ class TestHistechTiffTiler:
     def test_get_tiles(
         self,
         level: BaseTiffImage,
-        tile_points: Sequence[Tuple[int, int]],
+        tile_points: Sequence[tuple[int, int]],
         hashes: Sequence[str],
     ):
         # Arrange

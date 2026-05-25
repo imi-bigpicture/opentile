@@ -15,9 +15,9 @@
 """Tiler for reading tiles from Philips tiff files."""
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
-from tifffile import TiffFile, TiffPage, TiffPageSeries, TiffFrame
+from tifffile import TiffFile, TiffFrame, TiffPage, TiffPageSeries
 from upath import UPath
 
 from opentile.file import OpenTileFile
@@ -30,12 +30,12 @@ from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
+from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
     ThumbnailTiffImage,
 )
-from opentile.tiff_format import TiffFormat
 from opentile.tiler import Tiler
 
 
@@ -44,7 +44,7 @@ class PhilipsTiffTiler(Tiler):
         self,
         file: Union[str, Path, UPath, OpenTileFile],
         turbo_path: Optional[Union[str, Path]] = None,
-        file_options: Optional[Dict[str, Any]] = None,
+        file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for Philips tiff file.
 

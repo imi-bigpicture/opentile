@@ -14,7 +14,7 @@
 
 """Image implementation for OME tiff files."""
 
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 from tifffile import COMPRESSION, TiffPage
@@ -25,10 +25,10 @@ from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.tiff_image import (
     AssociatedTiffImage,
-    LevelTiffImage,
-    ThumbnailTiffImage,
-    NativeTiledTiffImage,
     BaseTiffImage,
+    LevelTiffImage,
+    NativeTiledTiffImage,
+    ThumbnailTiffImage,
 )
 
 
@@ -44,15 +44,15 @@ class OmeTiffImage(BaseTiffImage):
         self._mpp = base_mpp
 
     @property
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         return None
 
-    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         return self._read_frame(0)
 
-    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         return self._page.asarray(squeeze=True)
@@ -60,9 +60,7 @@ class OmeTiffImage(BaseTiffImage):
 
 class OmeTiffAssociatedImage(OmeTiffImage, AssociatedTiffImage):
     def __repr__(self) -> str:
-        return (
-            f"{type(self).__name__}({self._page}, {self._file}, " f"{self._base_mpp})"
-        )
+        return f"{type(self).__name__}({self._page}, {self._file}, {self._base_mpp})"
 
     @property
     def mpp(self) -> Optional[SizeMm]:
@@ -187,7 +185,7 @@ class OmeTiffTiledImage(NativeTiledTiffImage, LevelTiffImage):
         return self.mpp / 1000
 
     @property
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         return None
 
     @property

@@ -12,17 +12,18 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from collections.abc import Sequence
 from datetime import datetime
 from hashlib import md5
-from typing import Sequence, Tuple, cast
+from typing import cast
 
 import pytest
 from tifffile import PHOTOMETRIC
 
 from opentile.formats import SvsTiler
 from opentile.formats.svs.svs_image import SvsTiledImage
-from opentile.tiff_image import BaseTiffImage
 from opentile.geometry import Point, SizeMm
+from opentile.tiff_image import BaseTiffImage
 
 from .filepaths import svs_file_path, svs_z_file_path
 
@@ -60,7 +61,7 @@ class TestSvsTiler:
         ],
     )
     def test_get_tile(
-        self, level: SvsTiledImage, tile_point: Tuple[int, int], hash: str
+        self, level: SvsTiledImage, tile_point: tuple[int, int], hash: str
     ):
         # Arrange
 
@@ -78,7 +79,7 @@ class TestSvsTiler:
         ],
     )
     def test_decoded_get_tile(
-        self, level: SvsTiledImage, tile_point: Tuple[int, int], hash: str
+        self, level: SvsTiledImage, tile_point: tuple[int, int], hash: str
     ):
         # Arrange
 
@@ -86,7 +87,7 @@ class TestSvsTiler:
         tile = level.get_decoded_tile(tile_point)
 
         # Assert
-        assert md5(tile).hexdigest() == hash
+        assert md5(tile.tobytes()).hexdigest() == hash
 
     @pytest.mark.parametrize(
         ["tile_points", "hashes"],
@@ -103,7 +104,7 @@ class TestSvsTiler:
     def test_get_tiles(
         self,
         level: SvsTiledImage,
-        tile_points: Sequence[Tuple[int, int]],
+        tile_points: Sequence[tuple[int, int]],
         hashes: Sequence[str],
     ):
         # Arrange
@@ -123,7 +124,7 @@ class TestSvsTiler:
         ],
     )
     def test_get_scaled_tile(
-        self, tiler: SvsTiler, tile_point: Tuple[int, int], hash: str
+        self, tiler: SvsTiler, tile_point: tuple[int, int], hash: str
     ):
         # Arrange
         level = cast(SvsTiledImage, tiler.get_level(1))

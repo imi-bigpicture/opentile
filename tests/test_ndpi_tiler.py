@@ -12,18 +12,19 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from collections.abc import Sequence
 from datetime import datetime
 from hashlib import md5
-from typing import Sequence, Tuple
 
 import pytest
 from tifffile import PHOTOMETRIC
 
 from opentile.formats import NdpiTiler
-from opentile.formats.ndpi.ndpi_image import NdpiStripedImage, NdpiOneFrameImage
+from opentile.formats.ndpi.ndpi_image import NdpiOneFrameImage, NdpiStripedImage
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size, SizeMm
 from opentile.tiff_image import BaseTiffImage
+
 from .filepaths import ndpi_file_path, ndpi_z_file_path
 
 
@@ -121,7 +122,7 @@ class TestNdpiTiler:
         ],
     )
     def test_get_tile(
-        self, level: NdpiStripedImage, tile_point: Tuple[int, int], hash: str
+        self, level: NdpiStripedImage, tile_point: tuple[int, int], hash: str
     ):
         # Arrange
 
@@ -139,7 +140,7 @@ class TestNdpiTiler:
         ],
     )
     def test_get_tile_one_frame_level(
-        self, one_frame_level: NdpiOneFrameImage, tile_point: Tuple[int, int], hash: str
+        self, one_frame_level: NdpiOneFrameImage, tile_point: tuple[int, int], hash: str
     ):
         # Arrange
 
@@ -164,7 +165,7 @@ class TestNdpiTiler:
     def test_get_tiles(
         self,
         level: NdpiStripedImage,
-        tile_points: Sequence[Tuple[int, int]],
+        tile_points: Sequence[tuple[int, int]],
         hashes: Sequence[str],
     ):
         # Arrange

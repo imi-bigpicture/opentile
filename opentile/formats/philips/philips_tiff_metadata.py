@@ -16,7 +16,7 @@
 
 from datetime import datetime
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar
+from typing import Any, Optional, TypeVar
 
 from defusedxml import ElementTree
 from tifffile import TiffFile
@@ -28,9 +28,9 @@ CastType = TypeVar("CastType", int, float, str)
 
 class PhilipsTiffMetadata(Metadata):
     _scanner_manufacturer: Optional[str] = None
-    _scanner_software_versions: Optional[List[str]] = None
+    _scanner_software_versions: Optional[list[str]] = None
     _scanner_serial_number: Optional[str] = None
-    _pixel_spacing: Optional[Tuple[float, float]] = None
+    _pixel_spacing: Optional[tuple[float, float]] = None
 
     TAGS = [
         "DICOM_PIXEL_SPACING",
@@ -51,7 +51,7 @@ class PhilipsTiffMetadata(Metadata):
             return
 
         metadata = ElementTree.fromstring(tiff_file.philips_metadata)
-        self._tags: Dict[str, Optional[str]] = {tag: None for tag in self.TAGS}
+        self._tags: dict[str, Optional[str]] = {tag: None for tag in self.TAGS}
         for element in metadata.iter("Attribute"):
             if element.text is None:
                 continue
@@ -63,8 +63,8 @@ class PhilipsTiffMetadata(Metadata):
     def scanner_manufacturer(self) -> Optional[str]:
         return self._tags["DICOM_MANUFACTURER"]
 
-    @cached_property
-    def scanner_software_versions(self) -> Optional[List[str]]:
+    @property
+    def scanner_software_versions(self) -> Optional[list[str]]:
         if self._tags["DICOM_SOFTWARE_VERSIONS"] is None:
             return None
         return self._split_and_cast_text(self._tags["DICOM_SOFTWARE_VERSIONS"], str)
@@ -73,7 +73,7 @@ class PhilipsTiffMetadata(Metadata):
     def scanner_serial_number(self) -> Optional[str]:
         return self._tags["DICOM_DEVICE_SERIAL_NUMBER"]
 
-    @cached_property
+    @property
     def aquisition_datetime(self) -> Optional[datetime]:
         if self._tags["DICOM_ACQUISITION_DATETIME"] is None:
             return None
@@ -85,15 +85,15 @@ class PhilipsTiffMetadata(Metadata):
             return None
 
     @cached_property
-    def pixel_spacing(self) -> Optional[Tuple[float, float]]:
+    def pixel_spacing(self) -> Optional[tuple[float, float]]:
         if self._tags["DICOM_PIXEL_SPACING"] is None:
             return None
         values = self._split_and_cast_text(self._tags["DICOM_PIXEL_SPACING"], float)
         return values[1], values[0]
 
-    @cached_property
-    def properties(self) -> Dict[str, Any]:
-        properties: Dict[str, Any] = {}
+    @property
+    def properties(self) -> dict[str, Any]:
+        properties: dict[str, Any] = {}
         if self._tags["DICOM_LOSSY_IMAGE_COMPRESSION_METHOD"] is not None:
             properties["lossy_image_compression_method"] = self._split_and_cast_text(
                 self._tags["DICOM_LOSSY_IMAGE_COMPRESSION_METHOD"], str
@@ -116,5 +116,5 @@ class PhilipsTiffMetadata(Metadata):
         return properties
 
     @staticmethod
-    def _split_and_cast_text(string: str, cast_type: Type[CastType]) -> List[CastType]:
+    def _split_and_cast_text(string: str, cast_type: type[CastType]) -> list[CastType]:
         return [cast_type(element) for element in string.replace('"', "").split()]

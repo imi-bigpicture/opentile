@@ -14,7 +14,7 @@
 
 """Image implementation for Philips tiff files."""
 
-from typing import List, Optional
+from typing import Optional
 
 from tifffile import COMPRESSION, TiffPage
 
@@ -24,8 +24,8 @@ from opentile.jpeg import Jpeg
 from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
-    ThumbnailTiffImage,
     NativeTiledTiffImage,
+    ThumbnailTiffImage,
 )
 
 
@@ -38,7 +38,7 @@ class PhilipsAssociatedTiffImage(NativeTiledTiffImage, AssociatedTiffImage):
         return None
 
     @property
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         return None
 
 
@@ -71,7 +71,7 @@ class PhilipsThumbnailTiffImage(NativeTiledTiffImage, ThumbnailTiffImage):
         return self._mpp / 1000
 
     @property
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         return None
 
 
@@ -115,7 +115,7 @@ class PhilipsLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
         )
 
     @property
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         """Handling of sparse tiles assumes JPEG compression."""
         return [COMPRESSION.JPEG]
 

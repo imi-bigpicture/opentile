@@ -13,7 +13,6 @@
 #    limitations under the License.
 
 from hashlib import md5
-from typing import Tuple
 
 import pytest
 
@@ -48,7 +47,7 @@ class TestOmeTiffTiler:
         ],
     )
     def test_get_tile(
-        self, level: BaseTiffImage, tile_point: Tuple[int, int], hash: str
+        self, level: BaseTiffImage, tile_point: tuple[int, int], hash: str
     ):
         # Arrange
 

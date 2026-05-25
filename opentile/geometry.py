@@ -15,8 +15,9 @@
 """Geometry classes."""
 
 import math
+from collections.abc import Generator, Sequence
 from dataclasses import dataclass
-from typing import Generator, Sequence, Tuple, Union
+from typing import Union
 
 
 @dataclass
@@ -56,18 +57,18 @@ class SizeMm:
             )
         return NotImplemented
 
-    def to_int_tuple(self) -> Tuple[int, int]:
+    def to_int_tuple(self) -> tuple[int, int]:
         return int(self.width), int(self.height)
 
-    def to_tuple(self) -> Tuple[float, float]:
+    def to_tuple(self) -> tuple[float, float]:
         return self.width, self.height
 
     @classmethod
-    def from_tuple(cls, input: Union[Tuple[float, float], Sequence[float]]) -> "SizeMm":
+    def from_tuple(cls, input: Union[tuple[float, float], Sequence[float]]) -> "SizeMm":
         try:
             return cls(input[0], input[1])
         except IndexError:
-            raise ValueError("input did not contain two values")
+            raise ValueError("input did not contain two values") from None
 
 
 @dataclass
@@ -95,12 +96,12 @@ class PointMm:
 
     @classmethod
     def from_tuple(
-        cls, input: Union[Tuple[float, float], Sequence[float]]
+        cls, input: Union[tuple[float, float], Sequence[float]]
     ) -> "PointMm":
         try:
             return cls(input[0], input[1])
         except IndexError:
-            raise ValueError("input did not contain two values")
+            raise ValueError("input did not contain two values") from None
 
 
 @dataclass
@@ -178,15 +179,15 @@ class Size:
     def from_points(cls, point_1: "Point", point_2: "Point") -> "Size":
         return cls(point_2.x - point_1.x, point_2.y - point_1.y)
 
-    def to_tuple(self) -> Tuple[int, int]:
+    def to_tuple(self) -> tuple[int, int]:
         return (self.width, self.height)
 
     @classmethod
-    def from_tuple(cls, input: Union[Tuple[int, int], Sequence[int]]) -> "Size":
+    def from_tuple(cls, input: Union[tuple[int, int], Sequence[int]]) -> "Size":
         try:
             return cls(input[0], input[1])
         except IndexError:
-            raise ValueError("input did not contain two values")
+            raise ValueError("input did not contain two values") from None
 
     @classmethod
     def max(cls, size_1: "Size", size_2: "Size") -> "Size":
@@ -282,15 +283,15 @@ class Point:
     def min(cls, point_1: "Point", point_2: "Point") -> "Point":
         return cls(x=min(point_1.x, point_2.x), y=min(point_1.y, point_2.y))
 
-    def to_tuple(self) -> Tuple[int, int]:
+    def to_tuple(self) -> tuple[int, int]:
         return (self.x, self.y)
 
     @classmethod
-    def from_tuple(cls, input: Union[Tuple[int, int], Sequence[int]]) -> "Point":
+    def from_tuple(cls, input: Union[tuple[int, int], Sequence[int]]) -> "Point":
         try:
             return cls(input[0], input[1])
         except IndexError:
-            raise ValueError("input did not contain two values")
+            raise ValueError("input did not contain two values") from None
 
 
 @dataclass
@@ -316,11 +317,11 @@ class Region:
         return NotImplemented
 
     @property
-    def box(self) -> Tuple[int, int, int, int]:
+    def box(self) -> tuple[int, int, int, int]:
         return self.start.x, self.start.y, self.end.x, self.end.y
 
     @property
-    def box_from_origin(self) -> Tuple[int, int, int, int]:
+    def box_from_origin(self) -> tuple[int, int, int, int]:
         return 0, 0, self.size.width, self.size.height
 
     def iterate_all(

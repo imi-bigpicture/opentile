@@ -1,0 +1,8 @@
+{
+  "include": ["opentile", "tests"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.9",
+  "reportMissingImports": "error",
+  "reportUnusedImport": "warning"
+}

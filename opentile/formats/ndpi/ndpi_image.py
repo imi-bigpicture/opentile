@@ -15,12 +15,13 @@
 """Image implementations for ndpi files."""
 
 from abc import abstractmethod
+from collections.abc import Iterator, Sequence
 from functools import cached_property
-from typing import Dict, Iterator, List, Optional, Sequence, Tuple
+from typing import Optional
 
 import numpy as np
 from imagecodecs import jpeg8_decode
-from tifffile import COMPRESSION, TiffPage, RESUNIT
+from tifffile import COMPRESSION, RESUNIT, TiffPage
 
 from opentile.cache import lru_cached_method
 from opentile.config import settings
@@ -28,7 +29,7 @@ from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
-from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, BaseTiffImage
+from opentile.tiff_image import AssociatedTiffImage, BaseTiffImage, LevelTiffImage
 
 
 class NdpiImage(BaseTiffImage):
@@ -48,8 +49,7 @@ class NdpiImage(BaseTiffImage):
         super().__init__(page, file)
         if self.compression != COMPRESSION.JPEG:
             raise NotImplementedError(
-                f"{self.compression} is unsupported for ndpi "
-                "(Only jpeg is supported)"
+                f"{self.compression} is unsupported for ndpi (Only jpeg is supported)"
             )
         self._jpeg = jpeg
         try:
@@ -73,7 +73,7 @@ class NdpiImage(BaseTiffImage):
         return self.mpp / 1000
 
     @property
-    def supported_compressions(self) -> Optional[List[COMPRESSION]]:
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         return [COMPRESSION.JPEG]
 
     @property
@@ -85,12 +85,12 @@ class NdpiImage(BaseTiffImage):
         """Return mcu size of image."""
         return self._jpeg.get_mcu(self._read_frame(0))
 
-    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         return self._read_frame(0)
 
-    def get_decoded_tile(self, tile_position: Tuple[int, int]) -> np.ndarray:
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
         tile = self.get_tile(tile_position)
         return jpeg8_decode(tile)
 
@@ -117,7 +117,7 @@ class NdpiLabelImage(NdpiImage, AssociatedTiffImage):
         page: TiffPage,
         file: OpenTileFile,
         jpeg: Jpeg,
-        crop: Tuple[float, float],
+        crop: tuple[float, float],
     ):
         """Ndpi image that should be cropped (e.g. overview or label).
         Image data is assumed to be jpeg.
@@ -145,7 +145,7 @@ class NdpiLabelImage(NdpiImage, AssociatedTiffImage):
             self.image_size.height,
         )
 
-    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         full_frame = super().get_tile(tile_position)
@@ -200,7 +200,7 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         self._frame_size = Size.max(self.tile_size, self._file_frame_size)
         self._scale = self._calculate_scale(self._base_size)
         self._pyramid_index = self._calculate_pyramidal_index(self._scale)
-        self._headers: Dict[Size, bytes] = {}
+        self._headers: dict[Size, bytes] = {}
 
     def __repr__(self) -> str:
         return (
@@ -245,10 +245,10 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         """Return frame size used for creating tile at tile position."""
         raise NotImplementedError()
 
-    def get_tile(self, tile_position: Tuple[int, int]) -> bytes:
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         return next(self.get_tiles([tile_position]))
 
-    def get_tiles(self, tile_positions: Sequence[Tuple[int, int]]) -> Iterator[bytes]:
+    def get_tiles(self, tile_positions: Sequence[tuple[int, int]]) -> Iterator[bytes]:
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
         return (
             tile
@@ -257,7 +257,7 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         )
 
     def get_decoded_tiles(
-        self, tile_positions: Sequence[Tuple[int, int]]
+        self, tile_positions: Sequence[tuple[int, int]]
     ) -> Iterator[np.ndarray]:
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
         return (
@@ -266,7 +266,7 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
             for tile in self._create_tiles(frame_job).values()
         )
 
-    def _create_tiles(self, frame_job: NdpiFrameJob) -> Dict[Point, bytes]:
+    def _create_tiles(self, frame_job: NdpiFrameJob) -> dict[Point, bytes]:
         """Return tiles defined by frame job. Read frames are cached by
         frame position.
 
@@ -287,7 +287,7 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
 
     def _crop_to_tiles(
         self, frame_job: NdpiFrameJob, frame: bytes
-    ) -> Dict[Point, bytes]:
+    ) -> dict[Point, bytes]:
         """Crop jpeg data to tiles.
 
         Parameters
@@ -309,12 +309,12 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
                 f"Failed to crop at position {frame_job.position} with "
                 f"parameters {frame_job.crop_parameters}. "
                 "This might be due using libjpeg-turbo < 2.1."
-            )
+            ) from None
         return {tile.position: tiles[i] for i, tile in enumerate(frame_job.tiles)}
 
     def _sort_into_frame_jobs(
-        self, tile_positions: Sequence[Tuple[int, int]]
-    ) -> List[NdpiFrameJob]:
+        self, tile_positions: Sequence[tuple[int, int]]
+    ) -> list[NdpiFrameJob]:
         """Sorts tile positions into frame jobs (i.e. from the same frame.)
 
         Parameters
@@ -328,12 +328,12 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
             List of created frame jobs.
 
         """
-        frame_jobs: Dict[Point, NdpiFrameJob] = {}
+        frame_jobs: dict[Point, NdpiFrameJob] = {}
         for tile_position in tile_positions:
             tile_point = Point.from_tuple(tile_position)
             if not self._check_if_tile_inside_image(tile_point):
                 raise ValueError(
-                    f"Tile {tile_point} is outside " f"tiled size {self.tiled_size}"
+                    f"Tile {tile_point} is outside tiled size {self.tiled_size}"
                 )
             frame_size = self._get_frame_size_for_tile(tile_point)
             tile = NdpiTile(tile_point, self.tile_size, frame_size)
@@ -468,7 +468,7 @@ class NdpiStripedImage(NdpiTiledImage):
         stripe_height, stripe_width, _ = self._page.chunks
         return Size(stripe_width, stripe_height)
 
-    def _is_partial_frame(self, tile_position: Point) -> Tuple[bool, bool]:
+    def _is_partial_frame(self, tile_position: Point) -> tuple[bool, bool]:
         """Return a tuple of bools, that are true if tile position is at the
         edge of the image in x or y.
 

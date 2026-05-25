@@ -14,15 +14,14 @@
 
 """Main interface for OpenTile."""
 
+from collections.abc import Iterator
 from pathlib import Path
 from typing import (
-    Dict,
-    Iterator,
     Optional,
-    Tuple,
-    Type,
     Union,
 )
+
+from upath import UPath
 
 from opentile.file import OpenTileFile
 from opentile.formats import (
@@ -34,11 +33,10 @@ from opentile.formats import (
 )
 from opentile.tiff_format import TiffFormat
 from opentile.tiler import Tiler
-from upath import UPath
 
 
 class OpenTile:
-    _tilers: Dict[TiffFormat, Type[Tiler]] = {
+    _tilers: dict[TiffFormat, type[Tiler]] = {
         TiffFormat.NDPI: NdpiTiler,
         TiffFormat.SVS: SvsTiler,
         TiffFormat.PHILIPS_TIFF: PhilipsTiffTiler,
@@ -51,7 +49,7 @@ class OpenTile:
         cls,
         filepath: Union[str, Path, UPath],
         tile_size: int = 512,
-        file_options: Optional[Dict[str, str]] = None,
+        file_options: Optional[dict[str, str]] = None,
         turbo_path: Optional[Union[str, Path]] = None,
     ) -> Tiler:
         """Return a file type specific tiler for tiff file in filepath.
@@ -87,7 +85,7 @@ class OpenTile:
     def detect_format(
         cls,
         filepath: Union[str, Path, UPath],
-        file_options: Optional[Dict[str, str]] = None,
+        file_options: Optional[dict[str, str]] = None,
     ) -> Optional[TiffFormat]:
 
         try:
@@ -100,7 +98,7 @@ class OpenTile:
     @classmethod
     def _get_supported_tilers(
         cls, file: OpenTileFile
-    ) -> Iterator[Tuple[TiffFormat, Type[Tiler]]]:
+    ) -> Iterator[tuple[TiffFormat, type[Tiler]]]:
         return (
             (tiff_format, tiler)
             for (tiff_format, tiler) in cls._tilers.items()

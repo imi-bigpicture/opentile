@@ -53,7 +53,6 @@ def buffer():
 
 @pytest.mark.unittest
 class TestJpegFiller:
-
     @pytest.mark.parametrize(
         ["luminance", "expected_value"],
         [
