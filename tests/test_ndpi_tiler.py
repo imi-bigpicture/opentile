@@ -21,6 +21,7 @@ from tifffile import PHOTOMETRIC
 
 from opentile.formats import NdpiTiler
 from opentile.formats.ndpi.ndpi_image import NdpiOneFrameImage, NdpiStripedImage
+from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size, SizeMm
 from opentile.tiff_image import BaseTiffImage
@@ -540,3 +541,59 @@ class TestNdpiTiler:
 
         # Assert
         assert focal_planes == expected
+
+
+@pytest.mark.unittest
+class TestParseNdpiComments:
+    def test_global_entries_hoisted_to_top_level(self):
+        # Arrange
+        comments = "Created=2016/01/01\r\nProduct=C13210\r\nNDP.S/N=000003\r\n"
+
+        # Act
+        parsed = NdpiMetadata._parse_comments(comments)
+
+        # Assert
+        assert parsed == {
+            "Created": "2016/01/01",
+            "Product": "C13210",
+            "NDP.S/N": "000003",
+        }
+
+    def test_section_becomes_nested_dict(self):
+        # Arrange — mirrors the real file layout: CRLF in globals, bare CR in section
+        comments = (
+            "Product=C13210\r\n;NDP Shading Data\r;Version=0005\r;ID=4\r;Name=TxRed"
+        )
+
+        # Act
+        parsed = NdpiMetadata._parse_comments(comments)
+
+        # Assert
+        assert parsed == {
+            "Product": "C13210",
+            "NDP Shading Data": {
+                "Version": "0005",
+                "ID": "4",
+                "Name": "TxRed",
+            },
+        }
+
+    def test_value_with_equals_sign_preserved(self):
+        # Arrange
+        comments = ";Section\n;Formula=a=b+c\n"
+
+        # Act
+        parsed = NdpiMetadata._parse_comments(comments)
+
+        # Assert
+        assert parsed == {"Section": {"Formula": "a=b+c"}}
+
+    def test_empty_string_returns_empty_dict(self):
+        # Arrange
+        comments = ""
+
+        # Act
+        parsed = NdpiMetadata._parse_comments(comments)
+
+        # Assert
+        assert parsed == {}

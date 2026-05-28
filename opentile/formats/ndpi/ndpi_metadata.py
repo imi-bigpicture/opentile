@@ -15,21 +15,11 @@
 """Metadata parser for ndpi files."""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from tifffile import TiffPage
 
 from opentile.metadata import Metadata
-
-
-def get_value_from_ndpi_comments(
-    comments: str, value_name: str, value_type: Any
-) -> Any:
-    """Read value from ndpi comment string."""
-    for line in comments.split("\n"):
-        if value_name in line:
-            value_string = line.split("=")[1]
-            return value_type(value_string)
 
 
 class NdpiMetadata(Metadata):
@@ -78,11 +68,43 @@ class NdpiMetadata(Metadata):
 
     @property
     def properties(self) -> dict[str, Any]:
-        x_offset_from_slide_center = self._ndpi_tags.get("XOffsetFromSlideCenter")
-        y_offset_from_slide_center = self._ndpi_tags.get("YOffsetFromSlideCenter")
-        z_offset_from_slide_center = self._ndpi_tags.get("ZXOffsetFromSlideCenter")
-        return {
-            "x_offset_from_slide_center": x_offset_from_slide_center,
-            "y_offset_from_slide_center": y_offset_from_slide_center,
-            "z_offset_from_slide_center": z_offset_from_slide_center,
+        properties: dict[str, Any] = {
+            "x_offset_from_slide_center": self._ndpi_tags.get("XOffsetFromSlideCenter"),
+            "y_offset_from_slide_center": self._ndpi_tags.get("YOffsetFromSlideCenter"),
+            "z_offset_from_slide_center": self._ndpi_tags.get("ZOffsetFromSlideCenter"),
         }
+        comments = self._ndpi_tags.get("Comments")
+        if isinstance(comments, str):
+            properties.update(self._parse_comments(comments))
+        return properties
+
+    @staticmethod
+    def _parse_comments(comments: str) -> dict[str, Union[str, dict[str, str]]]:
+        """Parse the NDPI ``Comments`` stream (TIFF tag 65449).
+
+        The stream is a Hamamatsu-specific text block of ``Key=Value`` records
+        terminated by ``\\r\\n`` or bare ``\\r``. Records prefixed with ``;``
+        belong to a named section: a record with ``;`` and no ``=`` opens the
+        section, and subsequent ``;Key=Value`` records are its entries.
+        Unprefixed records are global and become top-level string values;
+        sections become nested ``dict[str, str]`` values keyed by section name.
+        """
+        result: dict[str, Union[str, dict[str, str]]] = {}
+        current: Optional[dict[str, str]] = None
+
+        for raw_line in comments.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith(";"):
+                line = line[1:]
+            if "=" in line:
+                key, _, value = line.partition("=")
+                if current is None:
+                    result[key.strip()] = value.strip()
+                else:
+                    current[key.strip()] = value.strip()
+            else:
+                current = {}
+                result[line.strip()] = current
+        return result
