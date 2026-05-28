@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Replaced `black` and `flake8` with `ruff` (lint + format) and added `pyright` for type checking, matching the dev tooling used in `wsidicom`. CI lint workflow updated accordingly and type hints modernized to PEP 585 builtins / `collections.abc` imports.
+- `NdpiTiler.supported()` now returns `False` for NDPI files whose level, overview, or label pages are not JPEG (e.g. JPEG XR fluorescence slides), and `PhilipsTiffTiler.supported()` now returns `False` for Philips files whose level pages are not JPEG. Previously these files were detected as supported and then raised `NotImplementedError` during image construction.
 
 ## [0.21.0] - 2026-05-21
 

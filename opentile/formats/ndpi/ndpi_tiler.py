@@ -18,7 +18,7 @@ import math
 from pathlib import Path
 from typing import Any, Optional, Union
 
-from tifffile import TiffFile, TiffPage, TiffPageSeries
+from tifffile import COMPRESSION, TiffFile, TiffPage, TiffPageSeries
 from upath import UPath
 
 from opentile.file import OpenTileFile
@@ -87,7 +87,17 @@ class NdpiTiler(Tiler):
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
-        return tiff_file.is_ndpi
+        if not tiff_file.is_ndpi:
+            return False
+        return all(
+            page.compression == COMPRESSION.JPEG
+            for series in tiff_file.series
+            if cls._is_level_series(series)
+            or cls._is_overview_series(series)
+            or cls._is_label_series(series)
+            for page in series.pages
+            if page is not None
+        )
 
     @staticmethod
     def _is_level_series(series: TiffPageSeries) -> bool:

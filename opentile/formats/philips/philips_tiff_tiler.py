@@ -17,7 +17,7 @@
 from pathlib import Path
 from typing import Any, Optional, Union
 
-from tifffile import TiffFile, TiffFrame, TiffPage, TiffPageSeries
+from tifffile import COMPRESSION, TiffFile, TiffFrame, TiffPage, TiffPageSeries
 from upath import UPath
 
 from opentile.file import OpenTileFile
@@ -73,7 +73,15 @@ class PhilipsTiffTiler(Tiler):
 
     @classmethod
     def supported(cls, tiff_file: TiffFile) -> bool:
-        return tiff_file.is_philips
+        if not tiff_file.is_philips:
+            return False
+        return all(
+            page.compression == COMPRESSION.JPEG
+            for series in tiff_file.series
+            if cls._is_level_series(series)
+            for page in series.pages
+            if page is not None
+        )
 
     def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
         return PhilipsLevelTiffImage(
