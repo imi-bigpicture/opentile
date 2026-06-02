@@ -22,7 +22,8 @@ from tifffile import PHOTOMETRIC
 
 from opentile.formats import SvsTiler
 from opentile.formats.svs.svs_image import SvsTiledImage
-from opentile.geometry import Point, SizeMm
+from opentile.geometry import Point, Size, SizeMm
+from opentile.jpeg import Jpeg
 from opentile.tiff_image import BaseTiffImage
 
 from .filepaths import svs_file_path, svs_z_file_path
@@ -119,8 +120,8 @@ class TestSvsTiler:
     @pytest.mark.parametrize(
         ["tile_point", "hash"],
         [
-            ((0, 0), "d9135db3b0bcc0d9e785754e760f80c4"),
-            ((50, 50), "bd0599aa1becf3511fa122582ecc7e3d"),
+            ((0, 0), "39cd03448940f38007e0e35bb4879542"),
+            ((50, 50), "5a292f7e56e73e805eb1f2473182d6bf"),
         ],
     )
     def test_get_scaled_tile(
@@ -134,6 +135,21 @@ class TestSvsTiler:
 
         # Assert
         assert md5(tile).hexdigest() == hash
+
+    def test_get_scaled_tile_rgb_is_not_chroma_subsampled(self, tiler: SvsTiler):
+        """A re-encoded scaled tile from an RGB level must keep full-resolution
+        components. Aperio's RGB JPEG carries a bogus YCbCrSubSampling=(2,2)
+        tag; applying it here would subsample the RGB channels and corrupt the
+        tile, so the JPEG must be 4:4:4 -- an 8x8 MCU."""
+        # Arrange
+        level = cast(SvsTiledImage, tiler.get_level(1))
+        assert level.photometric_interpretation == PHOTOMETRIC.RGB
+
+        # Act
+        tile = level._get_scaled_tile(Point.from_tuple((0, 0)))
+
+        # Assert -- an 8x8 MCU means no chroma subsampling (4:4:4).
+        assert Jpeg().get_mcu(tile) == Size(8, 8)
 
     @pytest.mark.parametrize(
         ["tile", "right", "bottom"],
@@ -182,7 +198,7 @@ class TestSvsTiler:
         subsampling = level.subsampling
 
         # Assert
-        assert subsampling == (2, 2)
+        assert subsampling == (1, 1)
 
     def test_sumples_per_pixel(self, level: SvsTiledImage):
         # Arrange

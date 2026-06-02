@@ -222,6 +222,23 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         return None
 
     @property
+    def photometric_interpretation(self) -> PHOTOMETRIC:
+        if self.compression in (
+            COMPRESSION.APERIO_JP2000_YCBC,
+            COMPRESSION.APERIO_JP2000_RGB,
+        ):
+            # Override photometric interpretation to report the actual stored colorspace
+            return PHOTOMETRIC.YCBCR
+        return super().photometric_interpretation
+
+    @property
+    def subsampling(self) -> Optional[tuple[int, int]]:
+        if self._page.photometric == PHOTOMETRIC.RGB:
+            # Override subsampling to report no chroma subsampling for svs RGB
+            return (1, 1)
+        return super().subsampling
+
+    @property
     def mpp(self) -> SizeMm:
         return self._mpp
 
@@ -352,7 +369,9 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
                 colorspace = JPEG8.CS.YCbCr
             else:
                 raise NotImplementedError("Non-supported color space")
-            subsampling = self._page.subsampling
+            # `subsampling` reports full sampling (1, 1) for RGB, so the bogus
+            # Aperio YCbCrSubSampling tag never subsamples the RGB channels.
+            subsampling = self.subsampling
             # imagecodecs encoders are typed as returning bytes | bytearray but
             # return bytes at runtime; cast avoids an extra copy of the encoded tile.
             return cast(
