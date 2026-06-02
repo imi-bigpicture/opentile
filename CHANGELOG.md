@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `NdpiMetadata.properties` now exposes the parsed contents of the NDPI `Comments` tag (TIFF 65449). Global `Key=Value` records are hoisted to top-level string entries and named sections (e.g. `NDP Shading Data`) become nested `dict[str, str]` values keyed by section name.
+- Support for reading uncompressed striped svs images (e.g. an uncompressed thumbnail or overview).
 
 ### Changed
 
@@ -19,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `NdpiMetadata.properties["z_offset_from_slide_center"]` is now populated from the `ZOffsetFromSlideCenter` NDPI tag. Previously a typo (`ZXOffsetFromSlideCenter`) caused it to always be `None`.
+- `SvsTiledImage.photometric_interpretation` now reports `YCBCR` for Aperio JPEG 2000 levels (compression `APERIO_JP2000_YCBC` / 33003 and `APERIO_JP2000_RGB` / 33005), which store YBR components but mislabel the TIFF Photometric tag as `RGB`.
+- Chroma subsampling of the RGB channels when re-encoding scaled or edge-repaired tiles of RGB svs levels. Aperio tags full-resolution RGB JPEG with a bogus `YCbCrSubSampling` of `(2, 2)`, which was passed to the encoder; `SvsTiledImage.subsampling` now reports `(1, 1)` for RGB so re-encoded tiles stay 4:4:4.
 
 ## [0.21.0] - 2026-05-21
 
