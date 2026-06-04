@@ -15,6 +15,7 @@
 """Base tiler class."""
 
 from abc import ABCMeta, abstractmethod
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -81,7 +82,7 @@ class Tiler(metaclass=ABCMeta):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    @property
+    @cached_property
     def levels(self) -> list[LevelTiffImage]:
         """Return list of pyramid level TiffImages."""
         if self._level_series_index is None:
@@ -94,7 +95,7 @@ class Tiler(metaclass=ABCMeta):
             for page_index, page in enumerate(level.pages)
         ]
 
-    @property
+    @cached_property
     def labels(self) -> list[AssociatedTiffImage]:
         """Return list of label TiffImage."""
         if self._label_series_index is None:
@@ -106,7 +107,7 @@ class Tiler(metaclass=ABCMeta):
             )
         ]
 
-    @property
+    @cached_property
     def overviews(self) -> list[AssociatedTiffImage]:
         """Return list of overview TiffImage."""
         if self._overview_series_index is None:
@@ -118,7 +119,7 @@ class Tiler(metaclass=ABCMeta):
             )
         ]
 
-    @property
+    @cached_property
     def thumbnails(self) -> list[ThumbnailTiffImage]:
         """Return list of thumbnail TiffImage."""
         if self._thumbnail_series_index is None:

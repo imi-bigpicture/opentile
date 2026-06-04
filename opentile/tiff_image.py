@@ -18,7 +18,6 @@ import math
 from abc import ABCMeta, abstractmethod
 from collections.abc import Iterator, Sequence
 from functools import cached_property
-from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -28,6 +27,7 @@ from tifffile import (
     TiffPage,
     TiffTags,
 )
+from upath import UPath
 
 from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
@@ -46,7 +46,7 @@ class TiffImage(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def filepath(self) -> Path:
+    def filepath(self) -> UPath:
         """Filepath of image."""
         raise NotImplementedError()
 
@@ -339,7 +339,7 @@ class BaseTiffImage(TiffImage):
         return f"{type(self).__name__} of page {self._page}"
 
     @property
-    def filepath(self) -> Path:
+    def filepath(self) -> UPath:
         return self._file.filepath
 
     @property

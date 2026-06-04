@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `Tiler.levels`, `.labels`, `.overviews`, and `.thumbnails` are now cached, so repeated access (e.g. once per tile read) no longer rebuilds the list each time. The per-image `TiffImage`s were already cached, but the surrounding list was reconstructed on every access.
+- `OpenTileFile` now serves frame reads through a positioned reader so concurrent tile reads no longer serialize on a shared file-handle lock: a read-only memory map for local files, and the fsspec filesystem's ranged reads (`cat_file`/`cat_ranges`, fetched concurrently for a batch) for remote files.
 - Replaced `black` and `flake8` with `ruff` (lint + format) and added `pyright` for type checking, matching the dev tooling used in `wsidicom`. CI lint workflow updated accordingly and type hints modernized to PEP 585 builtins / `collections.abc` imports.
 - `NdpiTiler.supported()` now returns `False` for NDPI files whose level, overview, or label pages are not JPEG (e.g. JPEG XR fluorescence slides), and `PhilipsTiffTiler.supported()` now returns `False` for Philips files whose level pages are not JPEG. Previously these files were detected as supported and then raised `NotImplementedError` during image construction.
 
