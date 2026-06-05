@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Wrapper around a TiffFile to provide thread safe access to the file handle."""
 
 import os
 import queue
@@ -19,6 +20,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
+from types import TracebackType
 from typing import Any, BinaryIO, Optional, Union, cast
 
 from fsspec import AbstractFileSystem
@@ -26,9 +28,6 @@ from fsspec.core import url_to_fs
 from fsspec.implementations.local import LocalFileSystem
 from tifffile import TiffFile, TiffFileError, TiffPages, TiffPageSeries
 from upath import UPath
-
-"""Wrapper around a TiffFile to provide thread safe access to the file handle."""
-
 
 # Open local files for sequential read-ahead via FILE_FLAG_SEQUENTIAL_SCAN on
 # Windows (O_SEQUENTIAL); other platforms rely on the kernel's default readahead.
@@ -253,13 +252,18 @@ class OpenTileFile:
         """Return bytes from multiple locations from file. Is thread safe."""
         return self._frame_reader.read_multiple(offsets_bytecounts)
 
-    def close(self):
+    def close(self) -> None:
         """Close the reader and the TiffFile."""
         self._frame_reader.close()
         self._tiff_file.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "OpenTileFile":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         self.close()
