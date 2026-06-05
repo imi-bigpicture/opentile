@@ -359,8 +359,9 @@ class NdpiOneFrameImage(NdpiTiledImage):
         self, frame_jobs: Sequence[NdpiFrameJob]
     ) -> Iterator[tuple[NdpiFrameJob, bytes]]:
         for frame_job in frame_jobs:
-            yield frame_job, self._read_extended_frame(
-                frame_job.position, frame_job.frame_size
+            yield (
+                frame_job,
+                self._read_extended_frame(frame_job.position, frame_job.frame_size),
             )
 
     @lru_cached_method(maxsize=lambda: settings.ndpi_frame_cache)
