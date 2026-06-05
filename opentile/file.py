@@ -13,9 +13,11 @@
 #    limitations under the License.
 
 
-import threading
+import os
+import queue
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, BinaryIO, Optional, Union, cast
 
@@ -26,6 +28,11 @@ from tifffile import TiffFile, TiffFileError, TiffPages, TiffPageSeries
 from upath import UPath
 
 """Wrapper around a TiffFile to provide thread safe access to the file handle."""
+
+
+# Open local files for sequential read-ahead via FILE_FLAG_SEQUENTIAL_SCAN on
+# Windows (O_SEQUENTIAL); other platforms rely on the kernel's default readahead.
+_READ_FLAGS = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_SEQUENTIAL", 0)
 
 
 class FrameReader(ABC):
@@ -46,34 +53,62 @@ class FrameReader(ABC):
         """Release any resources held by the reader."""
 
 
-class ThreadLocalHandle(threading.local):
-    """Per-thread file handle for `LocalFileReader`."""
+class FileHandlePool:
+    """A pool of reusable raw file handles for a single path. `acquire()` hands
+    out a free handle, opening a new one only when none is free, so the number of
+    open handles tracks peak concurrency rather than total callers."""
 
-    handle: Optional[BinaryIO] = None
-
-
-class LocalFileReader(FrameReader):
-    """Reads a local file through a per-thread handle."""
-
-    def __init__(self, fs: AbstractFileSystem, path: str) -> None:
-        self._fs = fs
+    def __init__(self, path: str) -> None:
         self._path = path
-        self._local = ThreadLocalHandle()
+        self._available: queue.SimpleQueue[BinaryIO] = queue.SimpleQueue()
         self._handles: list[BinaryIO] = []
 
-    def _handle(self) -> BinaryIO:
-        handle = self._local.handle
-        if handle is not None:
-            return handle
-        handle = cast(BinaryIO, self._fs.open(self._path))
-        self._local.handle = handle
+    @contextmanager
+    def acquire(self) -> Iterator[BinaryIO]:
+        """Yield a handle for the duration of the block, returning it to the pool
+        on exit."""
+        handle = self._get_handle()
+        try:
+            yield handle
+        finally:
+            self._available.put(handle)
+
+    def close(self) -> None:
+        for handle in self._handles:
+            handle.close()
+
+    def _open(self) -> BinaryIO:
+        fd = os.open(self._path, _READ_FLAGS)
+        return cast(BinaryIO, os.fdopen(fd, "rb", buffering=0))
+
+    def _get_handle(self) -> BinaryIO:
+        """Get a handle from the pool, opening a new one if necessary."""
+        try:
+            return self._available.get_nowait()
+        except queue.Empty:
+            return self._new_handle()
+
+    def _new_handle(self) -> BinaryIO:
+        """Create a new handle and add it to the pool."""
+        handle = self._open()
         self._handles.append(handle)
         return handle
 
-    def read(self, offset: int, bytecount: int) -> bytes:
-        handle = self._handle()
+
+class LocalFileReader(FrameReader):
+    """Reads a local file through a pool of raw handles with OS read-ahead."""
+
+    def __init__(self, path: str) -> None:
+        self._pool = FileHandlePool(path)
+
+    @staticmethod
+    def _read_at(handle: BinaryIO, offset: int, bytecount: int) -> bytes:
         handle.seek(offset)
         return handle.read(bytecount)
+
+    def read(self, offset: int, bytecount: int) -> bytes:
+        with self._pool.acquire() as handle:
+            return self._read_at(handle, offset, bytecount)
 
     def read_multiple(
         self, offsets_bytecounts: Sequence[tuple[int, int]]
@@ -82,19 +117,22 @@ class LocalFileReader(FrameReader):
         if len(offsets_bytecounts) == 1:
             offset, bytecount = offsets_bytecounts[0]
             return [self.read(offset, bytecount)]
-        result = [b""] * len(offsets_bytecounts)
-        for run in self._contiguous_runs(offsets_bytecounts):
-            start = offsets_bytecounts[run[0]][0]
-            last_offset, last_bytecount = offsets_bytecounts[run[-1]]
-            blob = self.read(start, last_offset + last_bytecount - start)
-            if len(run) == 1:
-                # The blob is exactly the frame; return it without a slice copy.
-                result[run[0]] = blob
-                continue
-            for index in run:
-                offset, bytecount = offsets_bytecounts[index]
-                result[index] = blob[offset - start : offset - start + bytecount]
-        return result
+        with self._pool.acquire() as handle:
+            result = [b""] * len(offsets_bytecounts)
+            for run in self._contiguous_runs(offsets_bytecounts):
+                start = offsets_bytecounts[run[0]][0]
+                last_offset, last_bytecount = offsets_bytecounts[run[-1]]
+                blob = self._read_at(
+                    handle, start, last_offset + last_bytecount - start
+                )
+                if len(run) == 1:
+                    # The blob is exactly the frame; return it without a copy.
+                    result[run[0]] = blob
+                    continue
+                for index in run:
+                    offset, bytecount = offsets_bytecounts[index]
+                    result[index] = blob[offset - start : offset - start + bytecount]
+            return result
 
     @staticmethod
     def _contiguous_runs(
@@ -117,8 +155,7 @@ class LocalFileReader(FrameReader):
         return runs
 
     def close(self) -> None:
-        for handle in self._handles:
-            handle.close()
+        self._pool.close()
 
 
 class FsspecReader(FrameReader):
@@ -179,10 +216,11 @@ class OpenTileFile:
             raise Exception(f"Failed to open file {self._file}") from exception
 
     def _create_frame_reader(self, fs: AbstractFileSystem, path: str) -> FrameReader:
-        """Read a local file through per-thread handles (fast, lock-free); read a
-        remote file through the fsspec filesystem's ranged reads."""
-        if isinstance(fs, LocalFileSystem):
-            return LocalFileReader(fs, path)
+        """Create the FrameReader for the file: a `LocalFileReader` for a plain
+        local file, or an `FsspecReader` for a remote file (or a local file
+        opened with storage options)."""
+        if isinstance(fs, LocalFileSystem) and not self._options:
+            return LocalFileReader(path)
         return FsspecReader(fs, path)
 
     @property
