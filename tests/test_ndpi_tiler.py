@@ -108,9 +108,14 @@ class TestNdpiTiler:
 
     def test_get_frame(self, level: NdpiStripedImage):
         # Arrange
+        position = Point(10, 10)
+        indices = level._stripe_indices(position, level.frame_size)
+        stripes = dict(zip(indices, level._read_frames(indices)))
 
         # Act
-        image = level._read_extended_frame(Point(10, 10), level.frame_size)
+        image = level._jpeg.concatenate_fragments(
+            (stripes[index] for index in indices), level._header(level.frame_size)
+        )
 
         # Assert
         assert md5(image).hexdigest() == "aeffd12997ca6c232d0ef35aaa35f6b7"
@@ -186,7 +191,8 @@ class TestNdpiTiler:
         tiles_single = [level.get_tile((x, 0)) for x in range(4)]
 
         # Act
-        tiles = list(level._create_tiles(frame_job).values())
+        ((job, frame),) = list(level._read_job_frames([frame_job]))
+        tiles = list(level._crop_to_tiles(job, frame).values())
 
         # Assert
         assert tiles == tiles_single
@@ -197,11 +203,10 @@ class TestNdpiTiler:
             [NdpiTile(Point(x, 0), tile_size, level.frame_size) for x in range(4)]
         )
         tiles_single = {Point(x, 0): level.get_tile((x, 0)) for x in range(4)}
-        frame_size = level._get_frame_size_for_tile(frame_job.position)
-        frame = level._read_extended_frame(frame_job.position, frame_size)
+        ((job, frame),) = list(level._read_job_frames([frame_job]))
 
         # Act
-        tiles = level._crop_to_tiles(frame_job, frame)
+        tiles = level._crop_to_tiles(job, frame)
 
         assert tiles == tiles_single
 

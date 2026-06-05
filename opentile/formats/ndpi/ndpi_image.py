@@ -200,7 +200,6 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         self._frame_size = Size.max(self.tile_size, self._file_frame_size)
         self._scale = self._calculate_scale(self._base_size)
         self._pyramid_index = self._calculate_pyramidal_index(self._scale)
-        self._headers: dict[Size, bytes] = {}
 
     def __repr__(self) -> str:
         return (
@@ -231,8 +230,10 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         return self._pyramid_index
 
     @abstractmethod
-    def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
-        """Read a frame of size frame_size covering position."""
+    def _read_job_frames(
+        self, frame_jobs: Sequence[NdpiFrameJob]
+    ) -> Iterator[tuple[NdpiFrameJob, bytes]]:
+        """Yield each (frame job, concatenated jpeg frame) for the frame jobs."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -252,8 +253,8 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
         return (
             tile
-            for frame_job in frame_jobs
-            for tile in self._create_tiles(frame_job).values()
+            for frame_job, frame in self._read_job_frames(frame_jobs)
+            for tile in self._crop_to_tiles(frame_job, frame).values()
         )
 
     def get_decoded_tiles(
@@ -262,28 +263,9 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
         return (
             jpeg8_decode(tile)
-            for frame_job in frame_jobs
-            for tile in self._create_tiles(frame_job).values()
+            for frame_job, frame in self._read_job_frames(frame_jobs)
+            for tile in self._crop_to_tiles(frame_job, frame).values()
         )
-
-    def _create_tiles(self, frame_job: NdpiFrameJob) -> dict[Point, bytes]:
-        """Return tiles defined by frame job. Read frames are cached by
-        frame position.
-
-        Parameters
-        ----------
-        frame_job: NdpiFrameJob
-            Tile job containing tiles that should be created.
-
-        Returns
-        ----------
-        Dict[Point, bytes]:
-            Created tiles ordered by tile coordinate.
-        """
-
-        frame = self._read_extended_frame(frame_job.position, frame_job.frame_size)
-        tiles = self._crop_to_tiles(frame_job, frame)
-        return tiles
 
     def _crop_to_tiles(
         self, frame_job: NdpiFrameJob, frame: bytes
@@ -372,6 +354,14 @@ class NdpiOneFrameImage(NdpiTiledImage):
             The read frame size.
         """
         return ((self.frame_size) // self.tile_size + 1) * self.tile_size
+
+    def _read_job_frames(
+        self, frame_jobs: Sequence[NdpiFrameJob]
+    ) -> Iterator[tuple[NdpiFrameJob, bytes]]:
+        for frame_job in frame_jobs:
+            yield frame_job, self._read_extended_frame(
+                frame_job.position, frame_job.frame_size
+            )
 
     @lru_cached_method(maxsize=lambda: settings.ndpi_frame_cache)
     def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
@@ -525,43 +515,43 @@ class NdpiStripedImage(NdpiTiledImage):
             height = self.frame_size.height
         return Size(width, height)
 
-    @lru_cached_method(maxsize=lambda: settings.ndpi_frame_cache)
-    def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
-        """Return extended frame of frame size starting at frame position.
-        Returned frame is jpeg bytes including header with correct image size.
-        Original restart markers are updated to get the proper incrementation.
-        End of image tag is appended.
-
-        Parameters
-        ----------
-        position: Point
-            Upper left tile position that should be covered by the frame.
-        frame_size: Size
-            Size of the frame to get.
-
-        Returns
-        ----------
-        bytes
-            Concatenated frame as jpeg bytes.
+    def _read_job_frames(
+        self, frame_jobs: Sequence[NdpiFrameJob]
+    ) -> Iterator[tuple[NdpiFrameJob, bytes]]:
+        """Yield each (frame job, concatenated jpeg frame), reading the stripes
+        for *all* frame jobs in a single call. A single frame's stripes are
+        scattered through the raster-ordered file, but the union over all jobs
+        forms contiguous runs, so the read can be coalesced.
         """
-        if frame_size in self._headers:
-            header = self._headers[frame_size]
-        else:
-            header = self._jpeg.manipulate_header(self.jpeg_header, frame_size)
-            self._headers[frame_size] = header
+        job_indices = [
+            (frame_job, self._stripe_indices(frame_job.position, frame_job.frame_size))
+            for frame_job in frame_jobs
+        ]
+        frame_indices = sorted(
+            {index for _, indices in job_indices for index in indices}
+        )
+        stripes = dict(zip(frame_indices, self._read_frames(frame_indices)))
+        for frame_job, indices in job_indices:
+            frame_stripes = (stripes[index] for index in indices)
+            header = self._header(frame_job.frame_size)
+            frame = self._jpeg.concatenate_fragments(frame_stripes, header)
+            yield frame_job, frame
 
+    def _stripe_indices(self, position: Point, frame_size: Size) -> list[int]:
+        """Return the stripe indices that make up the frame at position."""
         stripe_region = Region(
             (position * self.tile_size) // self.stripe_size,
             Size.max(frame_size // self.stripe_size, Size(1, 1)),
         )
-        indices = [
+        return [
             self._get_stripe_position_to_index(stripe_coordinate)
             for stripe_coordinate in stripe_region.iterate_all()
         ]
-        frame = self._jpeg.concatenate_fragments(
-            (self._read_frame(index) for index in indices), header
-        )
-        return frame
+
+    @lru_cached_method()
+    def _header(self, frame_size: Size) -> bytes:
+        """Return the jpeg header manipulated for frame_size (cached)."""
+        return self._jpeg.manipulate_header(self.jpeg_header, frame_size)
 
     def _get_stripe_position_to_index(self, position: Point) -> int:
         """Return stripe index from position.
