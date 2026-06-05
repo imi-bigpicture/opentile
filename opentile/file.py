@@ -13,8 +13,7 @@
 #    limitations under the License.
 
 
-import mmap
-import os
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
@@ -36,43 +35,94 @@ class FrameReader(ABC):
     def read(self, offset: int, bytecount: int) -> bytes:
         """Return `bytecount` bytes at `offset`."""
 
+    @abstractmethod
     def read_multiple(
         self, offsets_bytecounts: Sequence[tuple[int, int]]
     ) -> list[bytes]:
         """Return bytes for each (offset, bytecount)."""
-        return [
-            self.read(offset, bytecount) for offset, bytecount in offsets_bytecounts
-        ]
 
     @abstractmethod
     def close(self) -> None:
         """Release any resources held by the reader."""
 
 
-class MmapReader(FrameReader):
-    """Positioned reads via slicing a read-only memory map of a local file.
-    Thread safe with no lock -- slicing uses explicit offsets."""
+class ThreadLocalHandle(threading.local):
+    """Per-thread file handle for `LocalFileReader`."""
 
-    def __init__(self, path: str) -> None:
-        self._fd = os.open(path, os.O_RDONLY)
-        try:
-            self._mmap = mmap.mmap(self._fd, 0, access=mmap.ACCESS_READ)
-        except (ValueError, OSError):
-            os.close(self._fd)
-            raise
+    handle: Optional[BinaryIO] = None
+
+
+class LocalFileReader(FrameReader):
+    """Reads a local file through a per-thread handle."""
+
+    def __init__(self, fs: AbstractFileSystem, path: str) -> None:
+        self._fs = fs
+        self._path = path
+        self._local = ThreadLocalHandle()
+        self._handles: list[BinaryIO] = []
+
+    def _handle(self) -> BinaryIO:
+        handle = self._local.handle
+        if handle is not None:
+            return handle
+        handle = cast(BinaryIO, self._fs.open(self._path))
+        self._local.handle = handle
+        self._handles.append(handle)
+        return handle
 
     def read(self, offset: int, bytecount: int) -> bytes:
-        return self._mmap[offset : offset + bytecount]
+        handle = self._handle()
+        handle.seek(offset)
+        return handle.read(bytecount)
+
+    def read_multiple(
+        self, offsets_bytecounts: Sequence[tuple[int, int]]
+    ) -> list[bytes]:
+        """Coalesce contiguous reads into a single read and slice them apart."""
+        if len(offsets_bytecounts) == 1:
+            offset, bytecount = offsets_bytecounts[0]
+            return [self.read(offset, bytecount)]
+        result = [b""] * len(offsets_bytecounts)
+        for run in self._contiguous_runs(offsets_bytecounts):
+            start = offsets_bytecounts[run[0]][0]
+            last_offset, last_bytecount = offsets_bytecounts[run[-1]]
+            blob = self.read(start, last_offset + last_bytecount - start)
+            if len(run) == 1:
+                # The blob is exactly the frame; return it without a slice copy.
+                result[run[0]] = blob
+                continue
+            for index in run:
+                offset, bytecount = offsets_bytecounts[index]
+                result[index] = blob[offset - start : offset - start + bytecount]
+        return result
+
+    @staticmethod
+    def _contiguous_runs(
+        offsets_bytecounts: Sequence[tuple[int, int]],
+    ) -> list[list[int]]:
+        """Group contiguous frames into runs of original indices, in offset order."""
+        in_offset_order = sorted(
+            range(len(offsets_bytecounts)),
+            key=lambda index: offsets_bytecounts[index][0],
+        )
+        runs: list[list[int]] = []
+        previous_end = -1
+        for index in in_offset_order:
+            offset, bytecount = offsets_bytecounts[index]
+            if runs and offset == previous_end:
+                runs[-1].append(index)
+            else:
+                runs.append([index])
+            previous_end = offset + bytecount
+        return runs
 
     def close(self) -> None:
-        self._mmap.close()
-        os.close(self._fd)
+        for handle in self._handles:
+            handle.close()
 
 
 class FsspecReader(FrameReader):
-    """Positioned reads via the fsspec filesystem's ranged reads. Thread safe
-    with no lock -- each read is an independent range request -- and a batch is
-    fetched with `cat_ranges`, which is concurrent for remote backends."""
+    """Reads a remote file via the filesystem's ranged reads."""
 
     def __init__(self, fs: AbstractFileSystem, path: str) -> None:
         self._fs = fs
@@ -99,7 +149,7 @@ class OpenTileFile:
         options: Optional[dict[str, Any]] = None,
     ):
         """Open a file as TiffFile, parsing it once, and serve frame reads
-        through a memory map (local) or fsspec ranged reads (remote).
+        through a frame reader.
 
         Parameters
         ----------
@@ -114,7 +164,7 @@ class OpenTileFile:
             "tuple[AbstractFileSystem, str]", url_to_fs(str(file), **self._options)
         )
         self._tiff_file = self._open_tiff_file(fs, path)
-        self._reader = self._create_reader(fs, path)
+        self._frame_reader = self._create_frame_reader(fs, path)
 
     def _open_tiff_file(self, fs: AbstractFileSystem, path: str) -> TiffFile:
         """Open and parse the file as a TiffFile, closing the handle on error."""
@@ -128,14 +178,11 @@ class OpenTileFile:
             opened_file.close()
             raise Exception(f"Failed to open file {self._file}") from exception
 
-    def _create_reader(self, fs: AbstractFileSystem, path: str) -> FrameReader:
-        """Memory-map a local file (fast, lock-free); read a remote file through
-        the fsspec filesystem's ranged reads (concurrent, lock-free)."""
+    def _create_frame_reader(self, fs: AbstractFileSystem, path: str) -> FrameReader:
+        """Read a local file through per-thread handles (fast, lock-free); read a
+        remote file through the fsspec filesystem's ranged reads."""
         if isinstance(fs, LocalFileSystem):
-            try:
-                return MmapReader(path)
-            except OSError:
-                pass  # fall back to ranged fsspec reads
+            return LocalFileReader(fs, path)
         return FsspecReader(fs, path)
 
     @property
@@ -160,17 +207,17 @@ class OpenTileFile:
 
     def read(self, offset: int, bytecount: int) -> bytes:
         """Return bytes from single location from file. Is thread safe."""
-        return self._reader.read(offset, bytecount)
+        return self._frame_reader.read(offset, bytecount)
 
     def read_multiple(
         self, offsets_bytecounts: Sequence[tuple[int, int]]
     ) -> list[bytes]:
         """Return bytes from multiple locations from file. Is thread safe."""
-        return self._reader.read_multiple(offsets_bytecounts)
+        return self._frame_reader.read_multiple(offsets_bytecounts)
 
     def close(self):
         """Close the reader and the TiffFile."""
-        self._reader.close()
+        self._frame_reader.close()
         self._tiff_file.close()
 
     def __enter__(self):
