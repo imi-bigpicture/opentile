@@ -18,4 +18,4 @@ from opentile.metadata import Metadata
 from opentile.opentile import OpenTile
 from opentile.tiff_format import TiffFormat
 
-__version__ = "0.21.0"
+__version__ = "0.22.0"

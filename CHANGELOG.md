@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-06-17
+
 ### Added
 
 - `NdpiMetadata.properties` now exposes the parsed contents of the NDPI `Comments` tag (TIFF 65449). Global `Key=Value` records are hoisted to top-level string entries and named sections (e.g. `NDP Shading Data`) become nested `dict[str, str]` values keyed by section name.
@@ -331,7 +333,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.21.0..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.22.0..HEAD
+[0.22.0]: https://github.com/imi-bigpicture/opentile/compare/v0.21.0..v0.22.0
 [0.21.0]: https://github.com/imi-bigpicture/opentile/compare/v0.20.0..v0.21.0
 [0.20.0]: https://github.com/imi-bigpicture/opentile/compare/v0.19.0..v0.20.0
 [0.19.0]: https://github.com/imi-bigpicture/opentile/compare/v0.18.0..v0.19.0
