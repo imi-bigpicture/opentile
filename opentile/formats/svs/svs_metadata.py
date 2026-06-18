@@ -15,7 +15,7 @@
 """Metadata parser for svs files."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from tifffile import TiffPage
 from tifffile.tifffile import svs_description_metadata
@@ -46,6 +46,10 @@ class SvsMetadata(Metadata):
     @property
     def mpp(self) -> float:
         return float(self._svs_metadata["MPP"])
+
+    @property
+    def properties(self) -> dict[str, Any]:
+        return self._svs_metadata
 
     # @property
     # def image_offset(self) -> Optional[Tuple[float, float]]:

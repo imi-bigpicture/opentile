@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `SvsMetadata.properties` now exposes the parsed Aperio `ImageDescription` fields (AppMag, MPP, scan date/time, dimensions, etc.) instead of returning an empty dict.
+
 ## [0.22.0] - 2026-06-17
 
 ### Added
