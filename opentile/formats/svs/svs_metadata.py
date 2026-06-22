@@ -81,6 +81,41 @@ class SvsMetadata(Metadata):
             ) from None
 
     @property
+    def scanner_manufacturer(self) -> Optional[str]:
+        if self.scanner_serial_number is None:
+            return None
+        return "Leica Biosystems"
+
+    @property
+    def scanner_model(self) -> Optional[str]:
+        scanner_type = self._svs_metadata.get("ScannerType")
+        if scanner_type:
+            return scanner_type
+        # else
+        header = self._svs_metadata["Header"].splitlines()[0]
+        if "GT450 DX" in header:
+            return "GT450 DX"
+        # must be after 'GT450 DX':
+        if "GT450" in header:
+            return "GT450"
+        if self.scanner_serial_number is None:
+            return None
+        return "Aperio"
+
+    @property
+    def scanner_software_versions(self) -> Optional[list[str]]:
+        header = self._svs_metadata["Header"]
+        return [
+            segment.splitlines()[0].strip()
+            for segment in header.split(";")
+            if segment.strip()
+        ]
+
+    @property
+    def scanner_serial_number(self) -> Optional[str]:
+        return self._svs_metadata.get("ScanScope ID")
+
+    @property
     def acquisition_datetime(self) -> Optional[datetime]:
         try:
             date = SvsMetadata._extract_date(self._svs_metadata["Date"])
