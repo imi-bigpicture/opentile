@@ -143,11 +143,11 @@ class BlankImage:
             dc_component = 0
             subsampling = background_data.subsample
         coeffs = cls.get_np_coeffs(coeffs_ptr, array_region)
-        coeffs[:][:][:] = 0
+        coeffs[:] = 0
 
-        for x in range(0, array_region.w // tjMCUWidth[subsampling]):
-            for y in range(0, array_region.h // tjMCUHeight[subsampling]):
-                coeffs[y][x][0] = dc_component
+        n_x = array_region.w // tjMCUWidth[subsampling]
+        n_y = array_region.h // tjMCUHeight[subsampling]
+        coeffs[:n_y, :n_x, 0] = dc_component
 
         return 1
 
