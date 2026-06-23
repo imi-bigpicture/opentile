@@ -14,7 +14,7 @@
 
 """Metadata parser for svs files."""
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 from tifffile import TiffPage
@@ -34,14 +34,28 @@ class SvsMetadata(Metadata):
         except (KeyError, ValueError):
             return None
 
+    def _get_timezone(self) -> Optional[timezone]:
+        if "Time Zone" in self._svs_metadata:
+          tz_str = self._svs_metadata["Time Zone"]
+          assert tz_str.startswith("GMT")
+          # Example tz_str: "GMT-07:00"
+          if tz_str.startswith("GMT"):
+            offset_str = tz_str[3:]  # "-07:00"
+            sign = 1 if offset_str[0] == "+" else -1
+            hours, minutes = map(int, offset_str[1:].split(":"))
+            offset = timedelta(hours=hours, minutes=minutes) * sign
+            return timezone(offset)
+        return None
+
     @property
     def aquisition_datetime(self) -> Optional[datetime]:
         try:
             date = datetime.strptime(self._svs_metadata["Date"], r"%m/%d/%y")
             time = datetime.strptime(self._svs_metadata["Time"], r"%H:%M:%S")
+            timezone = self._get_timezone()
         except (KeyError, ValueError):
             return None
-        return datetime.combine(date, time.time())
+        return datetime.combine(date, time.time(), tzinfo=timezone)
 
     @property
     def mpp(self) -> float:
