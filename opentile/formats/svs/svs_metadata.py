@@ -35,6 +35,22 @@ class SvsMetadata(Metadata):
             return None
 
     @property
+    def scanner_manufacturer(self) -> Optional[str]:
+        return "Leica Biosystems"
+
+    @property
+    def scanner_model(self) -> Optional[str]:
+        return "Aperio"
+
+    @property
+    def scanner_software_versions(self) -> Optional[list[str]]:
+        return [self._svs_metadata["Header"].splitlines()[0].strip()]
+
+    @property
+    def scanner_serial_number(self) -> Optional[str]:
+        return self._svs_metadata["ScanScope ID"]
+
+    @property
     def aquisition_datetime(self) -> Optional[datetime]:
         try:
             date = datetime.strptime(self._svs_metadata["Date"], r"%m/%d/%y")
