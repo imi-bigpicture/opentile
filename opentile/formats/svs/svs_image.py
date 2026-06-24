@@ -69,13 +69,12 @@ class SvsStripedImage(BaseTiffImage):
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         indices = range(len(self._page.dataoffsets))
+        frames = self._read_frames(indices)
         if self.compression != COMPRESSION.JPEG:
-            return b"".join(self._read_frames(indices))
-        scans = (self._read_frame(index) for index in indices)
-        frame = self._jpeg.concatenate_scans(
-            scans, self._page.jpegtables, self._add_rgb_colorspace_fix
+            return b"".join(frames)
+        return self._jpeg.concatenate_scans(
+            iter(frames), self._page.jpegtables, self._add_rgb_colorspace_fix
         )
-        return frame
 
     def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
         if tile_position != (0, 0):
