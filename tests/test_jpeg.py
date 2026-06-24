@@ -136,7 +136,21 @@ class TestJpeg:
             svs_overview.jpegtables,
             True,
         )
-        assert md5(frame).hexdigest() == "fdde19f6d10994c5b866b43027ff94ed"
+
+        # Assert
+        assert md5(frame).hexdigest() == "7528e846bcd0374d4500924395aebfc0"
+
+        # Quantization tables must precede the start of frame that references
+        # them, and the Adobe APP14 marker must be present (rgb color space fix).
+        sof = frame.find(Jpeg.start_of_frame())
+        assert 0 < frame.find(bytes([0xFF, 0xDB])) < sof  # DQT before SOF
+        assert frame.find(bytes([0xFF, 0xEE])) < sof  # APP14 before SOF
+        # Components renamed to ASCII 'R', 'G', 'B' as a marker-independent RGB
+        # signal (survives DICOM APPn stripping).
+        assert frame[sof + 9] == 3  # three components
+        assert [frame[sof + 10 + c * 3] for c in range(3)] == [0x52, 0x47, 0x42]
+        sos = frame.find(Jpeg.start_of_scan())
+        assert [frame[sos + 5 + c * 2] for c in range(3)] == [0x52, 0x47, 0x42]
 
     @pytest.mark.parametrize(
         "width",

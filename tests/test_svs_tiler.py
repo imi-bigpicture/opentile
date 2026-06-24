@@ -57,8 +57,8 @@ class TestSvsTiler:
     @pytest.mark.parametrize(
         ["tile_point", "hash"],
         [
-            ((15, 25), "dd8402d5a7250ebfe9e33b3dfee3c1e1"),
-            ((35, 30), "50f885cd7299bd3fff22743bfb4a4930"),
+            ((15, 25), "6da80228fe335915ff9a7aae29092151"),
+            ((35, 30), "90d206cef6e3633abb71e57271c3ad17"),
         ],
     )
     def test_get_tile(
@@ -96,8 +96,8 @@ class TestSvsTiler:
             (
                 [(15, 25), (35, 30)],
                 [
-                    "dd8402d5a7250ebfe9e33b3dfee3c1e1",
-                    "50f885cd7299bd3fff22743bfb4a4930",
+                    "6da80228fe335915ff9a7aae29092151",
+                    "90d206cef6e3633abb71e57271c3ad17",
                 ],
             ),
         ],
@@ -243,7 +243,7 @@ class TestSvsTiler:
         overview = tiler.get_overview().get_tile((0, 0))
 
         # Assert
-        assert md5(overview).hexdigest() == "fdde19f6d10994c5b866b43027ff94ed"
+        assert md5(overview).hexdigest() == "7528e846bcd0374d4500924395aebfc0"
 
     def test_get_thumbnail(self, tiler: SvsTiler):
         # Arrange
@@ -252,7 +252,7 @@ class TestSvsTiler:
         thumbnail = tiler.get_thumbnail().get_tile((0, 0))
 
         # Assert
-        assert md5(thumbnail).hexdigest() == "a2f04a9c90c64063117748caa561a4c9"
+        assert md5(thumbnail).hexdigest() == "6d037caad2c1ee07a736f2191c95c5ae"
 
     def test_compressed_size(self, level: BaseTiffImage):
         # Arrange

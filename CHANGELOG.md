@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `SvsMetadata.properties` now exposes the parsed Aperio `ImageDescription` fields (AppMag, MPP, scan date/time, dimensions, etc.) instead of returning an empty dict.
 
+### Changed
+
+- Reconstructed jpeg frames now place the quantization tables before the start of frame marker, so the tables precede the frame that references them (matching the order produced by libjpeg).
+- For svs, the components of reconstructed jpeg frames are renamed to ASCII `R`, `G`, `B` as a marker-independent RGB signal alongside the Adobe APP14 marker, so the stream is still recognised as RGB if the APP14 marker is stripped.
+
 ## [0.22.0] - 2026-06-17
 
 ### Added

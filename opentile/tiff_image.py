@@ -490,15 +490,13 @@ class BaseTiffImage(TiffImage):
 class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
     """Meta class for images that are natively tiled (e.g. not ndpi)"""
 
+    _cached_prefix_and_scan_offset: Optional[tuple[bytes, int]] = None
+
     def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         tile_point = Point.from_tuple(tile_position)
         frame_index = self._tile_point_to_frame_index(tile_point)
         tile = self._read_frame(frame_index)
-        if self._page.jpegtables is not None:
-            tile = Jpeg.add_jpeg_tables(
-                tile, self._page.jpegtables, self._add_rgb_colorspace_fix
-            )
-        return tile
+        return self._add_jpeg_tables(tile)
 
     def get_tiles(self, tile_positions: Sequence[tuple[int, int]]) -> Iterator[bytes]:
         tile_points = [
@@ -508,14 +506,20 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
             self._tile_point_to_frame_index(tile_point) for tile_point in tile_points
         ]
         tiles = self._read_frames(frame_indices)
-        if self._page.jpegtables is not None:
-            return (
-                Jpeg.add_jpeg_tables(
-                    tile, self._page.jpegtables, self._add_rgb_colorspace_fix
-                )
-                for tile in tiles
+        return (self._add_jpeg_tables(tile) for tile in tiles)
+
+    def _add_jpeg_tables(self, tile: bytes) -> bytes:
+        """Prepend jpeg tables (and, for svs, the rgb color space fix) to an
+        abbreviated tile, reusing the page's cached prefix."""
+        jpegtables = self._page.jpegtables
+        if jpegtables is None:
+            return tile
+        if self._cached_prefix_and_scan_offset is None:
+            self._cached_prefix_and_scan_offset = Jpeg.calculate_prefix_and_scan_offset(
+                tile, jpegtables, self._add_rgb_colorspace_fix
             )
-        return iter(tiles)
+        prefix, scan_offset = self._cached_prefix_and_scan_offset
+        return Jpeg.add_jpeg_prefix(prefix, scan_offset, tile)
 
     def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
         tile_point = Point.from_tuple(tile_position)

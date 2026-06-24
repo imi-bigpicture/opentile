@@ -168,7 +168,10 @@ class PhilipsLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
             raise ValueError("Could not find valid frame in image.") from exception
         tile = self._read_frame(valid_frame_index)
         if self._page.jpegtables is not None:
-            tile = Jpeg.add_jpeg_tables(tile, self._page.jpegtables, False)
+            prefix, scan_offset = Jpeg.calculate_prefix_and_scan_offset(
+                tile, self._page.jpegtables, False
+            )
+            tile = Jpeg.add_jpeg_prefix(prefix, scan_offset, tile)
         tile = self._jpeg.fill_frame(tile, luminance)
         return tile
 

@@ -428,9 +428,9 @@ class NdpiStripedImage(NdpiTiledImage):
         """
         super().__init__(page, file, base_size, tile_size, jpeg)
         self._striped_size = Size(self._page.chunked[1], self._page.chunked[0])
-        jpeg_header = self._page.jpegheader
-        assert isinstance(jpeg_header, bytes)
-        self._jpeg_header = jpeg_header
+        if self._page.jpegheader is None:
+            raise ValueError("Missing jpeg header for striped ndpi image")
+        self._jpeg_header = self._page.jpegheader
 
     @property
     def stripe_size(self) -> Size:

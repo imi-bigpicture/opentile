@@ -190,19 +190,18 @@ class Jpeg:
 
         frame[-2:] = self.end_of_image()
 
-        if jpeg_tables is not None:
-            if rgb_colorspace_fix:
-                frame = self._add_jpeg_tables_and_rgb_color_space_fix(
-                    frame, jpeg_tables
-                )
-            else:
-                frame = self._add_jpeg_tables(frame, jpeg_tables)
-
         assert (
             image_size is not None and scan_size is not None and subsample is not None
         )
         restart_interval = scan_size.ceil_div(self.subsample_to_mcu(subsample)).area
         frame = self._manipulate_header(frame, image_size, restart_interval)
+
+        if jpeg_tables is not None:
+            prefix, scan_offset = self.calculate_prefix_and_scan_offset(
+                frame, jpeg_tables, rgb_colorspace_fix
+            )
+            return self.add_jpeg_prefix(prefix, scan_offset, frame)
+
         return bytes(frame)
 
     def fill_frame(self, frame: bytes, luminance: float) -> bytes:
@@ -248,39 +247,55 @@ class Jpeg:
             ) from exception
 
     @classmethod
-    def add_jpeg_tables(
+    def add_jpeg_prefix(
         cls,
-        frame: bytes,
-        jpeg_tables: bytes,
-        apply_rgb_colorspace_fix: Optional[bool] = False,
+        prefix: bytes,
+        scan_offset: int,
+        frame: Union[bytes, bytearray],
     ) -> bytes:
-        """Add jpeg tables to frame. Tables are inserted before 'start of
-        scan'-tag, and leading 'start of image' and ending 'end of image' tags
-        are removed from the header prior to insertion.
+        """Build an interchange frame by replacing an abbreviated frame's header
+        with a `prefix` produced by `calculate_prefix_and_scan_offset`.
 
-        Parameters
-        ----------
-        frame: bytes
-            'Abbreviated' jpeg frame lacking jpeg tables.
-        jpeg_tables: bytes
-            Jpeg tables to add
-        apply_rgb_colorspace_fix: Optional[bool] = False
-            If to also apply
-
-        Returns
-        ----------
-        bytes:
-            'Interchange' jpeg frame containing jpeg tables.
-
+        `prefix` and `scan_offset` are identical for every tile of a tiff page,
+        so they can be computed once and reused for all tiles.
         """
+        return prefix + bytes(frame[scan_offset:])
 
+    # Adobe APP14 marker with transform flag 0 (image is encoded as RGB, not
+    # YCbCr).
+    _RGB_COLOR_SPACE_FIX = (
+        b"\xff\xee\x00\x0e\x41\x64\x6f\x62\x65\x00\x64\x80\x00\x00\x00\x00"
+    )
+
+    @classmethod
+    def calculate_prefix_and_scan_offset(
+        cls,
+        frame: Union[bytes, bytearray],
+        jpeg_tables: bytes,
+        apply_rgb_colorspace_fix: bool = False,
+    ) -> tuple[bytes, int]:
+        """Return the header prefix and scan data offset for an abbreviated
+        frame, for use with `add_jpeg_prefix`.
+
+        ``add_jpeg_prefix(prefix, scan_offset, frame)`` builds the interchange
+        frame. The prefix and offset only depend on the frame header, which is
+        identical for every tile of a tiff page, so they can be computed once and
+        reused for all tiles instead of re-parsing the header for each tile.
+        """
+        start_of_scan_index, length = cls._find_tag(frame, cls.start_of_scan())
+        if start_of_scan_index is None or length is None:
+            raise JpegTagNotFound("Start of scan tag not found in header")
+        scan_offset = start_of_scan_index + length + 2
+        header = bytearray(frame[:scan_offset])
         if apply_rgb_colorspace_fix:
-            frame_with_tables = cls._add_jpeg_tables_and_rgb_color_space_fix(
-                bytearray(frame), jpeg_tables
-            )
+            cls._set_rgb_component_ids(header)
+            tables = cls._RGB_COLOR_SPACE_FIX + jpeg_tables[2:-2]
         else:
-            frame_with_tables = cls._add_jpeg_tables(bytearray(frame), jpeg_tables)
-        return bytes(frame_with_tables)
+            tables = jpeg_tables[2:-2]
+        # SOI, then the tables (and APP14), then the rest of the header (start of
+        # frame ... start of scan); the caller appends the scan data.
+        prefix = bytes(header[:2]) + tables + bytes(header[2:])
+        return prefix, scan_offset
 
     @classmethod
     def manipulate_header(
@@ -419,29 +434,38 @@ class Jpeg:
                 )
         return frame
 
-    @classmethod
-    def _add_jpeg_tables(
-        cls,
-        frame: bytearray,
-        jpegtables: bytes,
-    ) -> bytearray:
-        """Add jpeg tables to frame."""
-        start_of_scan = frame.find(cls.start_of_scan())
-        frame[start_of_scan:start_of_scan] = jpegtables[2:-2]
-        return frame
+    # ASCII 'R', 'G', 'B'. libjpeg (and thus most decoders) treat a three
+    # component frame with these component ids as RGB when no Adobe or JFIF
+    # marker is present.
+    RGB_COMPONENT_IDS = (0x52, 0x47, 0x42)
 
     @classmethod
-    def _add_jpeg_tables_and_rgb_color_space_fix(
-        cls,
-        frame: bytearray,
-        jpegtables: bytes,
-    ) -> bytearray:
-        """Add jpeg tables to frame and add Adobe APP14 marker with transform
-        flag 0 indicating image is encoded as RGB (not YCbCr)."""
-        start_of_scan = frame.find(cls.start_of_scan())
-        frame[start_of_scan:start_of_scan] = (
-            jpegtables[2:-2]
-            + b"\xff\xee\x00\x0e\x41\x64\x6f\x62"
-            + b"\x65\x00\x64\x80\x00\x00\x00\x00"
-        )
+    def _set_rgb_component_ids(cls, frame: bytearray) -> bytearray:
+        """Rename the three frame components to ASCII 'R', 'G', 'B'.
+
+        Only applied to three component (RGB) frames; other frames are returned
+        unchanged. The scan component selectors reference the frame component
+        ids by value and are updated to match.
+        """
+        start_of_frame_index, _ = cls._find_tag(frame, cls.start_of_frame())
+        if start_of_frame_index is None:
+            raise JpegTagNotFound("Start of frame tag not found in header")
+        component_count = frame[start_of_frame_index + 9]
+        if component_count != 3:
+            return frame
+        id_map: dict[int, int] = {}
+        for component, new_id in enumerate(cls.RGB_COMPONENT_IDS):
+            id_index = start_of_frame_index + 10 + component * 3
+            id_map[frame[id_index]] = new_id
+            frame[id_index] = new_id
+
+        start_of_scan_index, _ = cls._find_tag(frame, cls.start_of_scan())
+        if start_of_scan_index is None:
+            raise JpegTagNotFound("Start of scan tag not found in header")
+        scan_component_count = frame[start_of_scan_index + 4]
+        for component in range(scan_component_count):
+            selector_index = start_of_scan_index + 5 + component * 2
+            frame[selector_index] = id_map.get(
+                frame[selector_index], frame[selector_index]
+            )
         return frame

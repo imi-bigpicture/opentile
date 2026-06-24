@@ -45,8 +45,8 @@ class TestPhilipsTiffTiler:
     @pytest.mark.parametrize(
         ["tile_point", "hash"],
         [
-            ((0, 0), "570d069f9de5d2716fb0d7167bc79195"),
-            ((20, 20), "db28efb73a72ef7e2780fc72c624d7ae"),
+            ((0, 0), "0d9a897c08f51fd8c08352dc8208ae73"),
+            ((20, 20), "29bb7b775e6bfd3448836335e96b45d7"),
         ],
     )
     def test_get_tile(
@@ -66,8 +66,8 @@ class TestPhilipsTiffTiler:
             (
                 [(0, 0), (20, 20)],
                 [
-                    "570d069f9de5d2716fb0d7167bc79195",
-                    "db28efb73a72ef7e2780fc72c624d7ae",
+                    "0d9a897c08f51fd8c08352dc8208ae73",
+                    "29bb7b775e6bfd3448836335e96b45d7",
                 ],
             ),
         ],
