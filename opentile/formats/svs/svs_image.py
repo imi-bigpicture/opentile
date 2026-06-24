@@ -62,14 +62,14 @@ class SvsStripedImage(BaseTiffImage):
     @property
     def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         """`get_tile()` concatenates JPEG scans for JPEG-compressed stripes and
-        the raw stripe bytes for uncompressed stripes."""
-        return [COMPRESSION.JPEG, COMPRESSION.NONE]
+        returns the raw stripe bytes for uncompressed (NONE) and LZW stripes."""
+        return [COMPRESSION.JPEG, COMPRESSION.NONE, COMPRESSION.LZW]
 
     def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         indices = range(len(self._page.dataoffsets))
-        if self.compression == COMPRESSION.NONE:
+        if self.compression != COMPRESSION.JPEG:
             return b"".join(self._read_frames(indices))
         scans = (self._read_frame(index) for index in indices)
         frame = self._jpeg.concatenate_scans(

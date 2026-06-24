@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `SvsMetadata.properties` now exposes the parsed Aperio `ImageDescription` fields (AppMag, MPP, scan date/time, dimensions, etc.) instead of returning an empty dict.
+- Support for reading LZW-compressed striped svs images (e.g. an LZW-compressed overview).
 
 ### Changed
 
