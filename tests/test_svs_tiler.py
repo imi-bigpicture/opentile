@@ -218,14 +218,14 @@ class TestSvsTiler:
         # Assert
         assert magnification == 20.0
 
-    def test_metadata_aquisition_datetime(self, tiler: SvsTiler):
+    def test_metadata_acquisition_datetime(self, tiler: SvsTiler):
         # Arrange
 
         # Act
-        aquisition_datetime = tiler.metadata.aquisition_datetime
+        acquisition_datetime = tiler.metadata.acquisition_datetime
 
         # Assert
-        assert aquisition_datetime == datetime(2009, 12, 29, 9, 59, 15)
+        assert acquisition_datetime == datetime(2009, 12, 29, 9, 59, 15)
 
     def test_get_label(self, tiler: SvsTiler):
         # Arrange

@@ -74,7 +74,7 @@ class PhilipsTiffMetadata(Metadata):
         return self._tags["DICOM_DEVICE_SERIAL_NUMBER"]
 
     @property
-    def aquisition_datetime(self) -> Optional[datetime]:
+    def acquisition_datetime(self) -> Optional[datetime]:
         if self._tags["DICOM_ACQUISITION_DATETIME"] is None:
             return None
         try:

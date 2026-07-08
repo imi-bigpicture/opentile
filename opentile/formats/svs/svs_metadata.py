@@ -75,7 +75,7 @@ class SvsMetadata(Metadata):
             )
 
     @property
-    def aquisition_datetime(self) -> Optional[datetime]:
+    def acquisition_datetime(self) -> Optional[datetime]:
         try:
             date = SvsMetadata._extract_date(self._svs_metadata["Date"])
             time = datetime.strptime(self._svs_metadata["Time"], r"%H:%M:%S")

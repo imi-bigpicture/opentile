@@ -474,14 +474,14 @@ class TestNdpiTiler:
         # Assert
         assert scanner_serial_number is None
 
-    def test_metadata_aquisition_datetime(self, tiler: NdpiTiler):
+    def test_metadata_acquisition_datetime(self, tiler: NdpiTiler):
         # Arrange
 
         # Act
-        aquisition_datetime = tiler.metadata.aquisition_datetime
+        acquisition_datetime = tiler.metadata.acquisition_datetime
 
         # Assert
-        assert aquisition_datetime == datetime(2009, 12, 31, 9, 11, 46)
+        assert acquisition_datetime == datetime(2009, 12, 31, 9, 11, 46)
 
     def test_label(self, tiler: NdpiTiler):
         # Arrange

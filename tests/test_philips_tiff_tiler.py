@@ -141,14 +141,14 @@ class TestPhilipsTiffTiler:
         # Assert
         assert scanner_serial_number is not None
 
-    def test_metadata_aquisition_datetime(self, tiler: PhilipsTiffTiler):
+    def test_metadata_acquisition_datetime(self, tiler: PhilipsTiffTiler):
         # Arrange
 
         # Act
-        aquisition_datetime = tiler.metadata.aquisition_datetime
+        acquisition_datetime = tiler.metadata.acquisition_datetime
 
         # Assert
-        assert aquisition_datetime == datetime(2013, 7, 1, 18, 59, 4)
+        assert acquisition_datetime == datetime(2013, 7, 1, 18, 59, 4)
 
     def test_compressed_size(self, level: BaseTiffImage):
         # Arrange

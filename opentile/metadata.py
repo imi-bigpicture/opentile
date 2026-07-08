@@ -50,7 +50,7 @@ class Metadata:
         return None
 
     @property
-    def aquisition_datetime(self) -> Optional[datetime]:
+    def acquisition_datetime(self) -> Optional[datetime]:
         """Return the acquisition datetime if present in file."""
         return None
 

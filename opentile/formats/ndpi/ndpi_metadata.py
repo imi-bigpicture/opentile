@@ -57,7 +57,7 @@ class NdpiMetadata(Metadata):
         return self._ndpi_tags.get("ScannerSerialNumber")
 
     @property
-    def aquisition_datetime(self) -> Optional[datetime]:
+    def acquisition_datetime(self) -> Optional[datetime]:
         datetime_tag = self._tags.get("DateTime")
         if datetime_tag is None:
             return None
