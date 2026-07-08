@@ -53,7 +53,10 @@ class SvsStripedImage(BaseTiffImage):
             Jpeg instance to use.
 
         """
-        super().__init__(page, file, True)
+        add_rgb_colorspace_fix = (
+            page.compression == COMPRESSION.JPEG and page.photometric == PHOTOMETRIC.RGB
+        )
+        super().__init__(page, file, add_rgb_colorspace_fix)
         self._jpeg = jpeg
 
     def __repr__(self) -> str:
@@ -192,7 +195,10 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
             Parent TiffImage
         """
 
-        super().__init__(page, file, True)
+        add_rgb_colorspace_fix = (
+            page.compression == COMPRESSION.JPEG and page.photometric == PHOTOMETRIC.RGB
+        )
+        super().__init__(page, file, add_rgb_colorspace_fix)
         self._base_size = base_size
         self._base_mpp = base_mpp
         self._scale = self._calculate_scale(base_size)

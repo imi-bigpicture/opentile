@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Renamed the misspelled `Metadata.aquisition_datetime` property to `acquisition_datetime` (all formats).
 
+### Fixed
+
+- The svs RGB colorspace fix (which signals RGB on Aperio's marker-less RGB JPEG) is now only applied to JPEG pages whose photometric interpretation is RGB, instead of unconditionally for all JPEG compressed svs pages.
+
 ## [0.23.0] - 2026-06-24
 
 ### Added
