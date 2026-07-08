@@ -14,7 +14,7 @@
 
 """Metadata parser for svs files."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from tifffile import TiffPage
