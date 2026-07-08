@@ -1,4 +1,4 @@
-#    Copyright 2023 SECTRA AB
+#    Copyright 2026 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Module containing jpeg handling."""
+"""Module containing jpeg 2000 handling."""
 
-from opentile.jpeg.jpeg import Jpeg, JpegCropError, JpegInfo, JpegProcess
+from opentile.jpeg2000.jpeg2000 import Jpeg2000, Jpeg2000Info
 
-__all__ = ["Jpeg", "JpegCropError", "JpegInfo", "JpegProcess"]
+__all__ = ["Jpeg2000", "Jpeg2000Info"]

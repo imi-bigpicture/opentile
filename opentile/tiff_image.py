@@ -17,8 +17,9 @@
 import math
 from abc import ABCMeta, abstractmethod
 from collections.abc import Iterator, Sequence
+from dataclasses import dataclass
 from functools import cached_property
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 from tifffile import (
@@ -31,11 +32,106 @@ from upath import UPath
 
 from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.jpeg import Jpeg
+from opentile.jpeg import Jpeg, JpegInfo
+from opentile.jpeg2000 import Jpeg2000, Jpeg2000Info
+
+
+@dataclass
+class TileOverlap:
+    """Placement of natively overlapping source tiles onto a de-overlapped canvas.
+
+    Some formats (Trestle, Ventana) store tiles that overlap their neighbours.
+    `image_size` is the composed (de-overlapped) level size, and `tile_positions`
+    maps each native source-tile grid position to the pixel top-left it occupies on
+    that canvas. A consumer de-overlaps by reading each source tile
+    (`TiffImage.get_tile`/`get_decoded_tile`) and placing it at its position; where
+    tiles overlap, the tile with the greater position wins (its top-left covers the
+    previous tile's discarded edge).
+    """
+
+    image_size: Size
+    tile_positions: dict[Point, Point]
+
+    @classmethod
+    def from_regular_grid(
+        cls, raw_size: Size, tile_size: Size, overlap: Size
+    ) -> "TileOverlap":
+        """Build placement for a regular tile grid where every tile overlaps its
+        neighbour by a constant amount, keeping its top-left footprint (Trestle, and
+        a single Ventana area).
+
+        Parameters
+        ----------
+        raw_size: Size
+            Size of the raw (overlapping) tile mosaic, i.e. the tiff page size.
+        tile_size: Size
+            Size of a source tile.
+        overlap: Size
+            Pixels each tile overlaps its right/bottom neighbour.
+        """
+        tiles_across = math.ceil(raw_size.width / tile_size.width)
+        tiles_down = math.ceil(raw_size.height / tile_size.height)
+        step_x = tile_size.width - overlap.width
+        step_y = tile_size.height - overlap.height
+        image_size = Size(
+            raw_size.width - (tiles_across - 1) * overlap.width,
+            raw_size.height - (tiles_down - 1) * overlap.height,
+        )
+        tile_positions = {
+            Point(x, y): Point(x * step_x, y * step_y)
+            for y in range(tiles_down)
+            for x in range(tiles_across)
+        }
+        return cls(image_size, tile_positions)
+
+    @classmethod
+    def fit_to_size(
+        cls, raw_size: Size, tile_size: Size, target_size: Size
+    ) -> "TileOverlap":
+        """Build a regular-grid placement whose composed size is exactly
+        `target_size`, spacing the tiles uniformly to fill it. Used for reduced
+        pyramid levels, whose de-overlapped size must equal the base level's composed
+        size divided by the level downsample so the pyramid is a clean power of two
+        (matching how the raw tiles halve). The per-tile overlap is derived from the
+        target rather than measured.
+
+        Parameters
+        ----------
+        raw_size: Size
+            Size of the raw (overlapping) tile mosaic, i.e. the tiff page size.
+        tile_size: Size
+            Size of a source tile.
+        target_size: Size
+            Composed (de-overlapped) size the placement must span.
+        """
+        tiles_across = math.ceil(raw_size.width / tile_size.width)
+        tiles_down = math.ceil(raw_size.height / tile_size.height)
+        step_x = (
+            (target_size.width - tile_size.width) / (tiles_across - 1)
+            if tiles_across > 1
+            else 0.0
+        )
+        step_y = (
+            (target_size.height - tile_size.height) / (tiles_down - 1)
+            if tiles_down > 1
+            else 0.0
+        )
+        tile_positions = {
+            Point(x, y): Point(round(x * step_x), round(y * step_y))
+            for y in range(tiles_down)
+            for x in range(tiles_across)
+        }
+        return cls(target_size, tile_positions)
 
 
 class TiffImage(metaclass=ABCMeta):
     """Abstract class for reading tiles from TiffPage."""
+
+    @property
+    def overlap(self) -> Optional[TileOverlap]:
+        """Placement of natively overlapping source tiles for de-overlapping, or
+        None if the image's tiles do not overlap (the common case)."""
+        return None
 
     @property
     @abstractmethod
@@ -61,6 +157,13 @@ class TiffImage(metaclass=ABCMeta):
     @abstractmethod
     def compression(self) -> COMPRESSION:
         """Compression of image."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def encoded_info(self) -> JpegInfo | Jpeg2000Info | None:
+        """Parsed properties of the encoded image data: a `JpegInfo` for JPEG, a
+        `Jpeg2000Info` for JPEG 2000, or None for other compressions."""
         raise NotImplementedError()
 
     @property
@@ -350,6 +453,23 @@ class BaseTiffImage(TiffImage):
     def compression(self) -> COMPRESSION:
         return COMPRESSION(self._page.compression)
 
+    @cached_property
+    def encoded_info(self) -> Optional[Union[JpegInfo, Jpeg2000Info]]:
+        compression = self.compression
+        if compression == COMPRESSION.JPEG:
+            header = self._page.jpegheader
+            if header is not None:
+                return Jpeg.info(bytes(header))
+            return Jpeg.info(self.get_tile((0, 0)))
+        if compression in (
+            COMPRESSION.JPEG2000,
+            COMPRESSION.JPEG_2000_LOSSY,
+            COMPRESSION.APERIO_JP2000_YCBC,
+            COMPRESSION.APERIO_JP2000_RGB,
+        ):
+            return Jpeg2000.parse(self.get_tile((0, 0)))
+        return None
+
     @property
     def photometric_interpretation(self) -> PHOTOMETRIC:
         return PHOTOMETRIC(self._page.photometric)
@@ -544,3 +664,145 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
         """Return linear frame index for tile position."""
         frame_index = tile_point.y * self.tiled_size.width + tile_point.x
         return frame_index
+
+
+class OverlappingLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
+    """Level image for natively tiled formats whose source tiles overlap (Trestle,
+    Ventana).
+
+    Raw (overlapping) source tiles are read by native grid position exactly like any
+    NativeTiledTiffImage; `overlap` additionally describes how to compose them into a
+    de-overlapped image. Scale and pyramid index are derived from the composed
+    (de-overlapped) size, not the raw overlapping tile mosaic, so the format-specific
+    overlap parsing lives in the tiler and is passed in as `overlap`.
+    """
+
+    def __init__(
+        self,
+        page: TiffPage,
+        file: OpenTileFile,
+        base_mpp: SizeMm,
+        scale: float,
+        overlap: TileOverlap,
+    ):
+        """
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        file: OpenTileFile
+            File to read data from.
+        base_mpp: SizeMm
+            Mpp (um/pixel) for the base level in the pyramid.
+        scale: float
+            Downsample of this level relative to the base level. Computed by the
+            tiler from whichever dimension forms a clean pyramid (the de-overlapped
+            size for Trestle, the raw mosaic for Ventana).
+        overlap: TileOverlap
+            Placement of this level's overlapping source tiles.
+        """
+        super().__init__(page, file)
+        self._base_mpp = base_mpp
+        self._overlap = overlap
+        self._scale = scale
+        self._pyramid_index = self._calculate_pyramidal_index(scale)
+        self._mpp = self._calculate_mpp(base_mpp, scale)
+
+    @property
+    def overlap(self) -> TileOverlap:
+        return self._overlap
+
+    @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        return [COMPRESSION.JPEG]
+
+    @property
+    def pixel_spacing(self) -> SizeMm:
+        return self._mpp / 1000
+
+    @property
+    def mpp(self) -> SizeMm:
+        return self._mpp
+
+    @property
+    def scale(self) -> float:
+        return self._scale
+
+    @property
+    def pyramid_index(self) -> int:
+        return self._pyramid_index
+
+
+class SubcellReducedLevelTiffImage(OverlappingLevelTiffImage):
+    """Reduced pyramid level for formats (Ventana) whose reduced pages pack the
+    ``downsample * downsample`` level-0 tiles of each physical tile, every level-0
+    tile downsampled to ``tile / downsample``.
+
+    Placement is inherited from the level-0 stitch scaled by ``1/downsample`` rather
+    than re-derived from the reduced page (which has no per-tile placement of its
+    own), so tiles meet seamlessly and a feature keeps the same scene position across
+    levels. Each "tile" exposed here is one sub-cell of a physical page tile;
+    ``overlap.tile_positions`` maps the level-0 tile grid position to its
+    de-overlapped destination at this level.
+    """
+
+    def __init__(
+        self,
+        page: TiffPage,
+        file: OpenTileFile,
+        base_mpp: SizeMm,
+        scale: float,
+        overlap: TileOverlap,
+        downsample: int,
+    ):
+        self._downsample = downsample
+        self._subcell_size = Size(
+            math.ceil(page.tilewidth / downsample),
+            math.ceil(page.tilelength / downsample),
+        )
+        self._phys_grid_cols = math.ceil(page.imagewidth / page.tilewidth)
+        self._phys_grid_rows = math.ceil(page.imagelength / page.tilelength)
+        super().__init__(page, file, base_mpp, scale, overlap)
+
+    @property
+    def tile_size(self) -> Size:
+        return self._subcell_size
+
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
+        # A sub-cell is not independently encoded; return its physical tile's frame
+        # (only used for codec/subsampling introspection - reduced levels transcode).
+        gx, gy = tile_position
+        px = gx // self._downsample
+        py = gy // self._downsample
+        return self._add_jpeg_tables(self._read_frame(py * self._phys_grid_cols + px))
+
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
+        """Sub-cell for level-0 tile ``(gx, gy)``: the ``(gx%d, gy%d)`` cell of
+        physical tile ``(gx//d, gy//d)`` - that level-0 tile downsampled to this
+        level."""
+        gx, gy = tile_position
+        d = self._downsample
+        sub_w, sub_h = self._subcell_size.to_tuple()
+        physical = self._read_physical(gx // d, gy // d)
+        sx = round((gx % d) * self._page.tilewidth / d)
+        sy = round((gy % d) * self._page.tilelength / d)
+        cell = physical[sy : sy + sub_h, sx : sx + sub_w]
+        if cell.shape[0] == sub_h and cell.shape[1] == sub_w:
+            return cell
+        out = np.full(
+            (sub_h, sub_w) + cell.shape[2:], self.fill_value, dtype=self.np_dtype
+        )
+        out[: cell.shape[0], : cell.shape[1]] = cell
+        return out
+
+    def _read_physical(self, px: int, py: int) -> np.ndarray:
+        if not (0 <= px < self._phys_grid_cols and 0 <= py < self._phys_grid_rows):
+            shape: tuple[int, ...] = (self._page.tilelength, self._page.tilewidth)
+            if self.samples_per_pixel > 1:
+                shape = shape + (self.samples_per_pixel,)
+            return np.full(shape, self.fill_value, dtype=self.np_dtype)
+        frame_index = py * self._phys_grid_cols + px
+        frame = self._add_jpeg_tables(self._read_frame(frame_index))
+        data, _, _ = self._page.decode(frame, frame_index)
+        assert isinstance(data, np.ndarray)
+        return data.squeeze((0, 3) if self.samples_per_pixel == 1 else 0)

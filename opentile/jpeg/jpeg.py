@@ -18,6 +18,8 @@ import os
 import platform
 from collections.abc import Iterator, Sequence
 from ctypes.util import find_library
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from struct import pack, unpack
 from typing import Optional, Union
@@ -26,6 +28,39 @@ from turbojpeg import DEFAULT_LIB_PATHS, TurboJPEG, tjMCUHeight, tjMCUWidth
 
 from opentile.geometry import Size
 from opentile.jpeg.jpeg_filler import JpegFiller
+
+
+class JpegProcess(Enum):
+    """JPEG coding process, identified by the start-of-frame (SOF) marker."""
+
+    BASELINE = "baseline"  # SOF0
+    EXTENDED = "extended"  # SOF1
+    PROGRESSIVE = "progressive"  # SOF2
+    LOSSLESS = "lossless"  # SOF3
+    OTHER = "other"  # differential / arithmetic / unsupported
+
+
+@dataclass(frozen=True)
+class JpegInfo:
+    """Properties read from a JPEG frame header (no pixel decoding)."""
+
+    process: JpegProcess
+    """The coding process from the SOF marker."""
+    bit_depth: int
+    """Sample precision in bits (8 or 12)."""
+    components: int
+    """Number of components."""
+    subsampling: Optional[tuple[int, int]]
+    """(horizontal, vertical) maximum component sampling factors, or None for a
+    single (grayscale) component. (1, 1) means no subsampling."""
+    rgb_signalled: bool
+    """True if the frame signals RGB (Adobe APP14 transform 0, or R/G/B component
+    ids). A False value does not prove the samples are not RGB: RGB samples can
+    be stored without any RGB signal, in which case this is False."""
+    lossless_predictor: Optional[int]
+    """For a lossless (`SOF3`) frame, the predictor selection value from the SOS
+    header; None otherwise. Selection value 1 corresponds to JPEG Lossless,
+    First-Order Prediction."""
 
 
 def find_turbojpeg_path() -> Path:
@@ -97,6 +132,111 @@ class Jpeg:
         turbo_path = str(turbo_path)
         self._turbo_jpeg = TurboJPEG(turbo_path)
         self._jpeg_filler = JpegFiller(turbo_path)
+
+    _SOF_MARKERS = frozenset(set(range(0xC0, 0xD0)) - {0xC4, 0xC8, 0xCC})
+    """Start-of-frame markers (0xC0-0xCF excluding DHT, JPG, and DAC)."""
+    _SOF_PROCESSES = {
+        0xC0: JpegProcess.BASELINE,
+        0xC1: JpegProcess.EXTENDED,
+        0xC2: JpegProcess.PROGRESSIVE,
+        0xC3: JpegProcess.LOSSLESS,
+    }
+    _APP14 = 0xEE
+    _SOS = 0xDA
+    _RGB_COMPONENT_IDS = (0x52, 0x47, 0x42)  # ascii "R", "G", "B"
+
+    @classmethod
+    def info(cls, frame: bytes) -> JpegInfo:
+        """Read JPEG properties from a frame header by parsing its markers.
+
+        Only the header is read (SOF, APP14, and, for lossless, the SOS
+        predictor); no pixel decoding is performed, so this works for any process
+        and bit depth. `rgb_signalled` is True when the frame carries an RGB
+        signal: R/G/B component ids in the SOF, or an Adobe APP14 transform of 0.
+
+        Parameters
+        ----------
+        frame: bytes
+            JPEG frame with header.
+
+        Returns
+        ----------
+        JpegInfo:
+            Properties read from the frame header.
+
+        Raises
+        ----------
+        ValueError:
+            If no start-of-frame marker is found.
+        """
+        sof: Optional[bytes] = None
+        sof_marker: Optional[int] = None
+        app14_transform: Optional[int] = None
+        predictor: Optional[int] = None
+        for marker, segment in cls._iter_segments(frame):
+            if marker in cls._SOF_MARKERS and sof is None:
+                sof_marker, sof = marker, segment
+            elif (
+                marker == cls._APP14 and len(segment) >= 12 and segment[:5] == b"Adobe"
+            ):
+                app14_transform = segment[11]
+            elif marker == cls._SOS:
+                # SOS: Ns(1), then Ns (component, table) pairs, then Ss(1). For a
+                # lossless frame the Ss byte is the predictor selection value.
+                number_of_components = segment[0]
+                spectral_start = 1 + number_of_components * 2
+                if spectral_start < len(segment):
+                    predictor = segment[spectral_start]
+                break
+        if sof is None or sof_marker is None:
+            raise ValueError("No start-of-frame marker found in JPEG frame")
+
+        process = cls._SOF_PROCESSES.get(sof_marker, JpegProcess.OTHER)
+        # SOF: precision(1), height(2), width(2), components(1), then per
+        # component id(1), sampling(1, H<<4|V), quantization table(1).
+        bit_depth = sof[0]
+        components = sof[5]
+        ids = [sof[6 + index * 3] for index in range(components)]
+        horizontal = [sof[6 + index * 3 + 1] >> 4 for index in range(components)]
+        vertical = [sof[6 + index * 3 + 1] & 0x0F for index in range(components)]
+        rgb_signalled = tuple(ids) == cls._RGB_COMPONENT_IDS or app14_transform == 0
+        subsampling = None if components <= 1 else (max(horizontal), max(vertical))
+        return JpegInfo(
+            process=process,
+            bit_depth=bit_depth,
+            components=components,
+            subsampling=subsampling,
+            rgb_signalled=rgb_signalled,
+            lossless_predictor=predictor if process == JpegProcess.LOSSLESS else None,
+        )
+
+    @classmethod
+    def _iter_segments(cls, frame: bytes) -> Iterator[tuple[int, bytes]]:
+        """Yield (marker, segment) for each marker segment in a JPEG frame up to
+        and including the start-of-scan, then stop. Standalone markers (SOI, EOI,
+        RST, TEM) and padding carry no segment and are skipped."""
+        index = 0
+        length = len(frame)
+        while index + 1 < length:
+            if frame[index] != 0xFF:
+                index += 1
+                continue
+            marker = frame[index + 1]
+            if marker == 0xFF:
+                # Fill byte; re-examine from the next byte.
+                index += 1
+                continue
+            index += 2
+            if marker in (0x00, 0x01, 0xD8, 0xD9) or 0xD0 <= marker <= 0xD7:
+                # Padding or standalone markers (SOI/EOI/RST/TEM): no length.
+                continue
+            if index + 2 > length:
+                return
+            segment_length = int.from_bytes(frame[index : index + 2], "big")
+            yield marker, frame[index + 2 : index + segment_length]
+            if marker == cls._SOS:
+                return
+            index += segment_length
 
     def get_mcu(self, frame: bytes) -> Size:
         """Return MCU size read from frame header.

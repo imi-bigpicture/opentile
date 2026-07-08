@@ -18,11 +18,11 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from imagecodecs import jpeg8_decode, jpeg8_encode
+from imagecodecs import JPEG8, jpeg8_decode, jpeg8_encode
 from tifffile import TiffFile, TiffPage
 
 from opentile.geometry import Size
-from opentile.jpeg import Jpeg
+from opentile.jpeg import Jpeg, JpegProcess
 
 test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
 slide_folder = Path(test_data_dir).joinpath("slides")
@@ -199,3 +199,150 @@ class TestJpeg:
 
         #
         assert jpeg.code_short(6) == bytes([0x00, 0x06])
+
+
+def _jpeg_header(
+    sof_marker: int,
+    component_ids: list[int],
+    sampling_factors: list[tuple[int, int]],
+    precision: int = 8,
+    app14_transform: int | None = None,
+    sos_predictor: int = 0,
+) -> bytes:
+    """Craft a minimal JPEG header (SOI + optional APP14 + SOF + SOS) for the
+    marker parser. No valid scan data; the parser stops at SOS."""
+    frame = b"\xff\xd8"  # SOI
+    if app14_transform is not None:
+        payload = b"Adobe" + bytes(6) + bytes([app14_transform])  # 12 bytes
+        frame += b"\xff\xee" + (len(payload) + 2).to_bytes(2, "big") + payload
+    sof = bytes([precision]) + (64).to_bytes(2, "big") + (64).to_bytes(2, "big")
+    sof += bytes([len(component_ids)])
+    for component_id, (horizontal, vertical) in zip(component_ids, sampling_factors):
+        sof += bytes([component_id, (horizontal << 4) | vertical, 0])
+    frame += bytes([0xFF, sof_marker]) + (len(sof) + 2).to_bytes(2, "big") + sof
+    sos = bytes([len(component_ids)])
+    for component_id in component_ids:
+        sos += bytes([component_id, 0])
+    sos += bytes([sos_predictor, 0, 0])  # Ss (predictor), Se, Ah/Al
+    frame += b"\xff\xda" + (len(sos) + 2).to_bytes(2, "big") + sos
+    return frame
+
+
+@pytest.mark.unittest
+class TestJpegInfo:
+    @pytest.mark.parametrize(
+        ["subsampling", "expected"],
+        [((1, 1), (1, 1)), ((2, 1), (2, 1)), ((2, 2), (2, 2))],
+    )
+    def test_info_subsampling(
+        self, subsampling: tuple[int, int], expected: tuple[int, int]
+    ):
+        # Arrange
+        image = (np.random.rand(64, 64, 3) * 255).astype(np.uint8)
+        frame = jpeg8_encode(image, colorspace=JPEG8.CS.YCbCr, subsampling=subsampling)
+
+        # Act
+        info = Jpeg.info(frame)
+
+        # Assert
+        assert info.subsampling == expected
+
+    def test_info_baseline_8bit(self):
+        # Arrange
+        image = (np.random.rand(64, 64, 3) * 255).astype(np.uint8)
+        frame = jpeg8_encode(image, colorspace=JPEG8.CS.YCbCr)
+
+        # Act
+        info = Jpeg.info(frame)
+
+        # Assert
+        assert info.process == JpegProcess.BASELINE
+        assert info.bit_depth == 8
+        assert info.components == 3
+
+    def test_info_extended_12bit(self):
+        # Arrange — 12-bit encodes as extended sequential (SOF1)
+        image = (np.random.rand(64, 64, 3) * 4095).astype(np.uint16)
+        frame = jpeg8_encode(image, bitspersample=12)
+
+        # Act
+        info = Jpeg.info(frame)
+
+        # Assert
+        assert info.process == JpegProcess.EXTENDED
+        assert info.bit_depth == 12
+
+    @pytest.mark.parametrize(
+        ["sof_marker", "expected"],
+        [
+            (0xC0, JpegProcess.BASELINE),
+            (0xC1, JpegProcess.EXTENDED),
+            (0xC2, JpegProcess.PROGRESSIVE),
+            (0xC3, JpegProcess.LOSSLESS),
+            (0xC5, JpegProcess.OTHER),  # differential sequential, unmapped
+        ],
+    )
+    def test_info_process_from_sof_marker(
+        self, sof_marker: int, expected: JpegProcess
+    ):
+        # Arrange
+        frame = _jpeg_header(sof_marker, [1, 2, 3], [(1, 1), (1, 1), (1, 1)])
+
+        # Act & Assert
+        assert Jpeg.info(frame).process == expected
+
+    def test_info_grayscale_has_no_subsampling(self):
+        # Arrange
+        image = (np.random.rand(64, 64) * 255).astype(np.uint8)
+        frame = jpeg8_encode(image, colorspace=JPEG8.CS.GRAYSCALE)
+
+        # Act
+        info = Jpeg.info(frame)
+
+        # Assert
+        assert info.components == 1
+        assert info.subsampling is None
+
+    @pytest.mark.parametrize(
+        ["component_ids", "app14_transform", "expected"],
+        [
+            ([0x52, 0x47, 0x42], None, True),  # R/G/B component ids
+            ([1, 2, 3], 0, True),  # Adobe APP14 transform 0
+            ([0x52, 0x47, 0x42], 1, True),  # ids signal RGB despite transform 1
+            ([1, 2, 3], 1, False),  # APP14 transform 1 (YCbCr)
+            ([1, 2, 3], 2, False),  # APP14 transform 2 (YCCK)
+            ([1, 2, 3], None, False),  # no RGB signal
+        ],
+    )
+    def test_rgb_signalled(
+        self, component_ids: list[int], app14_transform: int | None, expected: bool
+    ):
+        # Arrange
+        frame = _jpeg_header(
+            0xC0,
+            component_ids,
+            [(1, 1)] * len(component_ids),
+            app14_transform=app14_transform,
+        )
+
+        # Act & Assert
+        assert Jpeg.info(frame).rgb_signalled is expected
+
+    def test_lossless_process_and_predictor(self):
+        # Arrange — SOF3 lossless with first-order predictor (selection value 1)
+        frame = _jpeg_header(0xC3, [1, 2, 3], [(1, 1), (1, 1), (1, 1)], sos_predictor=1)
+
+        # Act
+        info = Jpeg.info(frame)
+
+        # Assert
+        assert info.process == JpegProcess.LOSSLESS
+        assert info.lossless_predictor == 1
+
+    def test_missing_sof_raises(self):
+        # Arrange — SOI then SOS, no SOF
+        frame = b"\xff\xd8\xff\xda\x00\x08\x01\x01\x00\x00\x00"
+
+        # Act & Assert
+        with pytest.raises(ValueError):
+            Jpeg.info(frame)
