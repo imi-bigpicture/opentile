@@ -47,18 +47,23 @@ class SvsMetadata(Metadata):
             return timezone(sign * timedelta(hours=hours, minutes=minutes))
 
     @staticmethod
-    def _extract_date(date_string):
-        """
-        Extract date from either 'MM/DD/YYYY' or 'MM/DD/YY' format.
+    def _extract_date(date_string: str) -> datetime:
+        """Extract date from either 'MM/DD/YYYY' or 'MM/DD/YY' format.
 
-        Args:
-            date_string: Date string in format 'MM/DD/YYYY' or 'MM/DD/YY'
+        Parameters
+        ----------
+        date_string : str
+            Date string in format 'MM/DD/YYYY' or 'MM/DD/YY'
 
-        Returns:
+        Returns
+        -------
+        datetime
             datetime object
 
-        Raises:
-            ValueError: If date string doesn't match expected formats
+        Raises
+        ------
+        ValueError
+            If date string doesn't match expected formats
         """
         # Try 4-digit year first (MM/DD/YYYY)
         try:
@@ -70,9 +75,10 @@ class SvsMetadata(Metadata):
         try:
             return datetime.strptime(date_string, "%m/%d/%y")
         except ValueError:
-            raise ValueError(  # noqa: B904
-                f"Date '{date_string}' doesn't match expected formats (MM/DD/YYYY or MM/DD/YY)"
-            )
+            raise ValueError(
+                f"Date '{date_string}' doesn't match expected formats "
+                "(MM/DD/YYYY or MM/DD/YY)"
+            ) from None
 
     @property
     def acquisition_datetime(self) -> Optional[datetime]:
@@ -91,7 +97,3 @@ class SvsMetadata(Metadata):
     @property
     def properties(self) -> dict[str, Any]:
         return self._svs_metadata
-
-    # @property
-    # def image_offset(self) -> Optional[Tuple[float, float]]:
-    #     return (float(self._svs_metadata["Left"]), float(self._svs_metadata["Top"]))
