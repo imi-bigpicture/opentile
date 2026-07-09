@@ -501,7 +501,7 @@ class BaseTiffImage(TiffImage):
     @property
     def optical_path(self) -> str:
         # Not sure if optical paths are defined in tiff files...
-        return "0"
+        return "1"
 
     @property
     def image_size(self) -> Size:

@@ -149,7 +149,7 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage, LevelTiffImage):
 
     @property
     def optical_path(self) -> str:
-        return str(self._page_index)
+        return str(self._page_index + 1)
 
 
 class OmeTiffTiledImage(NativeTiledTiffImage, LevelTiffImage):
@@ -198,4 +198,4 @@ class OmeTiffTiledImage(NativeTiledTiffImage, LevelTiffImage):
 
     @property
     def optical_path(self) -> str:
-        return str(self._page_index)
+        return str(self._page_index + 1)
