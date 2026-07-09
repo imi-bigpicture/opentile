@@ -161,7 +161,7 @@ class TiffImage(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def encoded_info(self) -> JpegInfo | Jpeg2000Info | None:
+    def encoded_info(self) -> Optional[Union[JpegInfo, Jpeg2000Info]]:
         """Parsed properties of the encoded image data: a `JpegInfo` for JPEG, a
         `Jpeg2000Info` for JPEG 2000, or None for other compressions."""
         raise NotImplementedError()
@@ -221,7 +221,7 @@ class TiffImage(metaclass=ABCMeta):
         """Size of the image when tiled."""
         raise NotImplementedError()
 
-    @cached_property
+    @property
     @abstractmethod
     def compressed_size(self) -> int:
         """Size of the compressed image data."""
@@ -453,8 +453,12 @@ class BaseTiffImage(TiffImage):
     def compression(self) -> COMPRESSION:
         return COMPRESSION(self._page.compression)
 
-    @cached_property
+    @property
     def encoded_info(self) -> Optional[Union[JpegInfo, Jpeg2000Info]]:
+        return self._encoded_info
+
+    @cached_property
+    def _encoded_info(self) -> Optional[Union[JpegInfo, Jpeg2000Info]]:
         compression = self.compression
         if compression == COMPRESSION.JPEG:
             header = self._page.jpegheader
@@ -509,8 +513,12 @@ class BaseTiffImage(TiffImage):
             return Size(1, 1)
         return self.image_size.ceil_div(self.tile_size)
 
-    @cached_property
+    @property
     def compressed_size(self) -> int:
+        return self._compressed_size
+
+    @cached_property
+    def _compressed_size(self) -> int:
         frames = sum(self._page.databytecounts)
         if self._page.jpegheader is not None:
             jpeg_header_length = len(self._page.jpegheader)

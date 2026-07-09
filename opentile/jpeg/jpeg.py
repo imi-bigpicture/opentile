@@ -146,7 +146,7 @@ class Jpeg:
     _RGB_COMPONENT_IDS = (0x52, 0x47, 0x42)  # ascii "R", "G", "B"
 
     @classmethod
-    def info(cls, frame: bytes) -> JpegInfo:
+    def info(cls, frame: Union[bytes, bytearray]) -> JpegInfo:
         """Read JPEG properties from a frame header by parsing its markers.
 
         Only the header is read (SOF, APP14, and, for lossless, the SOS
@@ -169,7 +169,7 @@ class Jpeg:
         ValueError:
             If no start-of-frame marker is found.
         """
-        sof: Optional[bytes] = None
+        sof: Optional[Union[bytes, bytearray]] = None
         sof_marker: Optional[int] = None
         app14_transform: Optional[int] = None
         predictor: Optional[int] = None
@@ -211,7 +211,9 @@ class Jpeg:
         )
 
     @classmethod
-    def _iter_segments(cls, frame: bytes) -> Iterator[tuple[int, bytes]]:
+    def _iter_segments(
+        cls, frame: Union[bytes, bytearray]
+    ) -> Iterator[tuple[int, Union[bytes, bytearray]]]:
         """Yield (marker, segment) for each marker segment in a JPEG frame up to
         and including the start-of-scan, then stop. Standalone markers (SOI, EOI,
         RST, TEM) and padding carry no segment and are skipped."""

@@ -15,6 +15,7 @@
 import os
 from hashlib import md5
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pytest
@@ -282,9 +283,7 @@ class TestJpegInfo:
             (0xC5, JpegProcess.OTHER),  # differential sequential, unmapped
         ],
     )
-    def test_info_process_from_sof_marker(
-        self, sof_marker: int, expected: JpegProcess
-    ):
+    def test_info_process_from_sof_marker(self, sof_marker: int, expected: JpegProcess):
         # Arrange
         frame = _jpeg_header(sof_marker, [1, 2, 3], [(1, 1), (1, 1), (1, 1)])
 
@@ -315,7 +314,7 @@ class TestJpegInfo:
         ],
     )
     def test_rgb_signalled(
-        self, component_ids: list[int], app14_transform: int | None, expected: bool
+        self, component_ids: list[int], app14_transform: Optional[int], expected: bool
     ):
         # Arrange
         frame = _jpeg_header(
