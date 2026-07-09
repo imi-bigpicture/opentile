@@ -466,10 +466,24 @@ class BaseTiffImage(TiffImage):
 
     @property
     def photometric_interpretation(self) -> PHOTOMETRIC:
+        info = self.encoded_info
+        if isinstance(info, JpegInfo):
+            if info.rgb_signalled:
+                return PHOTOMETRIC.RGB
+            if info.subsampling not in (None, (1, 1)):
+                return PHOTOMETRIC.YCBCR
+        elif isinstance(info, Jpeg2000Info):
+            if info.uses_mct or info.subsampling not in (None, (1, 1)):
+                return PHOTOMETRIC.YCBCR
+            if self.compression == COMPRESSION.APERIO_JP2000_YCBC:
+                return PHOTOMETRIC.YCBCR
         return PHOTOMETRIC(self._page.photometric)
 
     @property
     def subsampling(self) -> Optional[tuple[int, int]]:
+        info = self.encoded_info
+        if info is not None:
+            return info.subsampling
         return self._page.subsampling
 
     @property

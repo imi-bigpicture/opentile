@@ -227,23 +227,6 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         return None
 
     @property
-    def photometric_interpretation(self) -> PHOTOMETRIC:
-        if self.compression in (
-            COMPRESSION.APERIO_JP2000_YCBC,
-            COMPRESSION.APERIO_JP2000_RGB,
-        ):
-            # Override photometric interpretation to report the actual stored colorspace
-            return PHOTOMETRIC.YCBCR
-        return super().photometric_interpretation
-
-    @property
-    def subsampling(self) -> Optional[tuple[int, int]]:
-        if self._page.photometric == PHOTOMETRIC.RGB:
-            # Override subsampling to report no chroma subsampling for svs RGB
-            return (1, 1)
-        return super().subsampling
-
-    @property
     def mpp(self) -> SizeMm:
         return self._mpp
 

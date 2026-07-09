@@ -102,7 +102,7 @@ class TestHistechTiffTiler:
         subsampling = level.subsampling
 
         # Assert
-        assert subsampling is None
+        assert subsampling == (2, 1)
 
     def test_sumples_per_pixel(self, level: BaseTiffImage):
         # Arrange

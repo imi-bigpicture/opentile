@@ -15,6 +15,7 @@
 from hashlib import md5
 
 import pytest
+from tifffile import PHOTOMETRIC
 
 from opentile.formats import OmeTiffTiler
 from opentile.geometry import SizeMm
@@ -57,6 +58,15 @@ class TestOmeTiffTiler:
         # Assert
         assert md5(tile).hexdigest() == hash
 
+    def test_photometric_interpretation(self, level: BaseTiffImage):
+        # Arrange
+
+        # Act
+        photometric_interpretation = level.photometric_interpretation
+
+        # Assert
+        assert photometric_interpretation == PHOTOMETRIC.YCBCR
+
     def test_subsampling(self, level: BaseTiffImage):
         # Arrange
 
@@ -64,7 +74,7 @@ class TestOmeTiffTiler:
         subsampling = level.subsampling
 
         # Assert
-        assert subsampling is None
+        assert subsampling == (2, 2)
 
     def test_sumples_per_pixel(self, level: BaseTiffImage):
         # Arrange
