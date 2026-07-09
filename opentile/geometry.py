@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import Union
 
 
-@dataclass
+@dataclass(frozen=True)
 class SizeMm:
     width: float
     height: float
@@ -71,40 +71,7 @@ class SizeMm:
             raise ValueError("input did not contain two values") from None
 
 
-@dataclass
-class PointMm:
-    x: float
-    y: float
-
-    def __str__(self) -> str:
-        return f"{self.x},{self.y}"
-
-    def __floordiv__(self, divider: SizeMm) -> "Point":
-        """Return divided PointMm rounded down to closest integer x and y."""
-        if isinstance(divider, SizeMm):
-            return Point(int(self.x / divider.width), int(self.y / divider.height))
-        return NotImplemented
-
-    def __add__(self, value: Union[int, float, SizeMm, "PointMm"]) -> "PointMm":
-        if isinstance(value, (int, float)):
-            return PointMm(self.x + value, self.y + value)
-        elif isinstance(value, SizeMm):
-            return PointMm(self.x + value.width, self.y + value.height)
-        elif isinstance(value, PointMm):
-            return PointMm(self.x + value.x, self.y + value.y)
-        return NotImplemented
-
-    @classmethod
-    def from_tuple(
-        cls, input: Union[tuple[float, float], Sequence[float]]
-    ) -> "PointMm":
-        try:
-            return cls(input[0], input[1])
-        except IndexError:
-            raise ValueError("input did not contain two values") from None
-
-
-@dataclass
+@dataclass(frozen=True)
 class Size:
     width: int
     height: int
@@ -167,9 +134,6 @@ class Size:
             )
         return NotImplemented
 
-    def __hash__(self) -> int:
-        return hash((self.width, self.height))
-
     def __lt__(self, item: "Size") -> bool:
         if isinstance(item, Size):
             return self.width < item.width
@@ -206,16 +170,13 @@ class Size:
         return self.width * self.height
 
 
-@dataclass
+@dataclass(frozen=True)
 class Point:
     x: int
     y: int
 
     def __str__(self) -> str:
         return f"{self.x},{self.y}"
-
-    def __hash__(self) -> int:
-        return hash((self.x, self.y))
 
     def __mul__(self, factor: Union[int, float, Size, "Point"]) -> "Point":
         if isinstance(factor, (int, float)):
@@ -294,7 +255,25 @@ class Point:
             raise ValueError("input did not contain two values") from None
 
 
-@dataclass
+@dataclass(frozen=True)
+class PointF:
+    """A point with float (sub-pixel) coordinates."""
+
+    x: float
+    y: float
+
+    def __str__(self) -> str:
+        return f"{self.x},{self.y}"
+
+    @classmethod
+    def from_tuple(cls, input: Union[tuple[float, float], Sequence[float]]) -> "PointF":
+        try:
+            return cls(input[0], input[1])
+        except IndexError:
+            raise ValueError("input did not contain two values") from None
+
+
+@dataclass(frozen=True)
 class Region:
     position: Point
     size: Size
@@ -357,21 +336,3 @@ class Region:
         end = Point.max(Point.min(region.end, self.end), self.position)
         size = Size.from_points(start, end)
         return Region(position=start, size=size)
-
-
-@dataclass
-class RegionMm:
-    position: PointMm
-    size: SizeMm
-
-    def __str__(self) -> str:
-        return f"from {self.start} to {self.end}"
-
-    @property
-    def start(self) -> PointMm:
-        return self.position
-
-    @property
-    def end(self) -> PointMm:
-        end: PointMm = self.position + self.size
-        return end

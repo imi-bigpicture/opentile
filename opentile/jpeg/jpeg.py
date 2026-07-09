@@ -310,18 +310,20 @@ class Jpeg:
             Concatenated frame in bytes.
         """
         frame = bytearray()
-        image_size: Optional[Size] = None
+        image_width: Optional[int] = None
+        image_height = 0
         scan_size: Optional[Size] = None
         subsample: Optional[int] = None
         for scan_index, scan in enumerate(scans):
             width, height, _subsample, _ = self._turbo_jpeg.decode_header(scan)
-            if image_size is None:
-                image_size = Size(width, height)
+            if image_width is None:
+                image_width = width
+                image_height = height
                 scan_size = Size(width, height)
                 scan_start = 0
                 subsample = _subsample
             else:
-                image_size.height += height
+                image_height += height
                 start_of_scan, length = self._find_tag(scan, self.start_of_scan())
                 if start_of_scan is None or length is None:
                     raise JpegTagNotFound("Start of scan not found in header")
@@ -333,9 +335,10 @@ class Jpeg:
         frame[-2:] = self.end_of_image()
 
         assert (
-            image_size is not None and scan_size is not None and subsample is not None
+            image_width is not None and scan_size is not None and subsample is not None
         )
         restart_interval = scan_size.ceil_div(self.subsample_to_mcu(subsample)).area
+        image_size = Size(image_width, image_height)
         frame = self._manipulate_header(frame, image_size, restart_interval)
 
         if jpeg_tables is not None:

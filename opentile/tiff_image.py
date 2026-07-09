@@ -31,34 +31,24 @@ from tifffile import (
 from upath import UPath
 
 from opentile.file import OpenTileFile
-from opentile.geometry import Point, Region, Size, SizeMm
+from opentile.geometry import Point, PointF, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegInfo
 from opentile.jpeg2000 import Jpeg2000, Jpeg2000Info
 
 
-@dataclass
+@dataclass(frozen=True)
 class TileOverlap:
-    """Placement of natively overlapping source tiles onto a de-overlapped canvas.
-
-    Some formats (Trestle, Ventana) store tiles that overlap their neighbours.
-    `image_size` is the composed (de-overlapped) level size, and `tile_positions`
-    maps each native source-tile grid position to the pixel top-left it occupies on
-    that canvas. A consumer de-overlaps by reading each source tile
-    (`TiffImage.get_tile`/`get_decoded_tile`) and placing it at its position; where
-    tiles overlap, the tile with the greater position wins (its top-left covers the
-    previous tile's discarded edge).
-    """
+    """Placement of natively overlapping source tiles"""
 
     image_size: Size
-    tile_positions: dict[Point, Point]
+    tile_positions: dict[Point, PointF]
 
     @classmethod
     def from_regular_grid(
         cls, raw_size: Size, tile_size: Size, overlap: Size
     ) -> "TileOverlap":
         """Build placement for a regular tile grid where every tile overlaps its
-        neighbour by a constant amount, keeping its top-left footprint (Trestle, and
-        a single Ventana area).
+        neighbour by a constant amount.
 
         Parameters
         ----------
@@ -78,7 +68,7 @@ class TileOverlap:
             raw_size.height - (tiles_down - 1) * overlap.height,
         )
         tile_positions = {
-            Point(x, y): Point(x * step_x, y * step_y)
+            Point(x, y): PointF(x * step_x, y * step_y)
             for y in range(tiles_down)
             for x in range(tiles_across)
         }
@@ -117,7 +107,7 @@ class TileOverlap:
             else 0.0
         )
         tile_positions = {
-            Point(x, y): Point(round(x * step_x), round(y * step_y))
+            Point(x, y): PointF(x * step_x, y * step_y)
             for y in range(tiles_down)
             for x in range(tiles_across)
         }
