@@ -207,7 +207,7 @@ def _jpeg_header(
     component_ids: list[int],
     sampling_factors: list[tuple[int, int]],
     precision: int = 8,
-    app14_transform: int | None = None,
+    app14_transform: Optional[int] = None,
     sos_predictor: int = 0,
 ) -> bytes:
     """Craft a minimal JPEG header (SOI + optional APP14 + SOF + SOS) for the
