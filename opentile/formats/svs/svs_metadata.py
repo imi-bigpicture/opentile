@@ -35,16 +35,15 @@ class SvsMetadata(Metadata):
             return None
 
     def _get_timezone(self) -> Optional[timezone]:
-        if "Time Zone" in self._svs_metadata:
-            tz_str = self._svs_metadata["Time Zone"]
-            # as of today, we have assert tz_str.startswith("GMT") == True
-            # Example tz_str: "GMT-07:00" or "GMT-0400"
+        tz_str = self._svs_metadata.get("Time Zone")
+        if tz_str is not None:
             if not (tz_str.startswith("GMT") and tz_str[3] in ("+", "-")):
                 return None
             sign = -1 if tz_str[3] == "-" else 1
             digits = tz_str[4:].replace(":", "")  # "06:00" or "0600" -> "0600"
             hours, minutes = map(int, (digits[:2], digits[2:]))
             return timezone(sign * timedelta(hours=hours, minutes=minutes))
+        return None
 
     @staticmethod
     def _extract_date(date_string: str) -> datetime:
