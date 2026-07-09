@@ -57,6 +57,10 @@ class NdpiMetadata(Metadata):
         return self._ndpi_tags.get("ScannerSerialNumber")
 
     @property
+    def label_text(self) -> Optional[str]:
+        return self._ndpi_tags.get("SlideLabel")
+
+    @property
     def acquisition_datetime(self) -> Optional[datetime]:
         datetime_tag = self._tags.get("DateTime")
         if datetime_tag is None:

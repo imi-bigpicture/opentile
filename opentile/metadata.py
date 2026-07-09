@@ -55,6 +55,11 @@ class Metadata:
         return None
 
     @property
+    def label_text(self) -> Optional[str]:
+        """Return the slide label/barcode text if present in file."""
+        return None
+
+    @property
     def properties(self) -> dict[str, Any]:
         """Return a dictionary of other metadata present in file."""
         return {}

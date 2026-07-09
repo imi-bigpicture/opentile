@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Metadata.label_text` property returning the slide label/barcode text if present in the file (svs `Title`, ndpi tag 65427 `SlideLabel`), `None` otherwise.
 - `TiffImage.encoded_info` property returning the parsed properties of the encoded image data: a `JpegInfo` (coding process, bit depth, components, subsampling, RGB signal, lossless predictor) for JPEG, a `Jpeg2000Info` (reversible wavelet, multiple component transform, components, subsampling, bit depth, extended capabilities) for JPEG 2000, or `None` for other compressions. Read from the codestream markers, without decoding pixels.
 
 ### Changed

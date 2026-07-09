@@ -90,6 +90,10 @@ class SvsMetadata(Metadata):
         return datetime.combine(date, time.time(), tzinfo=tz_info)
 
     @property
+    def label_text(self) -> Optional[str]:
+        return self._svs_metadata.get("Title")
+
+    @property
     def mpp(self) -> float:
         return float(self._svs_metadata["MPP"])
 
