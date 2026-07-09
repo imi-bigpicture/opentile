@@ -76,6 +76,8 @@ class NdpiTiler(Tiler):
         self._jpeg = Jpeg(turbo_path)
         self._metadata = NdpiMetadata(self._base_page)
         self._label_crop_position = label_crop_position
+        # Label is cropped out from the overview image
+        self._label_series_index = self._overview_series_index
 
     @property
     def metadata(self) -> Metadata:

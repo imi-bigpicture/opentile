@@ -492,6 +492,19 @@ class TestNdpiTiler:
         # Assert
         assert md5(label).hexdigest() == "ff78b53c3d483adb04b3e24e413cc96f"
 
+    def test_labels_list(self, tiler: NdpiTiler):
+        # Arrange
+
+        # Act
+        labels = tiler.labels
+
+        # Assert
+        assert len(labels) == 1
+        assert (
+            md5(labels[0].get_tile((0, 0))).hexdigest()
+            == "ff78b53c3d483adb04b3e24e413cc96f"
+        )
+
     def test_overview(self, tiler: NdpiTiler):
         # Arrange
 

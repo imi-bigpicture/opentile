@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The svs RGB colorspace fix (which signals RGB on Aperio's marker-less RGB JPEG) is now only applied to JPEG pages whose photometric interpretation is RGB, instead of unconditionally for all JPEG compressed svs pages.
+- ndpi `Tiler.labels` is now populated (from the label cropped out of the macro/overview series), instead of always being empty, so consumers see the label image.
 
 ## [0.23.0] - 2026-06-24
 
