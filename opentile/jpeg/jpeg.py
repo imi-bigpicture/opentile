@@ -291,7 +291,7 @@ class Jpeg:
         jpeg_tables: Optional[bytes],
         rgb_colorspace_fix: bool = False,
     ) -> bytes:
-        """Return frame created by horisontal concatenating scans. Scans must
+        """Return frame created by horizontal concatenating scans. Scans must
         have the same header content, and only the last scan is allowed to have
         a different height.
 

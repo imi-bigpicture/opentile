@@ -54,7 +54,7 @@ class TiffImage(metaclass=ABCMeta):
     @property
     @abstractmethod
     def supported_compressions(self) -> Optional[list[COMPRESSION]]:
-        """List of compressions supported, or None if image is indenpendent on
+        """List of compressions supported, or None if image is independent on
         compression."""
         raise NotImplementedError()
 
