@@ -36,6 +36,12 @@ from opentile.jpeg2000 import Jpeg2000, Jpeg2000Info
 from opentile.tile_overlap import TileOverlap
 
 
+class NonDyadicPyramidLevelError(NotImplementedError):
+    """Raised when a level's downsample is not a clean power of two, so it cannot be
+    placed in the pyramid. Subclasses NotImplementedError for backwards compatibility.
+    """
+
+
 class TiffImage(metaclass=ABCMeta):
     """Abstract class for reading tiles from TiffPage."""
 
@@ -530,10 +536,9 @@ class BaseTiffImage(TiffImage):
         index = int(round(float_index))
         TOLERANCE = 1e-2
         if not math.isclose(float_index, index, abs_tol=TOLERANCE):
-            raise NotImplementedError(
-                f"Pyramid index needs to be integer. Got {float_index} that is "
-                f"more than set"
-                f"tolerance {TOLERANCE} from the closest integer {index}. "
+            raise NonDyadicPyramidLevelError(
+                f"Pyramid index needs to be integer. Got {float_index} that is more "
+                f"than set tolerance {TOLERANCE} from the closest integer {index}. "
             )
         return index
 

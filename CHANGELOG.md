@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `Tiler.levels` now drops trailing coarse levels whose downsample is not a clean power of two instead of raising when building the level list, so such files open (their usable dyadic levels are still served).
 - Renamed the misspelled `Metadata.aquisition_datetime` property to `acquisition_datetime` (all formats).
 - `TiffImage.photometric_interpretation` and `TiffImage.subsampling` are now derived from the codestream (`encoded_info`) rather than the sometimes-mislabelled TIFF tags, falling back to the tag only when the codestream carries no colorspace signal.
 - The default optical path identifier is now `1` instead of `0`.

@@ -30,6 +30,7 @@ from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
+    NonDyadicPyramidLevelError,
     ThumbnailTiffImage,
 )
 
@@ -84,16 +85,26 @@ class Tiler(metaclass=ABCMeta):
 
     @cached_property
     def levels(self) -> list[LevelTiffImage]:
-        """Return list of pyramid level TiffImages."""
+        """Return list of pyramid level TiffImages.
+
+        Trailing coarse levels whose downsample is not a clean power of two (e.g.
+        Ventana's coarsest overview levels) cannot be placed in the pyramid and are
+        dropped along with any coarser levels."""
         if self._level_series_index is None:
             return []
-        return [
-            self.get_level(level_index, page_index)
-            for level_index, level in enumerate(
-                self._file.series[self._level_series_index].levels
-            )
-            for page_index, page in enumerate(level.pages)
-        ]
+        levels: list[LevelTiffImage] = []
+        for level_index, level in enumerate(
+            self._file.series[self._level_series_index].levels
+        ):
+            try:
+                level_images = [
+                    self.get_level(level_index, page_index)
+                    for page_index, _ in enumerate(level.pages)
+                ]
+            except NonDyadicPyramidLevelError:
+                break
+            levels.extend(level_images)
+        return levels
 
     @cached_property
     def labels(self) -> list[AssociatedTiffImage]:
