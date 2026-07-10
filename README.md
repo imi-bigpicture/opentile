@@ -1,14 +1,14 @@
 # *opentile*
 
-*opentile* is a Python library for reading tiles from wsi tiff files. The aims of the proect are:
+*opentile* is a Python library for reading tiles from wsi tiff files. The aims of the project are:
 
-- Allow compressed tiles to be losslessly read from wsi tiffs using 2D coordinates (tile position x, y).
-- Provide unified interface for relevant metadata.
-- Support file formats supported by tifffile that have a non-overlapping tile structure, as well as formats whose tiles overlap their neighbours (Trestle, Ventana), for which the de-overlapped tile placement is also exposed.
+- Allow compressed tiles to be losslessly read from WSI TIFFS using 2D coordinates (tile position x, y),
+- Provide a unified interface for relevant metadata,
+- Support file formats supported by `tifffile` that have a non-overlapping tile structure, as well as formats whose tiles overlap their neighbours (Trestle, Ventana), for which the de-overlapped tile placement is also exposed.
 
-*opentile* does `not` provide methods for reading regions from images (e.g. `get_region()`). See [openslide-python](https://github.com/openslide/openslide-python), [tiffslide](https://github.com/bayer-science-for-a-better-life/tiffslide), or [wsidicomizer](https://github.com/imi-bigpicture/wsidicomizer) for such use.
+*opentile* does _not_ provide methods for reading regions from images (e.g. `get_region()`). See [openslide-python](https://github.com/openslide/openslide-python), [tiffslide](https://github.com/bayer-science-for-a-better-life/tiffslide), or [wsidicomizer](https://github.com/imi-bigpicture/wsidicomizer) for such use.
 
-Currently implemented file formats are listed and described under *Implemented file formats*.
+Currently implemented file formats are listed and described under [Implemented file formats](implemented-file-formats).
 
 ## Installing *opentile*
 
@@ -26,11 +26,11 @@ conda install -c conda-forge opentile
 
 ## Important note
 
-Please note that this is an early release and the API is not frozen yet. Function names and functionality is prone to change.
+Please note that this is an early release and the API is not frozen yet. Function names and functionality are prone to change.
 
 ## Requirements
 
-*opentile* requires python >=3.8 and uses numpy, Pillow, TiffFile, and PyTurboJPEG (with lib-turbojpeg >= 2.1 ), imagecodecs, defusedxml, and ome-types.
+*opentile* requires python >=3.9 and uses numpy, Pillow, TiffFile, and PyTurboJPEG (with lib-turbojpeg >= 2.1 ), imagecodecs, defusedxml, and ome-types.
 
 ## Limitations
 
@@ -40,10 +40,10 @@ Files with z-stacks are currently not fully supported for all formats.
 
 The following description of the workings of the implemented file formats does not include the additional specifics for each format that is handled by tifffile. Additional formats supported by tifffile are likely to be added in future releases.
 
-Formats whose tiles overlap their neighbours (Trestle, Ventana) still serve the raw overlapping source tiles by grid position, and additionally expose `TiffImage.overlap` (a `TileOverlap`) giving the de-overlapped level size and the position of each source tile, so a consumer can compose non-overlapping output tiles.
+Formats whose tiles overlap their neighbors (Trestle, Ventana) still serve the raw overlapping source tiles by grid position, and additionally expose `TiffImage.overlap` (a `TileOverlap`) giving the de-overlapped level size and the position of each source tile, so a consumer can compose non-overlapping output tiles.
 
 ***Hamamatsu Ndpi***
-The Ndpi-format uses non-rectangular tile size typically 8 pixels high, i.e. stripes. To form tiles, first multiple stripes are concatenated to form a frame covering the tile region. Second, if the stripes are longer than the tile width, the tile is croped out of the frame. The concatenation and crop transformations are performed losslessly.
+The Ndpi-format uses non-rectangular tile size typically 8 pixels high, i.e. stripes. To form tiles, first multiple stripes are concatenated to form a frame covering the tile region. Second, if the stripes are longer than the tile width, the tile is cropped out of the frame. The concatenation and crop transformations are performed losslessly.
 
 A ndpi-file can also contain non-tiled images. If these are part of a pyramidal series, *opentile* tiles the image.
 
@@ -62,7 +62,7 @@ Only the pyramidal levels are supported (not overviews or labels).
 Metadata parsing is not yet implemented.
 
 ***Trestle tiff***
-Trestle tiff-files (identified by a `Software` tag starting with `MedScan`) store tiles that overlap their neighbours by a fixed per-level amount. The recorded overlap is used to place each tile on the de-overlapped level (see the note on overlapping formats above).
+Trestle tiff-files (identified by a `Software` tag starting with `MedScan`) store tiles that overlap their neighbors by a fixed per-level amount. The recorded overlap is used to place each tile on the de-overlapped level (see the note on overlapping formats above).
 
 ***Ventana bif***
 Ventana bif-files store a single-file pyramidal tiled BigTIFF whose tiles overlap. The per-boundary overlaps and each scanned area's origin are parsed from the `EncodeInfo` XMP (serpentine-indexed), and multi-area slides are supported. Already-stitched (non-overlapping) Ventana tiff files are also read, as a plain tiled pyramid.
@@ -119,7 +119,7 @@ tiler.close()
 
 ***Usage as context manager***
 
-The tiler can also be used as context manager:
+The tiler can also be used as a context manager:
 
 ```python
 from opentile import OpenTile
@@ -138,13 +138,13 @@ git clone https://github.com/imi-bigpicture/opentile.git
 uv sync --all-extras
 ```
 
-By default the tests looks for slides in 'tests/testdata'. This can be overridden by setting the OPENTILE_TESTDIR environment variable. The script 'tests/download_test_images.py' can be used to download publicly available [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/) into the set testdata folder:
+By default the tests looks for slides in `tests/testdata`. This can be overridden by setting the `OPENTILE_TESTDIR` environment variable. The script 'tests/download_test_images.py' can be used to download publicly available [openslide testdata](https://openslide.cs.cmu.edu/download/openslide-testdata/) into the set testdata folder:
 
 ```console
 python tests/download_test_images.py
 ```
 
-The test data used for philips tiff is currently not publicly available as we dont have permission to share them. If you have slides in philips tiff format that can be freely shared we would be happy to use them instead.
+The test data used for philips tiff is currently not publicly available as we don't have permission to share them. If you have slides in philips tiff format that can be freely shared, we would be happy to use them instead.
 
 To watch unit tests use:
 
