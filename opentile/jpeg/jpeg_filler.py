@@ -96,7 +96,7 @@ class BlankImage:
         array_type = c_short * coeff_array_size
         array_pointer = cast(coeffs_ptr, POINTER(array_type))
         coeffs = np.frombuffer(array_pointer.contents, dtype=np.int16)
-        coeffs.shape = (array_region.h // 8, array_region.w // 8, 64)
+        coeffs = coeffs.reshape((array_region.h // 8, array_region.w // 8, 64))
         return coeffs
 
     @classmethod

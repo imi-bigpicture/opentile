@@ -235,7 +235,7 @@ class OpenTileFile:
     @property
     def series(self) -> list[TiffPageSeries]:
         """Return the series in the TiffFile."""
-        return self._tiff_file.series
+        return list(self._tiff_file.series)
 
     @property
     def filepath(self) -> UPath:
