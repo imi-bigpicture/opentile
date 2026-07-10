@@ -24,6 +24,8 @@ from .filepaths import (
     ome_tiff_file_path,
     philips_file_path,
     svs_file_path,
+    trestle_file_path,
+    ventana_file_path,
 )
 
 
@@ -37,6 +39,8 @@ class TestInterface:
             philips_file_path,
             histech_file_path,
             ome_tiff_file_path,
+            trestle_file_path,
+            ventana_file_path,
         ],
     )
     def test_open(self, file_path: Path):

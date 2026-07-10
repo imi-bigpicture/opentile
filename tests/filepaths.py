@@ -26,3 +26,5 @@ histech_file_path = slide_folder.joinpath(
     "3dhistech_tiff/CMU-1/CMU-1_Default_Extended.tif"
 )
 ome_tiff_file_path = slide_folder.joinpath("ome_tiff/CMU-1/CMU-1.ome.tiff")
+trestle_file_path = slide_folder.joinpath("trestle_tiff/CMU-1/CMU-1.tif")
+ventana_file_path = slide_folder.joinpath("ventana_bif/OS-1/OS-1.bif")

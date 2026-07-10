@@ -4,7 +4,7 @@
 
 - Allow compressed tiles to be losslessly read from wsi tiffs using 2D coordinates (tile position x, y).
 - Provide unified interface for relevant metadata.
-- Support all file formats supported by tifffile that has a non-overlapping tile structure.
+- Support file formats supported by tifffile that have a non-overlapping tile structure, as well as formats whose tiles overlap their neighbours (Trestle, Ventana), for which the de-overlapped tile placement is also exposed.
 
 *opentile* does `not` provide methods for reading regions from images (e.g. `get_region()`). See [openslide-python](https://github.com/openslide/openslide-python), [tiffslide](https://github.com/bayer-science-for-a-better-life/tiffslide), or [wsidicomizer](https://github.com/imi-bigpicture/wsidicomizer) for such use.
 
@@ -38,7 +38,9 @@ Files with z-stacks are currently not fully supported for all formats.
 
 ## Implemented file formats
 
-The following description of the workings of the implemented file formats does not include the additional specifics for each format that is handled by tifffile. Additional formats supported by tifffile and that have non-overlapping tile layout are likely to be added in future release.
+The following description of the workings of the implemented file formats does not include the additional specifics for each format that is handled by tifffile. Additional formats supported by tifffile are likely to be added in future releases.
+
+Formats whose tiles overlap their neighbours (Trestle, Ventana) still serve the raw overlapping source tiles by grid position, and additionally expose `TiffImage.overlap` (a `TileOverlap`) giving the de-overlapped level size and the position of each source tile, so a consumer can compose non-overlapping output tiles.
 
 ***Hamamatsu Ndpi***
 The Ndpi-format uses non-rectangular tile size typically 8 pixels high, i.e. stripes. To form tiles, first multiple stripes are concatenated to form a frame covering the tile region. Second, if the stripes are longer than the tile width, the tile is croped out of the frame. The concatenation and crop transformations are performed losslessly.
@@ -58,6 +60,12 @@ Only the pyramidal levels are supported (not overviews or labels).
 
 ***OME tiff***
 Metadata parsing is not yet implemented.
+
+***Trestle tiff***
+Trestle tiff-files (identified by a `Software` tag starting with `MedScan`) store tiles that overlap their neighbours by a fixed per-level amount. The recorded overlap is used to place each tile on the de-overlapped level (see the note on overlapping formats above).
+
+***Ventana bif***
+Ventana bif-files store a single-file pyramidal tiled BigTIFF whose tiles overlap. The per-boundary overlaps and each scanned area's origin are parsed from the `EncodeInfo` XMP (serpentine-indexed), and multi-area slides are supported. Already-stitched (non-overlapping) Ventana tiff files are also read, as a plain tiled pyramid.
 
 ## Metadata
 

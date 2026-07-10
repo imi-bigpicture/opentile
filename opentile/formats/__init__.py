@@ -19,6 +19,8 @@ from opentile.formats.ndpi import NdpiTiler
 from opentile.formats.ome import OmeTiffTiler
 from opentile.formats.philips import PhilipsTiffTiler
 from opentile.formats.svs import SvsTiler
+from opentile.formats.trestle import TrestleTiffTiler
+from opentile.formats.ventana import VentanaTiffTiler
 
 __all__ = [
     "OmeTiffTiler",
@@ -26,4 +28,6 @@ __all__ = [
     "HistechTiffTiler",
     "PhilipsTiffTiler",
     "SvsTiler",
+    "TrestleTiffTiler",
+    "VentanaTiffTiler",
 ]

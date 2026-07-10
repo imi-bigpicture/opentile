@@ -30,6 +30,8 @@ from opentile.formats import (
     OmeTiffTiler,
     PhilipsTiffTiler,
     SvsTiler,
+    TrestleTiffTiler,
+    VentanaTiffTiler,
 )
 from opentile.tiff_format import TiffFormat
 from opentile.tiler import Tiler
@@ -42,6 +44,8 @@ class OpenTile:
         TiffFormat.PHILIPS_TIFF: PhilipsTiffTiler,
         TiffFormat.HISTECH_TIFF: HistechTiffTiler,
         TiffFormat.OME_TIFF: OmeTiffTiler,
+        TiffFormat.TRESTLE: TrestleTiffTiler,
+        TiffFormat.VENTANA: VentanaTiffTiler,
     }
 
     @classmethod
@@ -79,6 +83,10 @@ class OpenTile:
             return HistechTiffTiler(file)
         if supported_tiler is OmeTiffTiler:
             return OmeTiffTiler(file)
+        if supported_tiler is TrestleTiffTiler:
+            return TrestleTiffTiler(file)
+        if supported_tiler is VentanaTiffTiler:
+            return VentanaTiffTiler(file)
         raise NotImplementedError(f"Support for tiff file {filepath} not implemented.")
 
     @classmethod

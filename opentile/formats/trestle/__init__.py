@@ -1,4 +1,4 @@
-#    Copyright 2024 SECTRA AB
+#    Copyright 2026 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -12,16 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Enum for supported TIFF formats."""
+from opentile.formats.trestle.trestle_tiff_tiler import TrestleTiffTiler
 
-from enum import Enum
-
-
-class TiffFormat(Enum):
-    NDPI = "ndpi"
-    SVS = "svs"
-    PHILIPS_TIFF = "philips"
-    HISTECH_TIFF = "3dhistech"
-    OME_TIFF = "ome-tiff"
-    TRESTLE = "trestle"
-    VENTANA = "ventana"
+__all__ = ["TrestleTiffTiler"]

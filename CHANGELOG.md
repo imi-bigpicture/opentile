@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support for reading Trestle (`.tif`, `Software` starting with `MedScan`) and Ventana (`.bif`, including multi-area slides) whole-slide images, whose tiles overlap their neighbours. `OverlappingLevelTiffImage` serves the raw overlapping tiles by grid position and additionally exposes `TiffImage.overlap` (a `TileOverlap` giving the de-overlapped level size and each source tile's position), so a consumer can compose non-overlapping output tiles.
+- Support for already-stitched (non-overlapping) Ventana tiff files, whose level page carries no `EncodeInfo`/XMP: they are served as a plain tiled pyramid (`VentanaLevelTiffImage`) with the iScan metadata read from the associated page that carries it. Raw (overlapping) `.bif` files are unaffected.
 - `Metadata.label_text` property returning the slide label/barcode text if present in the file (svs `Title`, ndpi tag 65427 `SlideLabel`), `None` otherwise.
 - `TiffImage.encoded_info` property returning the parsed properties of the encoded image data: a `JpegInfo` (coding process, bit depth, components, subsampling, RGB signal, lossless predictor) for JPEG, a `Jpeg2000Info` (reversible wavelet, multiple component transform, components, subsampling, bit depth, extended capabilities) for JPEG 2000, or `None` for other compressions. Read from the codestream markers, without decoding pixels.
 - `SvsMetadata` now derives scanner fields from the Aperio SVS header — `scanner_manufacturer`, `scanner_model`, and `scanner_software_versions`.
