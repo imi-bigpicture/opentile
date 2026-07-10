@@ -34,6 +34,65 @@ class SvsMetadata(Metadata):
         except (KeyError, ValueError):
             return None
 
+    @property
+    def scanner_manufacturer(self) -> Optional[str]:
+        if self.scanner_serial_number is None:
+            return None
+        return "Leica Biosystems"
+
+    @property
+    def scanner_model(self) -> Optional[str]:
+        scanner_type = self._svs_metadata.get("ScannerType")
+        if scanner_type:
+            return scanner_type
+        if self.scanner_serial_number is None:
+            return None
+        header = self._header.splitlines()[0] if self._header else ""
+        if "GT450 DX" in header:
+            return "GT450 DX"
+        # must be after 'GT450 DX':
+        if "GT450" in header:
+            return "GT450"
+        return "Aperio"
+
+    @property
+    def scanner_software_versions(self) -> Optional[list[str]]:
+        return [
+            segment.splitlines()[0].strip()
+            for segment in self._header.split(";")
+            if segment.strip()
+        ]
+
+    @property
+    def scanner_serial_number(self) -> Optional[str]:
+        return self._svs_metadata.get("ScanScope ID")
+
+    @property
+    def acquisition_datetime(self) -> Optional[datetime]:
+        try:
+            date = SvsMetadata._extract_date(self._svs_metadata["Date"])
+            time = datetime.strptime(self._svs_metadata["Time"], r"%H:%M:%S")
+            tz_info = self._get_timezone()
+        except (KeyError, ValueError):
+            return None
+        return datetime.combine(date, time.time(), tzinfo=tz_info)
+
+    @property
+    def label_text(self) -> Optional[str]:
+        return self._svs_metadata.get("Title")
+
+    @property
+    def mpp(self) -> float:
+        return float(self._svs_metadata["MPP"])
+
+    @property
+    def properties(self) -> dict[str, Any]:
+        return self._svs_metadata
+
+    @property
+    def _header(self) -> str:
+        return self._svs_metadata.get("Header", "")
+
     def _get_timezone(self) -> Optional[timezone]:
         tz_str = self._svs_metadata.get("Time Zone")
         if tz_str is not None:
@@ -78,60 +137,3 @@ class SvsMetadata(Metadata):
                 f"Date '{date_string}' doesn't match expected formats "
                 "(MM/DD/YYYY or MM/DD/YY)"
             ) from None
-
-    @property
-    def scanner_manufacturer(self) -> Optional[str]:
-        if self.scanner_serial_number is None:
-            return None
-        return "Leica Biosystems"
-
-    @property
-    def scanner_model(self) -> Optional[str]:
-        scanner_type = self._svs_metadata.get("ScannerType")
-        if scanner_type:
-            return scanner_type
-        # else
-        header = self._svs_metadata["Header"].splitlines()[0]
-        if "GT450 DX" in header:
-            return "GT450 DX"
-        # must be after 'GT450 DX':
-        if "GT450" in header:
-            return "GT450"
-        if self.scanner_serial_number is None:
-            return None
-        return "Aperio"
-
-    @property
-    def scanner_software_versions(self) -> Optional[list[str]]:
-        header = self._svs_metadata["Header"]
-        return [
-            segment.splitlines()[0].strip()
-            for segment in header.split(";")
-            if segment.strip()
-        ]
-
-    @property
-    def scanner_serial_number(self) -> Optional[str]:
-        return self._svs_metadata.get("ScanScope ID")
-
-    @property
-    def acquisition_datetime(self) -> Optional[datetime]:
-        try:
-            date = SvsMetadata._extract_date(self._svs_metadata["Date"])
-            time = datetime.strptime(self._svs_metadata["Time"], r"%H:%M:%S")
-            tz_info = self._get_timezone()
-        except (KeyError, ValueError):
-            return None
-        return datetime.combine(date, time.time(), tzinfo=tz_info)
-
-    @property
-    def label_text(self) -> Optional[str]:
-        return self._svs_metadata.get("Title")
-
-    @property
-    def mpp(self) -> float:
-        return float(self._svs_metadata["MPP"])
-
-    @property
-    def properties(self) -> dict[str, Any]:
-        return self._svs_metadata

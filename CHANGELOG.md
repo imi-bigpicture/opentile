@@ -11,12 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Metadata.label_text` property returning the slide label/barcode text if present in the file (svs `Title`, ndpi tag 65427 `SlideLabel`), `None` otherwise.
 - `TiffImage.encoded_info` property returning the parsed properties of the encoded image data: a `JpegInfo` (coding process, bit depth, components, subsampling, RGB signal, lossless predictor) for JPEG, a `Jpeg2000Info` (reversible wavelet, multiple component transform, components, subsampling, bit depth, extended capabilities) for JPEG 2000, or `None` for other compressions. Read from the codestream markers, without decoding pixels.
+- `SvsMetadata` now derives scanner fields from the Aperio SVS header — `scanner_manufacturer`, `scanner_model`, and `scanner_software_versions`.
 
 ### Changed
 
 - Renamed the misspelled `Metadata.aquisition_datetime` property to `acquisition_datetime` (all formats).
 - `TiffImage.photometric_interpretation` and `TiffImage.subsampling` are now derived from the codestream (`encoded_info`) rather than the sometimes-mislabelled TIFF tags, falling back to the tag only when the codestream carries no colorspace signal.
 - The default optical path identifier is now `1` instead of `0`.
+- svs `acquisition_datetime` now applies the file's `Time Zone` field (`GMT±HH:MM`) when present, returning a timezone-aware datetime instead of a naive one, and parses both `MM/DD/YYYY` and `MM/DD/YY` date formats.
 
 ### Fixed
 
