@@ -83,7 +83,7 @@ class TestJpegFiller:
         original_height = 8
         extended_width = 16
         extended_height = 16
-        callback_row_heigth = 8
+        callback_row_height = 8
         background_luminance = 255
         gray = False
         componentID = 0
@@ -118,11 +118,11 @@ class TestJpegFiller:
 
         # Act
         # Iterate the callback with one mcu-row of data.
-        for row in range(extended_height // callback_row_heigth):
-            data_start = row * callback_row_heigth * extended_width
-            data_end = (row + 1) * callback_row_heigth * extended_width
+        for row in range(extended_height // callback_row_height):
+            data_start = row * callback_row_height * extended_width
+            data_end = (row + 1) * callback_row_height * extended_width
             arrayRegion = CroppingRegion(
-                0, row * callback_row_heigth, extended_width, callback_row_heigth
+                0, row * callback_row_height, extended_width, callback_row_height
             )
             _ = fill_background(
                 coeffs[data_start:data_end].ctypes.data,
@@ -142,7 +142,7 @@ class TestJpegFiller:
         mcu_size = 64
         extended_width = 16
         extended_height = 16
-        callback_row_heigth = 8
+        callback_row_height = 8
         background_luminance = 508
         transformID = 0
         blank_image_transform = BlankImage()
@@ -174,11 +174,11 @@ class TestJpegFiller:
                 for index in range(0, extended_width * extended_height, mcu_size):
                     expected_results[index] = background_luminance
             # Iterate the callback with one mcu-row of data.
-            for row in range(extended_height // callback_row_heigth):
-                data_start = row * callback_row_heigth * extended_width
-                data_end = (row + 1) * callback_row_heigth * extended_width
+            for row in range(extended_height // callback_row_height):
+                data_start = row * callback_row_height * extended_width
+                data_end = (row + 1) * callback_row_height * extended_width
                 arrayRegion = CroppingRegion(
-                    0, row * callback_row_heigth, extended_width, callback_row_heigth
+                    0, row * callback_row_height, extended_width, callback_row_height
                 )
                 _ = blank_image_transform.callback(
                     coeffs[data_start:data_end].ctypes.data,  # type: ignore

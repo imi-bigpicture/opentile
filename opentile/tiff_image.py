@@ -218,7 +218,7 @@ class TiffImage(metaclass=ABCMeta):
         Parameters
         ----------
         raw: bool = False
-            Set to True to not do any format-specifc processing on the tile.
+            Set to True to not do any format-specific processing on the tile.
 
         Returns
         ----------

@@ -39,7 +39,7 @@ dev = [
     "requests>=2.28.1",
     "ruff>=0.15.14",
     "pyright>=1.1.409",
-    "codespell>=2.2.5",
+    "typos>=1.48.0",
 ]
 
 [build-system]
@@ -64,3 +64,8 @@ ignore = ["S101"]
 # rather than a context manager (SIM115), and long lines from embedded test data
 # such as URLs and checksums (E501).
 "tests/**" = ["S311", "S324", "SIM115", "E501"]
+
+[tool.typos.default.extend-words]
+ome = "ome"  # OME-TIFF format / ome-types package
+siz = "siz"  # JPEG 2000 SIZ marker
+subtile = "subtile"  # a (sub-)tile

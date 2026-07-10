@@ -147,7 +147,7 @@ class TestJpeg:
         assert 0 < frame.find(bytes([0xFF, 0xDB])) < sof  # DQT before SOF
         assert frame.find(bytes([0xFF, 0xEE])) < sof  # APP14 before SOF
         # Components renamed to ASCII 'R', 'G', 'B' as a marker-independent RGB
-        # signal (survives DICOM APPn stripping).
+        # signal (survives DICOM APP marker stripping).
         assert frame[sof + 9] == 3  # three components
         assert [frame[sof + 10 + c * 3] for c in range(3)] == [0x52, 0x47, 0x42]
         sos = frame.find(Jpeg.start_of_scan())

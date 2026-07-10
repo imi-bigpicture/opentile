@@ -382,7 +382,7 @@ class Jpeg:
         Returns
         ----------
         List[bytes]:
-            Croped frames.
+            Cropped frames.
         """
         try:
             return self._turbo_jpeg.crop_multiple(frame, crop_parameters)
