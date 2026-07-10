@@ -14,8 +14,10 @@
 
 __all__ = ["OpenTile", "Metadata", "TiffFormat"]
 
+from importlib.metadata import version
+
 from opentile.metadata import Metadata
 from opentile.opentile import OpenTile
 from opentile.tiff_format import TiffFormat
 
-__version__ = "0.23.0"
+__version__ = version("opentile")
