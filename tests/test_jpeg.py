@@ -177,10 +177,12 @@ class TestJpeg:
         ).astype(np.uint8)
         # Encode each strip as no subsampling jpeg
         scans = [
-            jpeg8_encode(
-                image[index * strip_height : (index + 1) * strip_height],
-                subsampling="444",
-                optimize=False,
+            bytes(
+                jpeg8_encode(
+                    image[index * strip_height : (index + 1) * strip_height],
+                    subsampling="444",
+                    optimize=False,
+                )
             )
             for index in range(strip_count)
         ]
@@ -240,7 +242,9 @@ class TestJpegInfo:
     ):
         # Arrange
         image = (np.random.rand(64, 64, 3) * 255).astype(np.uint8)
-        frame = jpeg8_encode(image, colorspace=JPEG8.CS.YCbCr, subsampling=subsampling)
+        frame = bytes(
+            jpeg8_encode(image, colorspace=JPEG8.CS.YCbCr, subsampling=subsampling)
+        )
 
         # Act
         info = Jpeg.info(frame)
@@ -251,7 +255,7 @@ class TestJpegInfo:
     def test_info_baseline_8bit(self):
         # Arrange
         image = (np.random.rand(64, 64, 3) * 255).astype(np.uint8)
-        frame = jpeg8_encode(image, colorspace=JPEG8.CS.YCbCr)
+        frame = bytes(jpeg8_encode(image, colorspace=JPEG8.CS.YCbCr))
 
         # Act
         info = Jpeg.info(frame)
@@ -264,7 +268,7 @@ class TestJpegInfo:
     def test_info_extended_12bit(self):
         # Arrange — 12-bit encodes as extended sequential (SOF1)
         image = (np.random.rand(64, 64, 3) * 4095).astype(np.uint16)
-        frame = jpeg8_encode(image, bitspersample=12)
+        frame = bytes(jpeg8_encode(image, bitspersample=12))
 
         # Act
         info = Jpeg.info(frame)
@@ -293,7 +297,7 @@ class TestJpegInfo:
     def test_info_grayscale_has_no_subsampling(self):
         # Arrange
         image = (np.random.rand(64, 64) * 255).astype(np.uint8)
-        frame = jpeg8_encode(image, colorspace=JPEG8.CS.GRAYSCALE)
+        frame = bytes(jpeg8_encode(image, colorspace=JPEG8.CS.GRAYSCALE))
 
         # Act
         info = Jpeg.info(frame)
