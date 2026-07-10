@@ -60,7 +60,6 @@ class TestNdpiMetadata:
     ) -> None:
         # Arrange
         page = decoy.mock(cls=TiffPage)
-        decoy.when(page.tags).then_return({})
         decoy.when(page.ndpi_tags).then_return(ndpi_tags)
 
         # Act
