@@ -18,10 +18,10 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Load test images from cache
         id: cache-test-images
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           key: test-images-cache-${{ hashFiles('tests/download_test_images.py') }}
           path: tests/testdata/slides
@@ -49,7 +49,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Set up Python
         id: setup-python
         uses: actions/setup-python@v6
@@ -57,7 +57,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Load test images from cache
         id: cache-test-images
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           key: test-images-cache-${{ hashFiles('tests/download_test_images.py') }}
           path: tests/testdata/slides
@@ -79,7 +79,7 @@ jobs:
           script: |
             core.addPath('C:\\turbojpeg')
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v8.3.2
       - name: Install Application
         run: uv sync --all-extras
       - name: Test with pytest.
