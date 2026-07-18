@@ -14,23 +14,56 @@
 
 """General settings."""
 
+import contextvars
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
 
+
+@dataclass(frozen=True)
 class Settings:
-    """Class containing settings. Settings are to be accessed through the
-    global variable settings."""
+    """Immutable settings for opentile.
 
-    def __init__(self) -> None:
-        self._ndpi_frame_cache = 128
+    Construct with the desired values. To change the process-wide default, use
+    ``set_default_settings(Settings(...))``. To apply settings to a block of
+    code, use ``use_settings``.
+    """
 
-    @property
-    def ndpi_frame_cache(self) -> int:
-        """Number of frames to cache for ndpi."""
-        return self._ndpi_frame_cache
-
-    @ndpi_frame_cache.setter
-    def ndpi_frame_cache(self, value: int) -> None:
-        self._ndpi_frame_cache = value
+    ndpi_frame_cache: int = 128
+    """Number of frames to cache for ndpi."""
 
 
-settings = Settings()
-"""Global settings variable."""
+_default_settings = Settings()
+_active_settings: contextvars.ContextVar[Settings | None] = contextvars.ContextVar(
+    "opentile_active_settings", default=None
+)
+
+
+def get_settings() -> Settings:
+    """The settings in effect: those active in the current context (see
+    ``use_settings``), or the process-wide default when none is active."""
+    return _active_settings.get() or _default_settings
+
+
+def set_default_settings(new_settings: Settings) -> None:
+    """Replace the process-wide default settings."""
+    global _default_settings
+    _default_settings = new_settings
+
+
+@contextmanager
+def use_settings(active: Settings | None = None) -> Iterator[Settings]:
+    """Yield the settings in effect, optionally activating ``active`` first.
+
+    With no argument it yields the settings currently in effect. With an
+    ``active`` ``Settings`` it activates it for the current context (and for
+    thread-pool tasks that propagate the context), yields it, and resets on exit.
+    """
+    if active is None:
+        yield get_settings()
+        return
+    token = _active_settings.set(active)
+    try:
+        yield active
+    finally:
+        _active_settings.reset(token)

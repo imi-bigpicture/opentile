@@ -24,7 +24,7 @@ from imagecodecs import jpeg8_decode
 from tifffile import COMPRESSION, RESUNIT, TiffPage
 
 from opentile.cache import lru_cached_method
-from opentile.config import settings
+from opentile.config import get_settings
 from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Region, Size, SizeMm
@@ -364,7 +364,7 @@ class NdpiOneFrameImage(NdpiTiledImage):
                 self._read_extended_frame(frame_job.position, frame_job.frame_size),
             )
 
-    @lru_cached_method(maxsize=lambda: settings.ndpi_frame_cache)
+    @lru_cached_method(maxsize=lambda: get_settings().ndpi_frame_cache)
     def _read_extended_frame(self, position: Point, frame_size: Size) -> bytes:
         """Return padded image covering tile coordinate as valid jpeg bytes.
 

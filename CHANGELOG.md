@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Settings` (immutable) and `get_settings`, `set_default_settings` and `use_settings` for configuring opentile.
 
 ### Removed
 
+- The mutable `settings` global (`settings.<field> = ...`). Change the process-wide default with `set_default_settings(Settings(...))` instead.
 - Support for Python 3.9 (end-of-life). The minimum is now Python 3.10.
 
 ## [0.24.0] - 2026-07-10
