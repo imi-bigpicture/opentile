@@ -46,18 +46,35 @@ def get_settings() -> Settings:
 
 
 def set_default_settings(new_settings: Settings) -> None:
-    """Replace the process-wide default settings."""
+    """Replace the process-wide default settings.
+
+    Parameters
+    ----------
+    new_settings: Settings
+        The new process-wide default settings.
+    """
     global _default_settings
     _default_settings = new_settings
 
 
 @contextmanager
 def use_settings(active: Settings | None = None) -> Iterator[Settings]:
-    """Yield the settings in effect, optionally activating ``active`` first.
+    """Activate settings for the current context and yield the settings in effect.
 
-    With no argument it yields the settings currently in effect. With an
-    ``active`` ``Settings`` it activates it for the current context (and for
-    thread-pool tasks that propagate the context), yields it, and resets on exit.
+    Use as ``with use_settings(Settings(...)) as settings:`` to apply settings to
+    a block (and thread-pool tasks it submits that propagate the context), or
+    ``with use_settings() as settings:`` to just read the settings in effect.
+
+    Parameters
+    ----------
+    active: Settings | None = None
+        Settings to activate for the current context. When None, nothing is
+        activated and the settings currently in effect are yielded.
+
+    Yields
+    ------
+    Settings
+        The settings in effect within the context.
     """
     if active is None:
         yield get_settings()
