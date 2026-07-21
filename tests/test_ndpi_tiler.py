@@ -18,8 +18,7 @@ from hashlib import md5
 from unittest.mock import Mock
 
 import pytest
-from tifffile import TiffPage
-from tifffile import PHOTOMETRIC
+from tifffile import PHOTOMETRIC, TiffPage
 
 from opentile.formats import NdpiTiler
 from opentile.formats.ndpi.ndpi_image import NdpiOneFrameImage, NdpiStripedImage

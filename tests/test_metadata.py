@@ -75,9 +75,15 @@ class TestPhilipsMetadata:
         ["barcode_xml", "expected"],
         [
             # Philips stores the barcode Base64-encoded; "TEFCRUwwMDAx" -> "LABEL0001".
-            ('<Attribute Name="PIM_DP_UFS_BARCODE">TEFCRUwwMDAx</Attribute>', "LABEL0001"),
+            (
+                '<Attribute Name="PIM_DP_UFS_BARCODE">TEFCRUwwMDAx</Attribute>',
+                "LABEL0001",
+            ),
             # Non-Base64 falls back to the raw value.
-            ('<Attribute Name="PIM_DP_UFS_BARCODE">SR1274-908A</Attribute>', "SR1274-908A"),
+            (
+                '<Attribute Name="PIM_DP_UFS_BARCODE">SR1274-908A</Attribute>',
+                "SR1274-908A",
+            ),
             ("", None),
         ],
     )
