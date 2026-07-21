@@ -15,8 +15,10 @@
 from collections.abc import Sequence
 from datetime import datetime
 from hashlib import md5
+from unittest.mock import Mock
 
 import pytest
+from tifffile import TiffPage
 from tifffile import PHOTOMETRIC
 
 from opentile.formats import NdpiTiler
@@ -615,3 +617,30 @@ class TestParseNdpiComments:
 
         # Assert
         assert parsed == {}
+
+
+@pytest.mark.unittest
+class TestNdpiBarcode:
+    @pytest.mark.parametrize(
+        ["tags", "expected"],
+        [
+            ({65468: "SR1274-908A"}, "SR1274-908A"),
+            ({65468: "SR1274-908A\x00"}, "SR1274-908A"),
+            ({65468: "\x00"}, None),
+            ({65468: "   \x00"}, None),
+            ({65468: "  padded  "}, "padded"),
+            ({}, None),
+            ({65468: b"\x01\x02"}, None),
+        ],
+    )
+    def test_barcode(self, tags: dict, expected):
+        # Arrange
+        page = Mock(spec=TiffPage)
+        page.ndpi_tags = {}
+        page.tags = {code: Mock(value=value) for code, value in tags.items()}
+
+        # Act
+        barcode = NdpiMetadata(page).barcode
+
+        # Assert
+        assert barcode == expected
