@@ -80,7 +80,7 @@ class TestSvsMetadata:
 
         # Act, Assert
         with pytest.raises(ValueError):
-            metadata.mpp
+            _ = metadata.mpp
 
     @pytest.mark.parametrize(
         ["description", "expected"],

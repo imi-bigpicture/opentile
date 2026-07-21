@@ -14,11 +14,14 @@
 
 from hashlib import md5
 
+import numpy as np
 import pytest
-from tifffile import PHOTOMETRIC
+from decoy import Decoy
+from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
 from opentile.formats import OmeTiffTiler
-from opentile.geometry import SizeMm
+from opentile.formats.ome.ome_tiff_image import OmeTiffStripedImage
+from opentile.geometry import Size, SizeMm
 from opentile.tiff_image import BaseTiffImage
 
 from .filepaths import ome_tiff_file_path
@@ -113,3 +116,66 @@ class TestOmeTiffTiler:
 
         # Assert
         assert base_pixel_spacing == expected_size
+
+
+class TestOmeTiffStripedImage:
+    """Unit tests for the strip-stored (uncompressed) OME level image, exercised
+    without a fixture file by injecting a decoded array."""
+
+    def _make_image(self, decoy: Decoy, image: np.ndarray) -> OmeTiffStripedImage:
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.photometric).then_return(PHOTOMETRIC.RGB)
+        decoy.when(page.bitspersample).then_return(8)
+        decoy.when(page.compression).then_return(COMPRESSION.NONE)
+        striped = OmeTiffStripedImage.__new__(OmeTiffStripedImage)
+        striped._page = page
+        striped._image_size = Size(image.shape[1], image.shape[0])
+        striped._tile_size = Size(8, 8)
+        striped._decoded_image = image  # bypass the cached asarray
+        return striped
+
+    def test_full_tile_returns_region(self, decoy: Decoy) -> None:
+        # Arrange
+        image = np.arange(10 * 10 * 3, dtype=np.uint8).reshape(10, 10, 3)
+        striped = self._make_image(decoy, image)
+
+        # Act
+        tile = striped.get_decoded_tile((0, 0))
+
+        # Assert
+        assert tile.shape == (8, 8, 3)
+        assert np.array_equal(tile, image[0:8, 0:8])
+
+    def test_edge_tile_is_padded_with_fill_value(self, decoy: Decoy) -> None:
+        # Arrange
+        image = np.zeros((10, 10, 3), dtype=np.uint8)
+        striped = self._make_image(decoy, image)
+
+        # Act
+        tile = striped.get_decoded_tile((1, 1))  # only [8:10, 8:10] is real
+
+        # Assert
+        assert tile.shape == (8, 8, 3)
+        assert np.array_equal(tile[0:2, 0:2], image[8:10, 8:10])
+        assert np.all(tile[2:, :] == 255)  # RGB uint8 fill is white
+        assert np.all(tile[:, 2:] == 255)
+
+    def test_get_tile_is_raw_bytes_of_decoded(self, decoy: Decoy) -> None:
+        # Arrange
+        image = np.arange(10 * 10 * 3, dtype=np.uint8).reshape(10, 10, 3)
+        striped = self._make_image(decoy, image)
+
+        # Act
+        raw = striped.get_tile((1, 1))
+
+        # Assert
+        assert raw == striped.get_decoded_tile((1, 1)).tobytes()
+
+    def test_tile_outside_image_raises(self, decoy: Decoy) -> None:
+        # Arrange
+        image = np.zeros((10, 10, 3), dtype=np.uint8)
+        striped = self._make_image(decoy, image)
+
+        # Act, Assert
+        with pytest.raises(ValueError):
+            striped.get_decoded_tile((2, 0))  # tiled_size is (2, 2)

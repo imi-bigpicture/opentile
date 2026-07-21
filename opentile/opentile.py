@@ -82,7 +82,7 @@ class OpenTile:
         if supported_tiler is HistechTiffTiler:
             return HistechTiffTiler(file)
         if supported_tiler is OmeTiffTiler:
-            return OmeTiffTiler(file)
+            return OmeTiffTiler(file, tile_size, turbo_path)
         if supported_tiler is TrestleTiffTiler:
             return TrestleTiffTiler(file)
         if supported_tiler is VentanaTiffTiler:

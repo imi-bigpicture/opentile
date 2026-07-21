@@ -10,10 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Settings` (immutable) and `get_settings`, `set_default_settings` and `use_settings` for configuring opentile.
+- Support for strip-stored (e.g. uncompressed) OME-TIFF levels via `OmeTiffStripedImage`. These are decoded once and served as a tile grid (`OmeTiffTiler` gains a `tile_size` argument); `get_tile` returns the raw pixel bytes since there is no per-tile encoded representation.
+- OME-TIFF levels now report the per-page focal plane (from the Z dimension and physical z spacing) and optical path (from the C dimension), so multi-plane OME z-stacks are surfaced as separate focal planes instead of being flattened.
 
 ### Fixed
 
 - Parsing of MPP and focal plane for some Aperio SVS files: tolerate a `,` decimal separator and a missing `MPP` key (falling back to the `Scan resolution` header field), and handle sub-level pages with an empty image description (e.g. Leica GT450).
+- Opening older-schema (OME-2015) OME-TIFF files raised `ImportError` because `lxml` was not installed; `lxml` is now a dependency.
 
 ### Removed
 
