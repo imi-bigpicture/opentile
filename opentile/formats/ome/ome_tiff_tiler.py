@@ -113,6 +113,7 @@ class OmeTiffTiler(Tiler):
 
     @cached_property
     def _ome(self) -> ome_types.OME:
+        """The parsed OME-XML metadata of the file."""
         assert self._file.tiff.ome_metadata is not None
         return ome_types.from_xml(self._file.tiff.ome_metadata)
 

@@ -14,7 +14,6 @@
 
 """Image implementation for OME tiff files."""
 
-from functools import cached_property
 from typing import Optional
 
 import numpy as np
@@ -27,6 +26,7 @@ from opentile.jpeg import Jpeg
 from opentile.tiff_image import (
     AssociatedTiffImage,
     BaseTiffImage,
+    DecodedTiledTiffImage,
     LevelTiffImage,
     NativeTiledTiffImage,
     ThumbnailTiffImage,
@@ -160,11 +160,9 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage, LevelTiffImage):
         return self._optical_path
 
 
-class OmeTiffStripedImage(BaseTiffImage, LevelTiffImage):
+class OmeTiffStripedImage(DecodedTiledTiffImage, LevelTiffImage):
     """OME tiff level stored as strips rather than tiles (e.g. uncompressed exports).
-    The page is decoded once and served as a tile grid. Since the data is not natively
-    tiled and (for uncompressed pages) has no per-tile encoded representation,
-    `get_tile` returns the raw pixel bytes of the cropped region."""
+    The page is decoded once and served as a tile grid (see `DecodedTiledTiffImage`)."""
 
     def __init__(
         self,
@@ -176,6 +174,25 @@ class OmeTiffStripedImage(BaseTiffImage, LevelTiffImage):
         focal_plane: float,
         optical_path: str,
     ):
+        """Strip-stored ome tiff level image.
+
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the level.
+        file: OpenTileFile
+            File to read data from.
+        base_size: Size
+            Size of base level in pyramid.
+        tile_size: Size
+            Tile size of the grid to serve.
+        base_mpp: SizeMm
+            Pixel spacing of base level in pyramid.
+        focal_plane: float
+            Focal plane (um) of the level.
+        optical_path: str
+            Optical path identifier of the level.
+        """
         super().__init__(page, file)
         # Override the untiled default (tile size == image size) with a real grid.
         self._tile_size = tile_size
@@ -223,31 +240,6 @@ class OmeTiffStripedImage(BaseTiffImage, LevelTiffImage):
     @property
     def optical_path(self) -> str:
         return self._optical_path
-
-    @cached_property
-    def _decoded_image(self) -> np.ndarray:
-        """The whole page decoded once (tifffile reassembles the strips)."""
-        return self._page.asarray(squeeze=True)
-
-    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
-        point = Point.from_tuple(tile_position)
-        if not self._check_if_tile_inside_image(point):
-            raise ValueError(f"Tile {tile_position} is outside {self.tiled_size}.")
-        left = point.x * self.tile_size.width
-        top = point.y * self.tile_size.height
-        region = self._decoded_image[
-            top : top + self.tile_size.height, left : left + self.tile_size.width
-        ]
-        pad_height = self.tile_size.height - region.shape[0]
-        pad_width = self.tile_size.width - region.shape[1]
-        if pad_height or pad_width:
-            padding = [(0, pad_height), (0, pad_width)] + [(0, 0)] * (region.ndim - 2)
-            region = np.pad(region, padding, constant_values=self.fill_value)
-        return region
-
-    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
-        # Compression is NONE, so the "encoded" tile is just the raw pixel bytes.
-        return self.get_decoded_tile(tile_position).tobytes()
 
 
 class OmeTiffTiledImage(NativeTiledTiffImage, LevelTiffImage):

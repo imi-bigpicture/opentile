@@ -13,9 +13,12 @@
 #    limitations under the License.
 
 from hashlib import md5
+from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pytest
+import tifffile
 from decoy import Decoy
 from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
@@ -34,6 +37,40 @@ def tiler():
             yield tiler
     except FileNotFoundError:
         pytest.skip("Ome tiff test file not found, skipping")
+
+
+@pytest.fixture(scope="session")
+def striped_ome_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    # A generated 3-plane, strip-stored (uncompressed) OME z-stack, small enough to
+    # write on the fly so the strip-stored path is covered without a large fixture file.
+    path = tmp_path_factory.mktemp("ome") / "zstack.ome.tiff"
+    # distinct value per plane so tiles from different focal planes differ
+    data = np.zeros((3, 600, 700, 3), dtype=np.uint8)
+    for z in range(3):
+        data[z] = z * 40
+    tifffile.imwrite(
+        path,
+        data,
+        photometric="rgb",
+        compression=None,  # uncompressed -> strip-stored
+        rowsperstrip=64,
+        metadata={
+            "axes": "ZYXS",
+            "PhysicalSizeX": 0.5,
+            "PhysicalSizeXUnit": "µm",
+            "PhysicalSizeY": 0.5,
+            "PhysicalSizeYUnit": "µm",
+            "PhysicalSizeZ": 2.0,
+            "PhysicalSizeZUnit": "µm",
+        },
+    )
+    return path
+
+
+@pytest.fixture()
+def striped_ome_tiler(striped_ome_path: Path):
+    with OmeTiffTiler(striped_ome_path) as tiler:
+        yield tiler
 
 
 @pytest.fixture()
@@ -179,3 +216,66 @@ class TestOmeTiffStripedImage:
         # Act, Assert
         with pytest.raises(ValueError):
             striped.get_decoded_tile((2, 0))  # tiled_size is (2, 2)
+
+
+@pytest.mark.unittest
+class TestOmeTiffStripedTiler:
+    """Integration tests against a generated strip-stored (uncompressed) OME z-stack."""
+
+    def test_levels_are_striped_images(self, striped_ome_tiler: OmeTiffTiler):
+        # Arrange
+
+        # Act
+        levels = striped_ome_tiler.levels
+
+        # Assert
+        assert all(isinstance(level, OmeTiffStripedImage) for level in levels)
+
+    def test_focal_planes(self, striped_ome_tiler: OmeTiffTiler):
+        # Arrange
+
+        # Act
+        focal_planes = sorted({level.focal_plane for level in striped_ome_tiler.levels})
+
+        # Assert: one focal plane per z, spaced by the 2.0 um physical z size
+        assert focal_planes == [0.0, 2.0, 4.0]
+
+    def test_single_optical_path(self, striped_ome_tiler: OmeTiffTiler):
+        # Arrange
+
+        # Act
+        optical_paths = {level.optical_path for level in striped_ome_tiler.levels}
+
+        # Assert: rgb is folded into the sample axis, so there is one optical path
+        assert optical_paths == {"0"}
+
+    def test_mpp(self, striped_ome_tiler: OmeTiffTiler):
+        # Arrange
+        level = cast(OmeTiffStripedImage, striped_ome_tiler.get_level(0))
+
+        # Act
+        mpp = level.mpp
+
+        # Assert
+        assert mpp == SizeMm(0.5, 0.5)
+
+    def test_get_decoded_tile_shape(self, striped_ome_tiler: OmeTiffTiler):
+        # Arrange
+        level = striped_ome_tiler.get_level(0)
+
+        # Act
+        tile = level.get_decoded_tile((0, 0))
+
+        # Assert
+        assert tile.shape == (
+            level.tile_size.height,
+            level.tile_size.width,
+            level.samples_per_pixel,
+        )
+
+    def test_get_tile_is_raw_bytes_of_decoded(self, striped_ome_tiler: OmeTiffTiler):
+        # Arrange
+        level = striped_ome_tiler.get_level(0)
+
+        # Act, Assert
+        assert level.get_tile((0, 0)) == level.get_decoded_tile((0, 0)).tobytes()
