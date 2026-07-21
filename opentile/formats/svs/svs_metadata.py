@@ -80,7 +80,11 @@ class SvsMetadata(Metadata):
 
     @property
     def label_text(self) -> Optional[str]:
-        return self._svs_metadata.get("Title")
+        return self._clean_string(self._svs_metadata.get("Title"))
+
+    @property
+    def barcode(self) -> Optional[str]:
+        return self._clean_string(self._svs_metadata.get("Barcode"))
 
     @property
     def mpp(self) -> float:

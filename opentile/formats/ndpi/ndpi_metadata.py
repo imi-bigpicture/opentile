@@ -23,6 +23,8 @@ from opentile.metadata import Metadata
 
 
 class NdpiMetadata(Metadata):
+    BARCODE_TAG = 65468
+
     def __init__(self, page: TiffPage):
         self._tags = page.tags
         if page.ndpi_tags is not None:
@@ -58,7 +60,7 @@ class NdpiMetadata(Metadata):
 
     @property
     def label_text(self) -> Optional[str]:
-        return self._ndpi_tags.get("SlideLabel")
+        return self._clean_string(self._ndpi_tags.get("SlideLabel"))
 
     @property
     def acquisition_datetime(self) -> Optional[datetime]:
@@ -69,6 +71,13 @@ class NdpiMetadata(Metadata):
             return datetime.strptime(datetime_tag.value, "%Y:%m:%d %H:%M:%S")
         except ValueError:
             return None
+
+    @property
+    def barcode(self) -> Optional[str]:
+        tag = self._tags.get(self.BARCODE_TAG)
+        if tag is None or not isinstance(tag.value, str):
+            return None
+        return self._clean_string(tag.value)
 
     @property
     def properties(self) -> dict[str, Any]:

@@ -13,14 +13,17 @@
 #    limitations under the License.
 
 from typing import Optional
+from unittest.mock import Mock
 
 import pytest
 from decoy import Decoy
 from tifffile import TiffPage
 
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
+from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.formats.svs.svs_metadata import SvsMetadata
+from opentile.formats.ventana.ventana_tiff_metadata import VentanaMetadata
 
 
 class TestSvsMetadata:
@@ -106,6 +109,76 @@ class TestSvsMetadata:
 
         # Assert
         assert focal_plane == expected
+
+    @pytest.mark.parametrize(
+        ["description", "expected"],
+        [
+            ("Aperio Image|AppMag = 20|Barcode = SR1274-908A", "SR1274-908A"),
+            ("Aperio Image|AppMag = 20", None),
+        ],
+    )
+    def test_barcode(
+        self, decoy: Decoy, description: str, expected: Optional[str]
+    ) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+
+        # Act
+        metadata = SvsMetadata(page)
+
+        # Assert
+        assert metadata.barcode == expected
+
+
+class TestPhilipsMetadata:
+    @pytest.mark.parametrize(
+        ["barcode_xml", "expected"],
+        [
+            # Philips stores the barcode Base64-encoded; "TEFCRUwwMDAx" -> "LABEL0001".
+            (
+                '<Attribute Name="PIM_DP_UFS_BARCODE">TEFCRUwwMDAx</Attribute>',
+                "LABEL0001",
+            ),
+            # Non-Base64 falls back to the raw value.
+            (
+                '<Attribute Name="PIM_DP_UFS_BARCODE">SR1274-908A</Attribute>',
+                "SR1274-908A",
+            ),
+            ("", None),
+        ],
+    )
+    def test_barcode(self, barcode_xml: str, expected: Optional[str]) -> None:
+        # Arrange
+        tiff_file = Mock()
+        tiff_file.philips_metadata = f"<DataObject>{barcode_xml}</DataObject>"
+
+        # Act
+        metadata = PhilipsTiffMetadata(tiff_file)
+
+        # Assert
+        assert metadata.barcode == expected
+
+
+class TestVentanaMetadata:
+    @pytest.mark.parametrize(
+        ["iscan", "expected"],
+        [
+            ('<iScan Barcode1D="SR1274-908A" Barcode2D="2D-VAL" />', "SR1274-908A"),
+            ('<iScan Barcode2D="2D-VAL" />', "2D-VAL"),
+            ('<iScan Magnification="40" />', None),
+        ],
+    )
+    def test_barcode(self, iscan: str, expected: Optional[str]) -> None:
+        # Arrange
+        page = Mock()
+        page.tags = {"XMP": Mock(value=iscan)}
+
+        # Act
+        metadata = VentanaMetadata(page)
+
+        # Assert
+        assert metadata.barcode == expected
 
 
 class TestNdpiMetadata:

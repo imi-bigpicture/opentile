@@ -15,9 +15,10 @@
 from collections.abc import Sequence
 from datetime import datetime
 from hashlib import md5
+from unittest.mock import Mock
 
 import pytest
-from tifffile import COMPRESSION, PHOTOMETRIC
+from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
 from opentile.formats import NdpiTiler
 from opentile.formats.ndpi.ndpi_image import (
@@ -632,9 +633,9 @@ class TestParseNdpiComments:
 
 @pytest.mark.unittest
 class TestNdpiJpegXrTiler:
-    """Tests for ndpi files with JPEG XR compressed levels. JPEG XR cannot be passed
-    through to DICOM, so the native (non-overlapping) tiles are exposed with a
-    zero-overlap placement for the consumer to decode and stitch."""
+    """Tests for ndpi files with JPEG XR compressed levels. The native (non-overlapping)
+    tiles do not form a regular tile grid, so they are exposed with a zero-overlap
+    placement for the consumer to decode and stitch into one."""
 
     def test_levels_are_jpegxr_images(self, jpegxr_tiler: NdpiTiler):
         # Arrange
@@ -714,3 +715,30 @@ class TestNdpiJpegXrTiler:
         # decode yet, so it is skipped rather than raising
         assert overviews == []
         assert labels == []
+
+
+@pytest.mark.unittest
+class TestNdpiBarcode:
+    @pytest.mark.parametrize(
+        ["tags", "expected"],
+        [
+            ({65468: "SR1274-908A"}, "SR1274-908A"),
+            ({65468: "SR1274-908A\x00"}, "SR1274-908A"),
+            ({65468: "\x00"}, None),
+            ({65468: "   \x00"}, None),
+            ({65468: "  padded  "}, "padded"),
+            ({}, None),
+            ({65468: b"\x01\x02"}, None),
+        ],
+    )
+    def test_barcode(self, tags: dict, expected):
+        # Arrange
+        page = Mock(spec=TiffPage)
+        page.ndpi_tags = {}
+        page.tags = {code: Mock(value=value) for code, value in tags.items()}
+
+        # Act
+        barcode = NdpiMetadata(page).barcode
+
+        # Assert
+        assert barcode == expected

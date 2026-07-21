@@ -14,6 +14,8 @@
 
 """Metadata parser for Philips tiff files."""
 
+import base64
+import binascii
 from datetime import datetime
 from functools import cached_property
 from typing import Any, Optional, TypeVar
@@ -38,6 +40,7 @@ class PhilipsTiffMetadata(Metadata):
         "DICOM_MANUFACTURER",
         "DICOM_SOFTWARE_VERSIONS",
         "DICOM_DEVICE_SERIAL_NUMBER",
+        "PIM_DP_UFS_BARCODE",
         "DICOM_LOSSY_IMAGE_COMPRESSION_METHOD",
         "DICOM_LOSSY_IMAGE_COMPRESSION_RATIO",
         "DICOM_BITS_ALLOCATED",
@@ -72,6 +75,19 @@ class PhilipsTiffMetadata(Metadata):
     @property
     def scanner_serial_number(self) -> Optional[str]:
         return self._tags["DICOM_DEVICE_SERIAL_NUMBER"]
+
+    @property
+    def barcode(self) -> Optional[str]:
+        # Philips stores the barcode Base64-encoded, unlike the plain-text DICOM
+        # attributes.
+        value = self._tags["PIM_DP_UFS_BARCODE"]
+        if not value:
+            return None
+        try:
+            decoded = base64.b64decode(value, validate=True).decode("utf-8")
+        except (binascii.Error, ValueError, UnicodeDecodeError):
+            return self._clean_string(value)
+        return self._clean_string(decoded)
 
     @property
     def acquisition_datetime(self) -> Optional[datetime]:

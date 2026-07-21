@@ -56,13 +56,31 @@ class Metadata:
 
     @property
     def label_text(self) -> Optional[str]:
-        """Return the slide label/barcode text if present in file."""
+        """Return the human-readable slide label text if present in file.
+
+        Corresponds to DICOM Label Text (2200,0002)."""
+        return None
+
+    @property
+    def barcode(self) -> Optional[str]:
+        """Return the slide barcode value if present in file.
+
+        Corresponds to DICOM Barcode Value (2200,0005)."""
         return None
 
     @property
     def properties(self) -> dict[str, Any]:
         """Return a dictionary of other metadata present in file."""
         return {}
+
+    @staticmethod
+    def _clean_string(value: Optional[str]) -> Optional[str]:
+        """Normalize a text field: strip surrounding whitespace and null padding,
+        returning ``None`` for an empty or absent value."""
+        if value is None:
+            return None
+        stripped = value.strip(" \t\r\n\v\f\x00")
+        return stripped or None
 
     @staticmethod
     def _get_value_from_tiff_tags(

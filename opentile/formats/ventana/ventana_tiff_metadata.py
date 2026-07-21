@@ -85,6 +85,15 @@ class VentanaMetadata(Metadata):
         return [version] if version is not None else None
 
     @property
+    def barcode(self) -> Optional[str]:
+        # iScan carries both a 1D and a 2D barcode; prefer the 1D (linear) value.
+        candidates = (
+            self._clean_string(self._iscan.get(attr))
+            for attr in ("Barcode1D", "Barcode2D")
+        )
+        return next((value for value in candidates if value is not None), None)
+
+    @property
     def properties(self) -> dict[str, Any]:
         return dict(self._iscan.attrib)
 
