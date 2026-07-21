@@ -19,6 +19,7 @@ from decoy import Decoy
 from tifffile import TiffPage
 
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
+from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.formats.svs.svs_metadata import SvsMetadata
 
 
@@ -45,6 +46,66 @@ class TestSvsMetadata:
 
         # Assert
         assert metadata.label_text == expected
+
+    @pytest.mark.parametrize(
+        ["description", "expected"],
+        [
+            ("Aperio Image|AppMag = 20|MPP = 0.25", 0.25),
+            # Hamamatsu-saved-as-Aperio uses a ',' decimal separator
+            ("Aperio Image|AppMag = 20|MPP = 0,4533", 0.4533),
+            # Tecmed omit the MPP key; resolution is free text in the header
+            (
+                "Aperio Image Library v12.3.1 \r\n149949x66142 (256x256) J2K/KDU "
+                "Q=50;Scan; Scan resolution 0.274 \xb5m/Pix; Scan position X=26 mm;",
+                0.274,
+            ),
+        ],
+    )
+    def test_mpp(self, decoy: Decoy, description: str, expected: float) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+
+        # Act
+        metadata = SvsMetadata(page)
+
+        # Assert
+        assert metadata.mpp == expected
+
+    def test_mpp_missing_raises(self, decoy: Decoy) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return("Aperio Image|AppMag = 20")
+        metadata = SvsMetadata(page)
+
+        # Act, Assert
+        with pytest.raises(ValueError):
+            metadata.mpp
+
+    @pytest.mark.parametrize(
+        ["description", "expected"],
+        [
+            ("Aperio Image|AppMag = 20|OffsetZ = 1.8", 1.8),
+            ("Aperio Image|AppMag = 20", 0.0),
+            # Leica GT450 sub-level pages have an empty description (no
+            # 'Aperio ' header) — must default rather than raise.
+            ("", 0.0),
+        ],
+    )
+    def test_get_focal_plane(
+        self, decoy: Decoy, description: str, expected: float
+    ) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+        image = SvsTiledImage.__new__(SvsTiledImage)  # bypass heavy __init__
+        image._page = page
+
+        # Act
+        focal_plane = image._get_focal_plane()
+
+        # Assert
+        assert focal_plane == expected
 
 
 class TestNdpiMetadata:

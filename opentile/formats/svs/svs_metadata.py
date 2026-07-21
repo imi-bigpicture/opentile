@@ -14,6 +14,7 @@
 
 """Metadata parser for svs files."""
 
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -83,7 +84,13 @@ class SvsMetadata(Metadata):
 
     @property
     def mpp(self) -> float:
-        return float(self._svs_metadata["MPP"])
+        value = self._svs_metadata.get("MPP")
+        if value is not None:
+            return float(str(value).replace(",", "."))
+        match = re.search(r"Scan resolution\s+([0-9.,]+)", self._header)
+        if match is not None:
+            return float(match.group(1).replace(",", "."))
+        raise ValueError("No MPP or scan resolution found in SVS image description")
 
     @property
     def properties(self) -> dict[str, Any]:

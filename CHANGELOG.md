@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Settings` (immutable) and `get_settings`, `set_default_settings` and `use_settings` for configuring opentile.
 
+### Fixed
+
+- Parsing of MPP and focal plane for some Aperio SVS files: tolerate a `,` decimal separator and a missing `MPP` key (falling back to the `Scan resolution` header field), and handle sub-level pages with an empty image description (e.g. Leica GT450).
+
 ### Removed
 
 - The mutable `settings` global (`settings.<field> = ...`). Change the process-wide default with `set_default_settings(Settings(...))` instead.
