@@ -12,10 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Metadata.barcode` property returning the slide barcode value if present in the file (ndpi tag 65468, svs `Barcode`, ventana iScan `Barcode1D`/`Barcode2D`, philips `PIM_DP_UFS_BARCODE`, the last Base64-decoded), `None` otherwise. Distinct from `label_text`: matches the split DICOM makes between Barcode Value (2200,0005) and Label Text (2200,0002).
 - `Settings` (immutable) and `get_settings`, `set_default_settings` and `use_settings` for configuring opentile.
 
+### Changed
+
+- Minimum supported Python and dependency versions now follow [SPEC 0](https://scientific-python.org/specs/spec-0000/).
+- Minimum `tifffile` is now `2026.6.1`, which fixes reading short ASCII string tag values from NDPI (Hamamatsu stores all ASCII values out-of-line, so `label_text`/`barcode` values of <=4 bytes were mis-read by older versions; e.g. a `SlideLabel` of `A1` read as `K`).
+
 ### Removed
 
 - The mutable `settings` global (`settings.<field> = ...`). Change the process-wide default with `set_default_settings(Settings(...))` instead.
-- Support for Python 3.9 (end-of-life). The minimum is now Python 3.10.
+- Support for Python 3.9, 3.10, and 3.11 (following SPEC 0; numpy and tifffile are already Python >=3.12 only). The minimum is now Python 3.12.
 
 ## [0.24.0] - 2026-07-10
 

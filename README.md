@@ -30,7 +30,9 @@ Please note that this is an early release and the API is not frozen yet. Functio
 
 ## Requirements
 
-*opentile* requires python >=3.10 and uses numpy, Pillow, TiffFile, and PyTurboJPEG (with lib-turbojpeg >= 2.1 ), imagecodecs, defusedxml, and ome-types.
+*opentile* requires python >=3.12 and uses numpy, Pillow, TiffFile, and PyTurboJPEG (with lib-turbojpeg >= 2.1 ), imagecodecs, defusedxml, and ome-types.
+
+The minimum supported Python and dependency versions follow [SPEC 0](https://scientific-python.org/specs/spec-0000/).
 
 ## Limitations
 
