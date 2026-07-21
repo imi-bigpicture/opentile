@@ -704,17 +704,33 @@ class TestNdpiJpegXrTiler:
         # Assert: a single-frame level is exposed as one tile covering the level
         assert coarsest.tiled_size.area == 1
 
-    def test_overview_and_label_skipped(self, jpegxr_tiler: NdpiTiler):
+    def test_overview_is_jpegxr_passthrough(self, jpegxr_tiler: NdpiTiler):
         # Arrange
 
         # Act
-        overviews = jpegxr_tiler.overviews
-        labels = jpegxr_tiler.labels
+        overview = jpegxr_tiler.overviews[0]
 
-        # Assert: the macro is jpeg xr, which the associated-image classes cannot
-        # decode yet, so it is skipped rather than raising
-        assert overviews == []
-        assert labels == []
+        # Assert: the macro is served as native jpeg xr, compression unchanged
+        assert overview.compression == COMPRESSION.JPEGXR_NDPI
+        assert overview.get_decoded_tile((0, 0)).shape[2] == overview.samples_per_pixel
+
+    def test_label_is_decoded_and_uncompressed(self, jpegxr_tiler: NdpiTiler):
+        # Arrange
+        label = jpegxr_tiler.labels[0]
+
+        # Act
+        tile = label.get_tile((0, 0))
+        decoded = label.get_decoded_tile((0, 0))
+
+        # Assert: a jpeg xr label is cropped in the pixel domain, so it is served as
+        # uncompressed raw pixels
+        assert label.compression == COMPRESSION.NONE
+        assert tile == decoded.tobytes()
+        assert decoded.shape == (
+            label.image_size.height,
+            label.image_size.width,
+            label.samples_per_pixel,
+        )
 
 
 @pytest.mark.unittest

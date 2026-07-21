@@ -75,8 +75,8 @@ class NdpiPageParser:
 
 class NdpiImage(BaseTiffImage):
     def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
-        """Ndpi image that should not be tiled (e.g. overview or label).
-        Image data is assumed to be jpeg.
+        """Ndpi image that should not be tiled (e.g. overview or label). Jpeg data is
+        served as-is; other codecs (e.g. JPEG XR) are decoded via the page.
 
         Parameters
         ----------
@@ -88,14 +88,14 @@ class NdpiImage(BaseTiffImage):
             Jpeg instance to use.
         """
         super().__init__(page, file)
-        if self.compression != COMPRESSION.JPEG:
-            raise NotImplementedError(
-                f"{self.compression} is unsupported for ndpi (Only jpeg is supported)"
-            )
         self._jpeg = jpeg
         parser = NdpiPageParser(page)
         self._focal_plane = parser.focal_plane
         self._mpp = parser.mpp
+
+    @property
+    def _is_jpeg(self) -> bool:
+        return self._page.compression == COMPRESSION.JPEG
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
@@ -109,10 +109,6 @@ class NdpiImage(BaseTiffImage):
         return self.mpp / 1000
 
     @property
-    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
-        return [COMPRESSION.JPEG]
-
-    @property
     def mpp(self) -> SizeMm:
         return self._mpp
 
@@ -121,21 +117,38 @@ class NdpiImage(BaseTiffImage):
         """Return mcu size of image."""
         return self._jpeg.get_mcu(self._read_frame(0))
 
+
+class NdpiAssociatedImage(NdpiImage, AssociatedTiffImage):
+    """Base for the non-tiled ndpi associated images (overview, label). Served as a
+    single frame: jpeg data as-is, other codecs (e.g. JPEG XR) decoded via the page."""
+
+    @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        # Decoded generically (jpeg or, e.g., JPEG XR via the page).
+        return None
+
     def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
-        tile = self.get_tile(tile_position)
-        return jpeg8_decode(tile)
+        if self._is_jpeg:
+            return jpeg8_decode(self.get_tile(tile_position))
+        return self._decode_frame()
+
+    def _decode_frame(self) -> np.ndarray:
+        """Decode the single stored frame via the page codec (for non-jpeg codecs)."""
+        data, _, _ = self._page.decode(self._read_frame(0), 0)
+        assert isinstance(data, np.ndarray)
+        return data.squeeze((0, 3) if self.samples_per_pixel == 1 else 0)
 
 
-class NdpiOverviewImage(NdpiImage, AssociatedTiffImage):
+class NdpiOverviewImage(NdpiAssociatedImage):
     pass
 
 
-class NdpiLabelImage(NdpiImage, AssociatedTiffImage):
+class NdpiLabelImage(NdpiAssociatedImage):
     def __init__(
         self,
         page: TiffPage,
@@ -169,15 +182,34 @@ class NdpiLabelImage(NdpiImage, AssociatedTiffImage):
             self.image_size.height,
         )
 
+    @property
+    def compression(self) -> COMPRESSION:
+        # A jpeg label is losslessly cropped and stays jpeg. A non-jpeg (e.g. JPEG XR)
+        # label is decoded and cropped in the pixel domain (re-encoding would add loss),
+        # so the constructed label is uncompressed.
+        if self._is_jpeg:
+            return COMPRESSION.JPEG
+        return COMPRESSION.NONE
+
     def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        full_frame = super().get_tile(tile_position)
-        return self._jpeg.crop_multiple(full_frame, [self._crop_parameters])[0]
+        if self._is_jpeg:
+            # Lossless crop for jpeg codecs, so serve the cropped jpeg bytes.
+            full_frame = super().get_tile(tile_position)
+            return self._jpeg.crop_multiple(full_frame, [self._crop_parameters])[0]
+        # No lossless crop for non-jpeg codecs, so serve the cropped raw pixels.
+        return self.get_decoded_tile(tile_position).tobytes()
+
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
+        if self._is_jpeg:
+            return jpeg8_decode(self.get_tile(tile_position))
+        left, top, width, height = self._crop_parameters
+        return self._decode_frame()[top : top + height, left : left + width]
 
     def _calculate_crop(self, crop: float) -> int:
-        """Return pixel position for crop position rounded down to closest mcu
-        boarder.
+        """Return pixel position for crop position. For jpeg it is rounded down to the
+        closest mcu border so the crop stays lossless; other codecs are cropped exactly.
 
         Parameters
         ----------
@@ -190,6 +222,8 @@ class NdpiLabelImage(NdpiImage, AssociatedTiffImage):
             Pixel position for crop.
         """
         width = self._page.shape[1]
+        if not self._is_jpeg:
+            return int(width * crop)
         return int(width * crop / self.mcu.width) * self.mcu.width
 
 
@@ -232,6 +266,10 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         )
 
     @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        return [COMPRESSION.JPEG]
+
+    @property
     def suggested_minimum_chunk_size(self) -> int:
         return max(self._frame_size.width // self._tile_size.width, 1)
 
@@ -272,6 +310,9 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
 
     def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         return next(self.get_tiles([tile_position]))
+
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
+        return next(self.get_decoded_tiles([tile_position]))
 
     def get_tiles(self, tile_positions: Sequence[tuple[int, int]]) -> Iterator[bytes]:
         frame_jobs = self._sort_into_frame_jobs(tile_positions)

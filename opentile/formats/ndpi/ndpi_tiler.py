@@ -79,13 +79,6 @@ class NdpiTiler(Tiler):
         self._jpeg = Jpeg(turbo_path)
         self._metadata = NdpiMetadata(self._base_page)
         self._label_crop_position = label_crop_position
-        # The macro (overview/label source) is only handled when jpeg compressed. For
-        # e.g. JPEG XR it cannot be decoded yet, so skip the overview and label rather
-        # than raising when they are accessed.
-        if self._overview_series_index is not None:
-            macro = self._file.series[self._overview_series_index].pages[0]
-            if not isinstance(macro, TiffPage) or macro.compression != COMPRESSION.JPEG:
-                self._overview_series_index = None
         # Label is cropped out from the overview image
         self._label_series_index = self._overview_series_index
 

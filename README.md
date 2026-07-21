@@ -42,12 +42,14 @@ Files with z-stacks are currently not fully supported for all formats.
 
 The following description of the workings of the implemented file formats does not include the additional specifics for each format that is handled by tifffile. Additional formats supported by tifffile are likely to be added in future releases.
 
-Formats whose tiles overlap their neighbors (Trestle, Ventana) still serve the raw overlapping source tiles by grid position, and additionally expose `TiffImage.overlap` (a `TileOverlap`) giving the de-overlapped level size and the position of each source tile, so a consumer can compose non-overlapping output tiles.
+*opentile* presents each level as a regular, non-overlapping grid of `tile_size` tiles. When `TiffImage.overlap` is `None` (the common case) the stored tiles already form that regular grid and are served directly. When it instead returns a `TileOverlap` — because the stored tiles overlap their neighbors (Trestle, Ventana) or use a different native tiling (JPEG XR Ndpi) — the raw stored tiles are still served by grid position, and the `TileOverlap` gives the composed level size and the placement of each stored tile, so a consumer can compose (de-overlap and/or stitch) them into the regular grid.
 
 ***Hamamatsu Ndpi***
 The Ndpi-format uses non-rectangular tile size typically 8 pixels high, i.e. stripes. To form tiles, first multiple stripes are concatenated to form a frame covering the tile region. Second, if the stripes are longer than the tile width, the tile is cropped out of the frame. The concatenation and crop transformations are performed losslessly.
 
 A ndpi-file can also contain non-tiled images. If these are part of a pyramidal series, *opentile* tiles the image.
+
+Ndpi levels can also be compressed with JPEG XR instead of jpeg. These native tiles cannot be re-tiled losslessly, so they are served by their native grid position with a zero-overlap `TileOverlap` (see above) for a consumer to decode and stitch into the regular grid; a coarsest single-frame level is served as one tile. The macro (overview) is served as native JPEG XR, while the label, which is cropped out of the macro, is decoded and served as uncompressed pixels (there is no lossless crop for JPEG XR, and re-encoding would add loss).
 
 The macro page in ndpi-files images the whole slide including label. A label and overview is created by cropping the macro image.
 
@@ -61,7 +63,7 @@ Some Aperio svs-files have corrupt tile data at edges of non-base pyramidal leve
 Only the pyramidal levels are supported (not overviews or labels).
 
 ***OME tiff***
-Metadata parsing is not yet implemented.
+Both tiled and strip-stored (e.g. uncompressed) levels are supported. Each level's focal plane and optical path are read from the OME metadata, so multi-plane z-stacks are exposed as separate focal planes. General (`metadata`-property) parsing is not yet implemented.
 
 ***Trestle tiff***
 Trestle tiff-files (identified by a `Software` tag starting with `MedScan`) store tiles that overlap their neighbors by a fixed per-level amount. The recorded overlap is used to place each tile on the de-overlapped level (see the note on overlapping formats above).
