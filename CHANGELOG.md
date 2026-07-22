@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Metadata.barcode` property returning the slide barcode value if present in the file (ndpi tag 65468, svs `Barcode`, ventana iScan `Barcode1D`/`Barcode2D`, philips `PIM_DP_UFS_BARCODE`, the last Base64-decoded), `None` otherwise. Distinct from `label_text`: matches the split DICOM makes between Barcode Value (2200,0005) and Label Text (2200,0002).
+- Scanner manufacturer and model for Grundium Ocus svs files, which use an `Aperio Image, Grundium` description header: the manufacturer is reported as `Grundium` and the model is read from the header.
 - `Settings` (immutable) and `get_settings`, `set_default_settings` and `use_settings` for configuring opentile.
 - Support for strip-stored (e.g. uncompressed) OME-TIFF levels via `OmeTiffStripedImage`. These are decoded once and served as a tile grid (`OmeTiffTiler` gains a `tile_size` argument); `get_tile` returns the raw pixel bytes since there is no per-tile encoded representation.
 - OME-TIFF levels now report the per-page focal plane (from the Z dimension and physical z spacing) and optical path (from the C dimension), so multi-plane OME z-stacks are surfaced as separate focal planes instead of being flattened.
