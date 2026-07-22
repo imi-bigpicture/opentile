@@ -70,3 +70,6 @@ ignore = ["S101"]
 ome = "ome"  # OME-TIFF format / ome-types package
 siz = "siz"  # JPEG 2000 SIZ marker
 subtile = "subtile"  # a (sub-)tile
+
+[tool.typos.default.extend-identifiers]
+MTIzNDU2Ny0x = "MTIzNDU2Ny0x"  # Base64 substring in test data
