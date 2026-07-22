@@ -21,8 +21,6 @@ from tifffile import TiffPage
 
 from opentile.metadata import Metadata
 
-_SERIAL_SUFFIX = "SERIAL #"
-
 
 class MikroscanTiffMetadata(Metadata):
     def __init__(self, page: TiffPage):
@@ -55,9 +53,10 @@ class MikroscanTiffMetadata(Metadata):
     def _serial_field(self) -> tuple[Optional[str], Optional[str]]:
         """The ``<model> SERIAL # = <serial>`` field as (model, serial), or
         (None, None) if absent."""
+        suffix = "SERIAL #"
         for key, value in self._fields.items():
-            if key.endswith(_SERIAL_SUFFIX):
-                model = key[: -len(_SERIAL_SUFFIX)].strip()
+            if key.endswith(suffix):
+                model = key[: -len(suffix)].strip()
                 return (model or None, value)
         return (None, None)
 

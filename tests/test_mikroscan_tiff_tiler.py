@@ -103,3 +103,33 @@ class TestMikroscanTiffTiler:
 
         # Assert: the native jpeg tile is served as-is
         assert len(tile) > 0
+
+    def test_label(self, tiler: MikroscanTiffTiler):
+        # Arrange
+
+        # Act
+        label = tiler.get_label()
+
+        # Assert: the uncompressed label is decoded and served as raw pixels
+        assert label.image_size == Size(512, 512)
+        assert label.get_decoded_tile((0, 0)).shape == (512, 512, 3)
+
+    def test_overview(self, tiler: MikroscanTiffTiler):
+        # Arrange
+
+        # Act
+        overview = tiler.get_overview()
+
+        # Assert
+        assert overview.image_size == Size(1024, 512)
+        assert overview.get_decoded_tile((0, 0)).shape == (512, 1024, 3)
+
+    def test_thumbnail(self, tiler: MikroscanTiffTiler):
+        # Arrange
+
+        # Act
+        thumbnail = tiler.get_thumbnail()
+
+        # Assert
+        assert thumbnail.image_size == Size(420, 660)
+        assert thumbnail.get_decoded_tile((0, 0)).shape == (660, 420, 3)
