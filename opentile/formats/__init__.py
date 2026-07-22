@@ -17,6 +17,7 @@
 from opentile.formats.histech import HistechTiffTiler
 from opentile.formats.huron import HuronTiffTiler
 from opentile.formats.mikroscan import MikroscanTiffTiler
+from opentile.formats.motic import MoticTiffTiler
 from opentile.formats.ndpi import NdpiTiler
 from opentile.formats.ome import OmeTiffTiler
 from opentile.formats.philips import PhilipsTiffTiler
@@ -30,6 +31,7 @@ __all__ = [
     "HistechTiffTiler",
     "HuronTiffTiler",
     "MikroscanTiffTiler",
+    "MoticTiffTiler",
     "PhilipsTiffTiler",
     "SvsTiler",
     "TrestleTiffTiler",

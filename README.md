@@ -68,6 +68,9 @@ Huron (MACROscan) tiff-files are identified by an `Image Dimensions =` field in 
 ***Mikroscan tiff***
 Mikroscan (SL5) tiff-files use the Aperio pipe-separated description format but with a `Mikroscan Image Structure` header instead of the `Aperio ` prefix. The natively tiled jpeg levels are served as-is, and pixel spacing, magnification, scanner model/serial, and acquisition datetime are read from the description. The thumbnail, label, and macro associated images are stored uncompressed; since their series are unnamed, they are identified by the second description line (`label`, `macro`, or a `-> WxH` downscale) and are decoded and served as raw pixels.
 
+***Motic tiff***
+Motic tiff-files use the Aperio pipe-separated description format but with a `Motic <version>` header instead of the `Aperio ` prefix, and are otherwise structured like svs. The natively tiled jpeg levels are served as-is; magnification, pixel spacing, and barcode are read from the description (there is no serial number or acquisition datetime). The jpeg thumbnail and lzw label/macro associated images reuse the svs associated-image handling; since their series are unnamed, they are identified by the second description line (`label`, `macro`, or a `-> WxH` downscale).
+
 ***OME tiff***
 Both tiled and strip-stored (e.g. uncompressed) levels are supported. Each level's focal plane and optical path are read from the OME metadata, so multi-plane z-stacks are exposed as separate focal planes. General (`metadata`-property) parsing is not yet implemented.
 

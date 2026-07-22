@@ -22,6 +22,7 @@ from tifffile import TiffPage, TiffTags
 
 from opentile.formats.huron.huron_tiff_metadata import HuronTiffMetadata
 from opentile.formats.mikroscan.mikroscan_tiff_metadata import MikroscanTiffMetadata
+from opentile.formats.motic.motic_tiff_metadata import MoticTiffMetadata
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.formats.svs.svs_image import SvsTiledImage
@@ -281,3 +282,35 @@ class TestMikroscanMetadata:
         assert metadata.scanner_model is None
         assert metadata.scanner_serial_number is None
         assert metadata.acquisition_datetime is None
+
+
+class TestMoticMetadata:
+    def test_fields(self, decoy: Decoy) -> None:
+        # Arrange: the Aperio pipe-separated layout with a Motic header (synthetic
+        # values; the real test file is private).
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(
+            "Motic V1.0.0\n100x200 [0,0 100x200] [512x512] JPEG/RGB Q = 75|"
+            "AppMag = 40|MPP = 0.25|BackgroundColor = 16514557|Barcode = 12345"
+        )
+
+        # Act
+        metadata = MoticTiffMetadata(page)
+
+        # Assert
+        assert metadata.mpp == 0.25
+        assert metadata.magnification == 40.0
+        assert metadata.scanner_manufacturer == "Motic"
+        assert metadata.scanner_software_versions == ["V1.0.0"]
+        assert metadata.barcode == "12345"
+
+    def test_missing_barcode(self, decoy: Decoy) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return("Motic V1.0.0|MPP = 0.5")
+
+        # Act
+        metadata = MoticTiffMetadata(page)
+
+        # Assert
+        assert metadata.barcode is None

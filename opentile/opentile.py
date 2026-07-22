@@ -28,6 +28,7 @@ from opentile.formats import (
     HistechTiffTiler,
     HuronTiffTiler,
     MikroscanTiffTiler,
+    MoticTiffTiler,
     NdpiTiler,
     OmeTiffTiler,
     PhilipsTiffTiler,
@@ -50,6 +51,7 @@ class OpenTile:
         TiffFormat.VENTANA: VentanaTiffTiler,
         TiffFormat.HURON: HuronTiffTiler,
         TiffFormat.MIKROSCAN: MikroscanTiffTiler,
+        TiffFormat.MOTIC: MoticTiffTiler,
     }
 
     @classmethod
@@ -95,6 +97,8 @@ class OpenTile:
             return HuronTiffTiler(file)
         if supported_tiler is MikroscanTiffTiler:
             return MikroscanTiffTiler(file)
+        if supported_tiler is MoticTiffTiler:
+            return MoticTiffTiler(file, turbo_path)
         raise NotImplementedError(f"Support for tiff file {filepath} not implemented.")
 
     @classmethod
