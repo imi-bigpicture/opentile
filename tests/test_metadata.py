@@ -27,6 +27,54 @@ from opentile.formats.ventana.ventana_tiff_metadata import VentanaMetadata
 
 class TestSvsMetadata:
     @pytest.mark.parametrize(
+        ["description", "manufacturer", "model", "software_versions"],
+        [
+            ("Aperio Image, Grundium Ocus|MPP = 0.5", "Grundium", "Ocus", None),
+            ("Aperio Image, Grundium Ocus II|MPP = 0.5", "Grundium", "Ocus II", None),
+            (
+                "Aperio Leica Biosystems GT450 DX|ScanScope ID = 1",
+                "Leica Biosystems",
+                "GT450 DX",
+                ["Aperio Leica Biosystems GT450 DX"],
+            ),
+            (
+                "Aperio Image Library v12.4.7;Aperio Leica Biosystems GT450 v1.0.1|ScanScope ID = 2",
+                "Leica Biosystems",
+                "GT450",
+                [
+                    "Aperio Image Library v12.4.7",
+                    "Aperio Leica Biosystems GT450 v1.0.1",
+                ],
+            ),
+            (
+                "Aperio Image Library v12.3.1",
+                None,
+                None,
+                ["Aperio Image Library v12.3.1"],
+            ),
+        ],
+    )
+    def test_scanner_manufacturer_and_model_and_versions(
+        self,
+        decoy: Decoy,
+        description: str,
+        manufacturer: Optional[str],
+        model: Optional[str],
+        software_versions: Optional[list[str]],
+    ) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+
+        # Act
+        metadata = SvsMetadata(page)
+
+        # Assert
+        assert metadata.scanner_manufacturer == manufacturer
+        assert metadata.scanner_model == model
+        assert metadata.scanner_software_versions == software_versions
+
+    @pytest.mark.parametrize(
         ["description", "expected"],
         [
             (
