@@ -62,6 +62,9 @@ Some Aperio svs-files have corrupt tile data at edges of non-base pyramidal leve
 ***3DHistech tiff***
 Only the pyramidal levels are supported (not overviews or labels).
 
+***Huron tiff***
+Huron (MACROscan) tiff-files are identified by an `Image Dimensions =` field in the description, which is Aperio-like but does not start with `Aperio `. The natively tiled levels (JPEG 2000 or jpeg) are served as-is and the pixel spacing is read from the `Resolution` field. The thumbnail, label, and macro associated images are stored uncompressed and are decoded and served as raw pixels.
+
 ***OME tiff***
 Both tiled and strip-stored (e.g. uncompressed) levels are supported. Each level's focal plane and optical path are read from the OME metadata, so multi-plane z-stacks are exposed as separate focal planes. General (`metadata`-property) parsing is not yet implemented.
 

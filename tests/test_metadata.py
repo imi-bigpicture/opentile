@@ -12,13 +12,14 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from typing import Optional
+from typing import Optional, cast
 from unittest.mock import Mock
 
 import pytest
 from decoy import Decoy
-from tifffile import TiffPage
+from tifffile import TiffPage, TiffTags
 
+from opentile.formats.huron.huron_tiff_metadata import HuronTiffMetadata
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.formats.svs.svs_image import SvsTiledImage
@@ -201,3 +202,44 @@ class TestNdpiMetadata:
 
         # Assert
         assert metadata.label_text == expected
+
+
+class TestHuronMetadata:
+    @pytest.mark.parametrize(
+        ["description", "expected_barcode"],
+        [
+            # The barcode is Base64-encoded; "MTIzNDU2Ny0x" -> "1234567-1".
+            ("Resolution = 0.5 um\nBarcode = MTIzNDU2Ny0x", "1234567-1"),
+            # Non-Base64 falls back to the raw value.
+            ("Resolution = 0.5 um\nBarcode = not base64!", "not base64!"),
+            ("Resolution = 0.5 um", None),
+        ],
+    )
+    def test_barcode(
+        self, decoy: Decoy, description: str, expected_barcode: Optional[str]
+    ) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+        decoy.when(page.tags).then_return(cast(TiffTags, []))
+
+        # Act
+        metadata = HuronTiffMetadata(page)
+
+        # Assert
+        assert metadata.barcode == expected_barcode
+
+    def test_mpp_and_serial(self, decoy: Decoy) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(
+            "Resolution = 0.5 um\nDeviceID = LE176"
+        )
+        decoy.when(page.tags).then_return(cast(TiffTags, []))
+
+        # Act
+        metadata = HuronTiffMetadata(page)
+
+        # Assert
+        assert metadata.mpp == 0.5
+        assert metadata.scanner_serial_number == "LE176"

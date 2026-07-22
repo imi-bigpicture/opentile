@@ -26,6 +26,7 @@ from upath import UPath
 from opentile.file import OpenTileFile
 from opentile.formats import (
     HistechTiffTiler,
+    HuronTiffTiler,
     NdpiTiler,
     OmeTiffTiler,
     PhilipsTiffTiler,
@@ -46,6 +47,7 @@ class OpenTile:
         TiffFormat.OME_TIFF: OmeTiffTiler,
         TiffFormat.TRESTLE: TrestleTiffTiler,
         TiffFormat.VENTANA: VentanaTiffTiler,
+        TiffFormat.HURON: HuronTiffTiler,
     }
 
     @classmethod
@@ -87,6 +89,8 @@ class OpenTile:
             return TrestleTiffTiler(file)
         if supported_tiler is VentanaTiffTiler:
             return VentanaTiffTiler(file)
+        if supported_tiler is HuronTiffTiler:
+            return HuronTiffTiler(file)
         raise NotImplementedError(f"Support for tiff file {filepath} not implemented.")
 
     @classmethod

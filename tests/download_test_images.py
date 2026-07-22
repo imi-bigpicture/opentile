@@ -28,6 +28,10 @@ FILES: dict[str, dict[str, Any]] = {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi",
         "md5": {"CMU-1.ndpi": "fb89dea54f85fb112e418a3cf4c7888a"},
     },
+    "huron/Huron-1/Huron-1.tif": {
+        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Huron/Huron-1.tif",
+        "md5": {"Huron-1.tif": "36e88dca44731e3346a06913cdd105cd"},
+    },
 }
 
 DEFAULT_SLIDE_FOLDER = "tests/testdata/slides"

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for strip-stored (e.g. uncompressed) OME-TIFF levels via `OmeTiffStripedImage`. These are decoded once and served as a tile grid (`OmeTiffTiler` gains a `tile_size` argument); `get_tile` returns the raw pixel bytes since there is no per-tile encoded representation.
 - OME-TIFF levels now report the per-page focal plane (from the Z dimension and physical z spacing) and optical path (from the C dimension), so multi-plane OME z-stacks are surfaced as separate focal planes instead of being flattened.
 - Support for reading NDPI levels compressed with JPEG XR (`JPEGXR_NDPI`), previously unsupported. The native tiles are exposed via `NdpiJpegXrImage` with a zero-overlap `TileOverlap` for the consumer to stitch into a regular tiling. The macro is served as native JPEG XR; the label is decoded and served as uncompressed pixels.
+- Support for reading Huron (MACROscan) tiff files, identified by an `Image Dimensions =` field in the (Aperio-like but non-Aperio) description. The natively tiled levels (JPEG 2000 or jpeg) are served as-is, and the thumbnail/label/macro associated images (uncompressed) are decoded and served as raw pixels. Metadata is read from the description and tags: pixel spacing (`Resolution`), manufacturer, model, serial number (`DeviceID`), software, acquisition datetime (`Scan Started`), and the Base64-encoded barcode.
 
 ### Fixed
 
