@@ -35,8 +35,13 @@ class SvsMetadata(Metadata):
         except (KeyError, ValueError):
             return None
 
+    GRUNDIUM_MANUFACTURER = "Aperio Image, Grundium"
+
     @property
     def scanner_manufacturer(self) -> Optional[str]:
+        header = self._header.splitlines()[0] if self._header else ""
+        if header.startswith(SvsMetadata.GRUNDIUM_MANUFACTURER):
+            return "Grundium"
         if self.scanner_serial_number is None:
             return None
         return "Leica Biosystems"
@@ -46,9 +51,11 @@ class SvsMetadata(Metadata):
         scanner_type = self._svs_metadata.get("ScannerType")
         if scanner_type:
             return scanner_type
+        header = self._header.splitlines()[0] if self._header else ""
+        if header.startswith(SvsMetadata.GRUNDIUM_MANUFACTURER):
+            return header[len(SvsMetadata.GRUNDIUM_MANUFACTURER) :].strip() or None
         if self.scanner_serial_number is None:
             return None
-        header = self._header.splitlines()[0] if self._header else ""
         if "GT450 DX" in header:
             return "GT450 DX"
         # must be after 'GT450 DX':
@@ -58,6 +65,9 @@ class SvsMetadata(Metadata):
 
     @property
     def scanner_software_versions(self) -> Optional[list[str]]:
+        header = self._header.splitlines()[0] if self._header else ""
+        if header.startswith(SvsMetadata.GRUNDIUM_MANUFACTURER):
+            return None
         return [
             segment.splitlines()[0].strip()
             for segment in self._header.split(";")
