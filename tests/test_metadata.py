@@ -32,6 +32,43 @@ from opentile.formats.ventana.ventana_tiff_metadata import VentanaMetadata
 
 class TestSvsMetadata:
     @pytest.mark.parametrize(
+        ["description", "expected_datetime"],
+        [
+            (
+                "Aperio Image Library v10.0.51|Date = 12/29/09|Time = 09:59:15",
+                datetime.strptime("20091229095915", "%Y%m%d%H%M%S"),
+            ),
+            (
+                "Aperio Image Library v12.0.15|Date = 07/12/18|Time = 15:52:33|Time Zone = GMT-07:00",
+                datetime.strptime("20180712155233-0700", "%Y%m%d%H%M%S%z"),
+            ),
+            (
+                "Aperio Leica Biosystems GT450 v1.0.1|Date = 12/11/2024|Time = 12:21:45|Time Zone = GMT-0600",
+                datetime.strptime("20241211122145-0600", "%Y%m%d%H%M%S%z"),
+            ),
+            (
+                "Aperio Leica Biosystems GT450 v1.0.1|Date = 03/06/2024|Time = 12:47:56|Time Zone = GMT+429496728800",
+                datetime.strptime("20240306124756", "%Y%m%d%H%M%S"),
+            ),
+        ],
+    )
+    def test_acquisition_datetime(
+        self,
+        decoy: Decoy,
+        description: str,
+        expected_datetime: Optional[datetime],
+    ) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+
+        # Act
+        metadata = SvsMetadata(page)
+
+        # Assert
+        assert metadata.acquisition_datetime == expected_datetime
+
+    @pytest.mark.parametrize(
         ["description", "manufacturer", "model", "software_versions"],
         [
             ("Aperio Image, Grundium Ocus|MPP = 0.5", "Grundium", "Ocus", None),
