@@ -65,6 +65,9 @@ Only the pyramidal levels are supported (not overviews or labels).
 ***Huron tiff***
 Huron (MACROscan) tiff-files are identified by an `Image Dimensions =` field in the description, which is Aperio-like but does not start with `Aperio `. The natively tiled levels (JPEG 2000 or jpeg) are served as-is and the pixel spacing is read from the `Resolution` field. The thumbnail, label, and macro associated images are stored uncompressed and are decoded and served as raw pixels.
 
+***Mikroscan tiff***
+Mikroscan (SL5) tiff-files use the Aperio pipe-separated description format but with a `Mikroscan Image Structure` header instead of the `Aperio ` prefix. The natively tiled jpeg levels are served as-is, and pixel spacing, magnification, scanner model/serial, and acquisition datetime are read from the description. The associated image series are unnamed and are not exposed.
+
 ***OME tiff***
 Both tiled and strip-stored (e.g. uncompressed) levels are supported. Each level's focal plane and optical path are read from the OME metadata, so multi-plane z-stacks are exposed as separate focal planes. General (`metadata`-property) parsing is not yet implemented.
 

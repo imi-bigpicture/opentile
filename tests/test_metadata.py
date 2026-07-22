@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from datetime import datetime
 from typing import Optional, cast
 from unittest.mock import Mock
 
@@ -20,6 +21,7 @@ from decoy import Decoy
 from tifffile import TiffPage, TiffTags
 
 from opentile.formats.huron.huron_tiff_metadata import HuronTiffMetadata
+from opentile.formats.mikroscan.mikroscan_tiff_metadata import MikroscanTiffMetadata
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.formats.svs.svs_image import SvsTiledImage
@@ -243,3 +245,39 @@ class TestHuronMetadata:
         # Assert
         assert metadata.mpp == 0.5
         assert metadata.scanner_serial_number == "LE176"
+
+
+class TestMikroscanMetadata:
+    def test_fields(self, decoy: Decoy) -> None:
+        # Arrange: the Aperio pipe-separated layout with a Mikroscan header (synthetic
+        # values; the real test file is private).
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(
+            "Mikroscan Image Structure\n100x200 (256x256) JPEG / RGB Q = 30|"
+            "AppMag = 40|SL5 SERIAL # = 42|Date = 01/02/03|Time = 04:05:06|"
+            "MPP = 0.25"
+        )
+
+        # Act
+        metadata = MikroscanTiffMetadata(page)
+
+        # Assert
+        assert metadata.mpp == 0.25
+        assert metadata.magnification == 40.0
+        assert metadata.scanner_manufacturer == "Mikroscan"
+        assert metadata.scanner_model == "SL5"
+        assert metadata.scanner_serial_number == "42"
+        assert metadata.acquisition_datetime == datetime(2003, 1, 2, 4, 5, 6)
+
+    def test_missing_serial_and_date(self, decoy: Decoy) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return("Mikroscan Image Structure|MPP = 0.5")
+
+        # Act
+        metadata = MikroscanTiffMetadata(page)
+
+        # Assert
+        assert metadata.scanner_model is None
+        assert metadata.scanner_serial_number is None
+        assert metadata.acquisition_datetime is None
