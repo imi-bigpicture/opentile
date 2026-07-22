@@ -12,43 +12,23 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Metadata parser for Mikroscan tiff files."""
+"""Metadata parser for Mikroscan tiff files.
+
+The description uses the Aperio pipe-separated ``Header|Key = Value|...`` layout (parsed
+by `SvsLikeMetadata`), e.g.::
+
+    Mikroscan Image Structure
+    26880x42240 [0, 0 26880x42240] (256x256) JPEG / RGB Q = 30|AppMag = 20|
+    SL5 SERIAL # = 1053|Date = 09/26/19|Time = 09:57:06|MPP = 0.453023|...
+"""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
-from tifffile import TiffPage
-
-from opentile.metadata import Metadata
+from opentile.metadata import SvsLikeMetadata
 
 
-class MikroscanTiffMetadata(Metadata):
-    def __init__(self, page: TiffPage):
-        """Metadata read from a Mikroscan tiff base page. The description uses the
-        Aperio pipe-separated ``Header|Key = Value|Key = Value`` layout, e.g.::
-
-            Mikroscan Image Structure
-            26880x42240 [0, 0 26880x42240] (256x256) JPEG / RGB Q = 30|AppMag = 20|
-            SL5 SERIAL # = 1053|Date = 09/26/19|Time = 09:57:06|MPP = 0.453023|...
-
-        Parameters
-        ----------
-        page: TiffPage
-            The base level TiffPage to read metadata from.
-        """
-        self._fields = self._parse_description(page.description)
-
-    @staticmethod
-    def _parse_description(description: str) -> dict[str, str]:
-        """Parse the pipe-separated ``Key = Value`` Mikroscan description (the first
-        pipe-item is the header and is skipped)."""
-        fields: dict[str, str] = {}
-        for item in description.split("|")[1:]:
-            key, separator, value = item.partition(" = ")
-            if separator:
-                fields[key.strip()] = value.strip()
-        return fields
-
+class MikroscanTiffMetadata(SvsLikeMetadata):
     @property
     def _serial_field(self) -> tuple[Optional[str], Optional[str]]:
         """The ``<model> SERIAL # = <serial>`` field as (model, serial), or
@@ -59,18 +39,6 @@ class MikroscanTiffMetadata(Metadata):
                 model = key[: -len(suffix)].strip()
                 return (model or None, value)
         return (None, None)
-
-    @property
-    def magnification(self) -> Optional[float]:
-        try:
-            return float(self._fields["AppMag"])
-        except (KeyError, ValueError):
-            return None
-
-    @property
-    def mpp(self) -> float:
-        """The pixel spacing (um/pixel) from the ``MPP`` field (isotropic)."""
-        return float(self._fields["MPP"])
 
     @property
     def scanner_manufacturer(self) -> Optional[str]:
@@ -96,7 +64,3 @@ class MikroscanTiffMetadata(Metadata):
             return datetime.strptime(f"{date} {time}", "%m/%d/%y %H:%M:%S")
         except ValueError:
             return None
-
-    @property
-    def properties(self) -> dict[str, Any]:
-        return dict(self._fields)

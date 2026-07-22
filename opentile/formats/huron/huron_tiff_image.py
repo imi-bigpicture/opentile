@@ -12,7 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Image implementation for Huron tiff files."""
+"""Image implementations for the associated (thumbnail, label, macro) images of Huron
+tiff files. The natively tiled levels use the shared `NativeTiledLevelImage`."""
 
 from typing import Optional
 
@@ -24,62 +25,8 @@ from opentile.geometry import Size, SizeMm
 from opentile.tiff_image import (
     AssociatedTiffImage,
     BaseTiffImage,
-    LevelTiffImage,
-    NativeTiledTiffImage,
     ThumbnailTiffImage,
 )
-
-
-class HuronTiffImage(NativeTiledTiffImage, LevelTiffImage):
-    def __init__(
-        self, page: TiffPage, file: OpenTileFile, base_size: Size, base_mpp: SizeMm
-    ):
-        """Level image for a Huron tiff file. The level is natively tiled (JPEG 2000
-        or jpeg), so the tiles are served as-is.
-
-        Parameters
-        ----------
-        page: TiffPage
-            TiffPage defining the level.
-        file: OpenTileFile
-            File to read data from.
-        base_size: Size
-            Size of the base level in the pyramid.
-        base_mpp: SizeMm
-            Pixel spacing (um/pixel) of the base level in the pyramid.
-        """
-        super().__init__(page, file)
-        self._base_size = base_size
-        self._base_mpp = base_mpp
-        self._scale = self._calculate_scale(base_size)
-        self._pyramid_index = self._calculate_pyramidal_index(self._scale)
-        self._mpp = self._calculate_mpp(base_mpp, self._scale)
-
-    def __repr__(self) -> str:
-        return (
-            f"{type(self).__name__}({self._page}, {self._file}, "
-            f"{self._base_size}, {self._base_mpp})"
-        )
-
-    @property
-    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
-        return None
-
-    @property
-    def mpp(self) -> SizeMm:
-        return self._mpp
-
-    @property
-    def pixel_spacing(self) -> SizeMm:
-        return self.mpp / 1000
-
-    @property
-    def scale(self) -> float:
-        return self._scale
-
-    @property
-    def pyramid_index(self) -> int:
-        return self._pyramid_index
 
 
 class HuronSingleFrameImage(BaseTiffImage):

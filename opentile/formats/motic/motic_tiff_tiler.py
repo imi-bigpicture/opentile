@@ -21,7 +21,6 @@ from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
 from opentile.file import OpenTileFile
-from opentile.formats.motic.motic_tiff_image import MoticTiffImage
 from opentile.formats.motic.motic_tiff_metadata import MoticTiffMetadata
 
 # Motic writes Aperio-format jpeg/lzw striped associated images, so the svs image
@@ -38,6 +37,7 @@ from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
+    NativeTiledLevelImage,
     ThumbnailTiffImage,
 )
 from opentile.tiler import Tiler
@@ -82,7 +82,7 @@ class MoticTiffTiler(Tiler):
         return description.startswith("Motic ") and "AppMag" in description
 
     def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
-        return MoticTiffImage(
+        return NativeTiledLevelImage(
             self._get_tiff_page(self._level_series_index, level, page),
             self._file,
             self._base_size,

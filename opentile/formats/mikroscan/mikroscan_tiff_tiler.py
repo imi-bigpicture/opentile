@@ -24,7 +24,6 @@ from opentile.file import OpenTileFile
 from opentile.formats.mikroscan.mikroscan_tiff_image import (
     MikroscanAssociatedImage,
     MikroscanThumbnailImage,
-    MikroscanTiffImage,
 )
 from opentile.formats.mikroscan.mikroscan_tiff_metadata import MikroscanTiffMetadata
 from opentile.geometry import SizeMm
@@ -33,6 +32,7 @@ from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
+    NativeTiledLevelImage,
     ThumbnailTiffImage,
 )
 from opentile.tiler import Tiler
@@ -72,7 +72,7 @@ class MikroscanTiffTiler(Tiler):
         return "Mikroscan Image Structure" in tiff_file.pages.first.description
 
     def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
-        return MikroscanTiffImage(
+        return NativeTiledLevelImage(
             self._get_tiff_page(self._level_series_index, level, page),
             self._file,
             self._base_size,

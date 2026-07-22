@@ -24,7 +24,6 @@ from opentile.file import OpenTileFile
 from opentile.formats.huron.huron_tiff_image import (
     HuronAssociatedImage,
     HuronThumbnailImage,
-    HuronTiffImage,
 )
 from opentile.formats.huron.huron_tiff_metadata import HuronTiffMetadata
 from opentile.geometry import SizeMm
@@ -33,6 +32,7 @@ from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
+    NativeTiledLevelImage,
     ThumbnailTiffImage,
 )
 from opentile.tiler import Tiler
@@ -75,7 +75,7 @@ class HuronTiffTiler(Tiler):
         return "Image Dimensions =" in description and "Resolution =" in description
 
     def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
-        return HuronTiffImage(
+        return NativeTiledLevelImage(
             self._get_tiff_page(self._level_series_index, level, page),
             self._file,
             self._base_size,
