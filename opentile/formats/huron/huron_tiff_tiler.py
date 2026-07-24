@@ -21,16 +21,14 @@ from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
 from opentile.file import OpenTileFile
-from opentile.formats.huron.huron_tiff_image import (
-    HuronAssociatedImage,
-    HuronThumbnailImage,
-)
 from opentile.formats.huron.huron_tiff_metadata import HuronTiffMetadata
 from opentile.geometry import SizeMm
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import (
     AssociatedTiffImage,
+    DecodedAssociatedImage,
+    DecodedThumbnailImage,
     LevelTiffImage,
     NativeTiledLevelImage,
     ThumbnailTiffImage,
@@ -84,19 +82,19 @@ class HuronTiffTiler(Tiler):
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         assert self._label_series_index is not None
-        return HuronAssociatedImage(
+        return DecodedAssociatedImage(
             self._get_tiff_page(self._label_series_index, 0, page), self._file
         )
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         assert self._overview_series_index is not None
-        return HuronAssociatedImage(
+        return DecodedAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page), self._file
         )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         assert self._thumbnail_series_index is not None
-        return HuronThumbnailImage(
+        return DecodedThumbnailImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
             self._base_size,

@@ -37,8 +37,6 @@ from opentile.file import OpenTileFile
 from opentile.formats.argos.argos_tiff_image import (
     ArgosLabelImage,
     ArgosLevelTiffImage,
-    ArgosOverviewImage,
-    ArgosThumbnailImage,
 )
 from opentile.formats.argos.argos_tiff_metadata import ARGOS_METADATA_TAG, ArgosMetadata
 from opentile.geometry import SizeMm
@@ -48,6 +46,8 @@ from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
+    StripedAssociatedImage,
+    StripedThumbnailImage,
     ThumbnailTiffImage,
 )
 from opentile.tiler import Tiler
@@ -135,7 +135,7 @@ class ArgosTiffTiler(Tiler):
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
             raise MissingAssociatedImageError("No overview series found in this file.")
-        return ArgosOverviewImage(
+        return StripedAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
             self._jpeg,
@@ -146,7 +146,7 @@ class ArgosTiffTiler(Tiler):
             raise MissingAssociatedImageError(
                 "No thumbnail series found in this file."
             )
-        return ArgosThumbnailImage(
+        return StripedThumbnailImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
             self._base_size,

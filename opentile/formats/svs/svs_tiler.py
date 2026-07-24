@@ -22,18 +22,20 @@ from upath import UPath
 
 from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
-from opentile.formats.svs.svs_image import (
-    SvsLabelImage,
-    SvsOverviewImage,
-    SvsThumbnailImage,
-    SvsTiledImage,
-)
+from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.formats.svs.svs_metadata import SvsMetadata
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image import (
+    AssociatedTiffImage,
+    LevelTiffImage,
+    SingleFrameAssociatedImage,
+    StripedAssociatedImage,
+    StripedThumbnailImage,
+    ThumbnailTiffImage,
+)
 from opentile.tiler import Tiler
 
 
@@ -106,16 +108,15 @@ class SvsTiler(Tiler):
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
             raise MissingAssociatedImageError("No label detected in file")
-        return SvsLabelImage(
+        return SingleFrameAssociatedImage(
             self._get_tiff_page(self._label_series_index, 0, page),
             self._file,
-            self._jpeg,
         )
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
             raise MissingAssociatedImageError("No overview detected in file")
-        return SvsOverviewImage(
+        return StripedAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
             self._jpeg,
@@ -124,7 +125,7 @@ class SvsTiler(Tiler):
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
             raise MissingAssociatedImageError("No thumbnail detected in file")
-        return SvsThumbnailImage(
+        return StripedThumbnailImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
             self._base_size,

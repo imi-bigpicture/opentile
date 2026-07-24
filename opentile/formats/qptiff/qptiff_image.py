@@ -27,11 +27,11 @@ from opentile.file import OpenTileFile
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.tiff_image import (
+    AssociatedTiffImage,
     LevelTiffImage,
     NativeTiledTiffImage,
-    StripedAssociatedImage,
-    StripedThumbnailImage,
     StripedTiffImage,
+    ThumbnailTiffImage,
 )
 
 
@@ -177,9 +177,39 @@ class QptiffStripedLevelImage(QptiffStripedImage, LevelTiffImage):
         return self._optical_path
 
 
-class QptiffThumbnailImage(QptiffStripedImage, StripedThumbnailImage):
-    """Striped thumbnail image (~500 x 500 RGB)."""
+class QptiffThumbnailImage(QptiffStripedImage, ThumbnailTiffImage):
+    """Striped thumbnail image (~500 x 500 RGB), scaled from the pyramid base level."""
+
+    def __init__(
+        self,
+        page: TiffPage,
+        file: OpenTileFile,
+        base_size: Size,
+        base_mpp: SizeMm,
+        jpeg: Jpeg,
+    ):
+        super().__init__(page, file, jpeg)
+        self._base_size = base_size
+        self._base_mpp = base_mpp
+        self._scale = self._calculate_scale(base_size)
+        self._mpp = self._calculate_mpp(base_mpp, self._scale)
+
+    @property
+    def mpp(self) -> SizeMm:
+        return self._mpp
+
+    @property
+    def pixel_spacing(self) -> SizeMm:
+        return self.mpp / 1000
+
+    @property
+    def scale(self) -> float:
+        return self._scale
 
 
-class QptiffAssociatedImage(QptiffStripedImage, StripedAssociatedImage):
+class QptiffAssociatedImage(QptiffStripedImage, AssociatedTiffImage):
     """Striped macro (overview) or label image."""
+
+    @property
+    def pixel_spacing(self) -> Optional[SizeMm]:
+        return None

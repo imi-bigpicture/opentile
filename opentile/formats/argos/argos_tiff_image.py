@@ -30,8 +30,6 @@ from opentile.jpeg import Jpeg
 from opentile.tiff_image import (
     AssociatedTiffImage,
     SparseTiledLevelImage,
-    StripedAssociatedImage,
-    StripedThumbnailImage,
     StripedTiffImage,
 )
 
@@ -54,14 +52,6 @@ class ArgosLevelTiffImage(SparseTiledLevelImage):
     @property
     def focal_plane(self) -> float:
         return self._focal_plane
-
-
-class ArgosThumbnailImage(StripedThumbnailImage):
-    """Striped JPEG thumbnail (the Map image)."""
-
-
-class ArgosOverviewImage(StripedAssociatedImage):
-    """Striped JPEG overview (the Macro image)."""
 
 
 class ArgosLabelImage(StripedTiffImage, AssociatedTiffImage):

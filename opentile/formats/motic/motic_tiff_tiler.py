@@ -22,14 +22,6 @@ from upath import UPath
 
 from opentile.file import OpenTileFile
 from opentile.formats.motic.motic_tiff_metadata import MoticTiffMetadata
-
-# Motic writes Aperio-format jpeg/lzw striped associated images, so the svs image
-# classes are reused for them.
-from opentile.formats.svs.svs_image import (
-    SvsLabelImage,
-    SvsOverviewImage,
-    SvsThumbnailImage,
-)
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
@@ -38,6 +30,9 @@ from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
     NativeTiledLevelImage,
+    SingleFrameAssociatedImage,
+    StripedAssociatedImage,
+    StripedThumbnailImage,
     ThumbnailTiffImage,
 )
 from opentile.tiler import Tiler
@@ -91,15 +86,14 @@ class MoticTiffTiler(Tiler):
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         assert self._label_series_index is not None
-        return SvsLabelImage(
+        return SingleFrameAssociatedImage(
             self._get_tiff_page(self._label_series_index, 0, page),
             self._file,
-            self._jpeg,
         )
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         assert self._overview_series_index is not None
-        return SvsOverviewImage(
+        return StripedAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
             self._jpeg,
@@ -107,7 +101,7 @@ class MoticTiffTiler(Tiler):
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         assert self._thumbnail_series_index is not None
-        return SvsThumbnailImage(
+        return StripedThumbnailImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
             self._base_size,

@@ -315,6 +315,7 @@ class TestVentana1TiffTiler:
 
     def test_single_area(self, ventana_1_tiler: VentanaTiffTiler):
         # Arrange
+        assert isinstance(ventana_1_tiler.metadata, VentanaMetadata)
 
         # Act
         areas = ventana_1_tiler.metadata.areas

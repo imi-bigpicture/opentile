@@ -1026,3 +1026,93 @@ class StripedAssociatedImage(StripedTiffImage, AssociatedTiffImage):
     @property
     def pixel_spacing(self) -> Optional[SizeMm]:
         return None
+
+
+class DecodedSingleFrameImage(BaseTiffImage, metaclass=ABCMeta):
+    """Meta class for an uncompressed, multi-strip page served as one tile.
+
+    The strips are read and assembled into one raw-pixel tile; there is no per-tile
+    encoded representation to pass through, so the image is served uncompressed. Unlike
+    `DecodedTiledTiffImage` the whole page is one tile, not a grid.
+    """
+
+    @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        # Only uncompressed pages: the tile is served as raw pixels, so the reported
+        # (inherited) compression of NONE must match the served bytes.
+        return [COMPRESSION.NONE]
+
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
+        return self._page.asarray(squeeze=True)
+
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
+        return self.get_decoded_tile(tile_position).tobytes()
+
+
+class DecodedAssociatedImage(DecodedSingleFrameImage, AssociatedTiffImage):
+    """Uncompressed associated image (label or macro) served as raw pixels."""
+
+    @property
+    def pixel_spacing(self) -> Optional[SizeMm]:
+        return None
+
+
+class DecodedThumbnailImage(DecodedSingleFrameImage, ThumbnailTiffImage):
+    """Uncompressed thumbnail served as raw pixels, scaled from the base level."""
+
+    def __init__(
+        self, page: TiffPage, file: OpenTileFile, base_size: Size, base_mpp: SizeMm
+    ):
+        """
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the thumbnail.
+        file: OpenTileFile
+            File to read data from.
+        base_size: Size
+            Size of the base level in the pyramid.
+        base_mpp: SizeMm
+            Pixel spacing (um/pixel) of the base level in the pyramid.
+        """
+        super().__init__(page, file)
+        self._base_size = base_size
+        self._scale = self._calculate_scale(base_size)
+        self._mpp = self._calculate_mpp(base_mpp, self._scale)
+
+    @property
+    def scale(self) -> float:
+        return self._scale
+
+    @property
+    def pixel_spacing(self) -> SizeMm:
+        return self._mpp / 1000
+
+
+class SingleFrameAssociatedImage(BaseTiffImage, AssociatedTiffImage):
+    """Associated image stored as a single frame, served as one tile.
+
+    The stored frame is passed through untouched, whatever its compression (e.g. an lzw
+    label). Used by formats whose label is written as one frame rather than as strips
+    (svs and the Aperio-like motic).
+    """
+
+    @property
+    def pixel_spacing(self) -> Optional[SizeMm]:
+        return None
+
+    @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        return None
+
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
+        return self._read_frame(0)
+
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
+        return self._page.asarray(squeeze=True)

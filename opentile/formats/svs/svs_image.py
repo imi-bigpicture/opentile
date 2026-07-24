@@ -26,62 +26,10 @@ from tifffile.tifffile import svs_description_metadata
 from opentile.exceptions import NonSupportedCompressionError
 from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.jpeg import Jpeg
 from opentile.tiff_image import (
-    AssociatedTiffImage,
-    BaseTiffImage,
     LevelTiffImage,
     NativeTiledTiffImage,
-    StripedAssociatedImage,
-    StripedThumbnailImage,
 )
-
-
-class SvsThumbnailImage(StripedThumbnailImage):
-    """Svs striped thumbnail image (see `StripedThumbnailImage`)."""
-
-
-class SvsOverviewImage(StripedAssociatedImage):
-    """Svs striped overview image (see `StripedAssociatedImage`)."""
-
-
-class SvsLabelImage(BaseTiffImage, AssociatedTiffImage):
-    def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
-        """OpenTiledPage for lzw striped Svs image, e.g. label image.
-
-        Parameters
-        ----------
-        page: TiffPage
-            TiffPage defining the page.
-        file: OpenTileFile
-            File to read data from.
-        jpeg: Jpeg
-            Jpeg instance to use.
-
-        """
-        super().__init__(page, file)
-        self._jpeg = jpeg
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
-
-    @property
-    def pixel_spacing(self) -> Optional[SizeMm]:
-        return None
-
-    @property
-    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
-        return None
-
-    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
-        if tile_position != (0, 0):
-            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        return self._read_frame(0)
-
-    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
-        if tile_position != (0, 0):
-            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        return self._page.asarray(squeeze=True)
 
 
 class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
