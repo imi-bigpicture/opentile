@@ -25,6 +25,7 @@ from upath import UPath
 
 from opentile.file import OpenTileFile
 from opentile.formats import (
+    ArgosTiffTiler,
     HistechTiffTiler,
     HuronTiffTiler,
     MikroscanTiffTiler,
@@ -52,6 +53,7 @@ class OpenTile:
         TiffFormat.HURON: HuronTiffTiler,
         TiffFormat.MIKROSCAN: MikroscanTiffTiler,
         TiffFormat.MOTIC: MoticTiffTiler,
+        TiffFormat.ARGOS: ArgosTiffTiler,
     }
 
     @classmethod
@@ -99,6 +101,8 @@ class OpenTile:
             return MikroscanTiffTiler(file)
         if supported_tiler is MoticTiffTiler:
             return MoticTiffTiler(file, turbo_path)
+        if supported_tiler is ArgosTiffTiler:
+            return ArgosTiffTiler(file, turbo_path)
         raise NotImplementedError(f"Support for tiff file {filepath} not implemented.")
 
     @classmethod

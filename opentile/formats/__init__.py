@@ -14,6 +14,7 @@
 
 """Module containing format specific implementations."""
 
+from opentile.formats.argos import ArgosTiffTiler
 from opentile.formats.histech import HistechTiffTiler
 from opentile.formats.huron import HuronTiffTiler
 from opentile.formats.mikroscan import MikroscanTiffTiler
@@ -26,6 +27,7 @@ from opentile.formats.trestle import TrestleTiffTiler
 from opentile.formats.ventana import VentanaTiffTiler
 
 __all__ = [
+    "ArgosTiffTiler",
     "OmeTiffTiler",
     "NdpiTiler",
     "HistechTiffTiler",

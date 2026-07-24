@@ -80,6 +80,9 @@ Trestle tiff-files (identified by a `Software` tag starting with `MedScan`) stor
 ***Ventana bif***
 Ventana bif-files store a single-file pyramidal tiled BigTIFF whose tiles overlap. The per-boundary overlaps and each scanned area's origin are parsed from the `EncodeInfo` XMP (serpentine-indexed), and multi-area slides are supported. Already-stitched (non-overlapping) Ventana tiff files are also read, as a plain tiled pyramid.
 
+***Argos avs***
+Argos avs-files (identified by TIFF tag 65000 holding `Argos.Scan.Metadata` XML) store a single-file pyramidal tiled BigTIFF with sparse JPEG tiles. Missing tiles (zero offset and byte count) are served as blank (white) tiles, as for Philips. The last two directories are the thumbnail (`Map`) and overview (`Macro`) images; Argos has no dedicated label image, so the label is cropped from the right side of the overview. Stacked (z-stack) files store the focal planes on the base series' Z axis, and each plane is exposed as a level image with its `focal_plane` set from the `MinZ`/`ZRange` metadata.
+
 ## Metadata
 
 File metadata can be accessed through the `metadata`-property of a tiler. Depending on file format and content, the following metadata is available:

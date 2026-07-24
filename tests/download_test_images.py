@@ -32,6 +32,14 @@ FILES: dict[str, dict[str, Any]] = {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Huron/Huron-1.tif",
         "md5": {"Huron-1.tif": "36e88dca44731e3346a06913cdd105cd"},
     },
+    "argos/Argos-1/Argos-1.avs": {
+        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Argos/Argos-1.avs",
+        "md5": {"Argos-1.avs": "39dbc48864d9fc47f00fcc5a9a62a74c"},
+    },
+    "argos/Argos-1-Stacked/Argos-1-Stacked.avs": {
+        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Argos/Argos-1-Stacked.avs",
+        "md5": {"Argos-1-Stacked.avs": "1c109fe4296fd9e835ced9250776b7b6"},
+    },
 }
 
 DEFAULT_SLIDE_FOLDER = "tests/testdata/slides"
