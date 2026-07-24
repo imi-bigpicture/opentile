@@ -19,7 +19,7 @@ from tifffile import PHOTOMETRIC
 
 from opentile.formats import OmeTiffTiler
 from opentile.geometry import SizeMm
-from opentile.tiff_image import BaseTiffImage
+from opentile.tiff_image import LevelTiffImage
 
 from .filepaths import ome_tiff_file_path
 
@@ -48,7 +48,7 @@ class TestOmeTiffTiler:
         ],
     )
     def test_get_tile(
-        self, level: BaseTiffImage, tile_point: tuple[int, int], hash: str
+        self, level: LevelTiffImage, tile_point: tuple[int, int], hash: str
     ):
         # Arrange
 
@@ -58,7 +58,7 @@ class TestOmeTiffTiler:
         # Assert
         assert md5(tile).hexdigest() == hash
 
-    def test_photometric_interpretation(self, level: BaseTiffImage):
+    def test_photometric_interpretation(self, level: LevelTiffImage):
         # Arrange
 
         # Act
@@ -67,7 +67,7 @@ class TestOmeTiffTiler:
         # Assert
         assert photometric_interpretation == PHOTOMETRIC.YCBCR
 
-    def test_subsampling(self, level: BaseTiffImage):
+    def test_subsampling(self, level: LevelTiffImage):
         # Arrange
 
         # Act
@@ -76,7 +76,7 @@ class TestOmeTiffTiler:
         # Assert
         assert subsampling == (2, 2)
 
-    def test_sumples_per_pixel(self, level: BaseTiffImage):
+    def test_sumples_per_pixel(self, level: LevelTiffImage):
         # Arrange
 
         # Act
@@ -85,7 +85,7 @@ class TestOmeTiffTiler:
         # Assert
         assert samples_per_pixel == 3
 
-    def test_compressed_size(self, level: BaseTiffImage):
+    def test_compressed_size(self, level: LevelTiffImage):
         # Arrange
 
         # Act

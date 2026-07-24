@@ -25,7 +25,7 @@ from opentile.formats.ndpi.ndpi_image import NdpiOneFrameImage, NdpiStripedImage
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size, SizeMm
-from opentile.tiff_image import BaseTiffImage
+from opentile.tiff_image import LevelTiffImage
 
 from .filepaths import ndpi_file_path, ndpi_z_file_path
 
@@ -403,7 +403,7 @@ class TestNdpiTiler:
         # Assert
         assert adjusted_size == expected_adjusted_size
 
-    def test_photometric_interpretation(self, level: BaseTiffImage):
+    def test_photometric_interpretation(self, level: LevelTiffImage):
         # Arrange
 
         # Act
@@ -412,7 +412,7 @@ class TestNdpiTiler:
         # Assert
         assert photometric_interpretation == PHOTOMETRIC.YCBCR
 
-    def test_subsampling(self, level: BaseTiffImage):
+    def test_subsampling(self, level: LevelTiffImage):
         # Arrange
 
         # Act
@@ -421,7 +421,7 @@ class TestNdpiTiler:
         # Assert
         assert subsampling == (1, 1)
 
-    def test_sumples_per_pixel(self, level: BaseTiffImage):
+    def test_sumples_per_pixel(self, level: LevelTiffImage):
         # Arrange
 
         # Act
@@ -515,7 +515,7 @@ class TestNdpiTiler:
         # Assert
         assert md5(overview).hexdigest() == "3c35de47f6137ba2c118ec4703c393c2"
 
-    def test_compressed_size(self, level: BaseTiffImage):
+    def test_compressed_size(self, level: LevelTiffImage):
         # Arrange
 
         # Act
