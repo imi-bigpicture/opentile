@@ -80,7 +80,7 @@ class HistechTiffTiler(Tiler):
         raise NotImplementedError()
 
     def _is_level_series(self, series: TiffPageSeries) -> bool:
-        return series.index == 0
+        return series is self._file.series[0]
 
     def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return False

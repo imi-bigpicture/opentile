@@ -95,16 +95,21 @@ class NdpiTiler(Tiler):
         if not tiff_file.is_ndpi:
             return False
         # opentile can serve jpeg (re-tiled) and JPEG XR (native tiles) ndpi levels.
+        # The level series is the first series; the macro is named "Macro". Taken
+        # directly rather than via the instance predicates, which need a constructed
+        # tiler.
+        image_series = [tiff_file.series[0]] + [
+            series for series in tiff_file.series if series.name == "Macro"
+        ]
         return all(
             page.compression in (COMPRESSION.JPEG, COMPRESSION.JPEGXR_NDPI)
-            for series in tiff_file.series
-            if series.index == 0 or series.name == "Macro"
+            for series in image_series
             for page in series.pages
             if page is not None
         )
 
     def _is_level_series(self, series: TiffPageSeries) -> bool:
-        return series.index == 0
+        return series is self._file.series[0]
 
     def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Macro"

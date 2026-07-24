@@ -72,13 +72,12 @@ class PhilipsTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         if not tiff_file.is_philips:
             return False
-        # Check the level series is JPEG. Classification here is inlined rather than
-        # via the instance predicate, which needs a constructed tiler.
+        # The level series is the first series. Taken directly rather than via the
+        # instance predicate, which needs a constructed tiler. Sparse-tile handling
+        # assumes JPEG (see `SparseTiledLevelImage.supported_compressions`).
         return all(
             page.compression == COMPRESSION.JPEG
-            for series in tiff_file.series
-            if series.index == 0
-            for page in series.pages
+            for page in tiff_file.series[0].pages
             if page is not None
         )
 
@@ -116,7 +115,7 @@ class PhilipsTiffTiler(Tiler):
         )
 
     def _is_level_series(self, series: TiffPageSeries) -> bool:
-        return series.index == 0
+        return series is self._file.series[0]
 
     def _is_overview_series(self, series: TiffPageSeries) -> bool:
         page = series.pages[0]
