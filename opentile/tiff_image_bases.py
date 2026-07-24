@@ -60,6 +60,7 @@ class BaseTiffImage(TiffImage):
         page: TiffPage,
         file: OpenTileFile,
         add_rgb_colorspace_fix: bool = False,
+        tile_size: Optional[Size] = None,
     ):
         """Base class for reading tiles from TiffPage.
 
@@ -71,6 +72,10 @@ class BaseTiffImage(TiffImage):
             FileHandle for reading data.
         add_rgb_colorspace_fix: bool = False
             If to add color space fix for rgb image data.
+        tile_size: Optional[Size] = None
+            Size of the tiles to produce, for images that are re-tiled to a grid other
+            than the one stored. Defaults to the stored tile size, or the image size
+            for a non-tiled image.
         """
         if (
             self.supported_compressions is not None
@@ -82,12 +87,19 @@ class BaseTiffImage(TiffImage):
         self._page = page
         self._file = file
         self._add_rgb_colorspace_fix = add_rgb_colorspace_fix
-        self._image_size = Size(self._page.imagewidth, self._page.imagelength)
-        if self._page.is_tiled:
+        self._image_size = self._read_image_size()
+        if tile_size is not None:
+            self._tile_size = tile_size
+        elif self._page.is_tiled:
             self._tile_size = Size(self._page.tilewidth, self._page.tilelength)
         else:
             self._tile_size = self.image_size
         self._tiled_region = Region(position=Point(0, 0), size=self.tiled_size)
+
+    def _read_image_size(self) -> Size:
+        """Return the pixel size of the image, from the tiff tags. Called before any
+        size-derived value, so an override also corrects those."""
+        return Size(self._page.imagewidth, self._page.imagelength)
 
     def __str__(self) -> str:
         return f"{type(self).__name__} of page {self._page}"

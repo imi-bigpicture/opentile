@@ -70,7 +70,13 @@ class NdpiPageParser:
 
 
 class NdpiImage(BaseTiffImage):
-    def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
+    def __init__(
+        self,
+        page: TiffPage,
+        file: OpenTileFile,
+        jpeg: Jpeg,
+        tile_size: Optional[Size] = None,
+    ):
         """Ndpi image that should not be tiled (e.g. overview or label). Jpeg data is
         served as-is; other codecs (e.g. JPEG XR) are decoded via the page.
 
@@ -82,8 +88,11 @@ class NdpiImage(BaseTiffImage):
             File to read data from.
         jpeg: Jpeg
             Jpeg instance to use.
+        tile_size: Optional[Size] = None
+            Size of the tiles to produce, for images that are re-tiled to a grid other
+            than the one stored.
         """
-        super().__init__(page, file)
+        super().__init__(page, file, tile_size=tile_size)
         self._jpeg = jpeg
         parser = NdpiPageParser(page)
         self._focal_plane = parser.focal_plane
@@ -166,17 +175,16 @@ class NdpiLabelImage(NdpiAssociatedImage):
         crop: Tuple[float, float]
             Crop start and end in x-direction relative to image width.
         """
+        self._jpeg = jpeg
+        self._crop = crop
         super().__init__(page, file, jpeg)
-        crop_from = self._calculate_crop(crop[0])
-        crop_to = self._calculate_crop(crop[1])
 
-        self._image_size = Size(crop_to - crop_from, self._page.shape[0])
-        self._crop_parameters = (
-            crop_from,
-            0,
-            crop_to - crop_from,
-            self.image_size.height,
-        )
+    def _read_image_size(self) -> Size:
+        crop_from = self._calculate_crop(self._crop[0])
+        crop_to = self._calculate_crop(self._crop[1])
+        height = self._page.shape[0]
+        self._crop_parameters = (crop_from, 0, crop_to - crop_from, height)
+        return Size(crop_to - crop_from, height)
 
     @property
     def compression(self) -> COMPRESSION:
@@ -247,9 +255,8 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         jpeg: Jpeg
             Jpeg instance to use.
         """
-        super().__init__(page, file, jpeg)
+        super().__init__(page, file, jpeg, tile_size)
         self._base_size = base_size
-        self._tile_size = tile_size
         self._file_frame_size = self._get_file_frame_size()
         self._frame_size = Size.max(self.tile_size, self._file_frame_size)
         self._scale = self._calculate_scale(self._base_size)
@@ -392,6 +399,31 @@ class NdpiOneFrameImage(NdpiTiledImage):
     The frame can be of any size (smaller or larger than the wanted tile size).
     The frame is padded to an even multiple of tile size.
     """
+
+
+
+    def _read_image_size(self) -> Size:
+        """Return the pixel size of the level, taken from the single frame's jpeg
+        header rather than the tiff tags.
+
+        On heavily downsampled levels the two disagree: the tags round only the
+        dimension that is fractional, while the jpeg adjusts both to preserve the
+        aspect ratio (e.g. tags 322x167 for a jpeg of 322x166). The jpeg defines the
+        coded mcu count and is authoritative. The rows the tags claim beyond it are
+        mcu padding rather than scanned image, and are served as image data if they
+        fall within the padding, or fail to decode if they do not.
+
+        Falls back to the tiff tags if the frame holds no readable start of frame tag.
+        """
+        if self._page.dataoffsets and self._page.databytecounts:
+            header = self._file.read(
+                self._page.dataoffsets[0],
+                min(self._page.databytecounts[0], Jpeg.MAX_HEADER_BYTES),
+            )
+            jpeg_image_size = Jpeg.image_size(header)
+            if jpeg_image_size is not None:
+                return jpeg_image_size
+        return super()._read_image_size()
 
     def _get_file_frame_size(self) -> Size:
         """Return size of the single frame in file. For single framed image

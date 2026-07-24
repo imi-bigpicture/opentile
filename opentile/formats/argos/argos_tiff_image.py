@@ -96,12 +96,16 @@ class ArgosLabelImage(StripedTiffImage, AssociatedTiffImage):
             Left edge of the label as a fraction of the macro width; the label spans
             from here to the right edge.
         """
+        self._jpeg = jpeg
+        self._crop_position = crop_position
         super().__init__(page, file, jpeg)
+
+    def _read_image_size(self) -> Size:
         # Align the crop to a whole MCU so the lossless crop keeps the label intact.
         mcu_width = self._jpeg.get_mcu(super().get_tile((0, 0))).width
         width = self._page.imagewidth
-        self._crop_from = int(width * crop_position / mcu_width) * mcu_width
-        self._image_size = Size(width - self._crop_from, self._page.imagelength)
+        self._crop_from = int(width * self._crop_position / mcu_width) * mcu_width
+        return Size(width - self._crop_from, self._page.imagelength)
 
     @property
     def pixel_spacing(self) -> Optional[SizeMm]:

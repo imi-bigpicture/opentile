@@ -19,7 +19,7 @@ from typing import Optional
 from tifffile import COMPRESSION, TiffPage
 
 from opentile.file import OpenTileFile
-from opentile.geometry import Point, Region, Size, SizeMm
+from opentile.geometry import Point, Size, SizeMm
 from opentile.tiff_image import AssociatedTiffImage
 from opentile.tiff_image_bases import NativeTiledTiffImage
 
@@ -47,15 +47,18 @@ class LeicaScnLabelImage(NativeTiledTiffImage, AssociatedTiffImage):
             Top edge of the label as a fraction of the macro height; the label spans
             from here to the bottom. Rounded down to a whole tile row.
         """
+        self._crop_position = crop_position
         super().__init__(page, file)
-        self._tile_row_offset = int(page.imagelength * crop_position) // page.tilelength
-        self._image_size = Size(
+
+    def _read_image_size(self) -> Size:
+        page = self._page
+        self._tile_row_offset = (
+            int(page.imagelength * self._crop_position) // page.tilelength
+        )
+        return Size(
             page.imagewidth,
             page.imagelength - self._tile_row_offset * page.tilelength,
         )
-        # The tiled region is computed from the image size in the base class, so it has
-        # to be rebuilt for the cropped size.
-        self._tiled_region = Region(position=Point(0, 0), size=self.tiled_size)
 
     @property
     def pixel_spacing(self) -> Optional[SizeMm]:

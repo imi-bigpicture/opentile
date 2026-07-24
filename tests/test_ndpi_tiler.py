@@ -31,7 +31,12 @@ from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size, SizeMm
 from opentile.tiff_image import LevelTiffImage
 
-from .filepaths import ndpi_file_path, ndpi_jpegxr_file_path, ndpi_z_file_path
+from .filepaths import (
+    ndpi_file_path,
+    ndpi_jpeg_size_file_path,
+    ndpi_jpegxr_file_path,
+    ndpi_z_file_path,
+)
 
 
 @pytest.fixture()
@@ -64,6 +69,15 @@ def jpegxr_tiler(tile_size: Size):
             yield tiler
     except FileNotFoundError:
         pytest.skip("Ndpi JPEG XR test file not found, skipping")
+
+
+@pytest.fixture()
+def jpeg_size_tiler(tile_size: Size):
+    try:
+        with NdpiTiler(ndpi_jpeg_size_file_path, tile_size.width) as tiler:
+            yield tiler
+    except FileNotFoundError:
+        pytest.skip("Ndpi jpeg size test file not found, skipping")
 
 
 @pytest.fixture()
@@ -758,3 +772,69 @@ class TestNdpiBarcode:
 
         # Assert
         assert barcode == expected
+
+
+@pytest.mark.unittest
+class TestNdpiJpegImageSize:
+    """A non-tiled level's size is taken from its jpeg rather than the tiff tags.
+
+    On heavily downsampled levels the two disagree: the tags round only the dimension
+    that is fractional, while the jpeg adjusts both to preserve the aspect ratio. The
+    jpeg defines the coded mcu count and is authoritative; the rows the tags claim
+    beyond it are mcu padding, not scanned image. See openslide/openslide#729.
+    """
+
+    TAG_SIZE = Size(322, 167)
+    JPEG_SIZE = Size(322, 166)
+
+    def test_level_size_is_from_jpeg_not_tags(self, jpeg_size_tiler: NdpiTiler):
+        # Arrange
+        level = next(
+            level
+            for level in jpeg_size_tiler.levels
+            if level.image_size.width == self.JPEG_SIZE.width
+        )
+
+        # Act
+        image_size = level.image_size
+
+        # Assert
+        assert image_size == self.JPEG_SIZE
+        assert image_size != self.TAG_SIZE
+
+    def test_affected_level_is_a_one_frame_image(self, jpeg_size_tiler: NdpiTiler):
+        # Arrange
+
+        # Act
+        level = next(
+            level
+            for level in jpeg_size_tiler.levels
+            if level.image_size.width == self.JPEG_SIZE.width
+        )
+
+        # Assert
+        assert isinstance(level, NdpiOneFrameImage)
+
+    def test_tags_still_report_the_larger_size(self, jpeg_size_tiler: NdpiTiler):
+        # Arrange
+        page = jpeg_size_tiler._file.series[0].levels[-1].pages[0]
+
+        # Act
+        tag_size = Size(page.imagewidth, page.imagelength)
+
+        # Assert
+        assert tag_size == self.TAG_SIZE
+
+    def test_decoded_tile_has_no_padding_rows(self, jpeg_size_tiler: NdpiTiler):
+        # Arrange
+        level = next(
+            level
+            for level in jpeg_size_tiler.levels
+            if level.image_size.width == self.JPEG_SIZE.width
+        )
+
+        # Act
+        tile = level.get_decoded_tile((0, 0))
+
+        # Assert
+        assert tile.shape[0] >= self.JPEG_SIZE.height

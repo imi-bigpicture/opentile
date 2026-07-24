@@ -21,7 +21,7 @@ from tifffile import COMPRESSION, TiffPage
 
 from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tiler import NdpiOneFrameImage
-from opentile.geometry import Point, Region, Size, SizeMm
+from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 from opentile.tiff_image_bases import (
@@ -191,11 +191,7 @@ class OmeTiffStripedImage(DecodedTiledTiffImage, LevelTiffImage):
         optical_path: str
             Optical path identifier of the level.
         """
-        super().__init__(page, file)
-        # Override the untiled default (tile size == image size) with a real grid.
-        self._tile_size = tile_size
-        self._tiled_region = Region(position=Point(0, 0), size=self.tiled_size)
-        self._image_size = Size(self._page.imagewidth, self._page.imagelength)
+        super().__init__(page, file, tile_size=tile_size)
         self._base_size = base_size
         self._base_mpp = base_mpp
         self._scale = self._calculate_scale(base_size)
@@ -251,7 +247,6 @@ class OmeTiffTiledImage(NativeTiledTiffImage, LevelTiffImage):
         optical_path: str,
     ):
         super().__init__(page, file)
-        self._image_size = Size(self._page.imagewidth, self._page.imagelength)
         self._base_size = base_size
         self._base_mpp = base_mpp
         self._scale = self._calculate_scale(base_size)

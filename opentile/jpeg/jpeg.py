@@ -500,6 +500,51 @@ class Jpeg:
     def code_short(value: int) -> bytes:
         return pack(">H", value)
 
+    MAX_SEGMENT_BYTES = 0xFFFF
+    """Largest payload a segment can declare, as the segment length is a 16 bit
+    value."""
+
+    MAX_HEADER_BYTES = 2 * MAX_SEGMENT_BYTES
+    """Bytes that cover a frame's header up to the start of frame tag. Enough for a
+    frame carrying a maximum-size application segment (e.g. an exif thumbnail) plus
+    its quantization and huffman tables. Observed ndpi frames put the tag within the
+    first 626 bytes."""
+
+    @classmethod
+    def image_size(cls, frame: Union[bytes, bytearray]) -> Optional[Size]:
+        """Return the image size coded in the frame's start of frame tag.
+
+        Only the header is read, so the first `MAX_HEADER_BYTES` of the frame is
+        enough.
+
+        Parameters
+        ----------
+        frame: Union[bytes, bytearray]
+            Frame, or the first bytes of a frame, to read the coded size from.
+
+        Returns
+        ----------
+        Optional[Size]:
+            The coded image size, or None if the bytes hold no complete start of
+            frame tag (not a jpeg, or the header is cut short).
+        """
+        marker = cls.TAGS["tag marker"]
+        if frame[:2] != bytes([marker, cls.TAGS["start of image"]]):
+            return None
+        index = 2
+        while index + 4 <= len(frame):
+            if frame[index] != marker:
+                return None
+            tag = frame[index + 1]
+            if tag == cls.TAGS["start of frame"]:
+                if index + 9 > len(frame):
+                    return None
+                height, width = unpack(">HH", frame[index + 5 : index + 9])
+                return Size(width, height)
+            (length,) = unpack(">H", frame[index + 2 : index + 4])
+            index += 2 + length
+        return None
+
     @staticmethod
     def subsample_to_mcu(subsample: int) -> Size:
         """Return the MCU size (in pixels) for a turbojpeg subsample value."""
