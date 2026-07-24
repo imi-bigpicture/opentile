@@ -79,24 +79,20 @@ class OmeTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_ome
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         return (
-            not OmeTiffTiler._is_label_series(series)
-            and not OmeTiffTiler._is_overview_series(series)
-            and not OmeTiffTiler._is_thumbnail_series(series)
+            not self._is_label_series(series)
+            and not self._is_overview_series(series)
+            and not self._is_thumbnail_series(series)
         )
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         return series.name.strip() == "label"
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return series.name.strip() == "macro"
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         return series.name.strip() == "thumbnail"
 
     def _get_mpp(self, series_index: int) -> SizeMm:

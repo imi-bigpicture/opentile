@@ -106,21 +106,17 @@ class TrestleTiffTiler(Tiler):
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         raise NotImplementedError("Trestle stores associated images in separate files.")
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         page = series.pages[0]
         return isinstance(page, TiffPage) and page.subfiletype == 0
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return False
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         return False
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         return False
 
     @staticmethod

@@ -144,20 +144,16 @@ class VentanaTiffTiler(Tiler):
             self._base_mpp,
         )
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Baseline"
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return False
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Label"
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Thumbnail"
 
     def _create_base_overlap(self, tile_width: int, tile_height: int) -> TileOverlap:

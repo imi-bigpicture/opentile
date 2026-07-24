@@ -251,27 +251,23 @@ class Tiler(metaclass=ABCMeta):
         """Create the thumbnail TiffImage."""
         raise NotImplementedError()
 
-    @staticmethod
     @abstractmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         """Return true if series is a level series."""
         raise NotImplementedError()
 
-    @staticmethod
     @abstractmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         """Return true if series is a overview series."""
         raise NotImplementedError()
 
-    @staticmethod
     @abstractmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         """Return true if series is a label series."""
         raise NotImplementedError()
 
-    @staticmethod
     @abstractmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         """Return true if series is a thumbnail series."""
         raise NotImplementedError()
 

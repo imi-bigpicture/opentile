@@ -76,10 +76,12 @@ class PhilipsTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         if not tiff_file.is_philips:
             return False
+        # Check the level series is JPEG. Classification here is inlined rather than
+        # via the instance predicate, which needs a constructed tiler.
         return all(
             page.compression == COMPRESSION.JPEG
             for series in tiff_file.series
-            if cls._is_level_series(series)
+            if series.index == 0
             for page in series.pages
             if page is not None
         )
@@ -119,28 +121,24 @@ class PhilipsTiffTiler(Tiler):
             self._base_mpp,
         )
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         return series.index == 0
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         page = series.pages[0]
         if isinstance(page, TiffFrame):
             page = page.aspage()
         assert isinstance(page, TiffPage)
         return page.description.find("Macro") > -1
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         page = series.pages[0]
         if isinstance(page, TiffFrame):
             page = page.aspage()
         assert isinstance(page, TiffPage)
         return page.description.find("Label") > -1
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         page = series.pages[0]
         if isinstance(page, TiffFrame):
             page = page.aspage()

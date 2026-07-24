@@ -91,30 +91,27 @@ class NdpiTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         if not tiff_file.is_ndpi:
             return False
+        # Check the image series (level and macro/overview) are JPEG. Classification
+        # here is inlined rather than via the instance predicates, which need a
+        # constructed tiler.
         return all(
             page.compression == COMPRESSION.JPEG
             for series in tiff_file.series
-            if cls._is_level_series(series)
-            or cls._is_overview_series(series)
-            or cls._is_label_series(series)
+            if series.index == 0 or series.name == "Macro"
             for page in series.pages
             if page is not None
         )
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         return series.index == 0
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Macro"
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         return False
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         return False
 
     @staticmethod
