@@ -84,6 +84,41 @@ class TestVentanaMetadataAreas:
 
 
 @pytest.fixture()
+def left_down_metadata() -> VentanaMetadata:
+    """Newer Roche/Ventana scanners emit LEFT/DOWN instead of RIGHT/UP. Direction names
+    the axis the overlap was measured along, not the tile relation, so these must be
+    read the same way (see openslide/openslide#760)."""
+    xmp = """<EncodeInfo>
+<iScan Magnification="40" ScanRes="0.2325" UnitNumber="X"/>
+<AoiOrigin><AOI0 OriginX="0" OriginY="0"/></AoiOrigin>
+<SlideStitchInfo>
+<ImageInfo AOIScanned="1" Width="1024" Height="1360" NumCols="2" NumRows="2">
+<TileJointInfo Tile1="1" Tile2="2" Direction="LEFT" OverlapX="100" FlagJoined="1" Confidence="99"/>
+<TileJointInfo Tile1="1" Tile2="3" Direction="DOWN" OverlapY="80" FlagJoined="1" Confidence="99"/>
+</ImageInfo>
+</SlideStitchInfo>
+</EncodeInfo>"""
+
+    page = SimpleNamespace(tags={"XMP": SimpleNamespace(value=xmp)})
+    return VentanaMetadata(page)  # type: ignore[arg-type]
+
+
+@pytest.mark.unittest
+class TestVentanaMetadataJointDirections:
+    def test_left_and_down_are_measured_like_right_and_up(
+        self, left_down_metadata: VentanaMetadata
+    ):
+        # Arrange
+
+        # Act
+        area = left_down_metadata.areas[0]
+
+        # Assert - identical to the RIGHT/UP fixture's 100/80 overlaps
+        assert area.col_overlaps == [100.0]
+        assert area.row_overlaps == [80.0]
+
+
+@pytest.fixture()
 def tiler():
     try:
         with VentanaTiffTiler(ventana_file_path) as tiler:

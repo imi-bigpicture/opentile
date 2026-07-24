@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Settings` (immutable) and `get_settings`, `set_default_settings` and `use_settings` for configuring opentile.
 - `opentile.exceptions` module with a common `OpenTileError` base (so callers can catch every opentile error with one `except`) and `UnsupportedFileError`, `NonSupportedCompressionError`, `NonDyadicPyramidLevelError`, and `MissingAssociatedImageError`. The "not supported / not implemented" ones also inherit `NotImplementedError`, preserving existing `except NotImplementedError` behaviour.
 
+### Fixed
+
+- Ventana `DOWN` tile joint directions are now read as row overlaps, matching the existing handling of `LEFT` as a column overlap (see [openslide/openslide#760](https://github.com/openslide/openslide/pull/760)). `Direction` names the axis the overlap was measured along rather than the tile relation, so `DOWN` is equivalent to `UP` just as `LEFT` is to `RIGHT`. Previously `DOWN` joints, emitted by newer Roche/Ventana scanners, were silently dropped, leaving those files with no vertical de-overlap.
+
 ### Changed
 
 - Custom exceptions are now defined in `opentile.exceptions`. `NonDyadicPyramidLevelError` is still importable from `opentile.tiff_image` (re-exported). The svs `NonSupportedCompressionException` is renamed `NonSupportedCompressionError`. Missing associated images and unsupported files now raise the dedicated `MissingAssociatedImageError`/`UnsupportedFileError` instead of bare `ValueError`/`NotImplementedError`.
