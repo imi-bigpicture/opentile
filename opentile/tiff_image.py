@@ -683,3 +683,221 @@ class OverlappingLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
     @property
     def pyramid_index(self) -> int:
         return self._pyramid_index
+
+
+class SparseTiledLevelImage(NativeTiledTiffImage, LevelTiffImage):
+    """Level image for a natively tiled JPEG pyramid whose tiles may be sparse.
+
+    Missing tiles (zero-length frame, or a frame index past the stored frames) are
+    served as a blank (white) tile built from the first valid frame. Used by formats
+    that leave un-scanned tiles out of the pyramid (Philips, Argos).
+    """
+
+    def __init__(
+        self,
+        page: TiffPage,
+        file: OpenTileFile,
+        base_size: Size,
+        base_mpp: SizeMm,
+        jpeg: Jpeg,
+    ):
+        """
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        file: OpenTileFile
+            File to read data from.
+        base_size: Size
+            Size of base level in pyramid.
+        base_mpp: SizeMm
+            Mpp (um/pixel) for base level in pyramid.
+        jpeg: Jpeg
+            Jpeg instance to use.
+        """
+        super().__init__(page, file)
+        self._jpeg = jpeg
+        self._base_size = base_size
+        self._base_mpp = base_mpp
+        self._scale = self._calculate_scale(base_size)
+        self._pyramid_index = self._calculate_pyramidal_index(self._scale)
+        self._mpp = self._calculate_mpp(self._base_mpp, self._scale)
+        self._blank_tile = self._create_blank_tile()
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}({self._page}, {self._file}, "
+            f"{self._base_size}, {self._base_mpp}, {self._jpeg})"
+        )
+
+    @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        """Handling of sparse tiles assumes JPEG compression."""
+        return [COMPRESSION.JPEG]
+
+    @property
+    def pixel_spacing(self) -> SizeMm:
+        return self.mpp / 1000
+
+    @property
+    def mpp(self) -> SizeMm:
+        return self._mpp
+
+    @property
+    def scale(self) -> float:
+        return self._scale
+
+    @property
+    def pyramid_index(self) -> int:
+        return self._pyramid_index
+
+    @property
+    def blank_tile(self) -> bytes:
+        """Return blank tile."""
+        return self._blank_tile
+
+    def _create_blank_tile(self, luminance: float = 1.0) -> bytes:
+        """Create a blank tile from a valid tile. Uses the first found
+        valid frame (first frame with non-zero value in databytescounts) and
+        fills that image with white.
+
+        Parameters
+        ----------
+        luminance: float = 1.0
+            Luminance for tile, 0 = black, 1 = white.
+
+        Returns
+        ----------
+        bytes:
+            Frame bytes from blank tile.
+
+        """
+        try:
+            # Get first frame in page that is not 0 bytes
+            valid_frame_index = next(
+                index
+                for index, datalength in enumerate(self._page.databytecounts)
+                if datalength != 0
+            )
+        except StopIteration as exception:
+            raise ValueError("Could not find valid frame in image.") from exception
+        tile = self._read_frame(valid_frame_index)
+        if self._page.jpegtables is not None:
+            prefix, scan_offset = Jpeg.calculate_prefix_and_scan_offset(
+                tile, self._page.jpegtables, False
+            )
+            tile = Jpeg.add_jpeg_prefix(prefix, scan_offset, tile)
+        tile = self._jpeg.fill_frame(tile, luminance)
+        return tile
+
+    def _read_frame(self, index: int) -> bytes:
+        """Read frame at frame index from image. Return blank tile if tile is
+        sparse (length of frame is zero or frame index is outside length of
+        frames).
+
+        Parameters
+        ----------
+        index: int
+            Frame index to read from image.
+
+        Returns
+        ----------
+        bytes:
+            Frame bytes from frame index or blank tile.
+
+        """
+        if (
+            index >= len(self._page.databytecounts)
+            or self._page.databytecounts[index] == 0
+        ):
+            # Sparse tile
+            return self.blank_tile
+        return super()._read_frame(index)
+
+
+class StripedTiffImage(BaseTiffImage):
+    """Non-tiled image stored as horizontal strips (e.g. thumbnail/overview images).
+
+    `get_tile((0, 0))` returns the whole image: JPEG strips are concatenated into a
+    single JPEG scan, other compressions (NONE, LZW) have their strip bytes joined.
+    """
+
+    def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
+        """
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the page.
+        file: OpenTileFile
+            File to read data from.
+        jpeg: Jpeg
+            Jpeg instance to use.
+        """
+        add_rgb_colorspace_fix = (
+            page.compression == COMPRESSION.JPEG and page.photometric == PHOTOMETRIC.RGB
+        )
+        super().__init__(page, file, add_rgb_colorspace_fix)
+        self._jpeg = jpeg
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
+
+    @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        """`get_tile()` concatenates JPEG scans for JPEG-compressed stripes and
+        returns the raw stripe bytes for uncompressed (NONE) and LZW stripes."""
+        return [COMPRESSION.JPEG, COMPRESSION.NONE, COMPRESSION.LZW]
+
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
+        indices = range(len(self._page.dataoffsets))
+        frames = self._read_frames(indices)
+        if self.compression != COMPRESSION.JPEG:
+            return b"".join(frames)
+        return self._jpeg.concatenate_scans(
+            iter(frames), self._page.jpegtables, self._add_rgb_colorspace_fix
+        )
+
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
+        if tile_position != (0, 0):
+            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
+        return self._page.asarray(squeeze=True)
+
+
+class StripedThumbnailImage(StripedTiffImage, ThumbnailTiffImage):
+    """Striped thumbnail image, scaled relative to the pyramid base level."""
+
+    def __init__(
+        self,
+        page: TiffPage,
+        file: OpenTileFile,
+        base_size: Size,
+        base_mpp: SizeMm,
+        jpeg: Jpeg,
+    ):
+        super().__init__(page, file, jpeg)
+        self._base_size = base_size
+        self._base_mpp = base_mpp
+        self._scale = self._calculate_scale(base_size)
+        self._mpp = self._calculate_mpp(base_mpp, self._scale)
+
+    @property
+    def mpp(self) -> SizeMm:
+        return self._mpp
+
+    @property
+    def pixel_spacing(self) -> SizeMm:
+        return self.mpp / 1000
+
+    @property
+    def scale(self) -> float:
+        return self._scale
+
+
+class StripedAssociatedImage(StripedTiffImage, AssociatedTiffImage):
+    """Striped associated image (e.g. overview/macro) with no defined pixel spacing."""
+
+    @property
+    def pixel_spacing(self) -> Optional[SizeMm]:
+        return None
