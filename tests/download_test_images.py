@@ -36,6 +36,14 @@ FILES: dict[str, dict[str, Any]] = {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-1.scn",
         "md5": {"Leica-1.scn": "e1e285c6d53232604c8b666450dd10a7"},
     },
+    "qptiff/HandEcompressed/HandEcompressed_Scan1.qptiff": {
+        "url": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/HandEcompressed_Scan1.qptiff",
+        "md5": {"HandEcompressed_Scan1.qptiff": "e6e266c1f4879ae560aad01efb4c6f6d"},
+    },
+    "qptiff/LuCa-7color/LuCa-7color_Scan1.qptiff": {
+        "url": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/LuCa-7color_Scan1.qptiff",
+        "md5": {"LuCa-7color_Scan1.qptiff": "ad17ce336c5fad1f32e5311a91e1dc64"},
+    },
     "argos/Argos-1/Argos-1.avs": {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Argos/Argos-1.avs",
         "md5": {"Argos-1.avs": "39dbc48864d9fc47f00fcc5a9a62a74c"},

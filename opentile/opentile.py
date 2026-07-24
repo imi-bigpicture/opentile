@@ -34,6 +34,7 @@ from opentile.formats import (
     NdpiTiler,
     OmeTiffTiler,
     PhilipsTiffTiler,
+    QptiffTiler,
     SvsTiler,
     TrestleTiffTiler,
     VentanaTiffTiler,
@@ -56,6 +57,7 @@ class OpenTile:
         TiffFormat.MOTIC: MoticTiffTiler,
         TiffFormat.ARGOS: ArgosTiffTiler,
         TiffFormat.LEICA_SCN: LeicaScnTiler,
+        TiffFormat.QPTIFF: QptiffTiler,
     }
 
     @classmethod
@@ -107,6 +109,8 @@ class OpenTile:
             return ArgosTiffTiler(file, turbo_path)
         if supported_tiler is LeicaScnTiler:
             return LeicaScnTiler(file)
+        if supported_tiler is QptiffTiler:
+            return QptiffTiler(file, turbo_path)
         raise NotImplementedError(f"Support for tiff file {filepath} not implemented.")
 
     @classmethod

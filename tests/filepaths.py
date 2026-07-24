@@ -34,5 +34,11 @@ trestle_file_path = slide_folder.joinpath("trestle_tiff/CMU-1/CMU-1.tif")
 ventana_file_path = slide_folder.joinpath("ventana_bif/OS-1/OS-1.bif")
 ventana_1_file_path = slide_folder.joinpath("ventana_bif/Ventana-1/Ventana-1.bif")
 leica_scn_file_path = slide_folder.joinpath("scn/scn1/Leica-1.scn")
+qptiff_file_path = slide_folder.joinpath(
+    "qptiff/HandEcompressed/HandEcompressed_Scan1.qptiff"
+)
+qptiff_fluorescence_file_path = slide_folder.joinpath(
+    "qptiff/LuCa-7color/LuCa-7color_Scan1.qptiff"
+)
 argos_file_path = slide_folder.joinpath("argos/Argos-1/Argos-1.avs")
 argos_z_file_path = slide_folder.joinpath("argos/Argos-1-Stacked/Argos-1-Stacked.avs")
