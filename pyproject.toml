@@ -17,13 +17,14 @@ classifiers = [
 ]
 dependencies = [
     "cachetools>=5.0.0",
-    "tifffile>=2026.6.1",
+    "tifffile>=2026.7.14",
     "numpy>=1.22.0",
     "PyTurboJPEG>=1.7.3,<2.0.0",
     "Pillow>=10.1.0",
     "imagecodecs>=2022.12.24",
     "defusedxml>=0.7.1",
     "ome-types>=0.5.0",
+    "lxml>=4.9.0",
     "fsspec>=2024.2.0",
     "universal-pathlib>=0.2.1",
 ]
@@ -69,3 +70,6 @@ ignore = ["S101"]
 ome = "ome"  # OME-TIFF format / ome-types package
 siz = "siz"  # JPEG 2000 SIZ marker
 subtile = "subtile"  # a (sub-)tile
+
+[tool.typos.default.extend-identifiers]
+MTIzNDU2Ny0x = "MTIzNDU2Ny0x"  # Base64 substring in test data

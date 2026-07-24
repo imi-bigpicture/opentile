@@ -18,16 +18,20 @@ from hashlib import md5
 from unittest.mock import Mock
 
 import pytest
-from tifffile import PHOTOMETRIC, TiffPage
+from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
 from opentile.formats import NdpiTiler
-from opentile.formats.ndpi.ndpi_image import NdpiOneFrameImage, NdpiStripedImage
+from opentile.formats.ndpi.ndpi_image import (
+    NdpiJpegXrImage,
+    NdpiOneFrameImage,
+    NdpiStripedImage,
+)
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size, SizeMm
 from opentile.tiff_image import BaseTiffImage
 
-from .filepaths import ndpi_file_path, ndpi_z_file_path
+from .filepaths import ndpi_file_path, ndpi_jpegxr_file_path, ndpi_z_file_path
 
 
 @pytest.fixture()
@@ -51,6 +55,15 @@ def z_tiler(tile_size: Size):
             yield tiler
     except FileNotFoundError:
         pytest.skip("Ndpi test file not found, skipping")
+
+
+@pytest.fixture()
+def jpegxr_tiler(tile_size: Size):
+    try:
+        with NdpiTiler(ndpi_jpegxr_file_path, tile_size.width) as tiler:
+            yield tiler
+    except FileNotFoundError:
+        pytest.skip("Ndpi JPEG XR test file not found, skipping")
 
 
 @pytest.fixture()
@@ -616,6 +629,108 @@ class TestParseNdpiComments:
 
         # Assert
         assert parsed == {}
+
+
+@pytest.mark.unittest
+class TestNdpiJpegXrTiler:
+    """Tests for ndpi files with JPEG XR compressed levels. The native (non-overlapping)
+    tiles do not form a regular tile grid, so they are exposed with a zero-overlap
+    placement for the consumer to decode and stitch into one."""
+
+    def test_levels_are_jpegxr_images(self, jpegxr_tiler: NdpiTiler):
+        # Arrange
+
+        # Act
+        levels = jpegxr_tiler.levels
+
+        # Assert
+        assert len(levels) > 1
+        assert all(isinstance(level, NdpiJpegXrImage) for level in levels)
+
+    def test_compression(self, jpegxr_tiler: NdpiTiler):
+        # Arrange
+        level = jpegxr_tiler.get_level(0)
+
+        # Act
+        compression = level.compression
+
+        # Assert
+        assert compression == COMPRESSION.JPEGXR_NDPI
+
+    def test_overlap_is_zero_overlap(self, jpegxr_tiler: NdpiTiler):
+        # Arrange
+        level = jpegxr_tiler.get_level(0)
+
+        # Act
+        overlap = level.overlap
+
+        # Assert: every native tile is placed, and the composed size equals the level
+        assert overlap is not None
+        assert overlap.image_size == level.image_size
+        assert len(overlap.placements) == level.tiled_size.area
+
+    def test_get_tile_is_raw_passthrough(self, jpegxr_tiler: NdpiTiler):
+        # Arrange
+        level = jpegxr_tiler.get_level(0)
+
+        # Act
+        tile = level.get_tile((0, 0))
+
+        # Assert: raw JPEG XR bytes are passed through, not re-encoded to jpeg
+        assert len(tile) > 0
+        assert not tile.startswith(b"\xff\xd8")
+
+    def test_get_decoded_tile_shape(self, jpegxr_tiler: NdpiTiler):
+        # Arrange
+        level = jpegxr_tiler.get_level(0)
+
+        # Act
+        decoded = level.get_decoded_tile((0, 0))
+
+        # Assert
+        assert decoded.shape == (
+            level.tile_size.height,
+            level.tile_size.width,
+            level.samples_per_pixel,
+        )
+
+    def test_coarsest_level_is_single_tile(self, jpegxr_tiler: NdpiTiler):
+        # Arrange
+        levels = jpegxr_tiler.levels
+
+        # Act
+        coarsest = levels[-1]
+
+        # Assert: a single-frame level is exposed as one tile covering the level
+        assert coarsest.tiled_size.area == 1
+
+    def test_overview_is_jpegxr_passthrough(self, jpegxr_tiler: NdpiTiler):
+        # Arrange
+
+        # Act
+        overview = jpegxr_tiler.overviews[0]
+
+        # Assert: the macro is served as native jpeg xr, compression unchanged
+        assert overview.compression == COMPRESSION.JPEGXR_NDPI
+        assert overview.get_decoded_tile((0, 0)).shape[2] == overview.samples_per_pixel
+
+    def test_label_is_decoded_and_uncompressed(self, jpegxr_tiler: NdpiTiler):
+        # Arrange
+        label = jpegxr_tiler.labels[0]
+
+        # Act
+        tile = label.get_tile((0, 0))
+        decoded = label.get_decoded_tile((0, 0))
+
+        # Assert: a jpeg xr label is cropped in the pixel domain, so it is served as
+        # uncompressed raw pixels
+        assert label.compression == COMPRESSION.NONE
+        assert tile == decoded.tobytes()
+        assert decoded.shape == (
+            label.image_size.height,
+            label.image_size.width,
+            label.samples_per_pixel,
+        )
 
 
 @pytest.mark.unittest

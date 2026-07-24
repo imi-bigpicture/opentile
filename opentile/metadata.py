@@ -17,7 +17,7 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from tifffile import TiffTags
+from tifffile import TiffPage, TiffTags
 
 
 class Metadata:
@@ -90,3 +90,44 @@ class Metadata:
             if tag.name == value_name:
                 return str(tag.value)
         return None
+
+
+class SvsLikeMetadata(Metadata):
+    """Base metadata for Aperio-like formats (e.g. Mikroscan, Motic) that reuse the
+    pipe-separated ``Header|Key = Value|...`` description with their own header instead
+    of the ``Aperio `` prefix (so tifffile's ``svs_description_metadata``, which needs
+    that prefix, cannot be used). Subclasses read the vendor-specific fields; the common
+    ``AppMag`` and ``MPP`` fields are parsed here."""
+
+    def __init__(self, page: TiffPage):
+        self._header, self._fields = self._parse_description(page.description)
+
+    @staticmethod
+    def _parse_description(description: str) -> tuple[str, dict[str, str]]:
+        """Parse the description into the header's first line and the ``Key = Value``
+        fields (pipe-items without a ``=`` separator, such as trailing padding, are
+        ignored)."""
+        items = (description or "").split("|")
+        header = items[0].splitlines()[0].strip() if items else ""
+        fields: dict[str, str] = {}
+        for item in items[1:]:
+            key, separator, value = item.partition(" = ")
+            if separator:
+                fields[key.strip()] = value.strip()
+        return header, fields
+
+    @property
+    def magnification(self) -> Optional[float]:
+        try:
+            return float(self._fields["AppMag"])
+        except (KeyError, ValueError):
+            return None
+
+    @property
+    def mpp(self) -> float:
+        """The pixel spacing (um/pixel) from the ``MPP`` field (isotropic)."""
+        return float(self._fields["MPP"])
+
+    @property
+    def properties(self) -> dict[str, Any]:
+        return dict(self._fields)
