@@ -1,4 +1,4 @@
-#    Copyright 2024 SECTRA AB
+#    Copyright 2026 SECTRA AB
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -12,21 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Enum for supported TIFF formats."""
+"""Module containing implementation for reading Leica SCN files."""
 
-from enum import Enum
+from opentile.formats.leica.leica_scn_tiler import LeicaScnTiler
 
-
-class TiffFormat(Enum):
-    NDPI = "ndpi"
-    SVS = "svs"
-    PHILIPS_TIFF = "philips"
-    HISTECH_TIFF = "3dhistech"
-    OME_TIFF = "ome-tiff"
-    TRESTLE = "trestle"
-    VENTANA = "ventana"
-    HURON = "huron"
-    MIKROSCAN = "mikroscan"
-    MOTIC = "motic"
-    ARGOS = "argos"
-    LEICA_SCN = "leica-scn"
+__all__ = ["LeicaScnTiler"]

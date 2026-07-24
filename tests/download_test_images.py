@@ -32,6 +32,10 @@ FILES: dict[str, dict[str, Any]] = {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Huron/Huron-1.tif",
         "md5": {"Huron-1.tif": "36e88dca44731e3346a06913cdd105cd"},
     },
+    "scn/scn1/Leica-1.scn": {
+        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-1.scn",
+        "md5": {"Leica-1.scn": "e1e285c6d53232604c8b666450dd10a7"},
+    },
     "argos/Argos-1/Argos-1.avs": {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Argos/Argos-1.avs",
         "md5": {"Argos-1.avs": "39dbc48864d9fc47f00fcc5a9a62a74c"},

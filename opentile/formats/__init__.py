@@ -17,6 +17,7 @@
 from opentile.formats.argos import ArgosTiffTiler
 from opentile.formats.histech import HistechTiffTiler
 from opentile.formats.huron import HuronTiffTiler
+from opentile.formats.leica import LeicaScnTiler
 from opentile.formats.mikroscan import MikroscanTiffTiler
 from opentile.formats.motic import MoticTiffTiler
 from opentile.formats.ndpi import NdpiTiler
@@ -28,6 +29,7 @@ from opentile.formats.ventana import VentanaTiffTiler
 
 __all__ = [
     "ArgosTiffTiler",
+    "LeicaScnTiler",
     "OmeTiffTiler",
     "NdpiTiler",
     "HistechTiffTiler",

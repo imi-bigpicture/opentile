@@ -80,6 +80,9 @@ Trestle tiff-files (identified by a `Software` tag starting with `MedScan`) stor
 ***Ventana bif***
 Ventana bif-files store a single-file pyramidal tiled BigTIFF whose tiles overlap. The per-boundary overlaps and each scanned area's origin are parsed from the `EncodeInfo` XMP (serpentine-indexed), and multi-area slides are supported. Already-stitched (non-overlapping) Ventana tiff files are also read, as a plain tiled pyramid.
 
+***Leica SCN***
+Leica SCN-files (identified by the Leica SCN XML in the first page's `ImageDescription`) store a single-file pyramidal tiled JPEG BigTIFF with a non-standard XML slide description. The tiles do not overlap. The collection's macro image (view offset 0,0 spanning the whole collection) is exposed as the overview; the largest main image is served as the pyramid levels, with mpp derived from its `view` size (in nm). Leica SCN has no dedicated label image; the macro images the whole slide including the label, so a label is cropped from its lower end. As the macro is tiled the crop is aligned down to a whole tile row, and the tiles are served unchanged. Z-stacks and multi-channel (fluorescence) SCN files are not supported.
+
 ***Argos avs***
 Argos avs-files (identified by TIFF tag 65000 holding `Argos.Scan.Metadata` XML) store a single-file pyramidal tiled BigTIFF with sparse JPEG tiles. Missing tiles (zero offset and byte count) are served as blank (white) tiles, as for Philips. The last two directories are the thumbnail (`Map`) and overview (`Macro`) images; Argos has no dedicated label image, so the label is cropped from the right side of the overview. Stacked (z-stack) files store the focal planes on the base series' Z axis, and each plane is exposed as a level image with its `focal_plane` set from the `MinZ`/`ZRange` metadata.
 
