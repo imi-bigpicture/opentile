@@ -20,6 +20,7 @@ from typing import Any, Optional, Union
 from tifffile import COMPRESSION, TiffFile, TiffFrame, TiffPage, TiffPageSeries
 from upath import UPath
 
+from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
 from opentile.formats.philips.philips_tiff_image import (
     PhilipsAssociatedTiffImage,
@@ -94,21 +95,23 @@ class PhilipsTiffTiler(Tiler):
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
-            raise ValueError("No label series found in this file.")
+            raise MissingAssociatedImageError("No label series found in this file.")
         return PhilipsAssociatedTiffImage(
             self._get_tiff_page(self._label_series_index, 0, page), self._file
         )
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
-            raise ValueError("No overview series found in this file.")
+            raise MissingAssociatedImageError("No overview series found in this file.")
         return PhilipsAssociatedTiffImage(
             self._get_tiff_page(self._overview_series_index, 0, page), self._file
         )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
-            raise ValueError("No thumbnail series found in this file.")
+            raise MissingAssociatedImageError(
+                "No thumbnail series found in this file."
+            )
         return PhilipsThumbnailTiffImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,

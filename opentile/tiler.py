@@ -23,6 +23,7 @@ from tifffile import TiffFile, TiffFrame, TiffPage, TiffPageSeries
 from upath import UPath
 
 from opentile.cache import lru_cached_method
+from opentile.exceptions import NonDyadicPyramidLevelError, UnsupportedFileError
 from opentile.file import OpenTileFile
 from opentile.geometry import Size
 from opentile.metadata import Metadata
@@ -30,7 +31,6 @@ from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import (
     AssociatedTiffImage,
     LevelTiffImage,
-    NonDyadicPyramidLevelError,
     ThumbnailTiffImage,
 )
 
@@ -54,7 +54,7 @@ class Tiler(metaclass=ABCMeta):
         """
         if isinstance(file, OpenTileFile):
             if not self.supported(file.tiff):
-                raise ValueError("Unsupported file.")
+                raise UnsupportedFileError("Unsupported file.")
             self._file = file
         else:
             self._file = OpenTileFile(file, file_options)

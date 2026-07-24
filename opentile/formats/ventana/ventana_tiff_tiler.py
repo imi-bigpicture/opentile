@@ -31,6 +31,7 @@ from typing import Any, Optional, Union
 from tifffile import TiffFile, TiffPage, TiffPageSeries
 from upath import UPath
 
+from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
 from opentile.formats.ventana.ventana_tiff_image import (
     VentanaAssociatedTiffImage,
@@ -123,7 +124,7 @@ class VentanaTiffTiler(Tiler):
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
-            raise ValueError("No label series found in this file.")
+            raise MissingAssociatedImageError("No label series found in this file.")
         return VentanaAssociatedTiffImage(
             self._get_tiff_page(self._label_series_index, 0, page), self._file
         )
@@ -133,7 +134,9 @@ class VentanaTiffTiler(Tiler):
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
-            raise ValueError("No thumbnail series found in this file.")
+            raise MissingAssociatedImageError(
+                "No thumbnail series found in this file."
+            )
         return VentanaThumbnailTiffImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,

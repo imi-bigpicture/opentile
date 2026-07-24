@@ -20,6 +20,7 @@ from typing import Any, Optional, Union
 from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
+from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
 from opentile.formats.svs.svs_image import (
     SvsLabelImage,
@@ -108,7 +109,7 @@ class SvsTiler(Tiler):
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
-            raise ValueError("No label detected in file")
+            raise MissingAssociatedImageError("No label detected in file")
         return SvsLabelImage(
             self._get_tiff_page(self._label_series_index, 0, page),
             self._file,
@@ -117,7 +118,7 @@ class SvsTiler(Tiler):
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
-            raise ValueError("No overview detected in file")
+            raise MissingAssociatedImageError("No overview detected in file")
         return SvsOverviewImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
@@ -126,7 +127,7 @@ class SvsTiler(Tiler):
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
-            raise ValueError("No overview detected in file")
+            raise MissingAssociatedImageError("No thumbnail detected in file")
         return SvsThumbnailImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,

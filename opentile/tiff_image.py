@@ -29,17 +29,15 @@ from tifffile import (
 )
 from upath import UPath
 
+from opentile.exceptions import (
+    NonDyadicPyramidLevelError,
+    NonSupportedCompressionError,
+)
 from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegInfo
 from opentile.jpeg2000 import Jpeg2000, Jpeg2000Info
 from opentile.tile_overlap import TileOverlap
-
-
-class NonDyadicPyramidLevelError(NotImplementedError):
-    """Raised when a level's downsample is not a clean power of two, so it cannot be
-    placed in the pyramid. Subclasses NotImplementedError for backwards compatibility.
-    """
 
 
 class TiffImage(metaclass=ABCMeta):
@@ -345,7 +343,9 @@ class BaseTiffImage(TiffImage):
             self.supported_compressions is not None
             and page.compression not in self.supported_compressions
         ):
-            raise NotImplementedError(f"Non-supported compression {page.compression}.")
+            raise NonSupportedCompressionError(
+                f"Non-supported compression {page.compression}."
+            )
         self._page = page
         self._file = file
         self._add_rgb_colorspace_fix = add_rgb_colorspace_fix

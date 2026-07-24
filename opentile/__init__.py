@@ -12,10 +12,26 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-__all__ = ["OpenTile", "Metadata", "TiffFormat"]
+__all__ = [
+    "OpenTile",
+    "Metadata",
+    "TiffFormat",
+    "OpenTileError",
+    "UnsupportedFileError",
+    "NonSupportedCompressionError",
+    "NonDyadicPyramidLevelError",
+    "MissingAssociatedImageError",
+]
 
 from importlib.metadata import version
 
+from opentile.exceptions import (
+    MissingAssociatedImageError,
+    NonDyadicPyramidLevelError,
+    NonSupportedCompressionError,
+    OpenTileError,
+    UnsupportedFileError,
+)
 from opentile.metadata import Metadata
 from opentile.opentile import OpenTile
 from opentile.tiff_format import TiffFormat

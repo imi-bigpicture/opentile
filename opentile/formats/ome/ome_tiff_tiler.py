@@ -22,6 +22,7 @@ from ome_types.model.simple_types import UnitsLength
 from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
+from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
 from opentile.formats.ome.ome_tiff_image import (
     OmeTiffAssociatedImage,
@@ -140,17 +141,17 @@ class OmeTiffTiler(Tiler):
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
-            raise ValueError("No label detected in file")
+            raise MissingAssociatedImageError("No label detected in file")
         return self._get_associated_image(self._label_series_index, page)
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
-            raise ValueError("No overview detected in file")
+            raise MissingAssociatedImageError("No overview detected in file")
         return self._get_associated_image(self._overview_series_index, page)
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
-            raise ValueError("No thumbnail detected in file")
+            raise MissingAssociatedImageError("No thumbnail detected in file")
         tiff_page = self._get_tiff_page(self._thumbnail_series_index, 0, page)
         return OmeTiffThumbnailImage(
             tiff_page,

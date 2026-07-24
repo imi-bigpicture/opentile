@@ -23,6 +23,7 @@ from PIL import Image
 from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 from tifffile.tifffile import svs_description_metadata
 
+from opentile.exceptions import NonSupportedCompressionError
 from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
@@ -386,7 +387,7 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
                     mct=True,
                 ),
             )
-        raise NonSupportedCompressionException(
+        raise NonSupportedCompressionError(
             f"Non-supported compression {self.compression.name}"
         )
 
@@ -407,7 +408,7 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         if tile_point not in self._fixed_tiles:
             try:
                 fixed_tile = self._get_scaled_tile(tile_point)
-            except NonSupportedCompressionException as exception:
+            except NonSupportedCompressionError as exception:
                 raise ValueError(
                     "Failed to fix corrupt tile as parent level has a "
                     "non-supported compression."
