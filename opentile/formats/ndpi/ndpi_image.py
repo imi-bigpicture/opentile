@@ -400,8 +400,6 @@ class NdpiOneFrameImage(NdpiTiledImage):
     The frame is padded to an even multiple of tile size.
     """
 
-
-
     def _read_image_size(self) -> Size:
         """Return the pixel size of the level, taken from the single frame's jpeg
         header rather than the tiff tags.
