@@ -23,7 +23,7 @@ from opentile.formats.ventana.ventana_tiff_metadata import VentanaMetadata
 from opentile.geometry import Size, SizeMm
 from opentile.tiff_image import OverlappingLevelTiffImage
 
-from .filepaths import ventana_file_path
+from .filepaths import ventana_1_file_path, ventana_file_path
 
 
 @pytest.fixture()
@@ -226,13 +226,185 @@ class TestVentanaTiffTiler:
         # Assert
         assert pixel_spacing == SizeMm(0.0002325, 0.0002325)
 
-    def test_has_label_and_thumbnail(self, tiler: VentanaTiffTiler):
+    def test_associated_images(self, tiler: VentanaTiffTiler):
         # Arrange
 
         # Act
+        overviews = tiler.overviews
         labels = tiler.labels
         thumbnails = tiler.thumbnails
 
+        # Assert - OS-1's series are Baseline/Overview/Probability: only the "Overview"
+        # is exposed (as an associated image); there is no "Label"/"Thumbnail" series and
+        # the "Probability" heatmap is not exposed.
+        assert len(overviews) == 1
+        assert len(labels) == 0
+        assert len(thumbnails) == 0
+
+    def test_overview(self, tiler: VentanaTiffTiler):
+        # Arrange
+        overview = tiler.get_overview()
+
+        # Act
+        tile = overview.get_tile((0, 0))
+
+        # Assert - the single tiled JPEG overview is served whole
+        assert overview.image_size == Size(1008, 3008)
+        assert md5(tile).hexdigest() == "46507b641b9f47a7725baefc1377275e"
+
+
+@pytest.fixture()
+def ventana_1_tiler():
+    try:
+        with VentanaTiffTiler(ventana_1_file_path) as tiler:
+            yield tiler
+    except FileNotFoundError:
+        pytest.skip("Ventana-1 bif test file not found, skipping")
+
+
+@pytest.fixture()
+def ventana_1_level(ventana_1_tiler: VentanaTiffTiler):
+    yield ventana_1_tiler.get_level(0)
+
+
+@pytest.mark.unittest
+class TestVentana1TiffTiler:
+    """Ventana-1.bif: a single-area, LEFT-joint-direction bif (vs OS-1's RIGHT), with
+    no label or thumbnail image."""
+
+    @pytest.mark.parametrize(
+        ["tile_point", "hash"],
+        [
+            ((0, 0), "307da7f6e767c64e7c1a6352cc8a7edc"),
+            ((11, 10), "dbf7c918e336cbaebd1f89421221b33a"),
+        ],
+    )
+    def test_get_tile(
+        self,
+        ventana_1_level: OverlappingLevelTiffImage,
+        tile_point: tuple[int, int],
+        hash: str,
+    ):
+        # Arrange
+
+        # Act
+        tile = ventana_1_level.get_tile(tile_point)
+
         # Assert
-        assert len(labels) == 1
-        assert len(thumbnails) == 1
+        assert md5(tile).hexdigest() == hash
+
+    def test_photometric_interpretation(
+        self, ventana_1_level: OverlappingLevelTiffImage
+    ):
+        # Arrange
+
+        # Act
+        photometric_interpretation = ventana_1_level.photometric_interpretation
+
+        # Assert
+        assert photometric_interpretation == PHOTOMETRIC.YCBCR
+
+    def test_level_count(self, ventana_1_tiler: VentanaTiffTiler):
+        # Arrange
+
+        # Act
+        levels = ventana_1_tiler.levels
+
+        # Assert
+        assert len(levels) == 8
+
+    def test_single_area(self, ventana_1_tiler: VentanaTiffTiler):
+        # Arrange
+
+        # Act
+        areas = ventana_1_tiler.metadata.areas
+
+        # Assert
+        assert len(areas) == 1
+        assert (areas[0].num_cols, areas[0].num_rows) == (23, 21)
+
+    def test_magnification(self, ventana_1_tiler: VentanaTiffTiler):
+        # Arrange
+
+        # Act
+        magnification = ventana_1_tiler.metadata.magnification
+
+        # Assert
+        assert magnification == 40.0
+
+    def test_scanner_serial_number(self, ventana_1_tiler: VentanaTiffTiler):
+        # Arrange
+
+        # Act
+        serial_number = ventana_1_tiler.metadata.scanner_serial_number
+
+        # Assert
+        assert serial_number == "2000515"
+
+    def test_scanner_manufacturer(self, ventana_1_tiler: VentanaTiffTiler):
+        # Arrange
+
+        # Act
+        manufacturer = ventana_1_tiler.metadata.scanner_manufacturer
+
+        # Assert
+        assert manufacturer == "Ventana Medical Systems, Inc."
+
+    @pytest.mark.parametrize(
+        ["level_index", "expected_pyramid_index", "expected_composed_size"],
+        [
+            (0, 0, Size(23432, 21504)),
+            (1, 1, Size(11716, 10752)),
+        ],
+    )
+    def test_composed_size(
+        self,
+        ventana_1_tiler: VentanaTiffTiler,
+        level_index: int,
+        expected_pyramid_index: int,
+        expected_composed_size: Size,
+    ):
+        # Arrange
+        level = ventana_1_tiler.get_level(level_index)
+
+        # Act
+        overlap = level.overlap
+
+        # Assert
+        assert overlap is not None
+        assert level.pyramid_index == expected_pyramid_index
+        assert overlap.image_size == expected_composed_size
+
+    def test_pixel_spacing(self, ventana_1_level: OverlappingLevelTiffImage):
+        # Arrange
+
+        # Act
+        pixel_spacing = ventana_1_level.pixel_spacing
+
+        # Assert
+        assert pixel_spacing == SizeMm(0.00025, 0.00025)
+
+    def test_associated_images(self, ventana_1_tiler: VentanaTiffTiler):
+        # Arrange
+
+        # Act
+        overviews = ventana_1_tiler.overviews
+        labels = ventana_1_tiler.labels
+        thumbnails = ventana_1_tiler.thumbnails
+
+        # Assert - like OS-1, only an Overview is exposed (no label/thumbnail series)
+        assert len(overviews) == 1
+        assert len(labels) == 0
+        assert len(thumbnails) == 0
+
+    def test_overview(self, ventana_1_tiler: VentanaTiffTiler):
+        # Arrange
+        overview = ventana_1_tiler.get_overview()
+
+        # Act
+        tile = overview.get_tile((0, 0))
+
+        # Assert - the multi-strip (uncompressed) overview is assembled whole, unlike a
+        # tiled associated image which would return only the first strip
+        assert overview.image_size == Size(1251, 3685)
+        assert md5(tile).hexdigest() == "74821cb734b23b811c5f4f74264bd269"

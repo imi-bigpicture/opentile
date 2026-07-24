@@ -28,3 +28,4 @@ histech_file_path = slide_folder.joinpath(
 ome_tiff_file_path = slide_folder.joinpath("ome_tiff/CMU-1/CMU-1.ome.tiff")
 trestle_file_path = slide_folder.joinpath("trestle_tiff/CMU-1/CMU-1.tif")
 ventana_file_path = slide_folder.joinpath("ventana_bif/OS-1/OS-1.bif")
+ventana_1_file_path = slide_folder.joinpath("ventana_bif/Ventana-1/Ventana-1.bif")

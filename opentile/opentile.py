@@ -86,7 +86,7 @@ class OpenTile:
         if supported_tiler is TrestleTiffTiler:
             return TrestleTiffTiler(file)
         if supported_tiler is VentanaTiffTiler:
-            return VentanaTiffTiler(file)
+            return VentanaTiffTiler(file, turbo_path)
         raise NotImplementedError(f"Support for tiff file {filepath} not implemented.")
 
     @classmethod

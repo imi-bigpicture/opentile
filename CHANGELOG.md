@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Metadata.barcode` property returning the slide barcode value if present in the file (ndpi tag 65468, svs `Barcode`, ventana iScan `Barcode1D`/`Barcode2D`, philips `PIM_DP_UFS_BARCODE`, the last Base64-decoded), `None` otherwise. Distinct from `label_text`: matches the split DICOM makes between Barcode Value (2200,0005) and Label Text (2200,0002).
 - `Settings` (immutable) and `get_settings`, `set_default_settings` and `use_settings` for configuring opentile.
 - `opentile.exceptions` module with a common `OpenTileError` base (so callers can catch every opentile error with one `except`) and `UnsupportedFileError`, `NonSupportedCompressionError`, `NonDyadicPyramidLevelError`, and `MissingAssociatedImageError`. The "not supported / not implemented" ones also inherit `NotImplementedError`, preserving existing `except NotImplementedError` behaviour.
+- Ventana bif files now expose their `Overview` series as an overview associated image, instead of never serving one. It is served as a `StripedAssociatedImage` so the whole image is assembled, covering both a single tiled JPEG frame and a multi-strip uncompressed overview. `VentanaTiffTiler` takes a `turbo_path` argument for this.
 
 ### Fixed
 
