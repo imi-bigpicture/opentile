@@ -115,24 +115,20 @@ class MoticTiffTiler(Tiler):
             self._jpeg,
         )
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         return series.index == 0
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         # The associated series are unnamed; the type is in the description's second
         # line, e.g. "Motic V1.0.0\nmacro 160x456".
-        return MoticTiffTiler._type_line(series).startswith("macro")
+        return self._type_line(series).startswith("macro")
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
-        return MoticTiffTiler._type_line(series).startswith("label")
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
+        return self._type_line(series).startswith("label")
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         # The thumbnail's second line records a downscale, e.g. "53046x51735 -> 847x826"
-        return "->" in MoticTiffTiler._type_line(series)
+        return "->" in self._type_line(series)
 
     @staticmethod
     def _type_line(series: TiffPageSeries) -> str:

@@ -103,18 +103,14 @@ class HuronTiffTiler(Tiler):
             self._base_mpp,
         )
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         return series.index == 0
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Macro"
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Label"
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Thumbnail"

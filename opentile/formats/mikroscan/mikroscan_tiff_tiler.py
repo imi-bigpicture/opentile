@@ -100,24 +100,20 @@ class MikroscanTiffTiler(Tiler):
             self._base_mpp,
         )
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         return series.index == 0
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         # The associated series are unnamed; the type is in the description's second
         # line, e.g. "Mikroscan Image Structure\nmacro 1024x512".
-        return MikroscanTiffTiler._type_line(series).startswith("macro")
+        return self._type_line(series).startswith("macro")
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
-        return MikroscanTiffTiler._type_line(series).startswith("label")
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
+        return self._type_line(series).startswith("label")
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         # The thumbnail's second line records a downscale, e.g. "26880x42240 -> 420x660"
-        return "->" in MikroscanTiffTiler._type_line(series)
+        return "->" in self._type_line(series)
 
     @staticmethod
     def _type_line(series: TiffPageSeries) -> str:
