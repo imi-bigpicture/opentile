@@ -14,12 +14,14 @@
 
 """Tiler for reading tiles from OME tiff files."""
 
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Optional, Union
 
+import numpy as np
 import ome_types
 from ome_types.model.simple_types import UnitsLength
-from tifffile import TiffFile, TiffPageSeries
+from tifffile import COMPRESSION, TiffFile, TiffPageSeries
 from upath import UPath
 
 from opentile.exceptions import MissingAssociatedImageError
@@ -27,6 +29,7 @@ from opentile.file import OpenTileFile
 from opentile.formats.ome.ome_tiff_image import (
     OmeTiffAssociatedImage,
     OmeTiffOneFrameImage,
+    OmeTiffStripedImage,
     OmeTiffThumbnailImage,
     OmeTiffTiledImage,
 )
@@ -48,6 +51,7 @@ class OmeTiffTiler(Tiler):
     def __init__(
         self,
         file: Union[str, Path, UPath, OpenTileFile],
+        tile_size: int = 512,
         turbo_path: Optional[Union[str, Path]] = None,
         file_options: Optional[dict[str, Any]] = None,
     ):
@@ -57,12 +61,15 @@ class OmeTiffTiler(Tiler):
         ----------
         file: Union[str, Path, UPath, OpenTileFile]
             Filepath to a ome tiff TiffFile or an opened ome tiff OpenTileFile.
+        tile_size: int = 512
+            Tile size for levels that are not natively tiled (e.g. strip-stored).
         turbo_path: Optional[Union[str, Path]] = None
             Path to turbojpeg (dll or so).
         file_options: Optional[Dict[str, Any]] = None
             Options to pass to filesystem when opening file.
         """
         super().__init__(file, file_options)
+        self._tile_size = Size(tile_size, tile_size)
         self._jpeg = Jpeg(turbo_path)
         self._base_mpp = self._get_mpp(self._level_series_index)
 
@@ -101,10 +108,14 @@ class OmeTiffTiler(Tiler):
             raise ValueError("Could not find physical size of x and y.")
         return mpp
 
-    def _get_optional_mpp(self, series_index: int) -> Optional[SizeMm]:
+    @cached_property
+    def _ome(self) -> ome_types.OME:
+        """The parsed OME-XML metadata of the file."""
         assert self._file.tiff.ome_metadata is not None
-        metadata = ome_types.from_xml(self._file.tiff.ome_metadata)
-        pixels = metadata.images[series_index].pixels
+        return ome_types.from_xml(self._file.tiff.ome_metadata)
+
+    def _get_optional_mpp(self, series_index: int) -> Optional[SizeMm]:
+        pixels = self._ome.images[series_index].pixels
         if (
             pixels.physical_size_x_unit != UnitsLength.MICROMETER
             or pixels.physical_size_y_unit != UnitsLength.MICROMETER
@@ -115,24 +126,60 @@ class OmeTiffTiler(Tiler):
             return None
         return SizeMm(mpp_x, mpp_y)
 
+    def _get_focal_plane_and_optical_path(
+        self, series_index: int, page_index: int
+    ) -> tuple[float, str]:
+        """Map a level page index to its (focal plane in um, optical path).
+
+        A series can hold several pages for the Z (focal plane) and C (optical path)
+        dimensions; the page order follows the series axes (excluding the in-page Y,
+        X and sample S axes). The focal plane is the Z index times the physical z
+        spacing; the optical path is the C index."""
+        series = self._file.series[series_index]
+        page_axes = [axis for axis in series.axes if axis not in "YXS"]
+        page_sizes = [series.shape[series.axes.index(axis)] for axis in page_axes]
+        indices = np.unravel_index(page_index, page_sizes) if page_sizes else ()
+        axis_index = {axis: int(i) for axis, i in zip(page_axes, indices)}
+        physical_size_z = self._ome.images[series_index].pixels.physical_size_z
+        z_index = axis_index.get("Z", 0)
+        focal_plane = float(z_index * physical_size_z) if physical_size_z else 0.0
+        return focal_plane, str(axis_index.get("C", 0))
+
     def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
         tiff_page = self._get_tiff_page(self._level_series_index, level, page)
+        focal_plane, optical_path = self._get_focal_plane_and_optical_path(
+            self._level_series_index, page
+        )
         if tiff_page.is_tiled:
             return OmeTiffTiledImage(
                 tiff_page,
                 self._file,
                 self._base_size,
                 self._base_mpp,
-                page,
+                focal_plane,
+                optical_path,
             )
-        return OmeTiffOneFrameImage(
+        if tiff_page.compression == COMPRESSION.JPEG:
+            # Untiled single jpeg frame that is re-tiled by lossless jpeg cropping.
+            return OmeTiffOneFrameImage(
+                tiff_page,
+                self._file,
+                self._base_size,
+                self._tile_size,
+                self._base_mpp,
+                focal_plane,
+                optical_path,
+                self._jpeg,
+            )
+        # Strip-stored (e.g. uncompressed) level: decode once and serve a tile grid.
+        return OmeTiffStripedImage(
             tiff_page,
             self._file,
             self._base_size,
-            Size(self._base_page.tilewidth, self._base_page.tilelength),
+            self._tile_size,
             self._base_mpp,
-            page,
-            self._jpeg,
+            focal_plane,
+            optical_path,
         )
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:

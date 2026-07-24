@@ -165,7 +165,13 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         return self._bottom_edge_corrupt
 
     def _get_focal_plane(self) -> float:
-        metadata = svs_description_metadata(self._page.description)
+        try:
+            metadata = svs_description_metadata(self._page.description)
+        except ValueError:
+            # Sub-level pages of some scanners (e.g. Leica GT450) carry a
+            # truncated/empty description without the 'Aperio ' header; these
+            # are never z-stack planes, so there is no OffsetZ.
+            return 0.0
         return float(metadata.get("OffsetZ", 0.0))
 
     def _detect_corrupt_edge(self, edge: Region) -> bool:

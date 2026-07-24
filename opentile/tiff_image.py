@@ -45,8 +45,17 @@ class TiffImage(metaclass=ABCMeta):
 
     @property
     def overlap(self) -> Optional[TileOverlap]:
-        """Placement of natively overlapping source tiles for de-overlapping, or
-        None if the image's tiles do not overlap (the common case)."""
+        """How this level's stored tiles compose into opentile's regular tile grid.
+
+        opentile presents each level as a regular, non-overlapping grid of ``tile_size``
+        tiles (``tiled_size`` of them). ``None`` (the common case) means the stored
+        tiles already form that regular grid and are served directly.
+
+        When the stored tiles do not match that grid - because they overlap their
+        neighbours (Trestle/Ventana) or use a different native tiling (JPEG XR ndpi) -
+        this returns a ``TileOverlap`` describing where each stored tile is placed, so a
+        consumer can compose (de-overlap and/or stitch) them into the regular grid.
+        """
         return None
 
     @property
@@ -620,13 +629,129 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
         return frame_index
 
 
-class OverlappingLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
-    """Level image for natively tiled formats whose source tiles overlap (Trestle,
-    Ventana).
+class NativeTiledLevelImage(NativeTiledTiffImage, LevelTiffImage):
+    """A pyramid level whose tiles are natively tiled and served as-is, with scale,
+    pyramid index, and pixel spacing derived from the base level. Used by formats that
+    only need this plain passthrough level (e.g. Huron, Mikroscan, Motic)."""
 
-    Raw (overlapping) source tiles are read by native grid position exactly like any
-    NativeTiledTiffImage; `overlap` additionally describes how to compose them into a
-    de-overlapped image.
+    def __init__(
+        self, page: TiffPage, file: OpenTileFile, base_size: Size, base_mpp: SizeMm
+    ):
+        """Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the level.
+        file: OpenTileFile
+            File to read data from.
+        base_size: Size
+            Size of the base level in the pyramid.
+        base_mpp: SizeMm
+            Pixel spacing (um/pixel) of the base level in the pyramid.
+        """
+        super().__init__(page, file)
+        self._base_size = base_size
+        self._base_mpp = base_mpp
+        self._scale = self._calculate_scale(base_size)
+        self._pyramid_index = self._calculate_pyramidal_index(self._scale)
+        self._mpp = self._calculate_mpp(base_mpp, self._scale)
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}({self._page}, {self._file}, "
+            f"{self._base_size}, {self._base_mpp})"
+        )
+
+    @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        return None
+
+    @property
+    def mpp(self) -> SizeMm:
+        return self._mpp
+
+    @property
+    def pixel_spacing(self) -> SizeMm:
+        return self.mpp / 1000
+
+    @property
+    def scale(self) -> float:
+        return self._scale
+
+    @property
+    def pyramid_index(self) -> int:
+        return self._pyramid_index
+
+
+class DecodedTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
+    """Meta class for images that are not natively tiled and have no per-tile encoded
+    representation (e.g. strip-stored or uncompressed pages). The whole page is decoded
+    once and served as a tile grid; `get_tile` returns the raw pixel bytes of the
+    cropped region since there is nothing to pass through.
+
+    Subclasses must set `self._tile_size` (the requested grid tile size) and recompute
+    `self._tiled_region` after calling `super().__init__`."""
+
+    @cached_property
+    def _decoded_image(self) -> np.ndarray:
+        """The whole page decoded once (tifffile reassembles the strips/tiles)."""
+        return self._page.asarray(squeeze=True)
+
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
+        """Return the decoded tile at tile position, cropped from the decoded page and
+        padded with the fill value where the tile extends past the image edge.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        np.ndarray
+            Decoded tile at position.
+        """
+        point = Point.from_tuple(tile_position)
+        if not self._check_if_tile_inside_image(point):
+            raise ValueError(f"Tile {tile_position} is outside {self.tiled_size}.")
+        left = point.x * self.tile_size.width
+        top = point.y * self.tile_size.height
+        region = self._decoded_image[
+            top : top + self.tile_size.height, left : left + self.tile_size.width
+        ]
+        pad_height = self.tile_size.height - region.shape[0]
+        pad_width = self.tile_size.width - region.shape[1]
+        if pad_height or pad_width:
+            padding = [(0, pad_height), (0, pad_width)] + [(0, 0)] * (region.ndim - 2)
+            region = np.pad(region, padding, constant_values=self.fill_value)
+        return region
+
+    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
+        """Return the tile at tile position as raw pixel bytes. There is no per-tile
+        encoded data, so the "encoded" tile is the raw bytes of the decoded tile.
+
+        Parameters
+        ----------
+        tile_position: Tuple[int, int]
+            Tile position to get.
+
+        Returns
+        ----------
+        bytes
+            Raw pixel bytes of the tile at position.
+        """
+        return self.get_decoded_tile(tile_position).tobytes()
+
+
+class OverlappingLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
+    """Level image whose stored tiles do not form opentile's regular tile grid and so
+    must be composed by the consumer (see `TiffImage.overlap`).
+
+    Despite the name, this covers two cases: formats whose source tiles overlap their
+    neighbours (Trestle, Ventana), and levels with a non-overlapping but irregular
+    native tiling (JPEG XR ndpi). The raw stored tiles are read by native grid position
+    exactly like any NativeTiledTiffImage; `overlap` additionally describes how to
+    compose them into the regular grid - de-overlapping when the tiles overlap, or a
+    plain stitch when the overlap is zero.
     """
 
     def __init__(

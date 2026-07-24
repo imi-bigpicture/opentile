@@ -15,6 +15,7 @@
 """Tiler for reading tiles from ndpi files."""
 
 import math
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -23,13 +24,15 @@ from upath import UPath
 
 from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_image import (
+    NdpiJpegXrImage,
     NdpiLabelImage,
     NdpiOneFrameImage,
     NdpiOverviewImage,
+    NdpiPageParser,
     NdpiStripedImage,
 )
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
-from opentile.geometry import Size
+from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
@@ -91,11 +94,9 @@ class NdpiTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         if not tiff_file.is_ndpi:
             return False
-        # Check the image series (level and macro/overview) are JPEG. Classification
-        # here is inlined rather than via the instance predicates, which need a
-        # constructed tiler.
+        # opentile can serve jpeg (re-tiled) and JPEG XR (native tiles) ndpi levels.
         return all(
-            page.compression == COMPRESSION.JPEG
+            page.compression in (COMPRESSION.JPEG, COMPRESSION.JPEGXR_NDPI)
             for series in tiff_file.series
             if series.index == 0 or series.name == "Macro"
             for page in series.pages
@@ -171,6 +172,11 @@ class NdpiTiler(Tiler):
                 smallest_stripe_width = stripe_width
         return smallest_stripe_width
 
+    @cached_property
+    def _base_mpp(self) -> SizeMm:
+        """Pixel spacing (um/pixel) of the base level, used to scale non-jpeg levels."""
+        return NdpiPageParser(self._base_page).mpp
+
     def _create_level(
         self,
         level: int,
@@ -180,6 +186,12 @@ class NdpiTiler(Tiler):
             self._file.series[self._level_series_index].levels[level].pages[page]
         )
         assert isinstance(tiff_page, TiffPage)
+        if tiff_page.compression != COMPRESSION.JPEG:
+            # Non-jpeg (e.g. JPEG XR) levels have per-level native tile sizes that do
+            # not form opentile's regular tile grid, so the native tiles are exposed
+            # with a (zero-overlap) placement for the consumer to stitch into a grid.
+            scale = self._base_size.width / tiff_page.imagewidth
+            return NdpiJpegXrImage(tiff_page, self._file, self._base_mpp, scale)
         if tiff_page.is_tiled:  # Striped ndpi page
             return NdpiStripedImage(
                 tiff_page, self._file, self._base_size, self._tile_size, self._jpeg

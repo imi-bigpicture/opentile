@@ -29,13 +29,54 @@ from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
-from opentile.tiff_image import AssociatedTiffImage, BaseTiffImage, LevelTiffImage
+from opentile.tiff_image import (
+    AssociatedTiffImage,
+    BaseTiffImage,
+    LevelTiffImage,
+    OverlappingLevelTiffImage,
+)
+from opentile.tile_overlap import TileOverlap
+
+
+class NdpiPageParser:
+    """Parses metadata from an ndpi ``TiffPage``, shared by the ndpi image classes."""
+
+    def __init__(self, page: TiffPage):
+        """Parse metadata from an ndpi page.
+
+        Parameters
+        ----------
+        page: TiffPage
+            Ndpi TiffPage to parse metadata from.
+        """
+        self._page = page
+
+    @property
+    def focal_plane(self) -> float:
+        """The focal plane (um) from the ndpi ``ZOffsetFromSlideCenter`` tag (nm), or
+        0.0 if absent."""
+        try:
+            assert isinstance(self._page.ndpi_tags, dict)
+            return self._page.ndpi_tags["ZOffsetFromSlideCenter"] / 1000.0
+        except (KeyError, AssertionError):
+            return 0.0
+
+    @property
+    def mpp(self) -> SizeMm:
+        """The pixel spacing (um/pixel) from the page resolution tags."""
+        x_resolution = self._page.tags["XResolution"].value[0]
+        y_resolution = self._page.tags["YResolution"].value[0]
+        resolution_unit = self._page.tags["ResolutionUnit"].value
+        if resolution_unit != RESUNIT.CENTIMETER:
+            raise ValueError("Unknown resolution unit")
+        # 10*1000 um per cm
+        return SizeMm(10 * 1000 / x_resolution, 10 * 1000 / y_resolution)
 
 
 class NdpiImage(BaseTiffImage):
     def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
-        """Ndpi image that should not be tiled (e.g. overview or label).
-        Image data is assumed to be jpeg.
+        """Ndpi image that should not be tiled (e.g. overview or label). Jpeg data is
+        served as-is; other codecs (e.g. JPEG XR) are decoded via the page.
 
         Parameters
         ----------
@@ -47,19 +88,14 @@ class NdpiImage(BaseTiffImage):
             Jpeg instance to use.
         """
         super().__init__(page, file)
-        if self.compression != COMPRESSION.JPEG:
-            raise NotImplementedError(
-                f"{self.compression} is unsupported for ndpi (Only jpeg is supported)"
-            )
         self._jpeg = jpeg
-        try:
-            # Defined in nm
-            assert isinstance(page.ndpi_tags, dict)
-            self._focal_plane = page.ndpi_tags["ZOffsetFromSlideCenter"] / 1000.0
-        except (KeyError, AssertionError):
-            self._focal_plane = 0.0
+        parser = NdpiPageParser(page)
+        self._focal_plane = parser.focal_plane
+        self._mpp = parser.mpp
 
-        self._mpp = self._get_mpp_from_page()
+    @property
+    def _is_jpeg(self) -> bool:
+        return self._page.compression == COMPRESSION.JPEG
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
@@ -73,10 +109,6 @@ class NdpiImage(BaseTiffImage):
         return self.mpp / 1000
 
     @property
-    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
-        return [COMPRESSION.JPEG]
-
-    @property
     def mpp(self) -> SizeMm:
         return self._mpp
 
@@ -85,33 +117,38 @@ class NdpiImage(BaseTiffImage):
         """Return mcu size of image."""
         return self._jpeg.get_mcu(self._read_frame(0))
 
+
+class NdpiAssociatedImage(NdpiImage, AssociatedTiffImage):
+    """Base for the non-tiled ndpi associated images (overview, label). Served as a
+    single frame: jpeg data as-is, other codecs (e.g. JPEG XR) decoded via the page."""
+
+    @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        # Decoded generically (jpeg or, e.g., JPEG XR via the page).
+        return None
+
     def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         return self._read_frame(0)
 
     def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
-        tile = self.get_tile(tile_position)
-        return jpeg8_decode(tile)
+        if self._is_jpeg:
+            return jpeg8_decode(self.get_tile(tile_position))
+        return self._decode_frame()
 
-    def _get_mpp_from_page(self) -> SizeMm:
-        """Return pixel spacing in um/pixel."""
-        x_resolution = self._page.tags["XResolution"].value[0]
-        y_resolution = self._page.tags["YResolution"].value[0]
-        resolution_unit = self._page.tags["ResolutionUnit"].value
-        if resolution_unit != RESUNIT.CENTIMETER:
-            raise ValueError("Unknown resolution unit")
-        # 10*1000 um per cm
-        mpp_x = 10 * 1000 / x_resolution
-        mpp_y = 10 * 1000 / y_resolution
-        return SizeMm(mpp_x, mpp_y)
+    def _decode_frame(self) -> np.ndarray:
+        """Decode the single stored frame via the page codec (for non-jpeg codecs)."""
+        data, _, _ = self._page.decode(self._read_frame(0), 0)
+        assert isinstance(data, np.ndarray)
+        return data.squeeze((0, 3) if self.samples_per_pixel == 1 else 0)
 
 
-class NdpiOverviewImage(NdpiImage, AssociatedTiffImage):
+class NdpiOverviewImage(NdpiAssociatedImage):
     pass
 
 
-class NdpiLabelImage(NdpiImage, AssociatedTiffImage):
+class NdpiLabelImage(NdpiAssociatedImage):
     def __init__(
         self,
         page: TiffPage,
@@ -145,15 +182,34 @@ class NdpiLabelImage(NdpiImage, AssociatedTiffImage):
             self.image_size.height,
         )
 
+    @property
+    def compression(self) -> COMPRESSION:
+        # A jpeg label is losslessly cropped and stays jpeg. A non-jpeg (e.g. JPEG XR)
+        # label is decoded and cropped in the pixel domain (re-encoding would add loss),
+        # so the constructed label is uncompressed.
+        if self._is_jpeg:
+            return COMPRESSION.JPEG
+        return COMPRESSION.NONE
+
     def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         if tile_position != (0, 0):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        full_frame = super().get_tile(tile_position)
-        return self._jpeg.crop_multiple(full_frame, [self._crop_parameters])[0]
+        if self._is_jpeg:
+            # Lossless crop for jpeg codecs, so serve the cropped jpeg bytes.
+            full_frame = super().get_tile(tile_position)
+            return self._jpeg.crop_multiple(full_frame, [self._crop_parameters])[0]
+        # No lossless crop for non-jpeg codecs, so serve the cropped raw pixels.
+        return self.get_decoded_tile(tile_position).tobytes()
+
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
+        if self._is_jpeg:
+            return jpeg8_decode(self.get_tile(tile_position))
+        left, top, width, height = self._crop_parameters
+        return self._decode_frame()[top : top + height, left : left + width]
 
     def _calculate_crop(self, crop: float) -> int:
-        """Return pixel position for crop position rounded down to closest mcu
-        boarder.
+        """Return pixel position for crop position. For jpeg it is rounded down to the
+        closest mcu border so the crop stays lossless; other codecs are cropped exactly.
 
         Parameters
         ----------
@@ -166,6 +222,8 @@ class NdpiLabelImage(NdpiImage, AssociatedTiffImage):
             Pixel position for crop.
         """
         width = self._page.shape[1]
+        if not self._is_jpeg:
+            return int(width * crop)
         return int(width * crop / self.mcu.width) * self.mcu.width
 
 
@@ -208,6 +266,10 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         )
 
     @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        return [COMPRESSION.JPEG]
+
+    @property
     def suggested_minimum_chunk_size(self) -> int:
         return max(self._frame_size.width // self._tile_size.width, 1)
 
@@ -248,6 +310,9 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
 
     def get_tile(self, tile_position: tuple[int, int]) -> bytes:
         return next(self.get_tiles([tile_position]))
+
+    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
+        return next(self.get_decoded_tiles([tile_position]))
 
     def get_tiles(self, tile_positions: Sequence[tuple[int, int]]) -> Iterator[bytes]:
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
@@ -568,3 +633,54 @@ class NdpiStripedImage(NdpiTiledImage):
             Stripe index.
         """
         return position.x + position.y * self.striped_size.width
+
+
+class NdpiJpegXrImage(OverlappingLevelTiffImage):
+    """Ndpi level compressed with JPEG XR.
+
+    A JPEG XR level's stored tiles do not form opentile's regular tile grid (see
+    ``TiffImage.overlap``): each pyramid level uses a different native tile size and the
+    coarsest level is stored as a single frame. The stored tiles are therefore exposed
+    by their native grid position together with a ``TileOverlap`` that describes how to
+    compose them into the level - the same mechanism used for the overlapping
+    Trestle/Ventana formats. Here the stored tiles do not overlap, so the overlap is
+    zero and composing is a plain stitch/re-tile: a consumer decodes the native tiles
+    and stitches them into the regular grid. A single-frame level is exposed as one tile
+    covering the whole level.
+
+    The stored JPEG XR tiles are served as-is by ``get_tile`` (no re-encoding) and
+    decoded on demand by ``get_decoded_tile``.
+    """
+
+    def __init__(
+        self, page: TiffPage, file: OpenTileFile, base_mpp: SizeMm, scale: float
+    ):
+        """Ndpi level compressed with JPEG XR.
+
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the level.
+        file: OpenTileFile
+            File to read data from.
+        base_mpp: SizeMm
+            Mpp (um/pixel) of the base level in the pyramid.
+        scale: float
+            Downsample of this level relative to the base level.
+        """
+        image_size = Size(page.imagewidth, page.imagelength)
+        tile_size = (
+            Size(page.tilewidth, page.tilelength) if page.is_tiled else image_size
+        )
+        # Native tiles do not overlap; they only need stitching into a regular tiling.
+        overlap = TileOverlap.from_regular_grid(image_size, tile_size, Size(0, 0))
+        super().__init__(page, file, base_mpp, scale, overlap)
+        self._focal_plane = NdpiPageParser(page).focal_plane
+
+    @property
+    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
+        return [COMPRESSION.JPEGXR_NDPI]
+
+    @property
+    def focal_plane(self) -> float:
+        return self._focal_plane
