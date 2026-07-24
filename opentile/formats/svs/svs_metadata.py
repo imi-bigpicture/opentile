@@ -115,14 +115,22 @@ class SvsMetadata(Metadata):
         return self._svs_metadata.get("Header", "")
 
     def _get_timezone(self) -> Optional[timezone]:
+        """
+        Get the timezone from the SVS metadata (best effort).
+        Do not throw on invalid Time Zone values.
+        Handles overflow in some GT450 scanner (eg. `|Time Zone = GMT+429496729200|`).
+
+        :return: timezone object if available, otherwise None
+        """
         tz_str = self._svs_metadata.get("Time Zone")
         if tz_str is not None:
-            if not (tz_str.startswith("GMT") and tz_str[3] in ("+", "-")):
+            if not (tz_str.startswith("GMT") and tz_str[3:4] in ("+", "-")):
                 return None
             sign = -1 if tz_str[3] == "-" else 1
             digits = tz_str[4:].replace(":", "")  # "06:00" or "0600" -> "0600"
-            hours, minutes = map(int, (digits[:2], digits[2:]))
-            return timezone(sign * timedelta(hours=hours, minutes=minutes))
+            if len(digits) == 4:
+                hours, minutes = map(int, (digits[:2], digits[2:]))
+                return timezone(sign * timedelta(hours=hours, minutes=minutes))
         return None
 
     @staticmethod
