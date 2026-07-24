@@ -299,7 +299,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=10.1.0" },
     { name = "pyturbojpeg", specifier = ">=1.7.3,<2.0.0" },
     { name = "tifffile", specifier = ">=2026.6.1" },
-    { name = "universal-pathlib", specifier = ">=0.2.1" },
+    { name = "universal-pathlib", specifier = ">=0.3.0,<1.0.0" },
 ]
 
 [package.metadata.requires-dev]

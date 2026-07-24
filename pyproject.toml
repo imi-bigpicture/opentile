@@ -25,7 +25,7 @@ dependencies = [
     "defusedxml>=0.7.1",
     "ome-types>=0.5.0",
     "fsspec>=2024.2.0",
-    "universal-pathlib>=0.2.1",
+    "universal-pathlib>=0.3.0,<1.0.0",
 ]
 
 [project.urls]
