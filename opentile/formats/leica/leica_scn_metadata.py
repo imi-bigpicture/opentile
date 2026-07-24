@@ -46,9 +46,7 @@ class LeicaImage:
             raise ValueError(f"SCN image {self.name} missing view or pixels element.")
         self.view_size = Size(int(view.get("sizeX", 0)), int(view.get("sizeY", 0)))
         offset = Size(int(view.get("offsetX", 0)), int(view.get("offsetY", 0)))
-        self.pixel_size = Size(
-            int(pixels.get("sizeX", 0)), int(pixels.get("sizeY", 0))
-        )
+        self.pixel_size = Size(int(pixels.get("sizeX", 0)), int(pixels.get("sizeY", 0)))
         # openslide's macro test: offset 0,0 and view matching the collection bounds.
         self.is_macro = offset == Size(0, 0) and self.view_size == collection_size
 

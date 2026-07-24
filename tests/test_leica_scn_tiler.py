@@ -124,9 +124,7 @@ class TestLeicaScnTiler:
         # Arrange
         overview = tiler.get_overview()
         label = tiler.get_label()
-        row_offset = (
-            overview.tiled_size.height - label.tiled_size.height
-        )
+        row_offset = overview.tiled_size.height - label.tiled_size.height
 
         # Act
         label_tile = label.get_tile((0, 0))

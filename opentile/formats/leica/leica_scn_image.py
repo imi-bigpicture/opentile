@@ -98,9 +98,7 @@ class LeicaScnLabelImage(NativeTiledTiffImage, AssociatedTiffImage):
             from here to the bottom. Rounded down to a whole tile row.
         """
         super().__init__(page, file)
-        self._tile_row_offset = (
-            int(page.imagelength * crop_position) // page.tilelength
-        )
+        self._tile_row_offset = int(page.imagelength * crop_position) // page.tilelength
         self._image_size = Size(
             page.imagewidth,
             page.imagelength - self._tile_row_offset * page.tilelength,

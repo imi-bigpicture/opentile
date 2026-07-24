@@ -149,9 +149,7 @@ class VentanaTiffTiler(Tiler):
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
-            raise MissingAssociatedImageError(
-                "No thumbnail series found in this file."
-            )
+            raise MissingAssociatedImageError("No thumbnail series found in this file.")
         return VentanaThumbnailTiffImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
