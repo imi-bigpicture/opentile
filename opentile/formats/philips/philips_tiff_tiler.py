@@ -22,20 +22,16 @@ from upath import UPath
 
 from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
-from opentile.formats.philips.philips_tiff_image import (
-    PhilipsAssociatedTiffImage,
-    PhilipsLevelTiffImage,
-    PhilipsThumbnailTiffImage,
-)
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
-    ThumbnailTiffImage,
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image_bases import (
+    NativeTiledAssociatedImage,
+    NativeTiledThumbnailImage,
+    SparseTiledLevelImage,
 )
 from opentile.tiler import Tiler
 
@@ -87,7 +83,7 @@ class PhilipsTiffTiler(Tiler):
         )
 
     def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
-        return PhilipsLevelTiffImage(
+        return SparseTiledLevelImage(
             self._get_tiff_page(self._level_series_index, level, page),
             self._file,
             self._base_size,
@@ -98,21 +94,21 @@ class PhilipsTiffTiler(Tiler):
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
             raise MissingAssociatedImageError("No label series found in this file.")
-        return PhilipsAssociatedTiffImage(
+        return NativeTiledAssociatedImage(
             self._get_tiff_page(self._label_series_index, 0, page), self._file
         )
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
             raise MissingAssociatedImageError("No overview series found in this file.")
-        return PhilipsAssociatedTiffImage(
+        return NativeTiledAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page), self._file
         )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
             raise MissingAssociatedImageError("No thumbnail series found in this file.")
-        return PhilipsThumbnailTiffImage(
+        return NativeTiledThumbnailImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
             self._base_size,

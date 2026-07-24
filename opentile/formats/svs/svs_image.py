@@ -26,10 +26,8 @@ from tifffile.tifffile import svs_description_metadata
 from opentile.exceptions import NonSupportedCompressionError
 from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.tiff_image import (
-    LevelTiffImage,
-    NativeTiledTiffImage,
-)
+from opentile.tiff_image import LevelTiffImage
+from opentile.tiff_image_bases import NativeTiledTiffImage
 
 
 class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):

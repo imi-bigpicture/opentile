@@ -26,14 +26,12 @@ from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image_bases import (
     NativeTiledLevelImage,
     SingleFrameAssociatedImage,
     StripedAssociatedImage,
     StripedThumbnailImage,
-    ThumbnailTiffImage,
 )
 from opentile.tiler import Tiler
 

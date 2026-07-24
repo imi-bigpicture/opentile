@@ -30,19 +30,12 @@ from upath import UPath
 
 from opentile.exceptions import MissingAssociatedImageError, UnsupportedFileError
 from opentile.file import OpenTileFile
-from opentile.formats.leica.leica_scn_image import (
-    LeicaScnAssociatedImage,
-    LeicaScnLabelImage,
-    LeicaScnLevelTiffImage,
-)
+from opentile.formats.leica.leica_scn_image import LeicaScnLabelImage
 from opentile.formats.leica.leica_scn_metadata import LeicaScnMetadata
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
-    ThumbnailTiffImage,
-)
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image_bases import NativeTiledAssociatedImage, NativeTiledLevelImage
 from opentile.tiler import Tiler
 
 
@@ -98,7 +91,7 @@ class LeicaScnTiler(Tiler):
         return scn_xml
 
     def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
-        return LeicaScnLevelTiffImage(
+        return NativeTiledLevelImage(
             self._get_tiff_page(self._level_series_index, level, page),
             self._file,
             self._base_size,
@@ -108,7 +101,7 @@ class LeicaScnTiler(Tiler):
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
             raise MissingAssociatedImageError("No overview series found in this file.")
-        return LeicaScnAssociatedImage(
+        return NativeTiledAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page), self._file
         )
 

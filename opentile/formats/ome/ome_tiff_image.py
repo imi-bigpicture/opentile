@@ -23,13 +23,11 @@ from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tiler import NdpiOneFrameImage
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import (
-    AssociatedTiffImage,
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image_bases import (
     BaseTiffImage,
     DecodedTiledTiffImage,
-    LevelTiffImage,
     NativeTiledTiffImage,
-    ThumbnailTiffImage,
 )
 
 

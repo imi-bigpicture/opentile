@@ -26,13 +26,8 @@ from tifffile import COMPRESSION, TiffPage
 from opentile.file import OpenTileFile
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
-    NativeTiledTiffImage,
-    StripedTiffImage,
-    ThumbnailTiffImage,
-)
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image_bases import NativeTiledTiffImage, StripedTiffImage
 
 
 class QptiffLevelImage(NativeTiledTiffImage, LevelTiffImage):
@@ -188,6 +183,20 @@ class QptiffThumbnailImage(QptiffStripedImage, ThumbnailTiffImage):
         base_mpp: SizeMm,
         jpeg: Jpeg,
     ):
+        """
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the thumbnail.
+        file: OpenTileFile
+            File to read data from.
+        base_size: Size
+            Size of the base level in the pyramid.
+        base_mpp: SizeMm
+            Mpp (um/pixel) of the base level in the pyramid.
+        jpeg: Jpeg
+            Jpeg instance to use.
+        """
         super().__init__(page, file, jpeg)
         self._base_size = base_size
         self._base_mpp = base_mpp

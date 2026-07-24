@@ -25,13 +25,11 @@ from opentile.formats.huron.huron_tiff_metadata import HuronTiffMetadata
 from opentile.geometry import SizeMm
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import (
-    AssociatedTiffImage,
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image_bases import (
     DecodedAssociatedImage,
     DecodedThumbnailImage,
-    LevelTiffImage,
     NativeTiledLevelImage,
-    ThumbnailTiffImage,
 )
 from opentile.tiler import Tiler
 

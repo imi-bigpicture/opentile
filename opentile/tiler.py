@@ -28,11 +28,7 @@ from opentile.file import OpenTileFile
 from opentile.geometry import Size
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
-    ThumbnailTiffImage,
-)
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 
 
 class Tiler(metaclass=ABCMeta):

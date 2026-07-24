@@ -21,7 +21,7 @@ from tifffile import PHOTOMETRIC
 from opentile.formats import VentanaTiffTiler
 from opentile.formats.ventana.ventana_tiff_metadata import VentanaMetadata
 from opentile.geometry import Size, SizeMm
-from opentile.tiff_image import OverlappingLevelTiffImage
+from opentile.tiff_image_bases import OverlappingLevelTiffImage
 
 from .filepaths import ventana_1_file_path, ventana_file_path
 

@@ -12,8 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Image implementations for Leica SCN files: a plain tiled JPEG pyramid level and the
-tiled macro image served as an associated overview."""
+"""Image implementation for Leica SCN files: the label cropped from the macro."""
 
 from typing import Optional
 
@@ -21,57 +20,8 @@ from tifffile import COMPRESSION, TiffPage
 
 from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
-    NativeTiledTiffImage,
-)
-
-
-class LeicaScnLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
-    """Level image for a Leica SCN main image: a plain tiled JPEG pyramid whose mpp is
-    scaled from the base level parsed from the SCN XML."""
-
-    def __init__(
-        self, page: TiffPage, file: OpenTileFile, base_size: Size, base_mpp: SizeMm
-    ):
-        super().__init__(page, file)
-        self._base_mpp = base_mpp
-        self._scale = self._calculate_scale(base_size)
-        self._pyramid_index = self._calculate_pyramidal_index(self._scale)
-        self._mpp = self._calculate_mpp(base_mpp, self._scale)
-
-    @property
-    def pixel_spacing(self) -> SizeMm:
-        return self._mpp / 1000
-
-    @property
-    def mpp(self) -> SizeMm:
-        return self._mpp
-
-    @property
-    def scale(self) -> float:
-        return self._scale
-
-    @property
-    def pyramid_index(self) -> int:
-        return self._pyramid_index
-
-    @property
-    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
-        return None
-
-
-class LeicaScnAssociatedImage(NativeTiledTiffImage, AssociatedTiffImage):
-    """The Leica SCN macro image (highest-resolution dimension), tiled JPEG."""
-
-    @property
-    def pixel_spacing(self) -> Optional[SizeMm]:
-        return None
-
-    @property
-    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
-        return None
+from opentile.tiff_image import AssociatedTiffImage
+from opentile.tiff_image_bases import NativeTiledTiffImage
 
 
 class LeicaScnLabelImage(NativeTiledTiffImage, AssociatedTiffImage):

@@ -20,7 +20,7 @@ from tifffile import PHOTOMETRIC
 
 from opentile.formats import TrestleTiffTiler
 from opentile.geometry import Point, PointF, Size, SizeMm
-from opentile.tiff_image import OverlappingLevelTiffImage
+from opentile.tiff_image_bases import OverlappingLevelTiffImage
 
 from .filepaths import trestle_file_path
 

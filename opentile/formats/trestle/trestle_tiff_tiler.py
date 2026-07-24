@@ -31,12 +31,8 @@ from opentile.formats.trestle.trestle_tiff_metadata import TrestleMetadata
 from opentile.geometry import Size
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
-    OverlappingLevelTiffImage,
-    ThumbnailTiffImage,
-)
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image_bases import OverlappingLevelTiffImage
 from opentile.tile_overlap import TileOverlap
 from opentile.tiler import Tiler
 

@@ -29,12 +29,8 @@ from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegCropError
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    BaseTiffImage,
-    LevelTiffImage,
-    OverlappingLevelTiffImage,
-)
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage
+from opentile.tiff_image_bases import BaseTiffImage, OverlappingLevelTiffImage
 from opentile.tile_overlap import TileOverlap
 
 

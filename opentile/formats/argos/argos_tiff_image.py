@@ -27,11 +27,8 @@ from tifffile import TiffPage
 from opentile.file import OpenTileFile
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    SparseTiledLevelImage,
-    StripedTiffImage,
-)
+from opentile.tiff_image import AssociatedTiffImage
+from opentile.tiff_image_bases import SparseTiledLevelImage, StripedTiffImage
 
 
 class ArgosLevelTiffImage(SparseTiledLevelImage):
@@ -46,6 +43,22 @@ class ArgosLevelTiffImage(SparseTiledLevelImage):
         jpeg: Jpeg,
         focal_plane: float = 0.0,
     ):
+        """
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the level.
+        file: OpenTileFile
+            File to read data from.
+        base_size: Size
+            Size of the base level in the pyramid.
+        base_mpp: SizeMm
+            Mpp (um/pixel) of the base level in the pyramid.
+        jpeg: Jpeg
+            Jpeg instance to use.
+        focal_plane: float = 0.0
+            Focal plane offset (um) from slide center of this z-plane.
+        """
         super().__init__(page, file, base_size, base_mpp, jpeg)
         self._focal_plane = focal_plane
 
