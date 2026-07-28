@@ -24,6 +24,52 @@ from opentile.metadata import Metadata
 
 class NdpiMetadata(Metadata):
     BARCODE_TAG = 65468
+    MATRIX = {
+        # discontinued
+        # https://www.hamamatsu.com/eu/en/support/discontinued-products.html
+        "NanoZoomer HT": [
+            "NanoZoomer",
+            "C9600-12",
+        ],
+        "NanoZoomer RS": [
+            "C10730-12",
+        ],
+        "NanoZoomer S210": [
+            "C13239-01",
+        ],
+        "NanoZoomer XR": [
+            "C12000-02",
+        ],
+        # current:
+        # https://www.hamamatsu.com/eu/en/product/life-science-and-medical-systems/digital-slide-scanner-for-medical.html
+        "NanoZoomer S20MD": [
+            "C16300-11MDJ",
+            "C16300-21MDEU",
+            "C16300-31MDCA",
+            "C16300-61MDK",
+            "C16300-71MD",
+        ],
+        "NanoZoomer S60v2MD": [
+            "C16600-21MDEU",
+        ],
+        "NanoZoomer S360MD": [
+            "C13220-01MD",
+            "C13220-11MDJ",
+            "C13220-21MDEU",
+            "C13220-61MDK",
+            "C13220-71MD",
+        ],
+        "NanoZoomer S540MD": [
+            "C17400-00MD",
+            "C17400-21MDEU",
+        ],
+        "NanoZoomer S60": ["C13210", "C13210-01"],
+        "NanoZoomer S360": [
+            "C13220",
+            "C13220-01",
+            "C13220-31",
+        ],
+    }
 
     def __init__(self, page: TiffPage):
         self._tags = page.tags
@@ -31,6 +77,14 @@ class NdpiMetadata(Metadata):
             self._ndpi_tags = page.ndpi_tags
         else:
             self._ndpi_tags = {}
+
+    @classmethod
+    def get_product_name(cls, product_number: str) -> Optional[str]:
+        """Return the product name for a given product number, or None if not found."""
+        for name, numbers in cls.MATRIX.items():
+            if product_number in numbers:
+                return name
+        return None
 
     @property
     def magnification(self) -> Optional[float]:
@@ -45,7 +99,13 @@ class NdpiMetadata(Metadata):
 
     @property
     def scanner_model(self) -> Optional[str]:
-        return self._ndpi_tags.get("Model")
+        model = self._ndpi_tags.get("Model")
+        if model:
+            product_name = self.get_product_name(str(model))
+            if product_name:
+                return f"{product_name} ({model})"
+            return model
+        return None
 
     @property
     def scanner_software_versions(self) -> Optional[list[str]]:

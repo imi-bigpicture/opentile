@@ -468,7 +468,7 @@ class TestNdpiTiler:
         scanner_model = tiler.metadata.scanner_model
 
         # Assert
-        assert scanner_model == "NanoZoomer"
+        assert scanner_model == "NanoZoomer HT (NanoZoomer)"
 
     def test_metadata_scanner_software_versions(self, tiler: NdpiTiler):
         # Arrange
