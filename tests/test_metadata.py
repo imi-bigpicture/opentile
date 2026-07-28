@@ -20,6 +20,7 @@ import pytest
 from decoy import Decoy
 from tifffile import TiffPage, TiffTags
 
+from opentile.formats.histech.histech_metadata import HistechMetadata
 from opentile.formats.huron.huron_tiff_metadata import HuronTiffMetadata
 from opentile.formats.mikroscan.mikroscan_tiff_metadata import MikroscanTiffMetadata
 from opentile.formats.motic.motic_tiff_metadata import MoticTiffMetadata
@@ -399,3 +400,30 @@ class TestMoticMetadata:
 
         # Assert
         assert metadata.barcode is None
+
+
+class TestHistechMetadata:
+    @pytest.mark.parametrize(
+        ["description", "expected_datetime"],
+        [
+            (
+                "\r\n68608x95232 (256x256) JPEG/RGB Q=80|Date = 29/12/2009|Time = 12:43:52|MPP = 0.2325|3dh_PixelSizeX = 0.2325|3dh_PixelSizeY = 0.2325|3dh_Filter = Default|3dh_Profile = Current Profile",
+                datetime.strptime("20091229124352", "%Y%m%d%H%M%S"),
+            ),
+        ],
+    )
+    def test_acquisition_datetime(
+        self,
+        decoy: Decoy,
+        description: str,
+        expected_datetime: Optional[datetime],
+    ) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+
+        # Act
+        metadata = HistechMetadata(page)
+
+        # Assert
+        assert metadata.acquisition_datetime == expected_datetime
