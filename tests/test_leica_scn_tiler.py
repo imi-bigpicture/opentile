@@ -14,6 +14,7 @@
 
 from datetime import datetime, timezone
 from hashlib import md5
+from pathlib import Path
 
 import pytest
 from tifffile import PHOTOMETRIC
@@ -22,7 +23,11 @@ from opentile.formats import LeicaScnTiler
 from opentile.geometry import SizeMm
 from opentile.tiff_image import LevelTiffImage
 
-from .filepaths import leica_scn_file_path
+from .filepaths import (
+    leica_scn_file_path,
+    leica_scn_multi_res_file_path,
+    leica_scn_multi_roi_file_path,
+)
 
 
 @pytest.fixture()
@@ -58,6 +63,55 @@ class TestLeicaScnTiler:
 
         # Assert
         assert md5(tile).hexdigest() == hash
+
+    @pytest.mark.parametrize(
+        ["path", "expected_count"],
+        [
+            (leica_scn_multi_roi_file_path, 4),
+            (leica_scn_multi_res_file_path, 8),
+        ],
+    )
+    def test_multiple_rois_expose_readable_pyramids(
+        self, path: Path, expected_count: int
+    ):
+        # Each non-macro ROI is exposed as its own readable pyramid, with its own base
+        # size, mpp and slide position. (Refusing to convert several is the consumer's
+        # job, not opentile's.)
+
+        # Arrange
+        if not path.exists():
+            pytest.skip("Multi-ROI Leica SCN test file not found, skipping")
+
+        # Act
+        with LeicaScnTiler(path) as tiler:
+            primary_levels = tiler.levels
+            pyramids = tiler.pyramids
+            base_tiles = [pyramid.levels[0].get_tile((0, 0)) for pyramid in pyramids]
+
+        # Assert
+        positions = {(pyramid.position.x, pyramid.position.y) for pyramid in pyramids}
+        assert len(pyramids) == expected_count
+        assert pyramids[0].levels == primary_levels
+        assert all(pyramid.position is not None for pyramid in pyramids)
+        assert all(len(pyramid.levels) > 0 for pyramid in pyramids)
+        assert all(tile is not None for tile in base_tiles)
+        assert len(positions) == expected_count
+
+    def test_pyramids(self, tiler: LeicaScnTiler):
+        # Arrange
+
+        # Act
+        pyramids = tiler.pyramids
+
+        # Assert - one pyramid carrying the main image's name, base and position
+        assert len(pyramids) == 1
+        pyramid = pyramids[0]
+        assert pyramid.levels == tiler.levels
+        assert pyramid.base_size == pyramid.levels[0].image_size
+        assert pyramid.base_mpp == SizeMm(0.5, 0.5)
+        assert pyramid.name != ""
+        assert pyramid.position is not None
+        assert pyramid.position.x > 0 and pyramid.position.y > 0
 
     def test_levels_are_dyadic(self, tiler: LeicaScnTiler):
         # Arrange

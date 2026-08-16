@@ -29,7 +29,7 @@ from xml.etree.ElementTree import Element
 
 from defusedxml import ElementTree
 
-from opentile.geometry import Size, SizeMm
+from opentile.geometry import PointMm, Size, SizeMm
 from opentile.metadata import Metadata
 
 
@@ -45,10 +45,14 @@ class LeicaImage:
         if view is None or pixels is None:
             raise ValueError(f"SCN image {self.name} missing view or pixels element.")
         self.view_size = Size(int(view.get("sizeX", 0)), int(view.get("sizeY", 0)))
-        offset = Size(int(view.get("offsetX", 0)), int(view.get("offsetY", 0)))
+        self.view_offset = Size(
+            int(view.get("offsetX", 0)), int(view.get("offsetY", 0))
+        )
         self.pixel_size = Size(int(pixels.get("sizeX", 0)), int(pixels.get("sizeY", 0)))
         # openslide's macro test: offset 0,0 and view matching the collection bounds.
-        self.is_macro = offset == Size(0, 0) and self.view_size == collection_size
+        self.is_macro = (
+            self.view_offset == Size(0, 0) and self.view_size == collection_size
+        )
 
     @property
     def mpp(self) -> SizeMm:
@@ -56,6 +60,13 @@ class LeicaImage:
         return SizeMm(
             self.view_size.width / self.pixel_size.width / 1000,
             self.view_size.height / self.pixel_size.height / 1000,
+        )
+
+    @property
+    def position(self) -> PointMm:
+        """Position on the slide in mm (view offset is recorded in nm)."""
+        return PointMm(
+            self.view_offset.width / 1_000_000, self.view_offset.height / 1_000_000
         )
 
 

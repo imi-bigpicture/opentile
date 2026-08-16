@@ -17,26 +17,33 @@
 Leica SCN stores a single-file pyramidal tiled JPEG BigTIFF with a non-standard XML
 slide description (parsed by tifffile as ``TiffFile.scn_metadata``). tifffile splits the
 file into one series per SCN ``image``; the collection-spanning macro image (view offset
-0,0) is exposed as the overview, and the largest main image is served as the pyramid
-levels. Tiles do not overlap. Z-stacks and multi-channel (fluorescence) SCN files are
-not supported.
+0,0) is exposed as the overview, and each non-macro ``image`` (ROI) is a pyramid. The
+largest is the primary (``pyramids[0]`` / ``levels``); the rest are exposed through
+``pyramids``, each with its own base size, mpp, and slide position. Tiles do not
+overlap. Z-stacks and multi-channel (fluorescence) SCN files are not supported.
 """
 
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Optional, Union
 
 from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
-from opentile.exceptions import MissingAssociatedImageError, UnsupportedFileError
+from opentile.exceptions import (
+    MissingAssociatedImageError,
+    NonDyadicPyramidLevelError,
+    UnsupportedFileError,
+)
 from opentile.file import OpenTileFile
 from opentile.formats.leica.leica_scn_image import LeicaScnLabelImage
-from opentile.formats.leica.leica_scn_metadata import LeicaScnMetadata
+from opentile.formats.leica.leica_scn_metadata import LeicaImage, LeicaScnMetadata
+from opentile.geometry import PointMm, Size
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 from opentile.tiff_image_bases import NativeTiledAssociatedImage, NativeTiledLevelImage
-from opentile.tiler import Tiler
+from opentile.tiler import Pyramid, Tiler
 
 
 class LeicaScnTiler(Tiler):
@@ -72,6 +79,56 @@ class LeicaScnTiler(Tiler):
     @property
     def metadata(self) -> Metadata:
         return self._metadata
+
+    @property
+    def _pyramid_name(self) -> str:
+        return self._metadata.main_image.name
+
+    @property
+    def _pyramid_position(self) -> PointMm:
+        return self._metadata.main_image.position
+
+    @cached_property
+    def pyramids(self) -> list[Pyramid]:
+        """The primary pyramid (largest ROI) followed by the other ROIs.
+
+        The primary reuses the base tiler's cached level images; each other non-macro
+        image becomes a pyramid with its own base size, mpp, and slide position."""
+        primary = self._build_primary_pyramid()
+        pyramids = [primary] if primary is not None else []
+        primary_name = self._metadata.main_image.name
+        pyramids.extend(
+            self._create_roi_pyramid(image)
+            for image in self._metadata.images
+            if not image.is_macro and image.name != primary_name
+        )
+        return pyramids
+
+    def _create_roi_pyramid(self, image: LeicaImage) -> Pyramid:
+        """Build a readable pyramid for a non-primary ROI image."""
+        series_index = next(
+            index
+            for index, series in enumerate(self._file.series)
+            if series.name == image.name
+        )
+        base_page = self._get_tiff_page(series_index, 0, 0)
+        base_size = Size(base_page.imagewidth, base_page.imagelength)
+        levels: list[LevelTiffImage] = []
+        for level_index, level in enumerate(self._file.series[series_index].levels):
+            try:
+                level_images = [
+                    NativeTiledLevelImage(
+                        self._get_tiff_page(series_index, level_index, page_index),
+                        self._file,
+                        base_size,
+                        image.mpp,
+                    )
+                    for page_index, _ in enumerate(level.pages)
+                ]
+            except NonDyadicPyramidLevelError:
+                break
+            levels.extend(level_images)
+        return Pyramid(image.name, levels, base_size, image.mpp, image.position)
 
     @property
     def format(self) -> TiffFormat:

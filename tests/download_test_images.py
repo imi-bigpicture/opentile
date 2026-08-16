@@ -36,6 +36,16 @@ FILES: dict[str, dict[str, Any]] = {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-1.scn",
         "md5": {"Leica-1.scn": "e1e285c6d53232604c8b666450dd10a7"},
     },
+    # Leica-2/3 are multi-ROI, 2.2 GB and 3.0 GB. Upstream index.yaml publishes
+    # sha256; these md5s were computed after download (sha256 verified against it).
+    "scn/scn2/Leica-2.scn": {
+        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-2.scn",
+        "md5": {"Leica-2.scn": "c2907e23236ab2dce95aa6d3cf83500e"},
+    },
+    "scn/scn3/Leica-3.scn": {
+        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-3.scn",
+        "md5": {"Leica-3.scn": "42b2114e210feb2781f587acfc577718"},
+    },
     "qptiff/HandEcompressed/HandEcompressed_Scan1.qptiff": {
         "url": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/HandEcompressed_Scan1.qptiff",
         "md5": {"HandEcompressed_Scan1.qptiff": "e6e266c1f4879ae560aad01efb4c6f6d"},
