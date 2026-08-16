@@ -106,6 +106,7 @@ File metadata can be accessed through the `metadata`-property of a tiler. Depend
 
 ```python
 from opentile import OpenTile
+
 tile_size = (1024, 1024)
 tiler = OpenTile.open(path_to_ndpi_file, tile_size)
 ```
@@ -121,8 +122,9 @@ tiler = OpenTile.open("s3://bucket/key", file_options={"s3": "anon": True})
 
 ```python
 from opentile import OpenTile
+
 tile_size = (1024, 1024)
-turbo_path = 'C:/libjpeg-turbo64/bin/turbojpeg.dll'
+turbo_path = "C:/libjpeg-turbo64/bin/turbojpeg.dll"
 tiler = OpenTile.open(path_to_ndpi_file, tile_size, turbo_path)
 ```
 
@@ -145,6 +147,7 @@ The tiler can also be used as a context manager:
 
 ```python
 from opentile import OpenTile
+
 tile_size = (1024, 1024)
 with OpenTile.open(path_to_ndpi_file, tile_size) as tiler:
     level = tiler.get_evel(0)
