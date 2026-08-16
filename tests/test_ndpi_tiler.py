@@ -818,6 +818,7 @@ class TestNdpiJpegImageSize:
     def test_tags_still_report_the_larger_size(self, jpeg_size_tiler: NdpiTiler):
         # Arrange
         page = jpeg_size_tiler._file.series[0].levels[-1].pages[0]
+        assert isinstance(page, TiffPage)
 
         # Act
         tag_size = Size(page.imagewidth, page.imagelength)

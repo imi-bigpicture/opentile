@@ -89,12 +89,17 @@ class TestLeicaScnTiler:
             base_tiles = [pyramid.levels[0].get_tile((0, 0)) for pyramid in pyramids]
 
         # Assert
-        positions = {(pyramid.position.x, pyramid.position.y) for pyramid in pyramids}
         assert len(pyramids) == expected_count
         assert pyramids[0].levels == primary_levels
         assert all(pyramid.position is not None for pyramid in pyramids)
         assert all(len(pyramid.levels) > 0 for pyramid in pyramids)
         assert all(tile is not None for tile in base_tiles)
+        # The ROIs sit at distinct positions on the slide.
+        positions = {
+            (pyramid.position.x, pyramid.position.y)
+            for pyramid in pyramids
+            if pyramid.position is not None
+        }
         assert len(positions) == expected_count
 
     def test_pyramids(self, tiler: LeicaScnTiler):
