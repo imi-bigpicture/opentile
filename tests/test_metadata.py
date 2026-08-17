@@ -272,6 +272,107 @@ class TestVentanaMetadata:
 
 class TestNdpiMetadata:
     @pytest.mark.parametrize(
+        ["ndpi_tags", "manufacturer", "model", "software_versions"],
+        [
+            (
+                {
+                    "Make": "Hamamatsu",
+                    "Model": "C10730-12",
+                    "Software": "NDP.scan 3.4.1",
+                },
+                "Hamamatsu",
+                "NanoZoomer RS (C10730-12)",
+                ["NDP.scan 3.4.1"],
+            ),
+            (
+                {"Make": "Hamamatsu", "Model": "C13210", "Software": "NDP.scan 3.3.1"},
+                "Hamamatsu",
+                "NanoZoomer S60 (C13210)",
+                ["NDP.scan 3.3.1"],
+            ),
+            (
+                {
+                    "Make": "Hamamatsu",
+                    "Model": "C13220",
+                    "Software": "NZAcquire 3.1.10",
+                },
+                "Hamamatsu",
+                "NanoZoomer S360 (C13220)",
+                ["NZAcquire 3.1.10"],
+            ),
+            (
+                {
+                    "Make": "Hamamatsu",
+                    "Model": "C16300-21MDEU",
+                    "Software": "NZAcquireMD 1.4.50",
+                },
+                "Hamamatsu",
+                "NanoZoomer S20MD (C16300-21MDEU)",
+                ["NZAcquireMD 1.4.50"],
+            ),
+            (
+                {
+                    "Make": "Hamamatsu",
+                    "Model": "NanoZoomer",
+                    "Software": "NDP.scan",
+                },
+                "Hamamatsu",
+                "NanoZoomer HT (NanoZoomer)",
+                ["NDP.scan"],
+            ),
+            (
+                {
+                    "Make": "Hamamatsu",
+                    "Model": "C12000-02",
+                    "Software": "NDP.scan 3.0.4",
+                },
+                "Hamamatsu",
+                "NanoZoomer XR (C12000-02)",
+                ["NDP.scan 3.0.4"],
+            ),
+            (
+                {
+                    "Make": "Hamamatsu",
+                    "Model": "C13239-01",
+                    "Software": "NDP.scan 3.4.1",
+                },
+                "Hamamatsu",
+                "NanoZoomer S210 (C13239-01)",
+                ["NDP.scan 3.4.1"],
+            ),
+            (
+                {
+                    "Make": "Hamamatsu",
+                    "Model": "C9600-12",
+                    "Software": "NDP.scan 2.5.89",
+                },
+                "Hamamatsu",
+                "NanoZoomer HT (C9600-12)",
+                ["NDP.scan 2.5.89"],
+            ),
+        ],
+    )
+    def test_scanner_manufacturer_and_model_and_versions(
+        self,
+        decoy: Decoy,
+        ndpi_tags: dict[str, str],
+        manufacturer: Optional[str],
+        model: Optional[str],
+        software_versions: Optional[list[str]],
+    ) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.ndpi_tags).then_return(ndpi_tags)
+
+        # Act
+        metadata = NdpiMetadata(page)
+
+        # Assert
+        assert metadata.scanner_manufacturer == manufacturer
+        assert metadata.scanner_model == model
+        assert metadata.scanner_software_versions == software_versions
+
+    @pytest.mark.parametrize(
         ["ndpi_tags", "expected"],
         [
             ({"SlideLabel": "SR1274-908A"}, "SR1274-908A"),
