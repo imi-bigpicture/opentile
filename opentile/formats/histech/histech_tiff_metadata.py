@@ -22,7 +22,7 @@ from tifffile import TiffPage
 from opentile.metadata import Metadata
 
 
-class HistechMetadata(Metadata):
+class HistechTiffMetadata(Metadata):
     def __init__(self, page: TiffPage):
         self._histech_metadata = self._histech_description_metadata(page.description)
 
