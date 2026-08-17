@@ -12,9 +12,9 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Download the WSI test slides used by the test suite from a Hugging Face mirror.
+"""Download the WSI test slides used by the test suite from Hugging Face.
 
-Each slide's original `url`, `license`, `credit` and `attribution` are recorded in
+Each slide's original `source`, `license`, `credit` and `attribution` are recorded in
 `FILES` for provenance; the bytes are fetched from the mirror and verified against the
 recorded sha256.
 """
@@ -26,67 +26,61 @@ from typing import Any
 
 import requests
 
-# Hugging Face dataset mirroring the test slides. Change HF_OWNER to the user or
-# organization that owns the dataset.
-HF_OWNER = "erikgabr"
-HF_DATASET = "wsi-testdata"
-HF_BASE = f"https://huggingface.co/datasets/{HF_OWNER}/{HF_DATASET}/resolve/main"
-
 FILES: dict[str, dict[str, Any]] = {
     "svs/CMU-1/CMU-1.svs": {
-        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs",
+        "source": "https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs",
         "description": "Brightfield, JPEG",
         "license": "CC0-1.0",
         "sha256": "00a3d54482cd707abf254fe69dccc8d06b8ff757a1663f1290c23418c480eb30",
     },
     "ndpi/CMU-1/CMU-1.ndpi": {
-        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi",
+        "source": "https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi",
         "description": "Small scan with valid JPEG headers, brightfield, circa 2009",
         "license": "CC0-1.0",
         "sha256": "edf4a1ccf395c7000ae93ad3b44c07d97043810e00be0c1d167dd09bbe436e46",
     },
     "huron/Huron-1/Huron-1.tif": {
-        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Huron/Huron-1.tif",
+        "source": "https://openslide.cs.cmu.edu/download/openslide-testdata/Huron/Huron-1.tif",
         "description": "H&E stain, brightfield, 20x objective, JPEG, scanned on Huron LE176",
         "license": "CC0-1.0",
         "credit": "Huron Digital Pathology",
         "sha256": "295506f9872becce44033baa830dfd7a7644d104a832e6a7f73565be990c465d",
     },
     "scn/scn1/Leica-1.scn": {
-        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-1.scn",
+        "source": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-1.scn",
         "description": "Brightfield, single ROI, 2010/10/01 schema",
         "license": "distributable",
         "credit": "Yves Sucaet",
         "sha256": "63a3c00fef5215497a9725cf19092a93f7f5ff855ce8561af74b087631831a97",
     },
     "scn/scn2/Leica-2.scn": {
-        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-2.scn",
+        "source": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-2.scn",
         "description": "Mouse kidney, H&E stain, brightfield, multiple ROIs with identical resolutions, 2010/10/01 schema",
         "license": "distributable",
         "credit": "Ira Hensen, CECAD Imaging Facility, Cologne",
         "sha256": "f10523f88afac728f6d7d18ba39926be56766b739e68f00cace6ceea5c6c2cea",
     },
     "scn/scn3/Leica-3.scn": {
-        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-3.scn",
+        "source": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-3.scn",
         "description": "Mouse kidney, H&E stain, brightfield, multiple ROIs with different resolutions, 2010/10/01 schema",
         "license": "distributable",
         "credit": "Ira Hensen, CECAD Imaging Facility, Cologne",
         "sha256": "5ec8867f3edf90e685b8436e515bc24dbbefae545fb556dab568d7691592849b",
     },
     "argos/Argos-1/Argos-1.avs": {
-        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Argos/Argos-1.avs",
+        "source": "https://openslide.cs.cmu.edu/download/openslide-testdata/Argos/Argos-1.avs",
         "description": "Brightfield",
         "license": "CC0-1.0",
         "sha256": "3b68b5be6270344ad1823bb6c74c242d60493be90926002f6cdf6e96ca8ff28d",
     },
     "argos/Argos-1-Stacked/Argos-1-Stacked.avs": {
-        "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Argos/Argos-1-Stacked.avs",
+        "source": "https://openslide.cs.cmu.edu/download/openslide-testdata/Argos/Argos-1-Stacked.avs",
         "description": "Brightfield, Z-stack",
         "license": "CC0-1.0",
         "sha256": "1b88645342040b62bb3c3feaa1db76f9419cd7749327690b1221475a4d04c34a",
     },
     "qptiff/HandEcompressed/HandEcompressed_Scan1.qptiff": {
-        "url": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/HandEcompressed_Scan1.qptiff",
+        "source": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/HandEcompressed_Scan1.qptiff",
         "description": "Brightfield, RGB, JPEG compression",
         "license": "CC-BY-4.0",
         "credit": "PerkinElmer",
@@ -94,7 +88,7 @@ FILES: dict[str, dict[str, Any]] = {
         "sha256": "e2f5fae28409da7ca208ac0d53af988696313df67c3b0b6d6e0ac3ce7dfbe0d9",
     },
     "qptiff/LuCa-7color/LuCa-7color_Scan1.qptiff": {
-        "url": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/LuCa-7color_Scan1.qptiff",
+        "source": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/LuCa-7color_Scan1.qptiff",
         "description": "Fluorescence, 5 layers",
         "license": "CC-BY-4.0",
         "credit": "PerkinElmer",
@@ -106,6 +100,10 @@ FILES: dict[str, dict[str, Any]] = {
 DEFAULT_SLIDE_FOLDER = "tests/testdata/slides"
 DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 HASH_CHUNK_SIZE = 1024 * 1024
+
+# Hugging Face dataset mirroring the test slides.
+HF_DATASET = "erikgabr/wsi-testdata"
+HF_BASE = f"https://huggingface.co/datasets/{HF_DATASET}/resolve/main"
 
 
 def download_file(url: str, filename: Path):
