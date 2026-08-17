@@ -20,19 +20,20 @@ from typing import Any, Optional, Union
 from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
+from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
-from opentile.formats.svs.svs_image import (
-    SvsLabelImage,
-    SvsOverviewImage,
-    SvsThumbnailImage,
-    SvsTiledImage,
-)
+from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.formats.svs.svs_metadata import SvsMetadata
 from opentile.geometry import SizeMm
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image_bases import (
+    SingleFrameAssociatedImage,
+    StripedAssociatedImage,
+    StripedThumbnailImage,
+)
 from opentile.tiler import Tiler
 
 
@@ -75,20 +76,16 @@ class SvsTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_svs
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Baseline"
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Label"
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Macro"
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Thumbnail"
 
     def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
@@ -108,17 +105,16 @@ class SvsTiler(Tiler):
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
-            raise ValueError("No label detected in file")
-        return SvsLabelImage(
+            raise MissingAssociatedImageError("No label detected in file")
+        return SingleFrameAssociatedImage(
             self._get_tiff_page(self._label_series_index, 0, page),
             self._file,
-            self._jpeg,
         )
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
-            raise ValueError("No overview detected in file")
-        return SvsOverviewImage(
+            raise MissingAssociatedImageError("No overview detected in file")
+        return StripedAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
             self._jpeg,
@@ -126,8 +122,8 @@ class SvsTiler(Tiler):
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
-            raise ValueError("No overview detected in file")
-        return SvsThumbnailImage(
+            raise MissingAssociatedImageError("No thumbnail detected in file")
+        return StripedThumbnailImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
             self._base_size,

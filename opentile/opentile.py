@@ -25,13 +25,16 @@ from upath import UPath
 
 from opentile.file import OpenTileFile
 from opentile.formats import (
+    ArgosTiffTiler,
     HistechTiffTiler,
     HuronTiffTiler,
+    LeicaScnTiler,
     MikroscanTiffTiler,
     MoticTiffTiler,
     NdpiTiler,
     OmeTiffTiler,
     PhilipsTiffTiler,
+    QptiffTiler,
     SvsTiler,
     TrestleTiffTiler,
     VentanaTiffTiler,
@@ -52,6 +55,9 @@ class OpenTile:
         TiffFormat.HURON: HuronTiffTiler,
         TiffFormat.MIKROSCAN: MikroscanTiffTiler,
         TiffFormat.MOTIC: MoticTiffTiler,
+        TiffFormat.ARGOS: ArgosTiffTiler,
+        TiffFormat.LEICA_SCN: LeicaScnTiler,
+        TiffFormat.QPTIFF: QptiffTiler,
     }
 
     @classmethod
@@ -92,13 +98,19 @@ class OpenTile:
         if supported_tiler is TrestleTiffTiler:
             return TrestleTiffTiler(file)
         if supported_tiler is VentanaTiffTiler:
-            return VentanaTiffTiler(file)
+            return VentanaTiffTiler(file, turbo_path)
         if supported_tiler is HuronTiffTiler:
             return HuronTiffTiler(file)
         if supported_tiler is MikroscanTiffTiler:
             return MikroscanTiffTiler(file)
         if supported_tiler is MoticTiffTiler:
             return MoticTiffTiler(file, turbo_path)
+        if supported_tiler is ArgosTiffTiler:
+            return ArgosTiffTiler(file, turbo_path)
+        if supported_tiler is LeicaScnTiler:
+            return LeicaScnTiler(file)
+        if supported_tiler is QptiffTiler:
+            return QptiffTiler(file, turbo_path)
         raise NotImplementedError(f"Support for tiff file {filepath} not implemented.")
 
     @classmethod

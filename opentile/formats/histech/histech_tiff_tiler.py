@@ -26,11 +26,7 @@ from opentile.formats.histech.histech_tiff_metadata import HistechTiffMetadata
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
-    ThumbnailTiffImage,
-)
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 from opentile.tiler import Tiler
 
 
@@ -84,18 +80,14 @@ class HistechTiffTiler(Tiler):
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         raise NotImplementedError()
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
-        return series.index == 0
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
+        return series is self._file.series[0]
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return False
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         return False
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         return False

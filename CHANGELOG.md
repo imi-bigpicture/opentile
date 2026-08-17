@@ -9,22 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `Metadata.barcode` property returning the slide barcode value if present in the file (ndpi tag 65468, svs `Barcode`, ventana iScan `Barcode1D`/`Barcode2D`, philips `PIM_DP_UFS_BARCODE`, the last Base64-decoded), `None` otherwise. Distinct from `label_text`: matches the split DICOM makes between Barcode Value (2200,0005) and Label Text (2200,0002).
-- Scanner manufacturer and model for Grundium Ocus svs files, which use an `Aperio Image, Grundium` description header: the manufacturer is reported as `Grundium` and the model is read from the header.
+- `Tiler.pyramids` returning the file's pyramidal images as `Pyramid` objects (name, level images, base size, base mpp, and an optional slide `position`). `levels` is the primary pyramid's levels (`pyramids[0]`) and is unchanged for single-pyramid files. Formats with several scanned regions expose one readable `Pyramid` per region, each with its own base size, mpp and position.
 - `Settings` (immutable) and `get_settings`, `set_default_settings` and `use_settings` for configuring opentile.
-- Support for strip-stored (e.g. uncompressed) OME-TIFF levels via `OmeTiffStripedImage`. These are decoded once and served as a tile grid (`OmeTiffTiler` gains a `tile_size` argument); `get_tile` returns the raw pixel bytes since there is no per-tile encoded representation.
-- OME-TIFF levels now report the per-page focal plane (from the Z dimension and physical z spacing) and optical path (from the C dimension), so multi-plane OME z-stacks are surfaced as separate focal planes instead of being flattened.
-- Support for reading NDPI levels compressed with JPEG XR (`JPEGXR_NDPI`), previously unsupported. The native tiles are exposed via `NdpiJpegXrImage` with a zero-overlap `TileOverlap` for the consumer to stitch into a regular tiling. The macro is served as native JPEG XR; the label is decoded and served as uncompressed pixels.
-- Support for reading Huron (MACROscan) tiff files, identified by an `Image Dimensions =` field in the (Aperio-like but non-Aperio) description. The natively tiled levels (JPEG 2000 or jpeg) are served as-is, and the thumbnail/label/macro associated images (uncompressed) are decoded and served as raw pixels. Metadata is read from the description and tags: pixel spacing (`Resolution`), manufacturer, model, serial number (`DeviceID`), software, acquisition datetime (`Scan Started`), and the Base64-encoded barcode.
-- Support for reading Mikroscan (SL5) tiff files, identified by a `Mikroscan Image Structure` header. The description otherwise uses the Aperio pipe-separated format; the natively tiled jpeg levels are served as-is, and metadata is parsed from it: pixel spacing (`MPP`), magnification (`AppMag`), scanner model and serial (`SL5 SERIAL #`), and acquisition datetime (`Date`/`Time`). The uncompressed thumbnail, label, and macro associated images are decoded and served as raw pixels; their series are unnamed, so they are identified by the second description line.
-- Support for reading Motic tiff files, identified by a `Motic <version>` header on an otherwise Aperio pipe-separated, svs-like description (see [openslide#228](https://github.com/openslide/openslide/issues/228)). The natively tiled jpeg levels are served as-is, and magnification (`AppMag`), pixel spacing (`MPP`), and barcode are parsed from the description. The jpeg thumbnail and lzw label/macro associated images reuse the svs associated-image handling; their series are unnamed, so they are identified by the second description line.
-- Metadata for 3DHistech tiff files, parsed from the Aperio-like description: acquisition datetime (day-first `Date` and `Time` fields) and the remaining fields as `properties`.
+- `Metadata.barcode` property returning the slide barcode value if present in the file.
+- Scanner manufacturer and model for Grundium Ocus svs files, which use an `Aperio Image, Grundium` description header: the manufacturer is reported as `Grundium` and the model is read from the header.
+- Support for strip-stored (e.g. uncompressed) OME-TIFF levels, decoded once and served as a tile grid.
+- OME-TIFF levels now report the per-page focal plane (Z dimension) and optical path (C dimension), so multi-plane z-stacks are surfaced as separate focal planes instead of being flattened.
+- Ventana bif files now expose their `Overview` series as an overview associated image, instead of never serving one.
+- Support for reading NDPI levels compressed with JPEG XR (`JPEGXR_NDPI`), exposed as native tiles with a zero-overlap `TileOverlap` for the consumer to stitch.
+- Support for reading Huron (MACROscan) tiff files, detected by an `Image Dimensions =` field in the description. Natively tiled JPEG 2000 or jpeg levels.
+- Support for reading Mikroscan (SL5) tiff files, detected by a `Mikroscan Image Structure` header. Natively tiled jpeg levels.
+- Support for reading Motic tiff files, detected by a `Motic <version>` header on an Aperio-like description. Natively tiled jpeg levels.
+- Support for reading PerkinElmer/Akoya qptiff (`.qptiff`), detected by a `Software` tag starting with `PerkinElmer-QPI`. Brightfield and fluorescence, the latter exposing each band as an `optical_path`.
+- Support for reading Leica SCN (`.scn`), detected by the Leica SCN XML in the first page's `ImageDescription`. Each non-macro ROI is exposed as its own pyramid via `pyramids` (the largest as `levels`), the macro as the overview and a label cropped from it. Z-stacks and multi-channel (fluorescence) files are not supported.
+- Support for reading Argos (`.avs`), detected by TIFF tag 65000 holding `Argos.Scan.Metadata` XML. Sparse tiles are served as blank jpeg tile. Z-stack focal planes exposed via `focal_plane`.
+- `opentile.exceptions` module with a common `OpenTileError` base (so callers can catch every opentile error with one `except`) and `UnsupportedFileError`, `NonSupportedCompressionError`, `NonDyadicPyramidLevelError`, and `MissingAssociatedImageError`.
 
 ### Fixed
 
-- Parsing an empty image description with the Aperio-like parser raised `IndexError` instead of yielding empty metadata.
+- Non-tiled NDPI levels now take their size from the level's jpeg rather than the tiff tags. On heavily downsampled levels the two disagree: the tags round only the dimension that is fractional, while the jpeg adjusts both to preserve the aspect ratio (e.g. tags 322x167 for a jpeg of 322x166).
+- `get_all_tiles()` and `get_all_tiles_decoded()` returned the wrong set of tiles for levels served on a different tile grid than the stored one (NDPI, and strip-stored OME levels). The iterated region was built from the stored tile size before the requested tile size was applied, so an NDPI level of 800x596 served as 512x512 tiles yielded one tile instead of four.
 - Parsing of MPP and focal plane for some Aperio SVS files: tolerate a `,` decimal separator and a missing `MPP` key (falling back to the `Scan resolution` header field), and handle sub-level pages with an empty image description (e.g. Leica GT450).
 - Opening older-schema (OME-2015) OME-TIFF files raised `ImportError` because `lxml` was not installed; `lxml` is now a dependency.
+- Ventana `DOWN` tile joint directions are now read as row overlaps, matching the existing handling of `LEFT` as a column overlap. `Direction` names the axis the overlap was measured along rather than the tile relation, so `DOWN` is equivalent to `UP` just as `LEFT` is to `RIGHT`.
+- Parsing an empty image description with the Aperio-like parser raised `IndexError` instead of yielding empty metadata.
 
 ### Changed
 

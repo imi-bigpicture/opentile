@@ -24,6 +24,7 @@ from ome_types.model.simple_types import UnitsLength
 from tifffile import COMPRESSION, TiffFile, TiffPageSeries
 from upath import UPath
 
+from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
 from opentile.formats.ome.ome_tiff_image import (
     OmeTiffAssociatedImage,
@@ -85,24 +86,20 @@ class OmeTiffTiler(Tiler):
     def supported(cls, tiff_file: TiffFile) -> bool:
         return tiff_file.is_ome
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         return (
-            not OmeTiffTiler._is_label_series(series)
-            and not OmeTiffTiler._is_overview_series(series)
-            and not OmeTiffTiler._is_thumbnail_series(series)
+            not self._is_label_series(series)
+            and not self._is_overview_series(series)
+            and not self._is_thumbnail_series(series)
         )
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         return series.name.strip() == "label"
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         return series.name.strip() == "macro"
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         return series.name.strip() == "thumbnail"
 
     def _get_mpp(self, series_index: int) -> SizeMm:
@@ -187,17 +184,17 @@ class OmeTiffTiler(Tiler):
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
-            raise ValueError("No label detected in file")
+            raise MissingAssociatedImageError("No label detected in file")
         return self._get_associated_image(self._label_series_index, page)
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         if self._overview_series_index is None:
-            raise ValueError("No overview detected in file")
+            raise MissingAssociatedImageError("No overview detected in file")
         return self._get_associated_image(self._overview_series_index, page)
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
-            raise ValueError("No thumbnail detected in file")
+            raise MissingAssociatedImageError("No thumbnail detected in file")
         tiff_page = self._get_tiff_page(self._thumbnail_series_index, 0, page)
         return OmeTiffThumbnailImage(
             tiff_page,

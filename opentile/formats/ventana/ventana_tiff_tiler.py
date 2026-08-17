@@ -31,21 +31,20 @@ from typing import Any, Optional, Union
 from tifffile import TiffFile, TiffPage, TiffPageSeries
 from upath import UPath
 
+from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
-from opentile.formats.ventana.ventana_tiff_image import (
-    VentanaAssociatedTiffImage,
-    VentanaLevelTiffImage,
-    VentanaThumbnailTiffImage,
-)
 from opentile.formats.ventana.ventana_tiff_metadata import VentanaMetadata
 from opentile.geometry import Point, PointF, Region, Size
+from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image_bases import (
+    NativeTiledAssociatedImage,
+    NativeTiledLevelImage,
+    NativeTiledThumbnailImage,
     OverlappingLevelTiffImage,
-    ThumbnailTiffImage,
+    StripedAssociatedImage,
 )
 from opentile.tile_overlap import TileOverlap, TilePlacement
 from opentile.tiler import Tiler
@@ -55,6 +54,7 @@ class VentanaTiffTiler(Tiler):
     def __init__(
         self,
         file: Union[str, Path, UPath, OpenTileFile],
+        turbo_path: Optional[Union[str, Path]] = None,
         file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for Ventana bif file.
@@ -63,10 +63,13 @@ class VentanaTiffTiler(Tiler):
         ----------
         file: Union[str, Path, UPath, OpenTileFile]
             Filepath to a Ventana bif file or an opened Ventana OpenTileFile.
+        turbo_path: Optional[Union[str, Path]] = None
+            Path to turbojpeg (dll or so). Used to serve the striped overview image.
         file_options: Optional[Dict[str, Any]] = None
             Options to pass to filesystem when opening file.
         """
         super().__init__(file, file_options)
+        self._jpeg = Jpeg(turbo_path)
         # An already-stitched Ventana tiff has no EncodeInfo/XMP on its level page; its
         # tiles abut and are served as a plain pyramid. A raw bif has the stitch XMP.
         self._stitched = "XMP" not in self._base_page.tags
@@ -106,7 +109,7 @@ class VentanaTiffTiler(Tiler):
     def _create_level(self, level: int, page: int = 0) -> LevelTiffImage:
         tiff_page = self._get_tiff_page(self._level_series_index, level, page)
         if self._stitched:
-            return VentanaLevelTiffImage(
+            return NativeTiledLevelImage(
                 tiff_page, self._file, self._base_size, self._base_mpp
             )
         if level == 0:
@@ -123,38 +126,43 @@ class VentanaTiffTiler(Tiler):
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         if self._label_series_index is None:
-            raise ValueError("No label series found in this file.")
-        return VentanaAssociatedTiffImage(
+            raise MissingAssociatedImageError("No label series found in this file.")
+        return NativeTiledAssociatedImage(
             self._get_tiff_page(self._label_series_index, 0, page), self._file
         )
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
-        raise NotImplementedError("Ventana bif files have no overview image.")
+        if self._overview_series_index is None:
+            raise MissingAssociatedImageError("No overview series found in this file.")
+        # The overview is a striped image (JPEG for OS-1, uncompressed multi-strip for
+        # Ventana-1), so it is served as a StripedAssociatedImage that assembles the
+        # whole image, not the tiled NativeTiledAssociatedImage (one strip only).
+        return StripedAssociatedImage(
+            self._get_tiff_page(self._overview_series_index, 0, page),
+            self._file,
+            self._jpeg,
+        )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         if self._thumbnail_series_index is None:
-            raise ValueError("No thumbnail series found in this file.")
-        return VentanaThumbnailTiffImage(
+            raise MissingAssociatedImageError("No thumbnail series found in this file.")
+        return NativeTiledThumbnailImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
             self._base_composed_size,
             self._base_mpp,
         )
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Baseline"
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
-        return False
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
+        return series.name == "Overview"
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Label"
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         return series.name == "Thumbnail"
 
     def _create_base_overlap(self, tile_width: int, tile_height: int) -> TileOverlap:

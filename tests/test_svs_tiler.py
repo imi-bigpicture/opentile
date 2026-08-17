@@ -24,7 +24,7 @@ from opentile.formats import SvsTiler
 from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.geometry import Point, Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.tiff_image import BaseTiffImage
+from opentile.tiff_image import LevelTiffImage
 
 from .filepaths import svs_file_path, svs_z_file_path
 
@@ -254,7 +254,7 @@ class TestSvsTiler:
         # Assert
         assert md5(thumbnail).hexdigest() == "6d037caad2c1ee07a736f2191c95c5ae"
 
-    def test_compressed_size(self, level: BaseTiffImage):
+    def test_compressed_size(self, level: LevelTiffImage):
         # Arrange
 
         # Act

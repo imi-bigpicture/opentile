@@ -23,6 +23,7 @@ philips_file_path = slide_folder.joinpath("philips_tiff/philips1/input.tif")
 ndpi_file_path = slide_folder.joinpath("ndpi/CMU-1/CMU-1.ndpi")
 ndpi_z_file_path = slide_folder.joinpath("ndpi/zstack1/zstack1.ndpi")
 ndpi_jpegxr_file_path = slide_folder.joinpath("ndpi/jpegxr1/jpegxr1.ndpi")
+ndpi_jpeg_size_file_path = slide_folder.joinpath("ndpi/ndpi3/input.ndpi")
 histech_file_path = slide_folder.joinpath(
     "3dhistech_tiff/CMU-1/CMU-1_Default_Extended.tif"
 )
@@ -32,3 +33,16 @@ motic_file_path = slide_folder.joinpath("motic/motic1/motic1.svs")
 ome_tiff_file_path = slide_folder.joinpath("ome_tiff/CMU-1/CMU-1.ome.tiff")
 trestle_file_path = slide_folder.joinpath("trestle_tiff/CMU-1/CMU-1.tif")
 ventana_file_path = slide_folder.joinpath("ventana_bif/OS-1/OS-1.bif")
+ventana_1_file_path = slide_folder.joinpath("ventana_bif/Ventana-1/Ventana-1.bif")
+leica_scn_file_path = slide_folder.joinpath("scn/scn1/Leica-1.scn")
+# Multiple ROIs: scn2 at identical resolutions, scn3 at different resolutions.
+leica_scn_multi_roi_file_path = slide_folder.joinpath("scn/scn2/Leica-2.scn")
+leica_scn_multi_res_file_path = slide_folder.joinpath("scn/scn3/Leica-3.scn")
+qptiff_file_path = slide_folder.joinpath(
+    "qptiff/HandEcompressed/HandEcompressed_Scan1.qptiff"
+)
+qptiff_fluorescence_file_path = slide_folder.joinpath(
+    "qptiff/LuCa-7color/LuCa-7color_Scan1.qptiff"
+)
+argos_file_path = slide_folder.joinpath("argos/Argos-1/Argos-1.avs")
+argos_z_file_path = slide_folder.joinpath("argos/Argos-1-Stacked/Argos-1-Stacked.avs")

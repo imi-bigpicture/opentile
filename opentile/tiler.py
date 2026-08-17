@@ -15,6 +15,7 @@
 """Base tiler class."""
 
 from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -23,16 +24,24 @@ from tifffile import TiffFile, TiffFrame, TiffPage, TiffPageSeries
 from upath import UPath
 
 from opentile.cache import lru_cached_method
+from opentile.exceptions import NonDyadicPyramidLevelError, UnsupportedFileError
 from opentile.file import OpenTileFile
-from opentile.geometry import Size
+from opentile.geometry import PointMm, Size, SizeMm
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
-    NonDyadicPyramidLevelError,
-    ThumbnailTiffImage,
-)
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+
+
+@dataclass(frozen=True)
+class Pyramid:
+    """One pyramidal image in the file: a scanned region with its own levels."""
+
+    name: str
+    levels: list[LevelTiffImage]
+    base_size: Size
+    base_mpp: SizeMm
+    position: Optional[PointMm] = None
+    """Offset on the slide, where the format records it."""
 
 
 class Tiler(metaclass=ABCMeta):
@@ -54,7 +63,7 @@ class Tiler(metaclass=ABCMeta):
         """
         if isinstance(file, OpenTileFile):
             if not self.supported(file.tiff):
-                raise ValueError("Unsupported file.")
+                raise UnsupportedFileError("Unsupported file.")
             self._file = file
         else:
             self._file = OpenTileFile(file, file_options)
@@ -84,14 +93,18 @@ class Tiler(metaclass=ABCMeta):
         self.close()
 
     @cached_property
-    def levels(self) -> list[LevelTiffImage]:
-        """Return list of pyramid level TiffImages.
+    def pyramids(self) -> list[Pyramid]:
+        """Return list of pyramidal images in the file.
 
-        Trailing coarse levels whose downsample is not a clean power of two (e.g.
-        Ventana's coarsest overview levels) cannot be placed in the pyramid and are
-        dropped along with any coarser levels."""
-        if self._level_series_index is None:
-            return []
+        The base class returns the single primary pyramid; formats with several
+        scanned regions (e.g. multi-ROI Leica SCN) override this to return one pyramid
+        per region."""
+        primary = self._build_primary_pyramid()
+        return [primary] if primary is not None else []
+
+    def _build_primary_pyramid(self) -> Optional[Pyramid]:
+        """Build the primary pyramid from the level series, reusing the cached
+        ``get_level`` images, or None if the series yields no levels."""
         levels: list[LevelTiffImage] = []
         for level_index, level in enumerate(
             self._file.series[self._level_series_index].levels
@@ -104,7 +117,34 @@ class Tiler(metaclass=ABCMeta):
             except NonDyadicPyramidLevelError:
                 break
             levels.extend(level_images)
-        return levels
+        if not levels:
+            return None
+        return Pyramid(
+            self._pyramid_name,
+            levels,
+            self._base_size,
+            levels[0].pixel_spacing * 1000,
+            self._pyramid_position,
+        )
+
+    @cached_property
+    def levels(self) -> list[LevelTiffImage]:
+        """Return list of pyramid level TiffImages for the primary pyramid.
+
+        Trailing coarse levels whose downsample is not a clean power of two (e.g.
+        Ventana's coarsest overview levels) cannot be placed in the pyramid and are
+        dropped along with any coarser levels."""
+        return self.pyramids[0].levels if self.pyramids else []
+
+    @property
+    def _pyramid_name(self) -> str:
+        """Name of the pyramid, where the format records one."""
+        return ""
+
+    @property
+    def _pyramid_position(self) -> Optional[PointMm]:
+        """Position of the pyramid on the slide, where the format records it."""
+        return None
 
     @cached_property
     def labels(self) -> list[AssociatedTiffImage]:
@@ -251,27 +291,23 @@ class Tiler(metaclass=ABCMeta):
         """Create the thumbnail TiffImage."""
         raise NotImplementedError()
 
-    @staticmethod
     @abstractmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
         """Return true if series is a level series."""
         raise NotImplementedError()
 
-    @staticmethod
     @abstractmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         """Return true if series is a overview series."""
         raise NotImplementedError()
 
-    @staticmethod
     @abstractmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
         """Return true if series is a label series."""
         raise NotImplementedError()
 
-    @staticmethod
     @abstractmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         """Return true if series is a thumbnail series."""
         raise NotImplementedError()
 

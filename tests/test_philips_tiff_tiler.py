@@ -21,7 +21,7 @@ from tifffile import PHOTOMETRIC
 
 from opentile.formats import PhilipsTiffTiler
 from opentile.geometry import SizeMm
-from opentile.tiff_image import BaseTiffImage
+from opentile.tiff_image import LevelTiffImage
 
 from .filepaths import philips_file_path
 
@@ -50,7 +50,7 @@ class TestPhilipsTiffTiler:
         ],
     )
     def test_get_tile(
-        self, level: BaseTiffImage, tile_point: tuple[int, int], hash: str
+        self, level: LevelTiffImage, tile_point: tuple[int, int], hash: str
     ):
         # Arrange
 
@@ -74,7 +74,7 @@ class TestPhilipsTiffTiler:
     )
     def test_get_tiles(
         self,
-        level: BaseTiffImage,
+        level: LevelTiffImage,
         tile_points: Sequence[tuple[int, int]],
         hashes: Sequence[str],
     ):
@@ -87,7 +87,7 @@ class TestPhilipsTiffTiler:
         for tile, hash in zip(tiles, hashes):
             assert md5(tile).hexdigest() == hash
 
-    def test_photometric_interpretation(self, level: BaseTiffImage):
+    def test_photometric_interpretation(self, level: LevelTiffImage):
         # Arrange
 
         # Act
@@ -96,7 +96,7 @@ class TestPhilipsTiffTiler:
         # Assert
         assert photometric_interpretation == PHOTOMETRIC.YCBCR
 
-    def test_subsampling(self, level: BaseTiffImage):
+    def test_subsampling(self, level: LevelTiffImage):
         # Arrange
 
         # Act
@@ -105,7 +105,7 @@ class TestPhilipsTiffTiler:
         # Assert
         assert subsampling == (2, 2)
 
-    def test_sumples_per_pixel(self, level: BaseTiffImage):
+    def test_sumples_per_pixel(self, level: LevelTiffImage):
         # Arrange
 
         # Act
@@ -150,7 +150,7 @@ class TestPhilipsTiffTiler:
         # Assert
         assert acquisition_datetime == datetime(2013, 7, 1, 18, 59, 4)
 
-    def test_compressed_size(self, level: BaseTiffImage):
+    def test_compressed_size(self, level: LevelTiffImage):
         # Arrange
 
         # Act
