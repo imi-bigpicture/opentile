@@ -12,7 +12,12 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Download the WSI test slides used by the test suite from their source hosts."""
+"""Download the WSI test slides used by the test suite from a Hugging Face mirror.
+
+Each slide's original `url`, `license`, `credit` and `attribution` are recorded in
+`FILES` for provenance; the bytes are fetched from the mirror and verified against the
+recorded sha256.
+"""
 
 import os
 from hashlib import sha256
@@ -20,6 +25,12 @@ from pathlib import Path
 from typing import Any
 
 import requests
+
+# Hugging Face dataset mirroring the test slides. Change HF_OWNER to the user or
+# organization that owns the dataset.
+HF_OWNER = "erikgabr"
+HF_DATASET = "wsi-testdata"
+HF_BASE = f"https://huggingface.co/datasets/{HF_OWNER}/{HF_DATASET}/resolve/main"
 
 FILES: dict[str, dict[str, Any]] = {
     "svs/CMU-1/CMU-1.svs": {
@@ -133,7 +144,7 @@ def main():
         if file_path.exists():
             print(f"{file} found, skipping download")
         else:
-            url = file_settings["url"]
+            url = f"{HF_BASE}/{file}"
             print(f"{file} not found, downloading from {url}")
             os.makedirs(file_path.parent, exist_ok=True)
             download_file(url, file_path)
