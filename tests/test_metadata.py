@@ -441,28 +441,85 @@ class TestMoticMetadata:
         assert metadata.barcode is None
 
 
-class TestHistechMetadata:
+HISTECH_DESCRIPTION = (
+    "68608x95232 (256x256) JPEG/RGB Q=80|Date = 29/12/2009|Time = 12:43:52|"
+    "MPP = 0.2325|3dh_PixelSizeX = 0.2325|3dh_PixelSizeY = 0.2325|"
+    "3dh_Filter = Default|3dh_Profile = Current Profile"
+)
+
+
+class TestHistechTiffMetadata:
     @pytest.mark.parametrize(
-        ["description", "expected_datetime"],
+        ["description", "expected"],
         [
-            (
-                "\r\n68608x95232 (256x256) JPEG/RGB Q=80|Date = 29/12/2009|Time = 12:43:52|MPP = 0.2325|3dh_PixelSizeX = 0.2325|3dh_PixelSizeY = 0.2325|3dh_Filter = Default|3dh_Profile = Current Profile",
-                datetime.strptime("20091229124352", "%Y%m%d%H%M%S"),
-            ),
+            (HISTECH_DESCRIPTION, datetime(2009, 12, 29, 12, 43, 52)),
+            # Tolerate a leading blank line before the header.
+            ("\r\n" + HISTECH_DESCRIPTION, datetime(2009, 12, 29, 12, 43, 52)),
+            # Day first, so a day-of-month over 12 is unambiguous.
+            ("header|Date = 01/02/2020|Time = 00:00:00", datetime(2020, 2, 1)),
+            # Missing, incomplete and unparseable date-times.
+            ("header|MPP = 0.2325", None),
+            ("header|Date = 29/12/2009", None),
+            ("header|Date = 2009-12-29|Time = 12:43:52", None),
         ],
     )
     def test_acquisition_datetime(
         self,
         decoy: Decoy,
         description: str,
-        expected_datetime: Optional[datetime],
+        expected: Optional[datetime],
     ) -> None:
         # Arrange
         page = decoy.mock(cls=TiffPage)
         decoy.when(page.description).then_return(description)
 
         # Act
-        metadata = HistechMetadata(page)
+        metadata = HistechTiffMetadata(page)
 
         # Assert
-        assert metadata.acquisition_datetime == expected_datetime
+        assert metadata.acquisition_datetime == expected
+
+    def test_mpp(self, decoy: Decoy) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(HISTECH_DESCRIPTION)
+
+        # Act
+        metadata = HistechTiffMetadata(page)
+
+        # Assert
+        assert metadata.mpp == 0.2325
+
+    def test_properties(self, decoy: Decoy) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(HISTECH_DESCRIPTION)
+
+        # Act
+        metadata = HistechTiffMetadata(page)
+
+        # Assert
+        assert metadata.properties == {
+            "Date": "29/12/2009",
+            "Time": "12:43:52",
+            "MPP": "0.2325",
+            "3dh_PixelSizeX": "0.2325",
+            "3dh_PixelSizeY": "0.2325",
+            "3dh_Filter": "Default",
+            "3dh_Profile": "Current Profile",
+        }
+
+    @pytest.mark.parametrize("description", ["", "not a 3dhistech description"])
+    def test_unparsable_description(self, decoy: Decoy, description: str) -> None:
+        """A description that cannot be parsed must not raise, so that metadata never
+        stops a file from being opened."""
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+
+        # Act
+        metadata = HistechTiffMetadata(page)
+
+        # Assert
+        assert metadata.acquisition_datetime is None
+        assert metadata.properties == {}
