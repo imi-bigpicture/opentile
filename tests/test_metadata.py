@@ -20,6 +20,7 @@ import pytest
 from decoy import Decoy
 from tifffile import TiffPage, TiffTags
 
+from opentile.formats.histech.histech_tiff_metadata import HistechTiffMetadata
 from opentile.formats.huron.huron_tiff_metadata import HuronTiffMetadata
 from opentile.formats.mikroscan.mikroscan_tiff_metadata import MikroscanTiffMetadata
 from opentile.formats.motic.motic_tiff_metadata import MoticTiffMetadata
@@ -28,6 +29,7 @@ from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.formats.svs.svs_metadata import SvsMetadata
 from opentile.formats.ventana.ventana_tiff_metadata import VentanaMetadata
+from opentile.metadata import SvsLikeMetadata
 
 
 class TestSvsMetadata:
@@ -333,6 +335,44 @@ class TestHuronMetadata:
         assert metadata.scanner_serial_number == "LE176"
 
 
+class TestSvsLikeMetadata:
+    @pytest.mark.parametrize(
+        "description",
+        [
+            "",
+            "\r\n",
+            "|",
+            "no pipe-separated fields",
+        ],
+    )
+    def test_description_without_fields(self, decoy: Decoy, description: str) -> None:
+        """A description with nothing to parse yields empty metadata rather than
+        raising, so that metadata never stops a file from being opened."""
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+
+        # Act
+        metadata = SvsLikeMetadata(page)
+
+        # Assert
+        assert metadata.properties == {}
+        assert metadata.magnification is None
+
+    def test_empty_description_header(self, decoy: Decoy) -> None:
+        """The header is read from the first line, which an empty description lacks.
+        Asserted through Motic, which exposes it as the software version."""
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return("")
+
+        # Act
+        metadata = MoticTiffMetadata(page)
+
+        # Assert
+        assert metadata.scanner_software_versions is None
+
+
 class TestMikroscanMetadata:
     def test_fields(self, decoy: Decoy) -> None:
         # Arrange: the Aperio pipe-separated layout with a Mikroscan header (synthetic
@@ -399,3 +439,87 @@ class TestMoticMetadata:
 
         # Assert
         assert metadata.barcode is None
+
+
+HISTECH_DESCRIPTION = (
+    "68608x95232 (256x256) JPEG/RGB Q=80|Date = 29/12/2009|Time = 12:43:52|"
+    "MPP = 0.2325|3dh_PixelSizeX = 0.2325|3dh_PixelSizeY = 0.2325|"
+    "3dh_Filter = Default|3dh_Profile = Current Profile"
+)
+
+
+class TestHistechTiffMetadata:
+    @pytest.mark.parametrize(
+        ["description", "expected"],
+        [
+            (HISTECH_DESCRIPTION, datetime(2009, 12, 29, 12, 43, 52)),
+            # Tolerate a leading blank line before the header.
+            ("\r\n" + HISTECH_DESCRIPTION, datetime(2009, 12, 29, 12, 43, 52)),
+            # Day first, so a day-of-month over 12 is unambiguous.
+            ("header|Date = 01/02/2020|Time = 00:00:00", datetime(2020, 2, 1)),
+            # Missing, incomplete and unparsable date-times.
+            ("header|MPP = 0.2325", None),
+            ("header|Date = 29/12/2009", None),
+            ("header|Date = 2009-12-29|Time = 12:43:52", None),
+        ],
+    )
+    def test_acquisition_datetime(
+        self,
+        decoy: Decoy,
+        description: str,
+        expected: Optional[datetime],
+    ) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+
+        # Act
+        metadata = HistechTiffMetadata(page)
+
+        # Assert
+        assert metadata.acquisition_datetime == expected
+
+    def test_mpp(self, decoy: Decoy) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(HISTECH_DESCRIPTION)
+
+        # Act
+        metadata = HistechTiffMetadata(page)
+
+        # Assert
+        assert metadata.mpp == 0.2325
+
+    def test_properties(self, decoy: Decoy) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(HISTECH_DESCRIPTION)
+
+        # Act
+        metadata = HistechTiffMetadata(page)
+
+        # Assert
+        assert metadata.properties == {
+            "Date": "29/12/2009",
+            "Time": "12:43:52",
+            "MPP": "0.2325",
+            "3dh_PixelSizeX": "0.2325",
+            "3dh_PixelSizeY": "0.2325",
+            "3dh_Filter": "Default",
+            "3dh_Profile": "Current Profile",
+        }
+
+    @pytest.mark.parametrize("description", ["", "not a 3dhistech description"])
+    def test_unparsable_description(self, decoy: Decoy, description: str) -> None:
+        """A description that cannot be parsed must not raise, so that metadata never
+        stops a file from being opened."""
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+
+        # Act
+        metadata = HistechTiffMetadata(page)
+
+        # Assert
+        assert metadata.acquisition_datetime is None
+        assert metadata.properties == {}

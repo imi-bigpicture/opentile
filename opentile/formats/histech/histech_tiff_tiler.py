@@ -22,6 +22,7 @@ from upath import UPath
 
 from opentile.file import OpenTileFile
 from opentile.formats.histech.histech_tiff_image import HistechTiffImage
+from opentile.formats.histech.histech_tiff_metadata import HistechTiffMetadata
 from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
@@ -49,11 +50,11 @@ class HistechTiffTiler(Tiler):
         """
         super().__init__(file, file_options)
         self._jpeg = Jpeg(turbo_path)
+        self._metadata = HistechTiffMetadata(self._base_page)
 
     @property
     def metadata(self) -> Metadata:
-        """No known metadata for 3DHistech tiff files."""
-        return Metadata()
+        return self._metadata
 
     @property
     def format(self) -> TiffFormat:

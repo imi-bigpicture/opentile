@@ -19,6 +19,7 @@ from typing import Optional
 from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
 from opentile.file import OpenTileFile
+from opentile.formats.histech.histech_tiff_metadata import HistechTiffMetadata
 from opentile.geometry import Size, SizeMm
 from opentile.tiff_image import LevelTiffImage
 from opentile.tiff_image_bases import NativeTiledTiffImage
@@ -74,11 +75,6 @@ class HistechTiffImage(NativeTiledTiffImage, LevelTiffImage):
         return 0
 
     def _get_mpp_from_page(self) -> SizeMm:
-        items_split = self._page.description.split("|")
-        _header = items_split.pop(0)
-        items = {
-            key: value
-            for (key, value) in (item.split(" = ", 1) for item in items_split)
-        }
-        mpp = float(items["MPP"])
+        """The isotropic mpp from this page's own description ``MPP`` field."""
+        mpp = HistechTiffMetadata(self._page).mpp
         return SizeMm(mpp, mpp)

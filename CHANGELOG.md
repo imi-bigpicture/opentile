@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parsing of MPP and focal plane for some Aperio SVS files: tolerate a `,` decimal separator and a missing `MPP` key (falling back to the `Scan resolution` header field), and handle sub-level pages with an empty image description (e.g. Leica GT450).
 - Opening older-schema (OME-2015) OME-TIFF files raised `ImportError` because `lxml` was not installed; `lxml` is now a dependency.
 - Ventana `DOWN` tile joint directions are now read as row overlaps, matching the existing handling of `LEFT` as a column overlap. `Direction` names the axis the overlap was measured along rather than the tile relation, so `DOWN` is equivalent to `UP` just as `LEFT` is to `RIGHT`.
+- Parsing an empty image description with the Aperio-like parser raised `IndexError` instead of yielding empty metadata.
 
 ### Changed
 

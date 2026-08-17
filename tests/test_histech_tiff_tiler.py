@@ -13,6 +13,7 @@
 #    limitations under the License.
 
 from collections.abc import Sequence
+from datetime import datetime
 from hashlib import md5
 
 import pytest
@@ -139,3 +140,22 @@ class TestHistechTiffTiler:
 
         # Assert
         assert base_pixel_spacing == expected_size
+
+    def test_metadata_acquisition_datetime(self, tiler: HistechTiffTiler):
+        # Arrange
+
+        # Act
+        acquisition_datetime = tiler.metadata.acquisition_datetime
+
+        # Assert
+        assert acquisition_datetime == datetime(2009, 12, 29, 12, 43, 52)
+
+    def test_metadata_properties(self, tiler: HistechTiffTiler):
+        # Arrange
+
+        # Act
+        properties = tiler.metadata.properties
+
+        # Assert
+        assert properties["MPP"] == "0.2325"
+        assert properties["3dh_Profile"] == "Current Profile"
