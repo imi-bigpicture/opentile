@@ -12,8 +12,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Download the WSI test slides used by the test suite from their source hosts.
+"""
+
 import os
-from hashlib import md5
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -22,50 +25,77 @@ import requests
 FILES: dict[str, dict[str, Any]] = {
     "svs/CMU-1/CMU-1.svs": {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs",
-        "md5": {"CMU-1.svs": "751b0b86a3c5ff4dfc8567cf24daaa85"},
+        "description": "Brightfield, JPEG",
+        "license": "CC0-1.0",
+        "sha256": "00a3d54482cd707abf254fe69dccc8d06b8ff757a1663f1290c23418c480eb30",
     },
     "ndpi/CMU-1/CMU-1.ndpi": {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Hamamatsu/CMU-1.ndpi",
-        "md5": {"CMU-1.ndpi": "fb89dea54f85fb112e418a3cf4c7888a"},
+        "description": "Small scan with valid JPEG headers, brightfield, circa 2009",
+        "license": "CC0-1.0",
+        "sha256": "edf4a1ccf395c7000ae93ad3b44c07d97043810e00be0c1d167dd09bbe436e46",
     },
     "huron/Huron-1/Huron-1.tif": {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Huron/Huron-1.tif",
-        "md5": {"Huron-1.tif": "36e88dca44731e3346a06913cdd105cd"},
+        "description": "H&E stain, brightfield, 20x objective, JPEG, scanned on Huron LE176",
+        "license": "CC0-1.0",
+        "credit": "Huron Digital Pathology",
+        "sha256": "295506f9872becce44033baa830dfd7a7644d104a832e6a7f73565be990c465d",
     },
     "scn/scn1/Leica-1.scn": {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-1.scn",
-        "md5": {"Leica-1.scn": "e1e285c6d53232604c8b666450dd10a7"},
+        "description": "Brightfield, single ROI, 2010/10/01 schema",
+        "license": "distributable",
+        "credit": "Yves Sucaet",
+        "sha256": "63a3c00fef5215497a9725cf19092a93f7f5ff855ce8561af74b087631831a97",
     },
-    # Leica-2/3 are multi-ROI, 2.2 GB and 3.0 GB. Upstream index.yaml publishes
-    # sha256; these md5s were computed after download (sha256 verified against it).
     "scn/scn2/Leica-2.scn": {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-2.scn",
-        "md5": {"Leica-2.scn": "c2907e23236ab2dce95aa6d3cf83500e"},
+        "description": "Mouse kidney, H&E stain, brightfield, multiple ROIs with identical resolutions, 2010/10/01 schema",
+        "license": "distributable",
+        "credit": "Ira Hensen, CECAD Imaging Facility, Cologne",
+        "sha256": "f10523f88afac728f6d7d18ba39926be56766b739e68f00cace6ceea5c6c2cea",
     },
     "scn/scn3/Leica-3.scn": {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Leica/Leica-3.scn",
-        "md5": {"Leica-3.scn": "42b2114e210feb2781f587acfc577718"},
-    },
-    "qptiff/HandEcompressed/HandEcompressed_Scan1.qptiff": {
-        "url": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/HandEcompressed_Scan1.qptiff",
-        "md5": {"HandEcompressed_Scan1.qptiff": "e6e266c1f4879ae560aad01efb4c6f6d"},
-    },
-    "qptiff/LuCa-7color/LuCa-7color_Scan1.qptiff": {
-        "url": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/LuCa-7color_Scan1.qptiff",
-        "md5": {"LuCa-7color_Scan1.qptiff": "ad17ce336c5fad1f32e5311a91e1dc64"},
+        "description": "Mouse kidney, H&E stain, brightfield, multiple ROIs with different resolutions, 2010/10/01 schema",
+        "license": "distributable",
+        "credit": "Ira Hensen, CECAD Imaging Facility, Cologne",
+        "sha256": "5ec8867f3edf90e685b8436e515bc24dbbefae545fb556dab568d7691592849b",
     },
     "argos/Argos-1/Argos-1.avs": {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Argos/Argos-1.avs",
-        "md5": {"Argos-1.avs": "39dbc48864d9fc47f00fcc5a9a62a74c"},
+        "description": "Brightfield",
+        "license": "CC0-1.0",
+        "sha256": "3b68b5be6270344ad1823bb6c74c242d60493be90926002f6cdf6e96ca8ff28d",
     },
     "argos/Argos-1-Stacked/Argos-1-Stacked.avs": {
         "url": "https://openslide.cs.cmu.edu/download/openslide-testdata/Argos/Argos-1-Stacked.avs",
-        "md5": {"Argos-1-Stacked.avs": "1c109fe4296fd9e835ced9250776b7b6"},
+        "description": "Brightfield, Z-stack",
+        "license": "CC0-1.0",
+        "sha256": "1b88645342040b62bb3c3feaa1db76f9419cd7749327690b1221475a4d04c34a",
+    },
+    "qptiff/HandEcompressed/HandEcompressed_Scan1.qptiff": {
+        "url": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/HandEcompressed_Scan1.qptiff",
+        "description": "Brightfield, RGB, JPEG compression",
+        "license": "CC-BY-4.0",
+        "credit": "PerkinElmer",
+        "attribution": "(c) PerkinElmer (http://www.perkinelmer.com). Licensed under the Creative Commons Attribution 4.0 International License (CC BY 4.0), https://creativecommons.org/licenses/by/4.0/. The image content is unchanged.",
+        "sha256": "e2f5fae28409da7ca208ac0d53af988696313df67c3b0b6d6e0ac3ce7dfbe0d9",
+    },
+    "qptiff/LuCa-7color/LuCa-7color_Scan1.qptiff": {
+        "url": "https://downloads.openmicroscopy.org/images/Vectra-QPTIFF/perkinelmer/PKI_scans/LuCa-7color_Scan1.qptiff",
+        "description": "Fluorescence, 5 layers",
+        "license": "CC-BY-4.0",
+        "credit": "PerkinElmer",
+        "attribution": "(c) PerkinElmer (http://www.perkinelmer.com). Licensed under the Creative Commons Attribution 4.0 International License (CC BY 4.0), https://creativecommons.org/licenses/by/4.0/. The image content is unchanged.",
+        "sha256": "0a0558670a479d826f13e467fd7e50cb6d691c9b4009d86bf579d1a0f3c526dc",
     },
 }
 
 DEFAULT_SLIDE_FOLDER = "tests/testdata/slides"
-DOWNLOAD_CHUNK_SIZE = 8192
+DOWNLOAD_CHUNK_SIZE = 1024 * 1024
+HASH_CHUNK_SIZE = 1024 * 1024
 
 
 def download_file(url: str, filename: Path):
@@ -76,9 +106,18 @@ def download_file(url: str, filename: Path):
                 file.write(chunk)
 
 
-def main():
-    print("Downloading and/or checking testdata from cytomine.")
+def file_sha256(path: Path) -> str:
+    """Return the sha256 of a file, read in chunks so large files are not held in
+    memory."""
+    hasher = sha256()
+    with open(path, "rb") as file:
+        for chunk in iter(lambda: file.read(HASH_CHUNK_SIZE), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
+
+def main():
+    print("Downloading and/or checking testdata.")
     test_data_folder = os.environ.get("OPENTILE_TESTDIR")
     if test_data_folder is None:
         slide_folder = Path(DEFAULT_SLIDE_FOLDER)
@@ -100,19 +139,9 @@ def main():
             os.makedirs(file_path.parent, exist_ok=True)
             download_file(url, file_path)
 
-        for relative_path, hash in file_settings["md5"].items():
-            saved_file_path = file_path.parent.joinpath(relative_path)
-            if not saved_file_path.exists():
-                raise ValueError(
-                    f"Did not find {saved_file_path}. Try removing the "
-                    "parent folder and try again."
-                )
-            with open(saved_file_path, "rb") as saved_file_io:
-                data = saved_file_io.read()
-                if not hash == md5(data).hexdigest():
-                    raise ValueError(f"Checksum failed for {saved_file_path}")
-                else:
-                    print(f"{saved_file_path} checksum OK")
+        if file_sha256(file_path) != file_settings["sha256"]:
+            raise ValueError(f"Checksum failed for {file_path}")
+        print(f"{file_path} checksum OK")
 
 
 if __name__ == "__main__":
