@@ -12,51 +12,32 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Metadata parser for 3DHistech/TIFF files."""
+"""Metadata parser for 3Dhistech tiff files.
+
+The description uses the Aperio pipe-separated ``Header|Key = Value|...`` layout (parsed
+by `SvsLikeMetadata`), but with no vendor prefix on the header line, e.g.::
+
+    68608x95232 (256x256) JPEG/RGB Q=80|Date = 29/12/2009|Time = 12:43:52|
+    MPP = 0.2325|3dh_PixelSizeX = 0.2325|3dh_PixelSizeY = 0.2325|
+    3dh_Filter = Default|3dh_Profile = Current Profile
+"""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
-from tifffile import TiffPage
-
-from opentile.metadata import Metadata
+from opentile.metadata import SvsLikeMetadata
 
 
-class HistechTiffMetadata(Metadata):
-    def __init__(self, page: TiffPage):
-        self._histech_metadata = self._histech_description_metadata(page.description)
-
+class HistechTiffMetadata(SvsLikeMetadata):
     @property
     def acquisition_datetime(self) -> Optional[datetime]:
-        try:
-            date = datetime.strptime(self._histech_metadata["Date"], r"%d/%m/%Y")
-            time = datetime.strptime(self._histech_metadata["Time"], r"%H:%M:%S")
-        except (KeyError, ValueError):
+        # e.g. "Date = 29/12/2009", "Time = 12:43:52". Unlike the Aperio-like formats
+        # the date is written day first.
+        date = self._fields.get("Date")
+        time = self._fields.get("Time")
+        if date is None or time is None:
             return None
-        return datetime.combine(date, time.time())
-
-    @property
-    def mpp(self) -> float:
-        return float(self._histech_metadata["MPP"])
-
-    @property
-    def properties(self) -> dict[str, Any]:
-        return self._histech_metadata
-
-    @staticmethod
-    def _histech_description_metadata(description: str, /) -> dict[str, Any]:
-        """Return metadata from 3DHistech/TIFF image description."""
-        if not description.startswith("\r\n"):
-            msg = "invalid 3DHistech image description"
-            raise ValueError(msg)
-        result: dict[str, Any] = {}
-        items = description.split("|")
-        result["Header"] = items[0].strip()
-        for item in items[1:]:
-            try:
-                key, value = item.strip().split("=", maxsplit=1)
-            except ValueError:
-                # skip empty items or those missing '='
-                continue
-            result[key.strip()] = value.strip()
-        return result
+        try:
+            return datetime.strptime(f"{date} {time}", "%d/%m/%Y %H:%M:%S")
+        except ValueError:
+            return None
