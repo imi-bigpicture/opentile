@@ -20,7 +20,8 @@ from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 
 from opentile.file import OpenTileFile
 from opentile.geometry import Size, SizeMm
-from opentile.tiff_image import LevelTiffImage, NativeTiledTiffImage
+from opentile.tiff_image import LevelTiffImage
+from opentile.tiff_image_bases import NativeTiledTiffImage
 
 
 class HistechTiffImage(NativeTiledTiffImage, LevelTiffImage):

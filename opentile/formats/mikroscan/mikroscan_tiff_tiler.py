@@ -21,19 +21,15 @@ from tifffile import TiffFile, TiffPageSeries
 from upath import UPath
 
 from opentile.file import OpenTileFile
-from opentile.formats.mikroscan.mikroscan_tiff_image import (
-    MikroscanAssociatedImage,
-    MikroscanThumbnailImage,
-)
 from opentile.formats.mikroscan.mikroscan_tiff_metadata import MikroscanTiffMetadata
 from opentile.geometry import SizeMm
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    LevelTiffImage,
+from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
+from opentile.tiff_image_bases import (
+    DecodedAssociatedImage,
+    DecodedThumbnailImage,
     NativeTiledLevelImage,
-    ThumbnailTiffImage,
 )
 from opentile.tiler import Tiler
 
@@ -81,43 +77,39 @@ class MikroscanTiffTiler(Tiler):
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         assert self._label_series_index is not None
-        return MikroscanAssociatedImage(
+        return DecodedAssociatedImage(
             self._get_tiff_page(self._label_series_index, 0, page), self._file
         )
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         assert self._overview_series_index is not None
-        return MikroscanAssociatedImage(
+        return DecodedAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page), self._file
         )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         assert self._thumbnail_series_index is not None
-        return MikroscanThumbnailImage(
+        return DecodedThumbnailImage(
             self._get_tiff_page(self._thumbnail_series_index, 0, page),
             self._file,
             self._base_size,
             self._base_mpp,
         )
 
-    @staticmethod
-    def _is_level_series(series: TiffPageSeries) -> bool:
-        return series.index == 0
+    def _is_level_series(self, series: TiffPageSeries) -> bool:
+        return series is self._file.series[0]
 
-    @staticmethod
-    def _is_overview_series(series: TiffPageSeries) -> bool:
+    def _is_overview_series(self, series: TiffPageSeries) -> bool:
         # The associated series are unnamed; the type is in the description's second
         # line, e.g. "Mikroscan Image Structure\nmacro 1024x512".
-        return MikroscanTiffTiler._type_line(series).startswith("macro")
+        return self._type_line(series).startswith("macro")
 
-    @staticmethod
-    def _is_label_series(series: TiffPageSeries) -> bool:
-        return MikroscanTiffTiler._type_line(series).startswith("label")
+    def _is_label_series(self, series: TiffPageSeries) -> bool:
+        return self._type_line(series).startswith("label")
 
-    @staticmethod
-    def _is_thumbnail_series(series: TiffPageSeries) -> bool:
+    def _is_thumbnail_series(self, series: TiffPageSeries) -> bool:
         # The thumbnail's second line records a downscale, e.g. "26880x42240 -> 420x660"
-        return "->" in MikroscanTiffTiler._type_line(series)
+        return "->" in self._type_line(series)
 
     @staticmethod
     def _type_line(series: TiffPageSeries) -> str:

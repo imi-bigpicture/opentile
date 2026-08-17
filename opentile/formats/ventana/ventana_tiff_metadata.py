@@ -137,6 +137,10 @@ class VentanaMetadata(Metadata):
                 continue
             if float(joint.get("Confidence", 0)) < MIN_JOINT_CONFIDENCE:
                 continue
+            # Direction names the axis the overlap was measured along, not the spatial
+            # relation of the tiles, so LEFT is equivalent to RIGHT and DOWN to UP
+            # (newer Roche/Ventana scanners emit LEFT/DOWN). The boundary is taken from
+            # the lower of the two tile indices, which is already direction agnostic.
             direction = joint.get("Direction")
             col_a, row_a = self._serpentine_cell(int(joint.get("Tile1", 1)), cols, rows)
             col_b, row_b = self._serpentine_cell(int(joint.get("Tile2", 1)), cols, rows)
@@ -148,7 +152,7 @@ class VentanaMetadata(Metadata):
                     col_count[boundary] += 1
                 global_col_sum += overlap
                 global_col_count += 1
-            elif direction == "UP":
+            elif direction in ("UP", "DOWN"):
                 boundary = min(row_a, row_b)
                 overlap = float(joint.get("OverlapY", 0))
                 if 0 <= boundary < len(row_sum):

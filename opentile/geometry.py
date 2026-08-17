@@ -72,6 +72,17 @@ class SizeMm:
 
 
 @dataclass(frozen=True)
+class PointMm:
+    """A position in mm, e.g. an offset on the slide."""
+
+    x: float
+    y: float
+
+    def __str__(self) -> str:
+        return f"{self.x},{self.y}"
+
+
+@dataclass(frozen=True)
 class Size:
     width: int
     height: int

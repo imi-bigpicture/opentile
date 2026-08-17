@@ -23,151 +23,11 @@ from PIL import Image
 from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 from tifffile.tifffile import svs_description_metadata
 
+from opentile.exceptions import NonSupportedCompressionError
 from opentile.file import OpenTileFile
 from opentile.geometry import Point, Region, Size, SizeMm
-from opentile.jpeg import Jpeg
-from opentile.tiff_image import (
-    AssociatedTiffImage,
-    BaseTiffImage,
-    LevelTiffImage,
-    NativeTiledTiffImage,
-    ThumbnailTiffImage,
-)
-
-
-class NonSupportedCompressionException(Exception):
-    pass
-
-
-class SvsStripedImage(BaseTiffImage):
-    def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
-        """OpenTiledPage for jpeg striped Svs image, e.g. overview image.
-
-        Parameters
-        ----------
-        page: TiffPage
-            TiffPage defining the page.
-        file: OpenTileFile
-            File to read data from.
-        jpeg: Jpeg
-            Jpeg instance to use.
-
-        """
-        add_rgb_colorspace_fix = (
-            page.compression == COMPRESSION.JPEG and page.photometric == PHOTOMETRIC.RGB
-        )
-        super().__init__(page, file, add_rgb_colorspace_fix)
-        self._jpeg = jpeg
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
-
-    @property
-    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
-        """`get_tile()` concatenates JPEG scans for JPEG-compressed stripes and
-        returns the raw stripe bytes for uncompressed (NONE) and LZW stripes."""
-        return [COMPRESSION.JPEG, COMPRESSION.NONE, COMPRESSION.LZW]
-
-    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
-        if tile_position != (0, 0):
-            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        indices = range(len(self._page.dataoffsets))
-        frames = self._read_frames(indices)
-        if self.compression != COMPRESSION.JPEG:
-            return b"".join(frames)
-        return self._jpeg.concatenate_scans(
-            iter(frames), self._page.jpegtables, self._add_rgb_colorspace_fix
-        )
-
-    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
-        if tile_position != (0, 0):
-            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        return self._page.asarray(squeeze=True)
-
-
-class SvsThumbnailImage(SvsStripedImage, ThumbnailTiffImage):
-    def __init__(
-        self,
-        page: TiffPage,
-        file: OpenTileFile,
-        base_size: Size,
-        base_mpp: SizeMm,
-        jpeg: Jpeg,
-    ):
-        """OpenTiledPage for jpeg striped Svs image, e.g. overview image.
-
-        Parameters
-        ----------
-        page: TiffPage
-            TiffPage defining the page.
-        file: OpenTileFile
-            File to read data from.
-        jpeg: Jpeg
-            Jpeg instance to use.
-
-        """
-        super().__init__(page, file, jpeg)
-        self._base_size = base_size
-        self._base_mpp = base_mpp
-        self._scale = self._calculate_scale(base_size)
-        self._mpp = self._calculate_mpp(base_mpp, self._scale)
-
-    @property
-    def mpp(self) -> SizeMm:
-        return self._mpp
-
-    @property
-    def pixel_spacing(self) -> SizeMm:
-        return self.mpp / 1000
-
-    @property
-    def scale(self) -> float:
-        return self._scale
-
-
-class SvsOverviewImage(SvsStripedImage, AssociatedTiffImage):
-    @property
-    def pixel_spacing(self) -> Optional[SizeMm]:
-        return None
-
-
-class SvsLabelImage(BaseTiffImage, AssociatedTiffImage):
-    def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
-        """OpenTiledPage for lzw striped Svs image, e.g. label image.
-
-        Parameters
-        ----------
-        page: TiffPage
-            TiffPage defining the page.
-        file: OpenTileFile
-            File to read data from.
-        jpeg: Jpeg
-            Jpeg instance to use.
-
-        """
-        super().__init__(page, file)
-        self._jpeg = jpeg
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
-
-    @property
-    def pixel_spacing(self) -> Optional[SizeMm]:
-        return None
-
-    @property
-    def supported_compressions(self) -> Optional[list[COMPRESSION]]:
-        return None
-
-    def get_tile(self, tile_position: tuple[int, int]) -> bytes:
-        if tile_position != (0, 0):
-            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        return self._read_frame(0)
-
-    def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
-        if tile_position != (0, 0):
-            raise ValueError("Non-tiled image, expected tile_position (0, 0)")
-        return self._page.asarray(squeeze=True)
+from opentile.tiff_image import LevelTiffImage
+from opentile.tiff_image_bases import NativeTiledTiffImage
 
 
 class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
@@ -392,7 +252,7 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
                     mct=True,
                 ),
             )
-        raise NonSupportedCompressionException(
+        raise NonSupportedCompressionError(
             f"Non-supported compression {self.compression.name}"
         )
 
@@ -413,7 +273,7 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         if tile_point not in self._fixed_tiles:
             try:
                 fixed_tile = self._get_scaled_tile(tile_point)
-            except NonSupportedCompressionException as exception:
+            except NonSupportedCompressionError as exception:
                 raise ValueError(
                     "Failed to fix corrupt tile as parent level has a "
                     "non-supported compression."
