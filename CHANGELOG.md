@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-08-17
+
 ### Added
 
 - `Tiler.pyramids` returning the file's pyramidal images as `Pyramid` objects (name, level images, base size, base mpp, and an optional slide `position`). `levels` is the primary pyramid's levels (`pyramids[0]`) and is unchanged for single-pyramid files. Formats with several scanned regions expose one readable `Pyramid` per region, each with its own base size, mpp and position.
@@ -23,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for reading PerkinElmer/Akoya qptiff (`.qptiff`), detected by a `Software` tag starting with `PerkinElmer-QPI`. Brightfield and fluorescence, the latter exposing each band as an `optical_path`.
 - Support for reading Leica SCN (`.scn`), detected by the Leica SCN XML in the first page's `ImageDescription`. Each non-macro ROI is exposed as its own pyramid via `pyramids` (the largest as `levels`), the macro as the overview and a label cropped from it. Z-stacks and multi-channel (fluorescence) files are not supported.
 - Support for reading Argos (`.avs`), detected by TIFF tag 65000 holding `Argos.Scan.Metadata` XML. Sparse tiles are served as blank jpeg tile. Z-stack focal planes exposed via `focal_plane`.
+- Metadata for 3DHistech tiff files, parsed from the Aperio-like description: acquisition datetime (day-first `Date` and `Time` fields) and the remaining fields as `properties`.
 - `opentile.exceptions` module with a common `OpenTileError` base (so callers can catch every opentile error with one `except`) and `UnsupportedFileError`, `NonSupportedCompressionError`, `NonDyadicPyramidLevelError`, and `MissingAssociatedImageError`.
 
 ### Fixed
@@ -405,7 +408,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.24.0..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.25.0..HEAD
+[0.25.0]: https://github.com/imi-bigpicture/opentile/compare/v0.24.0..v0.25.0
 [0.24.0]: https://github.com/imi-bigpicture/opentile/compare/v0.23.0..v0.24.0
 [0.23.0]: https://github.com/imi-bigpicture/opentile/compare/v0.22.0..v0.23.0
 [0.22.0]: https://github.com/imi-bigpicture/opentile/compare/v0.21.0..v0.22.0
