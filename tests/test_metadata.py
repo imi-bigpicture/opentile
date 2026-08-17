@@ -457,7 +457,7 @@ class TestHistechTiffMetadata:
             ("\r\n" + HISTECH_DESCRIPTION, datetime(2009, 12, 29, 12, 43, 52)),
             # Day first, so a day-of-month over 12 is unambiguous.
             ("header|Date = 01/02/2020|Time = 00:00:00", datetime(2020, 2, 1)),
-            # Missing, incomplete and unparseable date-times.
+            # Missing, incomplete and unparsable date-times.
             ("header|MPP = 0.2325", None),
             ("header|Date = 29/12/2009", None),
             ("header|Date = 2009-12-29|Time = 12:43:52", None),
