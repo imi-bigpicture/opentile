@@ -108,7 +108,8 @@ class SvsLikeMetadata(Metadata):
         fields (pipe-items without a ``=`` separator, such as trailing padding, are
         ignored)."""
         items = (description or "").split("|")
-        header = items[0].splitlines()[0].strip() if items else ""
+        header_lines = items[0].splitlines()
+        header = header_lines[0].strip() if header_lines else ""
         fields: dict[str, str] = {}
         for item in items[1:]:
             key, separator, value = item.partition(" = ")

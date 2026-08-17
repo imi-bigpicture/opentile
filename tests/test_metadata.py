@@ -29,6 +29,7 @@ from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.formats.svs.svs_metadata import SvsMetadata
 from opentile.formats.ventana.ventana_tiff_metadata import VentanaMetadata
+from opentile.metadata import SvsLikeMetadata
 
 
 class TestSvsMetadata:
@@ -332,6 +333,44 @@ class TestHuronMetadata:
         # Assert
         assert metadata.mpp == 0.5
         assert metadata.scanner_serial_number == "LE176"
+
+
+class TestSvsLikeMetadata:
+    @pytest.mark.parametrize(
+        "description",
+        [
+            "",
+            "\r\n",
+            "|",
+            "no pipe-separated fields",
+        ],
+    )
+    def test_description_without_fields(self, decoy: Decoy, description: str) -> None:
+        """A description with nothing to parse yields empty metadata rather than
+        raising, so that metadata never stops a file from being opened."""
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return(description)
+
+        # Act
+        metadata = SvsLikeMetadata(page)
+
+        # Assert
+        assert metadata.properties == {}
+        assert metadata.magnification is None
+
+    def test_empty_description_header(self, decoy: Decoy) -> None:
+        """The header is read from the first line, which an empty description lacks.
+        Asserted through Motic, which exposes it as the software version."""
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.description).then_return("")
+
+        # Act
+        metadata = MoticTiffMetadata(page)
+
+        # Assert
+        assert metadata.scanner_software_versions is None
 
 
 class TestMikroscanMetadata:
