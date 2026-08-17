@@ -12,8 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-"""Download the WSI test slides used by the test suite from their source hosts.
-"""
+"""Download the WSI test slides used by the test suite from their source hosts."""
 
 import os
 from hashlib import sha256
