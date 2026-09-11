@@ -76,7 +76,7 @@ jobs:
           7z e libjpeg-turbo-3.0.90-vc64.exe -oC:\turbojpeg bin/turbojpeg.dll
       - name: Set up paths in windows
         if: matrix.os == 'windows-latest'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             core.addPath('C:\\turbojpeg')
