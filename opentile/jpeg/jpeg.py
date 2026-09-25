@@ -645,11 +645,6 @@ class Jpeg:
                 )
         return frame
 
-    # ASCII 'R', 'G', 'B'. libjpeg (and thus most decoders) treat a three
-    # component frame with these component ids as RGB when no Adobe or JFIF
-    # marker is present.
-    RGB_COMPONENT_IDS = (0x52, 0x47, 0x42)
-
     @classmethod
     def _set_rgb_component_ids(cls, frame: bytearray) -> bytearray:
         """Rename the three frame components to ASCII 'R', 'G', 'B'.
@@ -665,7 +660,7 @@ class Jpeg:
         if component_count != 3:
             return frame
         id_map: dict[int, int] = {}
-        for component, new_id in enumerate(cls.RGB_COMPONENT_IDS):
+        for component, new_id in enumerate(cls._RGB_COMPONENT_IDS):
             id_index = start_of_frame_index + 10 + component * 3
             id_map[frame[id_index]] = new_id
             frame[id_index] = new_id
