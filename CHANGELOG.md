@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-09-28
+
+### Changed
+
+- `get_tile()` and `get_tiles()` raise `ValueError` for a position outside the tiled size. They used to serve another tile's data, as a position past the last column maps to the same frame index as the first column of the next row and a negative position indexes backwards from the last frame.
+- `NdpiMetadata.scanner_model` returns the Hamamatsu product name (e.g. `NanoZoomer S360MD`) for a known product number in the Model tag (e.g. `C13220-21MDEU`), rather than the number itself. Unknown numbers are returned as before.
+
 ### Fixed
 
 - Sparse tiles in Philips and Argos levels could be served as corrupt jpeg data when both sparse and populated tiles were read from the same level.
 - `get_tiles()` served empty frames, or raised `IndexError`, for sparse tiles in Philips and Argos levels, where `get_tile()` correctly served a blank tile.
 - Creating a blank tile looped forever on a jpeg whose quantisation table declares a length below the two byte minimum, and raised `struct.error` on a truncated one. Both are now reported as a missing quantisation table.
-- `get_tile()` and `get_tiles()` served another tile's data for a position outside the tiled size, as a position past the last column maps to the same frame index as the first column of the next row and a negative position indexes backwards from the last frame. Both now raise `ValueError`.
 - The file was left open when `OpenTile.open()` found no supported tiler, or when the tiler failed to construct.
 
 ## [0.25.0] - 2026-08-17
@@ -416,7 +422,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of opentile.
 
-[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.25.0..HEAD
+[Unreleased]: https://github.com/imi-bigpicture/opentile/compare/v0.26.0..HEAD
+[0.26.0]: https://github.com/imi-bigpicture/opentile/compare/v0.25.0..v0.26.0
 [0.25.0]: https://github.com/imi-bigpicture/opentile/compare/v0.24.0..v0.25.0
 [0.24.0]: https://github.com/imi-bigpicture/opentile/compare/v0.23.0..v0.24.0
 [0.23.0]: https://github.com/imi-bigpicture/opentile/compare/v0.22.0..v0.23.0
