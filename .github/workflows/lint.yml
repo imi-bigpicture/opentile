@@ -27,9 +27,15 @@ jobs:
         uses: actions/checkout@v7
       - name: Install uv
         uses: astral-sh/setup-uv@v10.2.0
-      # Pyright resolves imports against installed packages, so deps are required.
+      - name: Cache libjpeg-turbo build
+        uses: actions/cache@v6
+        with:
+          key: libjpeg-turbo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('opentile-jpeg/pyproject.toml', 'opentile-jpeg/tools/build_turbo.py') }}
+          path: opentile-jpeg/.turbo
+      # Pyright resolves imports against installed packages, so deps are required,
+      # including opentile-jpeg's dev group (hypothesis) for its tests.
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --all-packages --all-groups
       - name: Pyright
         run: uv run pyright
 
@@ -41,7 +47,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v10.2.0
       - name: Typos
-        run: uv run typos opentile tests README.md CHANGELOG.md
+        run: uv run typos opentile tests README.md CHANGELOG.md opentile-jpeg
 
   audit:
     runs-on: ubuntu-latest

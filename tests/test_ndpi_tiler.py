@@ -29,6 +29,7 @@ from opentile.formats.ndpi.ndpi_image import (
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size, SizeMm
+from opentile.jpeg import Jpeg
 from opentile.tiff_image import LevelTiffImage
 
 from .filepaths import (
@@ -141,7 +142,7 @@ class TestNdpiTiler:
         stripes = dict(zip(indices, level._read_frames(indices)))
 
         # Act
-        image = level._jpeg.concatenate_fragments(
+        image = Jpeg.concatenate_fragments(
             (stripes[index] for index in indices), level._header(level.frame_size)
         )
 

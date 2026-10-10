@@ -74,7 +74,6 @@ class NdpiImage(BaseTiffImage):
         self,
         page: TiffPage,
         file: OpenTileFile,
-        jpeg: Jpeg,
         tile_size: Optional[Size] = None,
     ):
         """Ndpi image that should not be tiled (e.g. overview or label). Jpeg data is
@@ -86,14 +85,11 @@ class NdpiImage(BaseTiffImage):
             TiffPage defining the page.
         file: OpenTileFile
             File to read data from.
-        jpeg: Jpeg
-            Jpeg instance to use.
         tile_size: Optional[Size] = None
             Size of the tiles to produce, for images that are re-tiled to a grid other
             than the one stored.
         """
         super().__init__(page, file, tile_size=tile_size)
-        self._jpeg = jpeg
         parser = NdpiPageParser(page)
         self._focal_plane = parser.focal_plane
         self._mpp = parser.mpp
@@ -103,7 +99,7 @@ class NdpiImage(BaseTiffImage):
         return self._page.compression == COMPRESSION.JPEG
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
+        return f"{type(self).__name__}({self._page}, {self._file}"
 
     @property
     def focal_plane(self) -> float:
@@ -120,7 +116,7 @@ class NdpiImage(BaseTiffImage):
     @cached_property
     def mcu(self) -> Size:
         """Return mcu size of image."""
-        return self._jpeg.get_mcu(self._read_frame(0))
+        return Jpeg.get_mcu(self._read_frame(0))
 
 
 class NdpiAssociatedImage(NdpiImage, AssociatedTiffImage):
@@ -158,7 +154,6 @@ class NdpiLabelImage(NdpiAssociatedImage):
         self,
         page: TiffPage,
         file: OpenTileFile,
-        jpeg: Jpeg,
         crop: tuple[float, float],
     ):
         """Ndpi image that should be cropped (e.g. overview or label).
@@ -170,14 +165,11 @@ class NdpiLabelImage(NdpiAssociatedImage):
             TiffPage defining the page.
         file: OpenTileFile
             File to read data from.
-        jpeg: Jpeg
-            Jpeg instance to use.
         crop: Tuple[float, float]
             Crop start and end in x-direction relative to image width.
         """
-        self._jpeg = jpeg
         self._crop = crop
-        super().__init__(page, file, jpeg)
+        super().__init__(page, file)
 
     def _read_image_size(self) -> Size:
         crop_from = self._calculate_crop(self._crop[0])
@@ -201,7 +193,7 @@ class NdpiLabelImage(NdpiAssociatedImage):
         if self._is_jpeg:
             # Lossless crop for jpeg codecs, so serve the cropped jpeg bytes.
             full_frame = super().get_tile(tile_position)
-            return self._jpeg.crop_multiple(full_frame, [self._crop_parameters])[0]
+            return Jpeg.crop_multiple(full_frame, [self._crop_parameters])[0]
         # No lossless crop for non-jpeg codecs, so serve the cropped raw pixels.
         return self.get_decoded_tile(tile_position).tobytes()
 
@@ -238,7 +230,6 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
         file: OpenTileFile,
         base_size: Size,
         tile_size: Size,
-        jpeg: Jpeg,
     ):
         """Metaclass for a tiled ndpi image.
 
@@ -252,10 +243,8 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
             Size of base level in pyramid.
         tile_size: Size
             Requested tile size.
-        jpeg: Jpeg
-            Jpeg instance to use.
         """
-        super().__init__(page, file, jpeg, tile_size)
+        super().__init__(page, file, tile_size)
         self._base_size = base_size
         self._file_frame_size = self._get_file_frame_size()
         self._frame_size = Size.max(self.tile_size, self._file_frame_size)
@@ -265,7 +254,7 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
     def __repr__(self) -> str:
         return (
             f"{type(self).__name__}({self._page}, {self._file}, "
-            f"{self._base_size}, {self.tile_size}, {self._jpeg}"
+            f"{self._base_size}, {self.tile_size}"
         )
 
     @property
@@ -353,7 +342,7 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
             Created tiles ordered by tile coordinate.
         """
         try:
-            tiles = self._jpeg.crop_multiple(frame, frame_job.crop_parameters)
+            tiles = Jpeg.crop_multiple(frame, frame_job.crop_parameters)
         except JpegCropError:
             raise ValueError(
                 f"Failed to crop at position {frame_job.position} with "
@@ -482,9 +471,9 @@ class NdpiOneFrameImage(NdpiTiledImage):
             even_size = Size.ceil_div(self.image_size, self.mcu) * self.mcu
             frame = Jpeg.manipulate_header(frame, even_size)
         # Use crop_multiple as it allows extending frame
-        tile = self._jpeg.crop_multiple(
-            frame, [(0, 0, frame_size.width, frame_size.height)]
-        )[0]
+        tile = Jpeg.crop_multiple(frame, [(0, 0, frame_size.width, frame_size.height)])[
+            0
+        ]
         return tile
 
 
@@ -500,7 +489,6 @@ class NdpiStripedImage(NdpiTiledImage):
         file: OpenTileFile,
         base_size: Size,
         tile_size: Size,
-        jpeg: Jpeg,
     ):
         """Ndpi image with striped image data.
 
@@ -514,10 +502,8 @@ class NdpiStripedImage(NdpiTiledImage):
             Size of base level in pyramid.
         tile_size: Size
             Requested tile size.
-        jpeg: Jpeg
-            Jpeg instance to use.
         """
-        super().__init__(page, file, base_size, tile_size, jpeg)
+        super().__init__(page, file, base_size, tile_size)
         self._striped_size = Size(self._page.chunked[1], self._page.chunked[0])
         if self._page.jpegheader is None:
             raise ValueError("Missing jpeg header for striped ndpi image")
@@ -626,7 +612,7 @@ class NdpiStripedImage(NdpiTiledImage):
         for frame_job, indices in job_indices:
             frame_stripes = (stripes[index] for index in indices)
             header = self._header(frame_job.frame_size)
-            frame = self._jpeg.concatenate_fragments(frame_stripes, header)
+            frame = Jpeg.concatenate_fragments(frame_stripes, header)
             yield frame_job, frame
 
     def _stripe_indices(self, position: Point, frame_size: Size) -> list[int]:
@@ -643,7 +629,7 @@ class NdpiStripedImage(NdpiTiledImage):
     @lru_cached_method()
     def _header(self, frame_size: Size) -> bytes:
         """Return the jpeg header manipulated for frame_size (cached)."""
-        return self._jpeg.manipulate_header(self.jpeg_header, frame_size)
+        return Jpeg.manipulate_header(self.jpeg_header, frame_size)
 
     def _get_stripe_position_to_index(self, position: Point) -> int:
         """Return stripe index from position.

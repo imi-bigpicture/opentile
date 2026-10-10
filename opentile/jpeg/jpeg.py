@@ -14,20 +14,15 @@
 
 """Lossless jpeg handling."""
 
-import os
-import platform
 from collections.abc import Iterator, Sequence
-from ctypes.util import find_library
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 from struct import pack, unpack
 from typing import Optional, Union
 
-from turbojpeg import DEFAULT_LIB_PATHS, TurboJPEG, tjMCUHeight, tjMCUWidth
+import opentile_jpeg
 
 from opentile.geometry import Size
-from opentile.jpeg.jpeg_filler import JpegFiller
 
 
 class JpegProcess(Enum):
@@ -63,43 +58,6 @@ class JpegInfo:
     First-Order Prediction."""
 
 
-def find_turbojpeg_path() -> Path:
-    """Find the turbojpeg library path.
-
-    Searches using find_library, then DEFAULT_LIB_PATHS from PyTurboJPEG,
-    then falls back to the TURBOJPEG environment variable.
-
-    Raises FileNotFoundError if the library cannot be found.
-    """
-    lib_names = ("libturbojpeg", "turbojpeg")
-    lib_extensions: dict[str, tuple[str, ...]] = {
-        "nt": (".dll",),
-        "posix": (".so", ".so.0", ".dylib"),
-    }
-    for name in lib_names:
-        lib_path = find_library(name)
-        if lib_path is not None:
-            return Path(lib_path)
-    for lib_path_str in DEFAULT_LIB_PATHS.get(platform.system(), []):
-        lib_path = Path(lib_path_str)
-        if lib_path.exists():
-            return lib_path
-    turbojpeg_lib_dir = os.environ.get("TURBOJPEG")
-    if turbojpeg_lib_dir is not None:
-        turbojpeg_path = Path(turbojpeg_lib_dir)
-        if turbojpeg_path.is_file():
-            return turbojpeg_path
-        for name in lib_names:
-            for ext in lib_extensions.get(os.name, ()):
-                lib_path = turbojpeg_path / (name + ext)
-                if lib_path.exists():
-                    return lib_path
-    raise FileNotFoundError(
-        "Could not find turbojpeg library. Install libjpeg-turbo or set the "
-        "`TURBOJPEG` environment variable to the library path."
-    )
-
-
 class JpegTagNotFound(Exception):
     """Raised when expected Jpeg tag was not found."""
 
@@ -126,13 +84,6 @@ class Jpeg:
         "restart mark": 0xD0,
         "padding": 0x00,
     }
-
-    def __init__(self, turbo_path: Optional[Union[str, Path]] = None) -> None:
-        if turbo_path is None:
-            turbo_path = find_turbojpeg_path()
-        turbo_path = str(turbo_path)
-        self._turbo_jpeg = TurboJPEG(turbo_path)
-        self._jpeg_filler = JpegFiller(turbo_path)
 
     _SOF_MARKERS = frozenset(set(range(0xC0, 0xD0)) - {0xC4, 0xC8, 0xCC})
     """Start-of-frame markers (0xC0-0xCF excluding DHT, JPG, and DAC)."""
@@ -255,7 +206,8 @@ class Jpeg:
                 return
             index += segment_length
 
-    def get_mcu(self, frame: bytes) -> Size:
+    @classmethod
+    def get_mcu(cls, frame: bytes) -> Size:
         """Return MCU size read from frame header.
 
         Parameters
@@ -268,13 +220,10 @@ class Jpeg:
         bytes:
             MCU size in header.
         """
-        _, _, subsampling, _ = self._turbo_jpeg.decode_header(frame)
-        try:
-            return Size(tjMCUWidth[subsampling], tjMCUHeight[subsampling])
-        except IndexError:
-            raise ValueError(f"Unknown subsampling {subsampling}.") from None
+        return cls._mcu_size(opentile_jpeg.header(frame))
 
-    def concatenate_fragments(self, fragments: Iterator[bytes], header: bytes) -> bytes:
+    @classmethod
+    def concatenate_fragments(cls, fragments: Iterator[bytes], header: bytes) -> bytes:
         """Return frame created by vertically concatenating fragments.
 
         Parameters
@@ -302,12 +251,13 @@ class Jpeg:
                     "Tag for end of scan or restart marker not found in scan"
                 )
             frame += fragment[:-1]  # Do not include restart mark index
-            frame += self.restart_mark(fragment_index)
-        frame += self.end_of_image()
+            frame += cls.restart_mark(fragment_index)
+        frame += cls.end_of_image()
         return frame
 
+    @classmethod
     def concatenate_scans(
-        self,
+        cls,
         scans: Iterator[Union[bytes, bytearray]],
         jpeg_tables: Optional[bytes],
         rgb_colorspace_fix: bool = False,
@@ -334,43 +284,43 @@ class Jpeg:
         image_width: Optional[int] = None
         image_height = 0
         scan_size: Optional[Size] = None
-        subsample: Optional[int] = None
+        mcu: Optional[Size] = None
         for scan_index, scan in enumerate(scans):
-            width, height, _subsample, _ = self._turbo_jpeg.decode_header(scan)
+            header = opentile_jpeg.header(bytes(scan[: cls.MAX_HEADER_BYTES]))
+            width, height = header.width, header.height
             if image_width is None:
                 image_width = width
                 image_height = height
                 scan_size = Size(width, height)
                 scan_start = 0
-                subsample = _subsample
+                mcu = cls._mcu_size(header)
             else:
                 image_height += height
-                start_of_scan, length = self._find_tag(scan, self.start_of_scan())
+                start_of_scan, length = cls._find_tag(scan, cls.start_of_scan())
                 if start_of_scan is None or length is None:
                     raise JpegTagNotFound("Start of scan not found in header")
                 scan_start = start_of_scan + length + 2
 
             frame += scan[scan_start:-2]
-            frame += b"\xff" + self.restart_mark(scan_index)
+            frame += b"\xff" + cls.restart_mark(scan_index)
 
-        frame[-2:] = self.end_of_image()
+        frame[-2:] = cls.end_of_image()
 
-        assert (
-            image_width is not None and scan_size is not None and subsample is not None
-        )
-        restart_interval = scan_size.ceil_div(self.subsample_to_mcu(subsample)).area
+        assert image_width is not None and scan_size is not None and mcu is not None
+        restart_interval = scan_size.ceil_div(mcu).area
         image_size = Size(image_width, image_height)
-        frame = self._manipulate_header(frame, image_size, restart_interval)
+        frame = cls._manipulate_header(frame, image_size, restart_interval)
 
         if jpeg_tables is not None:
-            prefix, scan_offset = self.calculate_prefix_and_scan_offset(
+            prefix, scan_offset = cls.calculate_prefix_and_scan_offset(
                 frame, jpeg_tables, rgb_colorspace_fix
             )
-            return self.add_jpeg_prefix(prefix, scan_offset, frame)
+            return cls.add_jpeg_prefix(prefix, scan_offset, frame)
 
         return bytes(frame)
 
-    def fill_frame(self, frame: bytes, luminance: float) -> bytes:
+    @classmethod
+    def fill_frame(cls, frame: bytes, luminance: float) -> bytes:
         """Return frame filled with color from luminance.
 
         Parameters
@@ -385,10 +335,12 @@ class Jpeg:
         bytes:
             Frame with constant color from luminance.
         """
-        return self._jpeg_filler.fill_image(frame, luminance)
+        gray_level = round(min(max(luminance, 0.0), 1.0) * 255)
+        return opentile_jpeg.fill(frame, gray_level)
 
+    @classmethod
     def crop_multiple(
-        self, frame: bytes, crop_parameters: Sequence[tuple[int, int, int, int]]
+        cls, frame: bytes, crop_parameters: Sequence[tuple[int, int, int, int]]
     ) -> list[bytes]:
         """Crop multiple frames out of frame.
 
@@ -406,8 +358,11 @@ class Jpeg:
             Cropped frames.
         """
         try:
-            return self._turbo_jpeg.crop_multiple(frame, crop_parameters)
-        except OSError as exception:
+            # Crops may extend past the frame; that part is filled white.
+            return list(
+                opentile_jpeg.crop_multiple(frame, crop_parameters, background=255)
+            )
+        except (ValueError, opentile_jpeg.JpegError) as exception:
             raise JpegCropError(
                 f"Crop of frame failed with parameters {crop_parameters}"
             ) from exception
@@ -567,9 +522,10 @@ class Jpeg:
         return None
 
     @staticmethod
-    def subsample_to_mcu(subsample: int) -> Size:
-        """Return the MCU size (in pixels) for a turbojpeg subsample value."""
-        return Size(tjMCUWidth[subsample], tjMCUHeight[subsample])
+    def _mcu_size(header: opentile_jpeg.JpegHeader) -> Size:
+        """Return the MCU size in pixels: 8 pixels per luma sampling factor."""
+        horizontal, vertical = header.sampling
+        return Size(8 * horizontal, 8 * vertical)
 
     @staticmethod
     def _find_tag(

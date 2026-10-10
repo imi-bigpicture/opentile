@@ -65,21 +65,13 @@ jobs:
           path: tests/testdata/slides
           enableCrossOsArchive: true
           fail-on-cache-miss: true
-      - name: Set up Ubuntu
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install -y libturbojpeg
-      - name: Set up libjpegturbo Windows
-        shell: pwsh
-        if: matrix.os == 'windows-latest'
-        run: |
-          Invoke-WebRequest -Uri https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.0.90/libjpeg-turbo-3.0.90-vc64.exe -OutFile libjpeg-turbo-3.0.90-vc64.exe -UserAgent "NativeHost"
-          7z e libjpeg-turbo-3.0.90-vc64.exe -oC:\turbojpeg bin/turbojpeg.dll
-      - name: Set up paths in windows
-        if: matrix.os == 'windows-latest'
-        uses: actions/github-script@v9
+      # opentile-jpeg (a workspace member) is built from source by uv sync; cache
+      # its pinned libjpeg-turbo build so it is compiled once per pin and OS.
+      - name: Cache libjpeg-turbo build
+        uses: actions/cache@v6
         with:
-          script: |
-            core.addPath('C:\\turbojpeg')
+          key: libjpeg-turbo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('opentile-jpeg/pyproject.toml', 'opentile-jpeg/tools/build_turbo.py') }}
+          path: opentile-jpeg/.turbo
       - name: Install uv
         uses: astral-sh/setup-uv@v10.2.0
       - name: Install Application

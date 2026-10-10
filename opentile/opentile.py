@@ -66,11 +66,9 @@ class OpenTile:
         filepath: Union[str, Path, UPath],
         tile_size: int = 512,
         file_options: Optional[dict[str, str]] = None,
-        turbo_path: Optional[Union[str, Path]] = None,
     ) -> Tiler:
         """Return a file type specific tiler for tiff file in filepath.
-        Tile size and turbo jpeg path are optional but required for some file
-        types.
+        Tile size is optional but required for some file types.
 
         Parameters
         ----------
@@ -80,38 +78,36 @@ class OpenTile:
             Tile size for creating tiles, if needed for file format.
         file_options: Optional[Dict[str, str]] = None
             Options to pass to filesystem when opening file.
-        turbo_path: Optional[Union[str, Path]] = None
-            Path to turbojpeg (dll or so).
         """
         file = OpenTileFile(filepath, file_options)
         try:
             _, supported_tiler = next(cls._get_supported_tilers(file), (None, None))
             if supported_tiler is NdpiTiler:
-                return NdpiTiler(file, tile_size, turbo_path)
+                return NdpiTiler(file, tile_size)
             if supported_tiler is SvsTiler:
-                return SvsTiler(file, turbo_path)
+                return SvsTiler(file)
             if supported_tiler is PhilipsTiffTiler:
-                return PhilipsTiffTiler(file, turbo_path)
+                return PhilipsTiffTiler(file)
             if supported_tiler is HistechTiffTiler:
                 return HistechTiffTiler(file)
             if supported_tiler is OmeTiffTiler:
-                return OmeTiffTiler(file, tile_size, turbo_path)
+                return OmeTiffTiler(file, tile_size)
             if supported_tiler is TrestleTiffTiler:
                 return TrestleTiffTiler(file)
             if supported_tiler is VentanaTiffTiler:
-                return VentanaTiffTiler(file, turbo_path)
+                return VentanaTiffTiler(file)
             if supported_tiler is HuronTiffTiler:
                 return HuronTiffTiler(file)
             if supported_tiler is MikroscanTiffTiler:
                 return MikroscanTiffTiler(file)
             if supported_tiler is MoticTiffTiler:
-                return MoticTiffTiler(file, turbo_path)
+                return MoticTiffTiler(file)
             if supported_tiler is ArgosTiffTiler:
-                return ArgosTiffTiler(file, turbo_path)
+                return ArgosTiffTiler(file)
             if supported_tiler is LeicaScnTiler:
                 return LeicaScnTiler(file)
             if supported_tiler is QptiffTiler:
-                return QptiffTiler(file, turbo_path)
+                return QptiffTiler(file)
             raise NotImplementedError(
                 f"Support for tiff file {filepath} not implemented."
             )
