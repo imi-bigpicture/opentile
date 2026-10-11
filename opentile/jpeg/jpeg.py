@@ -238,7 +238,8 @@ class Jpeg:
         bytes:
             Concatenated frame in bytes.
         """
-        frame = header
+        # Collected and joined once, as repeated bytes concatenation is quadratic.
+        parts: list[Union[bytes, memoryview]] = [header]
         for fragment_index, fragment in enumerate(fragments):
             # The fragment must end with a marker: a tag marker followed by a
             # non-zero byte. A zero second byte is a stuffed 0xFF00 in the scan
@@ -250,10 +251,10 @@ class Jpeg:
                 raise JpegTagNotFound(
                     "Tag for end of scan or restart marker not found in scan"
                 )
-            frame += fragment[:-1]  # Do not include restart mark index
-            frame += cls.restart_mark(fragment_index)
-        frame += cls.end_of_image()
-        return frame
+            parts.append(memoryview(fragment)[:-1])  # Without restart mark index
+            parts.append(cls.restart_mark(fragment_index))
+        parts.append(cls.end_of_image())
+        return b"".join(parts)
 
     @classmethod
     def concatenate_scans(
