@@ -482,6 +482,16 @@ static void request_arrays(j_common_ptr owner, const region_geometry* geometry,
     (*owner->mem->realize_virt_arrays)(owner);
 }
 
+/* A region at the origin and inside the image needs no copy: as in jpegtran,
+   the source's blocks are encoded directly. The encoder reads only the blocks
+   within the region's size and pads partial MCUs itself, so the output is the
+   same as from a copy. */
+static int is_leading_region(j_decompress_ptr src, const region_geometry* geometry,
+                             int x, int y) {
+    return x == 0 && y == 0 && geometry->width <= (int)src->image_width &&
+           geometry->height <= (int)src->image_height;
+}
+
 /* Copy the region's blocks from the source. With a background, blocks wholly
    outside the image (including the source's MCU padding) are filled instead. */
 static void copy_region(jc_source* source, j_common_ptr owner,
@@ -537,9 +547,13 @@ int jc_source_crop(jc_source* source, int x, int y, int width, int height,
         return JC_ERROR_JPEG;
     }
     start_compressor(&dst, src, width, height);
-    request_arrays((j_common_ptr)&dst, &geometry, arrays);
-    copy_region(source, (j_common_ptr)&dst, arrays, &geometry, &background, x, y);
-    write_jpeg(&dst, arrays, src, strip, out, out_size);
+    if (is_leading_region(src, &geometry, x, y)) {
+        write_jpeg(&dst, source->coefficients, src, strip, out, out_size);
+    } else {
+        request_arrays((j_common_ptr)&dst, &geometry, arrays);
+        copy_region(source, (j_common_ptr)&dst, arrays, &geometry, &background, x, y);
+        write_jpeg(&dst, arrays, src, strip, out, out_size);
+    }
     jpeg_destroy_compress(&dst);
     return JC_OK;
 }
@@ -609,6 +623,11 @@ int jc_cropper_crop(jc_cropper* cropper, int x, int y,
     if (setjmp(error.jump)) {
         jpeg_abort_compress(&cropper->compressor); /* stay usable */
         return JC_ERROR_JPEG;
+    }
+    if (is_leading_region(src, &cropper->geometry, x, y)) {
+        write_jpeg(&cropper->compressor, cropper->source->coefficients, src,
+                   cropper->strip, out, out_size);
+        return JC_OK;
     }
     copy_region(cropper->source, (j_common_ptr)src, cropper->arrays,
                 &cropper->geometry, &cropper->background, x, y);
