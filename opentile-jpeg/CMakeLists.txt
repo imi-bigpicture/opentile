@@ -1,5 +1,5 @@
 # nanobind extension build: statically links the pinned libjpeg-turbo (built on
-# demand by tools/build_turbo.py, cached under .turbo/<version>-<options hash>).
+# demand by tools/build_turbo.py, cached under .turbo/<version>-<build hash>).
 cmake_minimum_required(VERSION 3.18)
 project(opentile_jpeg LANGUAGES C CXX)
 
@@ -23,7 +23,7 @@ execute_process(
 if(_turbo_rc)
   message(FATAL_ERROR "tools/build_turbo.py failed (rc=${_turbo_rc})")
 endif()
-# The script may print build logs before the prefix; the prefix is the last line.
+# The script logs to stderr and prints the prefix last; keep only that line.
 string(REGEX REPLACE ".*\n" "" TURBO_PREFIX "${TURBO_PREFIX}")
 find_library(TURBO_STATIC NAMES jpeg-static jpeg
   PATHS "${TURBO_PREFIX}/lib" "${TURBO_PREFIX}/lib64" NO_DEFAULT_PATH)
@@ -37,6 +37,13 @@ nanobind_add_module(_binding STABLE_ABI
   src/engine.c)
 target_include_directories(_binding PRIVATE "${TURBO_PREFIX}/include")
 target_link_libraries(_binding PRIVATE "${TURBO_STATIC}")
+# ELF exports a static library's symbols and binds calls to them at load time,
+# so a libjpeg already loaded globally (the host program's, an RTLD_GLOBAL or
+# LD_PRELOAD one) would take over our jpeg_* calls. Keep them local instead.
+# (Mach-O binds to the defining library and Windows exports nothing unasked.)
+if(UNIX AND NOT APPLE)
+  target_link_options(_binding PRIVATE "LINKER:--exclude-libs,ALL")
+endif()
 
 nanobind_add_stub(_binding_stub
   MODULE _binding

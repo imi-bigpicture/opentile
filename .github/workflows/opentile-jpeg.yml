@@ -47,6 +47,10 @@ jobs:
         with:
           package-dir: opentile-jpeg
         env:
+          # Fail the build rather than ship a wheel without SIMD (e.g. if nasm
+          # went missing); the Linux builds run in containers, so pass it on.
+          OPENTILE_JPEG_REQUIRE_SIMD: "1"
+          CIBW_ENVIRONMENT_PASS_LINUX: OPENTILE_JPEG_REQUIRE_SIMD
           # The extension build (opentile-jpeg/tools/build_turbo.py) fetches and
           # compiles a pinned libjpeg-turbo itself; here we only ensure its
           # toolchain is present. manylinux (yum) and musllinux (apk) images ship

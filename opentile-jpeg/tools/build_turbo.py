@@ -17,17 +17,23 @@
 The version and tarball hash are pinned in pyproject.toml
 (``[tool.opentile-jpeg.libjpeg-turbo]``). Invoked by CMakeLists.txt at configure
 time when the cached prefix is missing (the result is cached under
-``.turbo/<version>-<options hash>`` so repeated builds don't refetch). Set
+``.turbo/<version>-<build hash>`` so repeated builds don't refetch). Set
 ``OPENTILE_JPEG_TURBO_PREFIX`` to an existing install prefix to skip the fetch
 entirely — the escape hatch for offline/hermetic builds and distro packaging.
 Needs a C compiler; on x86, nasm on PATH enables SIMD (ARM SIMD needs no nasm).
+Without it libjpeg-turbo quietly builds without SIMD, unless
+``OPENTILE_JPEG_REQUIRE_SIMD=1`` makes that an error (as the wheel builds do).
+
+Build logs go to stderr: stdout carries only the install prefix, for CMake.
 """
 
 import argparse
 import hashlib
 import os
+import platform
 import shutil
 import subprocess
+import sys
 import tarfile
 import tomllib
 import urllib.request
@@ -44,6 +50,8 @@ TURBO_URL = (
     f"{TURBO_VERSION}.tar.gz"
 )
 
+_REQUIRE_SIMD = os.environ.get("OPENTILE_JPEG_REQUIRE_SIMD") == "1"
+
 TURBO_OPTIONS = (
     "-DCMAKE_BUILD_TYPE=Release",
     "-DENABLE_SHARED=0",
@@ -52,16 +60,36 @@ TURBO_OPTIONS = (
     # MSVC: link the same C run-time DLL as the extension, so buffers malloc'd
     # inside libjpeg-turbo can be freed by opentile_jpeg.
     "-DWITH_CRT_DLL=1",
-    # Without nasm, libjpeg-turbo builds without SIMD on x86 instead of failing.
-    "-DWITH_SIMD=1",
+    # Only the static libjpeg is linked: skip TurboJPEG, the tools and the tests.
+    "-DWITH_TURBOJPEG=0",
+    "-DWITH_TOOLS=0",
+    "-DWITH_TESTS=0",
+    *(["-DREQUIRE_SIMD=1"] if _REQUIRE_SIMD else []),
 )
-# Changing the options must not reuse a cached build made with other options.
-_CACHE_KEY = hashlib.sha256(" ".join(TURBO_OPTIONS).encode()).hexdigest()[:8]
+# A cached build is reused only by builds for the same options and target: the
+# project folder (with .turbo) is copied into cibuildwheel's Linux containers,
+# whose glibc or musl differs from the host's, and a Mac can build for either
+# architecture.
+_BUILD_IDENTITY = (
+    *TURBO_OPTIONS,
+    sys.platform,
+    platform.machine(),
+    *platform.libc_ver(),
+    os.environ.get("MACOSX_DEPLOYMENT_TARGET", ""),
+    os.environ.get("CC", ""),
+)
+_CACHE_KEY = hashlib.sha256(" ".join(_BUILD_IDENTITY).encode()).hexdigest()[:8]
+
+
+def _log(message: str) -> None:
+    print(message, file=sys.stderr, flush=True)
 
 
 def _run(*args: str | Path, cwd: Path | None = None) -> None:
-    print("+", " ".join(str(a) for a in args), flush=True)
-    subprocess.run([str(a) for a in args], cwd=cwd, check=True)  # noqa: S603
+    _log("+ " + " ".join(str(a) for a in args))
+    subprocess.run(  # noqa: S603
+        [str(a) for a in args], cwd=cwd, check=True, stdout=sys.stderr
+    )
 
 
 def _build_turbo(install: Path, cmake: str) -> None:
@@ -70,7 +98,7 @@ def _build_turbo(install: Path, cmake: str) -> None:
         shutil.rmtree(work)
     work.mkdir(parents=True)
 
-    print(f"fetching {TURBO_URL}", flush=True)
+    _log(f"fetching {TURBO_URL}")
     with urllib.request.urlopen(TURBO_URL) as r:  # noqa: S310 (pinned github release)
         blob = r.read()
     digest = hashlib.sha256(blob).hexdigest()
@@ -97,7 +125,7 @@ def _build_turbo(install: Path, cmake: str) -> None:
         f"-DCMAKE_INSTALL_PREFIX={install}",
     )
     _run(cmake, "--build", build, "--config", "Release", "--target", "install")
-    print(f"built libjpeg-turbo {TURBO_VERSION} -> {install}")
+    _log(f"built libjpeg-turbo {TURBO_VERSION} -> {install}")
 
 
 def turbo_prefix(cmake: str) -> Path:
