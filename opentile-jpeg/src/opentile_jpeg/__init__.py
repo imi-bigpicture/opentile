@@ -37,6 +37,7 @@ from importlib.metadata import version
 
 from opentile_jpeg._binding import LIBJPEG_TURBO_VERSION
 from opentile_jpeg.core import (
+    DEFAULT_MAX_PIXELS,
     compose,
     crop,
     crop_multiple,
@@ -46,7 +47,7 @@ from opentile_jpeg.core import (
     header,
     optimize,
 )
-from opentile_jpeg.errors import JpegError, JpegWarning
+from opentile_jpeg.errors import JpegError, JpegTooLargeError, JpegWarning
 from opentile_jpeg.models import CoefficientInfo, Color, JpegHeader, Metadata
 
 __version__ = version("opentile-jpeg")
@@ -59,9 +60,11 @@ against libjpeg-turbo security advisories.
 """
 
 __all__ = [
+    "DEFAULT_MAX_PIXELS",
     "CoefficientInfo",
     "Color",
     "JpegError",
+    "JpegTooLargeError",
     "JpegWarning",
     "JpegHeader",
     "Metadata",

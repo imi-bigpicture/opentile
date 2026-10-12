@@ -22,10 +22,10 @@ def read_layout(jpeg: bytes) -> tuple:
     ``((width, height), [((h_samp, v_samp), (height_in_blocks, width_in_blocks)), ...])`` from the frame header.
     """
 
-def optimize(jpeg: bytes, progressive: bool = False, strip: int = 0) -> bytes:
+def optimize(jpeg: bytes, progressive: bool = False, strip: int = 0, max_pixels: int = 0) -> bytes:
     """See :func:`opentile_jpeg.optimize`."""
 
-def fill(template: bytes, color: tuple[int, int, int], color_transform: bool = True, strip: int = 0) -> bytes:
+def fill(template: bytes, color: tuple[int, int, int], color_transform: bool = True, strip: int = 0, max_pixels: int = 0) -> bytes:
     """See :func:`opentile_jpeg.fill`."""
 
 def encode_coefficients(template: bytes, coefficients: Sequence[Annotated[NDArray[numpy.int16], dict(shape=(None, None, None, None), order='C', device='cpu', writable=False)]], optimize: bool = False, strip: int = 0) -> bytes:
@@ -36,7 +36,10 @@ class Source:
     A JPEG with its DCT coefficients read once, shared by crops, Croppers and Composers.
     """
 
-    def __init__(self, jpeg: bytes) -> None: ...
+    def __init__(self, jpeg: bytes, max_pixels: int = 0) -> None:
+        """
+        Read the coefficients, refusing an image of more than ``max_pixels`` pixels (0: no limit).
+        """
 
     def layout(self) -> tuple:
         """Like :func:`read_layout`."""

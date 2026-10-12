@@ -64,6 +64,10 @@ struct JpegError : std::runtime_error {
     using std::runtime_error::runtime_error;
 };
 
+struct JpegTooLargeError : JpegError {
+    using JpegError::JpegError;
+};
+
 /* Pointer and length of a bytes object, taken while holding the GIL. */
 struct BytesView {
     const unsigned char* data;
@@ -107,6 +111,7 @@ static void call(F&& engine_call) {
     case JC_OK: return warn(messages);
     case JC_ERROR_ARGUMENT: throw std::invalid_argument(messages.error);
     case JC_ERROR_MEMORY: throw std::bad_alloc();
+    case JC_ERROR_TOO_LARGE: throw JpegTooLargeError(messages.error);
     default: throw JpegError(messages.error);
     }
 }
@@ -177,10 +182,11 @@ static nb::bytes encode_coefficients(const nb::bytes& template_jpeg,
 
 class Source {
   public:
-    explicit Source(const nb::bytes& jpeg) {
+    Source(const nb::bytes& jpeg, long long max_pixels) {
         BytesView view(jpeg);
         call([&](auto* messages) {
-            return jc_source_open(view.data, view.size, &handle_, messages);
+            return jc_source_open(view.data, view.size, max_pixels, &handle_,
+                                  messages);
         });
     }
     ~Source() { jc_source_close(handle_); }
@@ -293,6 +299,8 @@ NB_MODULE(_binding, m) {
     nb::register_exception_translator([](const std::exception_ptr& p, void*) {
         try {
             std::rethrow_exception(p);
+        } catch (const JpegTooLargeError& e) {
+            PyErr_SetString(errors_class("JpegTooLargeError").ptr(), e.what());
         } catch (const JpegError& e) {
             PyErr_SetString(errors_class("JpegError").ptr(), e.what());
         }
@@ -314,27 +322,28 @@ NB_MODULE(_binding, m) {
 
     m.def(
         "optimize",
-        [](const nb::bytes& jpeg, bool progressive, int strip) {
+        [](const nb::bytes& jpeg, bool progressive, int strip, long long max_pixels) {
             BytesView view(jpeg);
             return encode([&](auto* out, auto* size, auto* messages) {
-                return jc_optimize(view.data, view.size, progressive, strip, out, size,
-                                   messages);
+                return jc_optimize(view.data, view.size, progressive, strip,
+                                   max_pixels, out, size, messages);
             });
         },
-        "jpeg"_a, "progressive"_a = false, "strip"_a = 0, "See :func:`opentile_jpeg.optimize`.");
+        "jpeg"_a, "progressive"_a = false, "strip"_a = 0, "max_pixels"_a = 0,
+        "See :func:`opentile_jpeg.optimize`.");
 
     m.def(
         "fill",
         [](const nb::bytes& template_jpeg, const Rgb& color, bool color_transform,
-           int strip) {
+           int strip, long long max_pixels) {
             BytesView view(template_jpeg);
             return encode([&](auto* out, auto* size, auto* messages) {
                 return jc_fill(view.data, view.size, to_color(color, color_transform),
-                               strip, out, size, messages);
+                               strip, max_pixels, out, size, messages);
             });
         },
         "template"_a, "color"_a, "color_transform"_a = true, "strip"_a = 0,
-        "See :func:`opentile_jpeg.fill`.");
+        "max_pixels"_a = 0, "See :func:`opentile_jpeg.fill`.");
 
     m.def("encode_coefficients", &encode_coefficients, "template"_a,
           "coefficients"_a, "optimize"_a = false, "strip"_a = 0,
@@ -343,7 +352,9 @@ NB_MODULE(_binding, m) {
     nb::class_<Source>(m, "Source",
                        "A JPEG with its DCT coefficients read once, shared by "
                        "crops, Croppers and Composers.")
-        .def(nb::init<const nb::bytes&>(), "jpeg"_a)
+        .def(nb::init<const nb::bytes&, long long>(), "jpeg"_a, "max_pixels"_a = 0,
+             "Read the coefficients, refusing an image of more than ``max_pixels`` "
+             "pixels (0: no limit).")
         .def("layout",
              [](const Source& source) { return to_python(source.layout()); },
              "Like :func:`read_layout`.")

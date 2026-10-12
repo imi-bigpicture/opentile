@@ -21,9 +21,30 @@ import numpy as np
 import opentile_jpeg._binding as lib
 from opentile_jpeg.models import CoefficientInfo, Color, JpegHeader, Metadata
 
+DEFAULT_MAX_PIXELS = 178_956_970
+"""The default ``max_pixels``: larger images are refused before they are read.
+
+Twice Pillow's ``Image.MAX_IMAGE_PIXELS``, the size at which Pillow refuses an
+image as a likely decompression bomb. Reading an image's coefficients takes 3
+bytes per pixel for 4:2:0 and 6 for 4:4:4, so about 0.5 to 1 GB at this size.
+"""
+
+
+def _pixel_limit(max_pixels: int | None) -> int:
+    """``max_pixels`` for the extension, where 0 means no limit."""
+    if max_pixels is None:
+        return 0
+    if max_pixels <= 0:
+        raise ValueError(f"max_pixels must be positive or None, got {max_pixels}")
+    return max_pixels
+
 
 def optimize(
-    jpeg: bytes, progressive: bool = False, strip: Metadata = Metadata.NONE
+    jpeg: bytes,
+    progressive: bool = False,
+    strip: Metadata = Metadata.NONE,
+    *,
+    max_pixels: int | None = DEFAULT_MAX_PIXELS,
 ) -> bytes:
     """Losslessly shrink a JPEG by rebuilding it with optimal Huffman tables.
 
@@ -39,13 +60,21 @@ def optimize(
         the source is progressive.
     strip: Metadata = Metadata.NONE
         Metadata to leave out of the output; by default all of it is kept.
+    max_pixels: int | None = DEFAULT_MAX_PIXELS
+        Refuse a source of more pixels than this before allocating for it; None
+        for no limit.
 
     Returns
     ----------
     bytes
         The optimized JPEG.
+
+    Raises
+    ----------
+    JpegTooLargeError
+        If the source has more than ``max_pixels`` pixels.
     """
-    return lib.optimize(jpeg, progressive, strip.value)
+    return lib.optimize(jpeg, progressive, strip.value, _pixel_limit(max_pixels))
 
 
 def header(jpeg: bytes) -> JpegHeader:
@@ -94,6 +123,8 @@ def crop(
     background: Color | None = None,
     color_transform: bool = True,
     strip: Metadata = Metadata.NONE,
+    *,
+    max_pixels: int | None = DEFAULT_MAX_PIXELS,
 ) -> bytes:
     """Losslessly crop one region ``(x, y, width, height)`` from a JPEG.
 
@@ -124,6 +155,9 @@ def crop(
         How ``background`` reaches the components, as for :func:`fill`.
     strip: Metadata = Metadata.NONE
         Metadata to leave out of the output; by default all of it is kept.
+    max_pixels: int | None = DEFAULT_MAX_PIXELS
+        Refuse a source of more pixels than this before allocating for it; None
+        for no limit.
 
     Returns
     ----------
@@ -135,8 +169,10 @@ def crop(
     ValueError
         If the region is not MCU-aligned, starts at a negative position, leaves
         the image without a ``background``, or ``background`` is outside 0..255.
+    JpegTooLargeError
+        If the source has more than ``max_pixels`` pixels.
     """
-    return lib.Source(jpeg).crop(
+    return lib.Source(jpeg, _pixel_limit(max_pixels)).crop(
         x,
         y,
         width,
@@ -152,6 +188,8 @@ def fill(
     color: Color,
     color_transform: bool = True,
     strip: Metadata = Metadata.NONE,
+    *,
+    max_pixels: int | None = DEFAULT_MAX_PIXELS,
 ) -> bytes:
     """A solid-color JPEG reusing ``template``'s tables, dimensions and subsampling.
 
@@ -167,13 +205,24 @@ def fill(
 
     The output keeps the template's metadata except what ``strip`` names.
 
+    A template of more than ``max_pixels`` pixels is refused before anything is
+    allocated for it; pass None for no limit.
+
     Raises
     ----------
     ValueError
         If a color component is outside 0..255, or ``color`` is not one or
         three values.
+    JpegTooLargeError
+        If the template has more than ``max_pixels`` pixels.
     """
-    return lib.fill(template, _rgb(color, "color"), color_transform, strip.value)
+    return lib.fill(
+        template,
+        _rgb(color, "color"),
+        color_transform,
+        strip.value,
+        _pixel_limit(max_pixels),
+    )
 
 
 def crop_multiple(
@@ -182,6 +231,8 @@ def crop_multiple(
     background: Color | None = None,
     color_transform: bool = True,
     strip: Metadata = Metadata.NONE,
+    *,
+    max_pixels: int | None = DEFAULT_MAX_PIXELS,
 ) -> Iterator[bytes]:
     """Losslessly crop many ``(x, y, width, height)`` regions, decoding once.
 
@@ -202,6 +253,9 @@ def crop_multiple(
         How ``background`` reaches the components, as for :func:`fill`.
     strip: Metadata = Metadata.NONE
         Metadata to leave out of the output; by default all of it is kept.
+    max_pixels: int | None = DEFAULT_MAX_PIXELS
+        Refuse a source of more pixels than this before allocating for it; None
+        for no limit.
 
     Returns
     ----------
@@ -215,11 +269,13 @@ def crop_multiple(
         If a region is not MCU-aligned, starts at a negative position, or leaves
         the image without a ``background``; raised when that region is reached.
         Also if ``background`` is outside 0..255.
+    JpegTooLargeError
+        If the source has more than ``max_pixels`` pixels.
     """
     if not regions:
         return iter(())
     rgb = _optional_rgb(background, "background")
-    source = lib.Source(jpeg)
+    source = lib.Source(jpeg, _pixel_limit(max_pixels))
     sizes = {(width, height) for _, _, width, height in regions}
     if len(sizes) == 1:
         cropper = lib.Cropper(source, *sizes.pop(), rgb, color_transform, strip.value)
@@ -238,6 +294,8 @@ def compose(
     background: Color | None = None,
     color_transform: bool = True,
     strip: Metadata = Metadata.NONE,
+    *,
+    max_pixels: int | None = DEFAULT_MAX_PIXELS,
 ) -> Iterator[bytes]:
     """Re-tile several source JPEGs into a uniform grid of output tiles, losslessly.
 
@@ -283,6 +341,9 @@ def compose(
     strip: Metadata = Metadata.NONE
         Metadata to leave out of the output, which carries the first source's;
         by default all of it is kept.
+    max_pixels: int | None = DEFAULT_MAX_PIXELS
+        Refuse a source of more pixels than this before allocating for it; None
+        for no limit.
 
     Returns
     ----------
@@ -297,10 +358,13 @@ def compose(
         If there are no sources, their sampling differs, a size is not
         MCU-aligned, or ``background`` is outside 0..255 (raised by this call);
         or if a position is not MCU-aligned (raised when it is reached).
+    JpegTooLargeError
+        If a source has more than ``max_pixels`` pixels.
     """
+    limit = _pixel_limit(max_pixels)
     handles, cells = [], []
     for jpeg, gx, gy in sources:  # a loop keeps warnings pointing at the caller
-        handles.append(lib.Source(jpeg))
+        handles.append(lib.Source(jpeg, limit))
         cells.append((gx, gy))
     composer = lib.Composer(
         handles,
@@ -315,13 +379,18 @@ def compose(
     return (composer.tile(plane_x, plane_y) for plane_x, plane_y in positions)
 
 
-def decode_coefficients(jpeg: bytes) -> tuple[list[np.ndarray], CoefficientInfo]:
+def decode_coefficients(
+    jpeg: bytes, *, max_pixels: int | None = DEFAULT_MAX_PIXELS
+) -> tuple[list[np.ndarray], CoefficientInfo]:
     """Read a JPEG's quantized DCT coefficients, without decoding to pixels.
 
     Parameters
     ----------
     jpeg: bytes
         The source JPEG.
+    max_pixels: int | None = DEFAULT_MAX_PIXELS
+        Refuse a source of more pixels than this before allocating for it; None
+        for no limit.
 
     Returns
     ----------
@@ -330,8 +399,13 @@ def decode_coefficients(jpeg: bytes) -> tuple[list[np.ndarray], CoefficientInfo]
         ``(height_in_blocks, width_in_blocks, 8, 8)`` in natural (row-major 8x8)
         DCT order, plus the :class:`CoefficientInfo` needed to re-encode. Modify
         the arrays in place and pass them to :func:`encode_coefficients`.
+
+    Raises
+    ----------
+    JpegTooLargeError
+        If the source has more than ``max_pixels`` pixels.
     """
-    source = lib.Source(jpeg)
+    source = lib.Source(jpeg, _pixel_limit(max_pixels))
     size, components = source.layout()
     coeffs = [source.read_component(index) for index in range(len(components))]
     sampling = tuple(factors for factors, _ in components)

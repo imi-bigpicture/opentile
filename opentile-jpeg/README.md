@@ -78,6 +78,12 @@ still describe the source.
 - JPEG data libjpeg-turbo cannot read raises `opentile_jpeg.JpegError`.
 - Problems libjpeg-turbo recovers from, such as a truncated file, issue a
   `opentile_jpeg.JpegWarning`.
+- A JPEG claiming more pixels than `max_pixels` raises
+  `opentile_jpeg.JpegTooLargeError` (a `JpegError`) before anything is allocated
+  for it. Every operation that reads an image takes `max_pixels`, by default
+  `opentile_jpeg.DEFAULT_MAX_PIXELS` (about 179 million pixels, Pillow's
+  limit). Pass a larger value, or `None`, to the call that reads a legitimately
+  larger image; the limit applies to that call only.
 
 ## License
 

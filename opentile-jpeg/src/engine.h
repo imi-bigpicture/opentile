@@ -36,7 +36,8 @@ typedef enum {
     JC_OK = 0,
     JC_ERROR_JPEG,     /* libjpeg-turbo rejected the data */
     JC_ERROR_ARGUMENT, /* invalid geometry or index */
-    JC_ERROR_MEMORY
+    JC_ERROR_MEMORY,
+    JC_ERROR_TOO_LARGE /* the image exceeds max_pixels */
 } jc_status;
 
 typedef struct {
@@ -85,13 +86,17 @@ void jc_free(unsigned char* buffer);
 /* The libjpeg-turbo version compiled in, e.g. "3.2.0". */
 const char* jc_libjpeg_turbo_version(void);
 
+/* Reading a JPEG's coefficients allocates for its whole image up front, so the
+   functions taking `max_pixels` first refuse an image of more pixels than that
+   with JC_ERROR_TOO_LARGE; 0 means no limit. */
+
 int jc_read_layout(const unsigned char* jpeg, unsigned long size,
                    jc_layout* layout, jc_messages* messages);
 int jc_optimize(const unsigned char* jpeg, unsigned long size, int progressive,
-                int strip, unsigned char** out, unsigned long* out_size,
-                jc_messages* messages);
+                int strip, long long max_pixels, unsigned char** out,
+                unsigned long* out_size, jc_messages* messages);
 int jc_fill(const unsigned char* template_jpeg, unsigned long size,
-            jc_color color, int strip,
+            jc_color color, int strip, long long max_pixels,
             unsigned char** out, unsigned long* out_size, jc_messages* messages);
 /* components[i] holds component i's blocks row-major, 64 coefficients each. */
 int jc_encode_coefficients(const unsigned char* template_jpeg, unsigned long size,
@@ -102,7 +107,7 @@ int jc_encode_coefficients(const unsigned char* template_jpeg, unsigned long siz
 /* A JPEG whose DCT coefficients are read once and then shared by crops,
    croppers and composers. */
 int jc_source_open(const unsigned char* jpeg, unsigned long size,
-                   jc_source** source, jc_messages* messages);
+                   long long max_pixels, jc_source** source, jc_messages* messages);
 void jc_source_close(jc_source* source);
 void jc_source_layout(const jc_source* source, jc_layout* layout);
 int jc_source_read_component(jc_source* source, int component, short* out,

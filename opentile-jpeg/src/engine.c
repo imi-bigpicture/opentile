@@ -100,6 +100,18 @@ static void open_decompressor(j_decompress_ptr src, const unsigned char* jpeg,
     jpeg_read_header(src, TRUE);
 }
 
+/* Refuse an image larger than max_pixels (0: no limit) before its coefficients
+   are read, which allocates for the whole image. */
+static int check_pixels(j_decompress_ptr src, long long max_pixels,
+                        jc_messages* messages) {
+    long long pixels = (long long)src->image_width * src->image_height;
+    if (max_pixels > 0 && pixels > max_pixels)
+        return fail(JC_ERROR_TOO_LARGE, messages,
+                    "image of %ux%u pixels exceeds the limit of %lld pixels",
+                    src->image_width, src->image_height, max_pixels);
+    return JC_OK;
+}
+
 /* A compressor with the source's tables and sampling, for a new image size. */
 static void start_compressor(j_compress_ptr dst, j_decompress_ptr src,
                              int width, int height) {
@@ -202,12 +214,13 @@ typedef void (*coefficient_editor)(j_decompress_ptr src,
 static int transcode(const unsigned char* jpeg, unsigned long size,
                      coefficient_editor edit, const void* context,
                      int optimize, int progressive, int strip,
-                     unsigned char** out, unsigned long* out_size,
-                     jc_messages* messages) {
+                     long long max_pixels, unsigned char** out,
+                     unsigned long* out_size, jc_messages* messages) {
     struct jpeg_decompress_struct src = {0};
     struct jpeg_compress_struct dst = {0};
     jvirt_barray_ptr* coefficients;
     jc_error error;
+    int status;
 
     src.err = dst.err = init_error(&error, messages);
     if (setjmp(error.jump)) {
@@ -216,6 +229,11 @@ static int transcode(const unsigned char* jpeg, unsigned long size,
         return JC_ERROR_JPEG;
     }
     open_decompressor(&src, jpeg, size);
+    status = check_pixels(&src, max_pixels, messages);
+    if (status != JC_OK) {
+        jpeg_destroy_decompress(&src);
+        return status;
+    }
     coefficients = jpeg_read_coefficients(&src);
     if (edit) edit(&src, coefficients, context);
 
@@ -231,10 +249,10 @@ static int transcode(const unsigned char* jpeg, unsigned long size,
 }
 
 int jc_optimize(const unsigned char* jpeg, unsigned long size, int progressive,
-                int strip, unsigned char** out, unsigned long* out_size,
-                jc_messages* messages) {
-    return transcode(jpeg, size, NULL, NULL, TRUE, progressive, strip, out,
-                     out_size, messages);
+                int strip, long long max_pixels, unsigned char** out,
+                unsigned long* out_size, jc_messages* messages) {
+    return transcode(jpeg, size, NULL, NULL, TRUE, progressive, strip, max_pixels,
+                     out, out_size, messages);
 }
 
 static int is_sample(int value) { return value >= 0 && value <= 255; }
@@ -302,13 +320,13 @@ static void fill_blocks(j_decompress_ptr src, jvirt_barray_ptr* coefficients,
 }
 
 int jc_fill(const unsigned char* template_jpeg, unsigned long size,
-            jc_color color, int strip,
+            jc_color color, int strip, long long max_pixels,
             unsigned char** out, unsigned long* out_size,
             jc_messages* messages) {
     int status = check_color(&color, messages);
     if (status != JC_OK) return status;
     return transcode(template_jpeg, size, fill_blocks, &color, FALSE, FALSE, strip,
-                     out, out_size, messages);
+                     max_pixels, out, out_size, messages);
 }
 
 static void replace_blocks(j_decompress_ptr src, jvirt_barray_ptr* coefficients,
@@ -325,12 +343,13 @@ static void replace_blocks(j_decompress_ptr src, jvirt_barray_ptr* coefficients,
     }
 }
 
+/* No pixel limit: the caller already holds coefficients for the whole image. */
 int jc_encode_coefficients(const unsigned char* template_jpeg, unsigned long size,
                            const short* const* components, int optimize,
                            int strip, unsigned char** out, unsigned long* out_size,
                            jc_messages* messages) {
     return transcode(template_jpeg, size, replace_blocks, components, optimize,
-                     FALSE, strip, out, out_size, messages);
+                     FALSE, strip, 0, out, out_size, messages);
 }
 
 /* ---- sources and regions ---------------------------------------------- */
@@ -343,9 +362,10 @@ struct jc_source {
 };
 
 int jc_source_open(const unsigned char* jpeg, unsigned long size,
-                   jc_source** out, jc_messages* messages) {
+                   long long max_pixels, jc_source** out, jc_messages* messages) {
     jc_source* source = (jc_source*)calloc(1, sizeof *source);
     jc_error error;
+    int status;
 
     if (!source) return fail(JC_ERROR_MEMORY, messages, "out of memory");
     source->decompressor.err = init_error(&error, messages);
@@ -354,6 +374,11 @@ int jc_source_open(const unsigned char* jpeg, unsigned long size,
         return JC_ERROR_JPEG;
     }
     open_decompressor(&source->decompressor, jpeg, size);
+    status = check_pixels(&source->decompressor, max_pixels, messages);
+    if (status != JC_OK) {
+        jc_source_close(source);
+        return status;
+    }
     source->coefficients = jpeg_read_coefficients(&source->decompressor);
     *out = source;
     return JC_OK;

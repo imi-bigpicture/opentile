@@ -19,6 +19,15 @@ class JpegError(RuntimeError):
     """libjpeg-turbo rejected a JPEG; the message is libjpeg-turbo's own."""
 
 
+class JpegTooLargeError(JpegError):
+    """A JPEG claims more pixels than the operation's ``max_pixels`` allows.
+
+    Raised before anything is allocated for the image, which a small corrupt or
+    malicious file could otherwise make huge. Pass a larger ``max_pixels``, or
+    None, to the call that reads a legitimately larger image.
+    """
+
+
 class JpegWarning(UserWarning):
     """libjpeg-turbo recovered from a problem in a JPEG, e.g. corrupt data.
 

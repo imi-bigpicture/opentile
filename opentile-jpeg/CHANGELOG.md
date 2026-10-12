@@ -20,5 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `decode_coefficients` and `encode_coefficients`, DCT coefficients as numpy
     arrays.
   - Metadata (ICC, EXIF, XMP, comments) kept by default, removable with `strip`.
+  - A per-call `max_pixels` limit, by default `DEFAULT_MAX_PIXELS` (Pillow's),
+    refusing larger images with `JpegTooLargeError` before allocating for them.
 - Wheels with libjpeg-turbo included, for Linux (x86_64 and aarch64), Windows
   (x64 and ARM64) and macOS (Apple Silicon and Intel), Python 3.11 or later.
