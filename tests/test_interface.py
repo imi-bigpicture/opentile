@@ -17,8 +17,7 @@ from pathlib import Path
 import pytest
 
 from opentile import OpenTile
-
-from .filepaths import (
+from tests.filepaths import (
     histech_file_path,
     ndpi_file_path,
     ome_tiff_file_path,
