@@ -165,6 +165,18 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
 
         return right_edge_corrupt, bottom_edge_corrupt
 
+    def _tiles_read_through_image(self) -> Iterator[Point]:
+        """The corrupt tiles, which `get_tile()` serves scaled down from the parent
+        level. Picked with `_tile_is_corrupt()`, as `get_tile()` does, so that the two
+        cannot disagree on which tiles they are."""
+        if not (self.right_edge_corrupt or self.bottom_edge_corrupt):
+            return iter(())
+        return (
+            tile
+            for tile in self._tiled_region.iterate_all()
+            if self._tile_is_corrupt(tile)
+        )
+
     def _tile_is_at_right_edge(self, tile_point: Point) -> bool:
         """Return true if tile is at right edge of tiled image."""
         return tile_point.x == self.tiled_size.width - 1

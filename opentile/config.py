@@ -31,6 +31,10 @@ class Settings:
 
     ndpi_frame_cache: int = 128
     """Number of frames to cache for ndpi."""
+    max_file_handles_per_file: int = 8
+    """Most handles to open to a local file for reading tiles from it at once. A
+    read beyond waits for a handle to be returned. A slide of many files read by many
+    threads otherwise opens a handle for each thread to every file. Default is 8."""
 
 
 _default_settings = Settings()

@@ -12,11 +12,14 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from collections.abc import Iterator
+from pathlib import Path
+
 import pytest
-from decoy import Decoy
+from decoy import Decoy, matchers
 from tifffile import COMPRESSION, TiffPage
 
-from opentile.file import OpenTileFile
+from opentile.file import FileHandlePool, LocalFileReader, OpenTileFile
 from opentile.geometry import Size, SizeMm
 from opentile.tiff_image_bases import NativeTiledLevelImage
 
@@ -24,8 +27,13 @@ FRAMES = [b"tile-0", b"tile-1", b"tile-2", b"tile-3"]
 
 
 @pytest.fixture()
-def level(decoy: Decoy):
-    """A level of two by two tiles, each serving its own identifiable frame."""
+def level(decoy: Decoy, tmp_path: Path) -> Iterator[NativeTiledLevelImage]:
+    """A level of two by two tiles, each serving its own identifiable frame, stored
+    one after the other in a file."""
+    content = b"".join(FRAMES)
+    path = tmp_path.joinpath("frames.bin")
+    path.write_bytes(content)
+    frame_length = len(FRAMES[0])
     page = decoy.mock(cls=TiffPage)
     decoy.when(page.compression).then_return(COMPRESSION.JPEG)
     decoy.when(page.imagewidth).then_return(4)
@@ -34,14 +42,17 @@ def level(decoy: Decoy):
     decoy.when(page.tilewidth).then_return(2)
     decoy.when(page.tilelength).then_return(2)
     decoy.when(page.jpegtables).then_return(None)
-    decoy.when(page.dataoffsets).then_return(tuple(range(len(FRAMES))))
-    decoy.when(page.databytecounts).then_return((1,) * len(FRAMES))
+    decoy.when(page.dataoffsets).then_return(
+        tuple(index * frame_length for index in range(len(FRAMES)))
+    )
+    decoy.when(page.databytecounts).then_return((frame_length,) * len(FRAMES))
+    reader = LocalFileReader(FileHandlePool(str(path), 1))
     file = decoy.mock(cls=OpenTileFile)
-    for index, frame in enumerate(FRAMES):
-        decoy.when(file.read(index, 1)).then_return(frame)
-        decoy.when(file.read_multiple([(index, 1)])).then_return([frame])
-    decoy.when(file.read_multiple([(0, 1), (3, 1)])).then_return([FRAMES[0], FRAMES[3]])
+    decoy.when(file.frame_reader).then_return(reader)
+    decoy.when(file.read(matchers.Anything(), matchers.Anything())).then_do(reader.read)
+    decoy.when(file.read_multiple(matchers.Anything())).then_do(reader.read_multiple)
     yield NativeTiledLevelImage(page, file, Size(4, 4), SizeMm(0.25, 0.25))
+    reader.close()
 
 
 @pytest.mark.unittest
