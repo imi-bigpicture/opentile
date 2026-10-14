@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `TiffImage.tile_locations`, a `TileLocations` of where the tiles are stored in the file (position and length of each tile), for images whose `get_tile()` only reads a tile with the `frame_reader` of the image. Made when first asked for. Tiles served otherwise (sparse tiles, corrupt svs edge tiles) are marked to be read with `get_tile()`. None for other images, e.g. ndpi and overlapping levels. Natively tiled images read tiles at their locations in `get_tile()` and `get_tiles()`.
+- `TiffImage.frame_reader`, the reader tiles of the image are read from the file with, ready to serve: for a page with jpeg tables, it puts the tables in place of the abbreviated header of every frame read. `OpenTileFile.frame_reader`, the reader of the file.
+- `FrameReader.with_prefix()`, a reader of the same file that puts a prefix in place of the first bytes of every frame read.
+- `Settings.max_file_handles_per_file`, the most handles opened to a local file for reading tiles from it at once (default 8). A read beyond waits for a handle to be returned, rather than every thread reading a file opening a handle of its own.
+
+### Changed
+
+- `FileHandlePool` only holds the handles of a file, and `LocalFileReader` takes one, so that readers of the pages of a file share the handles. A single frame read takes and returns a handle without the context manager of `acquire()`. `FileHandlePool` takes the most handles to open, and `open_handle()` is replaced by `open_or_wait()`, which waits for a handle when that many are open.
+- `LocalFileReader` reads on after a short read, which an unbuffered read may give without the file having ended (e.g. on a network drive), and a `FileHandlePool` raises on a read after it is closed rather than opening a handle that nothing closes.
+- The header with the jpeg tables put before the tiles of a page is found once, from the first stored tile, for serving tiles, for the frame reader and for the blank tile of sparse levels, rather than from whichever tile is served first.
+- `tiled_size` of an image is computed once rather than on every access.
+- Local files are opened without `O_SEQUENTIAL`, leaving read-ahead to the operating system. The hint made reading the tiles of a view slower, and reading all tiles in order no faster.
+
 ## [0.26.0] - 2026-09-28
 
 ### Changed
