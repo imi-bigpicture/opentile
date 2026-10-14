@@ -19,8 +19,7 @@ from opentile.formats import HuronTiffTiler
 from opentile.geometry import Size, SizeMm
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import huron_file_path
+from tests.filepaths import huron_file_path
 
 
 @pytest.fixture()

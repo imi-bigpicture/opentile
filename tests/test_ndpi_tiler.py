@@ -30,8 +30,7 @@ from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.formats.ndpi.ndpi_tile import NdpiFrameJob, NdpiTile
 from opentile.geometry import Point, Size, SizeMm
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import (
+from tests.filepaths import (
     ndpi_file_path,
     ndpi_jpeg_size_file_path,
     ndpi_jpegxr_file_path,
