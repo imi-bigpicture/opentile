@@ -35,7 +35,6 @@ from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
 from opentile.formats.ventana.ventana_tiff_metadata import VentanaMetadata
 from opentile.geometry import Point, PointF, Region, Size
-from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
@@ -54,7 +53,6 @@ class VentanaTiffTiler(Tiler):
     def __init__(
         self,
         file: Union[str, Path, UPath, OpenTileFile],
-        turbo_path: Optional[Union[str, Path]] = None,
         file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for Ventana bif file.
@@ -63,13 +61,10 @@ class VentanaTiffTiler(Tiler):
         ----------
         file: Union[str, Path, UPath, OpenTileFile]
             Filepath to a Ventana bif file or an opened Ventana OpenTileFile.
-        turbo_path: Optional[Union[str, Path]] = None
-            Path to turbojpeg (dll or so). Used to serve the striped overview image.
         file_options: Optional[Dict[str, Any]] = None
             Options to pass to filesystem when opening file.
         """
         super().__init__(file, file_options)
-        self._jpeg = Jpeg(turbo_path)
         # An already-stitched Ventana tiff has no EncodeInfo/XMP on its level page; its
         # tiles abut and are served as a plain pyramid. A raw bif has the stitch XMP.
         self._stitched = "XMP" not in self._base_page.tags
@@ -140,7 +135,6 @@ class VentanaTiffTiler(Tiler):
         return StripedAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
-            self._jpeg,
         )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:

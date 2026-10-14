@@ -40,7 +40,6 @@ from opentile.formats.argos.argos_tiff_image import (
 )
 from opentile.formats.argos.argos_tiff_metadata import ARGOS_METADATA_TAG, ArgosMetadata
 from opentile.geometry import SizeMm
-from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
@@ -52,7 +51,6 @@ class ArgosTiffTiler(Tiler):
     def __init__(
         self,
         file: Union[str, Path, UPath, OpenTileFile],
-        turbo_path: Optional[Union[str, Path]] = None,
         label_crop_position: float = 0.76,
         file_options: Optional[dict[str, Any]] = None,
     ):
@@ -62,8 +60,6 @@ class ArgosTiffTiler(Tiler):
         ----------
         file: Union[str, Path, UPath, OpenTileFile]
             Filepath to an Argos avs file or an opened Argos OpenTileFile.
-        turbo_path: Optional[Union[str, Path]] = None
-            Path to turbojpeg (dll or so).
         label_crop_position: float = 0.76
             Left edge of the label as a fraction of the macro width; the label is
             cropped from here to the right edge of the overview (macro) image. The crop
@@ -72,7 +68,6 @@ class ArgosTiffTiler(Tiler):
             Options to pass to filesystem when opening file.
         """
         super().__init__(file, file_options)
-        self._jpeg = Jpeg(turbo_path)
         self._label_crop_position = label_crop_position
         self._metadata = ArgosMetadata(self._base_page)
         assert self._metadata.pixel_spacing is not None
@@ -113,7 +108,6 @@ class ArgosTiffTiler(Tiler):
             self._file,
             self._base_size,
             self._base_mpp,
-            self._jpeg,
             self._metadata.focal_plane(page),
         )
 
@@ -123,7 +117,6 @@ class ArgosTiffTiler(Tiler):
         return ArgosLabelImage(
             self._get_tiff_page(self._label_series_index, 0, page),
             self._file,
-            self._jpeg,
             self._label_crop_position,
         )
 
@@ -133,7 +126,6 @@ class ArgosTiffTiler(Tiler):
         return StripedAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
-            self._jpeg,
         )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
@@ -144,7 +136,6 @@ class ArgosTiffTiler(Tiler):
             self._file,
             self._base_size,
             self._base_mpp,
-            self._jpeg,
         )
 
     def _is_level_series(self, series: TiffPageSeries) -> bool:

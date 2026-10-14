@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Lossless JPEG cropping and blank tiles use the new `opentile-jpeg` package (in this repository) instead of PyTurboJPEG. libjpeg-turbo is included in its wheels, so it no longer has to be installed separately.
+
+### Removed
+
+- The `turbo_path` parameter of `OpenTile.open()`, the tilers and `Jpeg`.
+- `opentile.jpeg.jpeg.find_turbojpeg_path()` and `Jpeg.subsample_to_mcu()`.
+- The `jpeg` parameter of the image classes. `Jpeg` holds no state, so its methods are now class methods.
+
 ## [0.26.0] - 2026-09-28
 
 ### Changed

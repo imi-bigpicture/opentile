@@ -40,7 +40,6 @@ class ArgosLevelTiffImage(SparseTiledLevelImage):
         file: OpenTileFile,
         base_size: Size,
         base_mpp: SizeMm,
-        jpeg: Jpeg,
         focal_plane: float = 0.0,
     ):
         """
@@ -54,12 +53,10 @@ class ArgosLevelTiffImage(SparseTiledLevelImage):
             Size of the base level in the pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) of the base level in the pyramid.
-        jpeg: Jpeg
-            Jpeg instance to use.
         focal_plane: float = 0.0
             Focal plane offset (um) from slide center of this z-plane.
         """
-        super().__init__(page, file, base_size, base_mpp, jpeg)
+        super().__init__(page, file, base_size, base_mpp)
         self._focal_plane = focal_plane
 
     @property
@@ -80,7 +77,6 @@ class ArgosLabelImage(StripedTiffImage, AssociatedTiffImage):
         self,
         page: TiffPage,
         file: OpenTileFile,
-        jpeg: Jpeg,
         crop_position: float,
     ):
         """
@@ -90,19 +86,16 @@ class ArgosLabelImage(StripedTiffImage, AssociatedTiffImage):
             The Macro page to crop the label from.
         file: OpenTileFile
             File to read data from.
-        jpeg: Jpeg
-            Jpeg instance to use.
         crop_position: float
             Left edge of the label as a fraction of the macro width; the label spans
             from here to the right edge.
         """
-        self._jpeg = jpeg
         self._crop_position = crop_position
-        super().__init__(page, file, jpeg)
+        super().__init__(page, file)
 
     def _read_image_size(self) -> Size:
         # Align the crop to a whole MCU so the lossless crop keeps the label intact.
-        mcu_width = self._jpeg.get_mcu(super().get_tile((0, 0))).width
+        mcu_width = Jpeg.get_mcu(super().get_tile((0, 0))).width
         width = self._page.imagewidth
         self._crop_from = int(width * self._crop_position / mcu_width) * mcu_width
         return Size(width - self._crop_from, self._page.imagelength)
@@ -116,7 +109,7 @@ class ArgosLabelImage(StripedTiffImage, AssociatedTiffImage):
             raise ValueError("Non-tiled image, expected tile_position (0, 0)")
         full_frame = super().get_tile(tile_position)
         crop = (self._crop_from, 0, self.image_size.width, self.image_size.height)
-        return self._jpeg.crop_multiple(full_frame, [crop])[0]
+        return Jpeg.crop_multiple(full_frame, [crop])[0]
 
     def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
         if tile_position != (0, 0):

@@ -24,13 +24,17 @@ Alternatively, it can be installed via conda:
 conda install -c conda-forge opentile
 ```
 
+## opentile-jpeg
+
+This repository also contains [*opentile-jpeg*](opentile-jpeg/README.md), the lossless JPEG operations (cropping, re-tiling, filling, optimizing) that *opentile* uses. It is a separate package with its own release, and includes libjpeg-turbo, so no system install is needed.
+
 ## Important note
 
 Please note that this is an early release and the API is not frozen yet. Function names and functionality are prone to change.
 
 ## Requirements
 
-*opentile* requires python >=3.12 and uses numpy, Pillow, TiffFile, and PyTurboJPEG (with lib-turbojpeg >= 2.1 ), imagecodecs, defusedxml, and ome-types.
+*opentile* requires python >=3.12 and uses numpy, Pillow, TiffFile, opentile-jpeg, imagecodecs, defusedxml, and ome-types.
 
 The minimum supported Python and dependency versions follow [SPEC 0](https://scientific-python.org/specs/spec-0000/).
 
@@ -116,16 +120,6 @@ tiler = OpenTile.open(path_to_ndpi_file, tile_size)
 ```python
 from opentile import OpenTile
 tiler = OpenTile.open("s3://bucket/key", file_options={"s3": "anon": True})
-```
-
-***If turbo jpeg library path is not found.***
-
-```python
-from opentile import OpenTile
-
-tile_size = (1024, 1024)
-turbo_path = "C:/libjpeg-turbo64/bin/turbojpeg.dll"
-tiler = OpenTile.open(path_to_ndpi_file, tile_size, turbo_path)
 ```
 
 ***Get rectangular tile at level 0 and position x=0, y=0.***

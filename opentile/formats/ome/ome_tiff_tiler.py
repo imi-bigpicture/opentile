@@ -34,7 +34,6 @@ from opentile.formats.ome.ome_tiff_image import (
     OmeTiffTiledImage,
 )
 from opentile.geometry import Size, SizeMm
-from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
@@ -45,14 +44,12 @@ class OmeTiffTiler(Tiler):
     """Simple tiler for OME tiff. Works with images converted with QuPath using
     jpeg. Might report 'wrong' photometric interpretation. Does not support rgb
     images where the colors are separated. This could maybe be supported by
-    using turbo-jpeg to losslessly merge the rgb components (assuming they have
-    the same tables)."""
+    losslessly merging the rgb components (assuming they have the same tables)."""
 
     def __init__(
         self,
         file: Union[str, Path, UPath, OpenTileFile],
         tile_size: int = 512,
-        turbo_path: Optional[Union[str, Path]] = None,
         file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for ome tiff file.
@@ -63,14 +60,11 @@ class OmeTiffTiler(Tiler):
             Filepath to a ome tiff TiffFile or an opened ome tiff OpenTileFile.
         tile_size: int = 512
             Tile size for levels that are not natively tiled (e.g. strip-stored).
-        turbo_path: Optional[Union[str, Path]] = None
-            Path to turbojpeg (dll or so).
         file_options: Optional[Dict[str, Any]] = None
             Options to pass to filesystem when opening file.
         """
         super().__init__(file, file_options)
         self._tile_size = Size(tile_size, tile_size)
-        self._jpeg = Jpeg(turbo_path)
         self._base_mpp = self._get_mpp(self._level_series_index)
 
     @property
@@ -169,7 +163,6 @@ class OmeTiffTiler(Tiler):
                 self._base_mpp,
                 focal_plane,
                 optical_path,
-                self._jpeg,
             )
         # Strip-stored (e.g. uncompressed) level: decode once and serve a tile grid.
         return OmeTiffStripedImage(

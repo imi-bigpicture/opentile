@@ -1,0 +1,95 @@
+name: opentile-jpeg
+
+on:
+  push:
+    tags: ["opentile-jpeg-v*"]
+  pull_request:
+    paths: ["opentile-jpeg/**", ".github/workflows/opentile-jpeg.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheels:
+    name: wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # One runner per architecture, as wheels are built natively (see archs
+        # in pyproject.toml): libjpeg-turbo's own build needs no cross-compiling.
+        os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - windows-latest
+          - windows-11-arm
+          - macos-latest  # arm64
+          - macos-15-intel
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # x86 SIMD is assembled with nasm; ARM SIMD needs no assembler. Linux builds
+      # install it inside the build container (CIBW_BEFORE_ALL_LINUX below).
+      - name: Install nasm (Windows)
+        if: runner.os == 'Windows' && runner.arch == 'X64'
+        run: |
+          choco install nasm --no-progress
+          # The package does not add nasm to PATH.
+          "C:\Program Files\NASM" >> $env:GITHUB_PATH
+      - name: Install nasm (macOS)
+        if: runner.os == 'macOS' && runner.arch == 'X64'
+        run: brew install nasm
+
+      - name: Build and test wheels
+        uses: pypa/cibuildwheel@v4.3.0
+        with:
+          package-dir: opentile-jpeg
+        env:
+          # Fail the build rather than ship a wheel without SIMD (e.g. if nasm
+          # went missing); the Linux builds run in containers, so pass it on.
+          OPENTILE_JPEG_REQUIRE_SIMD: "1"
+          CIBW_ENVIRONMENT_PASS_LINUX: OPENTILE_JPEG_REQUIRE_SIMD
+          # The extension build (opentile-jpeg/tools/build_turbo.py) fetches and
+          # compiles a pinned libjpeg-turbo itself; here we only ensure its
+          # toolchain is present. manylinux (yum) and musllinux (apk) images ship
+          # without nasm, and without it libjpeg-turbo builds without x86 SIMD.
+          CIBW_BEFORE_ALL_LINUX: >-
+            pip install cmake ninja &&
+            if [ "$(uname -m)" = x86_64 ]; then
+            (command -v yum && yum install -y nasm || apk add --no-cache nasm);
+            fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wheels-${{ matrix.os }}
+          path: ./wheelhouse/*.whl
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: pipx run build --sdist --outdir dist opentile-jpeg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  # Publish to PyPI via Trusted Publishing (OIDC), only on an opentile-jpeg-v*
+  # tag. Configure the trusted publisher on PyPI first: project opentile-jpeg,
+  # this repository, workflow opentile-jpeg.yml, environment pypi-opentile-jpeg.
+  publish:
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/opentile-jpeg-v')
+    environment: pypi-opentile-jpeg
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv publish  # trusted publishing; no token needed in CI

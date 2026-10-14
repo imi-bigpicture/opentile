@@ -44,7 +44,6 @@ from opentile.formats.qptiff.qptiff_metadata import (
     band_name,
     image_type,
 )
-from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
@@ -55,7 +54,6 @@ class QptiffTiler(Tiler):
     def __init__(
         self,
         file: Union[str, Path, UPath, OpenTileFile],
-        turbo_path: Optional[Union[str, Path]] = None,
         file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for qptiff file.
@@ -64,13 +62,10 @@ class QptiffTiler(Tiler):
         ----------
         file: Union[str, Path, UPath, OpenTileFile]
             Filepath to a qptiff file or an opened qptiff OpenTileFile.
-        turbo_path: Optional[Union[str, Path]] = None
-            Path to turbojpeg (dll or so).
         file_options: Optional[Dict[str, Any]] = None
             Options to pass to filesystem when opening file.
         """
         super().__init__(file, file_options)
-        self._jpeg = Jpeg(turbo_path)
         self._metadata = QptiffMetadata(self._base_page)
         base_mpp = self._metadata.mpp
         if base_mpp is None:
@@ -107,7 +102,6 @@ class QptiffTiler(Tiler):
             self._file,
             self._base_size,
             self._base_mpp,
-            self._jpeg,
             optical_path,
         )
 
@@ -117,7 +111,6 @@ class QptiffTiler(Tiler):
         return QptiffAssociatedImage(
             self._get_tiff_page(self._label_series_index, 0, page),
             self._file,
-            self._jpeg,
         )
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
@@ -126,7 +119,6 @@ class QptiffTiler(Tiler):
         return QptiffAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
-            self._jpeg,
         )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
@@ -137,7 +129,6 @@ class QptiffTiler(Tiler):
             self._file,
             self._base_size,
             self._base_mpp,
-            self._jpeg,
         )
 
     def _is_level_series(self, series: TiffPageSeries) -> bool:
