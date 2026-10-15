@@ -30,11 +30,13 @@ from tests.filepaths import (
     mikroscan_file_path,
     motic_file_path,
     ndpi_file_path,
+    ndpi_jpegxr_file_path,
     ome_tiff_file_path,
     philips_file_path,
     qptiff_file_path,
     svs_file_path,
     trestle_file_path,
+    ventana_1_file_path,
     ventana_file_path,
 )
 
@@ -70,11 +72,13 @@ class TestTileLocations:
         [
             svs_file_path,
             ndpi_file_path,
+            ndpi_jpegxr_file_path,
             philips_file_path,
             histech_file_path,
             ome_tiff_file_path,
             trestle_file_path,
             ventana_file_path,
+            ventana_1_file_path,
             huron_file_path,
             leica_scn_file_path,
             mikroscan_file_path,
@@ -112,21 +116,43 @@ class TestTileLocations:
         if checked == 0:
             pytest.skip(f"No image of {file_path.name} has tile locations")
 
-    @pytest.mark.parametrize(
-        "file_path", [ndpi_file_path, trestle_file_path, ventana_file_path]
-    )
-    def test_levels_that_are_assembled_or_composed_have_no_tile_locations(
-        self, file_path: Path
-    ):
+    def test_levels_that_are_assembled_have_no_tile_locations(self):
         # Arrange
-        if not file_path.exists():
-            pytest.skip(f"{file_path} test file not found, skipping")
-        with OpenTile.open(file_path) as tiler:
+        if not ndpi_file_path.exists():
+            pytest.skip(f"{ndpi_file_path} test file not found, skipping")
+        with OpenTile.open(ndpi_file_path) as tiler:
             # Act
             locations = [level.tile_locations for level in tiler.levels]
 
         # Assert
         assert all(location is None for location in locations)
+
+    @pytest.mark.parametrize(
+        "file_path",
+        [
+            ndpi_jpegxr_file_path,
+            trestle_file_path,
+            ventana_file_path,
+            ventana_1_file_path,
+        ],
+    )
+    def test_levels_with_overlap_have_tile_locations_of_stored_tiles(
+        self, file_path: Path
+    ):
+        """The tiles of a level with an overlap are served as stored, to be composed
+        by the consumer, and so have locations like any other stored tile."""
+        # Arrange
+        if not file_path.exists():
+            pytest.skip(f"{file_path} test file not found, skipping")
+        with OpenTile.open(file_path) as tiler:
+            levels = [level for level in tiler.levels if level.overlap is not None]
+
+            # Act
+            locations = [level.tile_locations for level in levels]
+
+        # Assert
+        assert levels != []
+        assert all(location is not None for location in locations)
 
     @pytest.mark.parametrize(
         "file_path",

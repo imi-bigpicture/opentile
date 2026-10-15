@@ -761,11 +761,6 @@ class OverlappingLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
         return self._overlap
 
     @property
-    def tile_locations(self) -> Optional[TileLocations]:
-        """None, as the stored tiles are to be composed into the tile grid."""
-        return None
-
-    @property
     def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         return None
 
