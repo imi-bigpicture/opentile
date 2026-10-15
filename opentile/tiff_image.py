@@ -67,7 +67,10 @@ class TiffImage(metaclass=ABCMeta):
     def tile_locations(self) -> Optional[TileLocations]:
         """Where the tiles are stored in the file, or None if `get_tile()` does more
         than read a tile with the `frame_reader`, e.g. because tiles are assembled
-        from, or decoded and re-encoded from, what is stored."""
+        from, or decoded and re-encoded from, what is stored.
+
+        The tiles are those `get_tile()` serves: when `overlap` is not None, they are
+        the stored tiles, which are to be composed into the regular tile grid."""
         return None
 
     @property
