@@ -427,11 +427,9 @@ class Jpeg:
         """
         return prefix + bytes(frame[scan_offset:])
 
-    # Adobe APP14 marker with transform flag 0 (image is encoded as RGB, not
-    # YCbCr).
-    _RGB_COLOR_SPACE_FIX = (
-        b"\xff\xee\x00\x0e\x41\x64\x6f\x62\x65\x00\x64\x80\x00\x00\x00\x00"
-    )
+    # Adobe APP14 marker with transform flag 0= none, not encoded with Blend=1
+    # (image is encoded as RGB, not YCbCr).
+    _RGB_COLOR_SPACE_FIX = b"\xff\xee\x00\x0eAdobe\x00\x64\x00\x00\x00\x00\x00"
 
     @classmethod
     def calculate_prefix_and_scan_offset(
