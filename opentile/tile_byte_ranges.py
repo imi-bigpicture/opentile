@@ -23,7 +23,7 @@ from numpy.typing import NDArray
 
 
 @dataclass(frozen=True)
-class TileLocations:
+class TileByteRanges:
     """Where the tiles of an image are stored in its file, for a consumer to read a
     tile as `get_tile()` serves it with a single read, without going through the
     image.
@@ -58,8 +58,8 @@ class TileLocations:
         frame_bytecounts: Sequence[int],
         minimum_length: int,
         read_through: Iterable[int],
-    ) -> "TileLocations":
-        """Create tile locations from the frame of each tile and where the frames are
+    ) -> "TileByteRanges":
+        """Create tile byte ranges from the frame of each tile and where the frames are
         stored.
 
         A tile is to be read through the image if its frame is not stored (its index
@@ -83,7 +83,7 @@ class TileLocations:
 
         Returns
         -------
-        TileLocations
+        TileByteRanges
             Where the tiles are stored.
         """
         stored = frame_indices < len(frame_bytecounts)

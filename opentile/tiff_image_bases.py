@@ -48,7 +48,7 @@ from opentile.tiff_image import (
     ThumbnailTiffImage,
     TiffImage,
 )
-from opentile.tile_locations import TileLocations
+from opentile.tile_byte_ranges import TileByteRanges
 from opentile.tile_overlap import TileOverlap
 
 
@@ -341,7 +341,7 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
         self._jpeg_tables = page.jpegtables
 
     def get_tile(self, tile_position: tuple[int, int]) -> bytes:
-        """Read a tile with a single read at its location when it has one, otherwise
+        """Read a tile with a single read at its byte range when it has one, otherwise
         as the frame of the page it is stored in."""
         tile_point = self._validated_tile_point(tile_position)
         lookup = self._tile_lookup
@@ -354,7 +354,7 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
         return self._read_tile_frame(self._tile_point_to_frame_index(tile_point))
 
     def get_tiles(self, tile_positions: Sequence[tuple[int, int]]) -> Iterator[bytes]:
-        """Read tiles as `get_tile()`, reading those that have a location in one
+        """Read tiles as `get_tile()`, reading those that have a byte range in one
         batch, in which reads of tiles stored next to each other are joined."""
         tile_points = [
             self._validated_tile_point(tile_position)
@@ -400,14 +400,14 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
     def _tile_lookup(
         self,
     ) -> Optional[tuple[memoryview, memoryview]]:
-        """The positions and lengths of the tile locations, for reading a tile.
+        """The positions and lengths of the tile byte ranges, for reading a tile.
         Memoryviews of the arrays, as an item of a memoryview is a plain int got
         several times faster than one of an array, and unlike a list it shares the
         memory of the array."""
-        locations = self.tile_locations
-        if locations is None:
+        byte_ranges = self.tile_byte_ranges
+        if byte_ranges is None:
             return None
-        return memoryview(locations.positions), memoryview(locations.lengths)
+        return memoryview(byte_ranges.positions), memoryview(byte_ranges.lengths)
 
     @property
     def frame_reader(self) -> FrameReader:
@@ -469,11 +469,11 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
         return self._add_jpeg_tables(frame, self._jpeg_tables)
 
     @property
-    def tile_locations(self) -> Optional[TileLocations]:
-        return self._tile_locations
+    def tile_byte_ranges(self) -> Optional[TileByteRanges]:
+        return self._tile_byte_ranges
 
     @cached_property
-    def _tile_locations(self) -> Optional[TileLocations]:
+    def _tile_byte_ranges(self) -> Optional[TileByteRanges]:
         """Built when first asked for."""
         minimum_length = 1
         if self._jpeg_tables:
@@ -485,7 +485,7 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
             _, scan_offset = prefix_and_scan_offset
             minimum_length = scan_offset + 1
         width = self.tiled_size.width
-        return TileLocations.from_frames(
+        return TileByteRanges.from_frames(
             self._tile_frame_indices(),
             self._page.dataoffsets,
             self._page.databytecounts,
