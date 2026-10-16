@@ -26,13 +26,13 @@ from opentile.file import FileHandlePool, LocalFileReader
 
 CONTENT = bytes(range(256)) * 16
 MAX_HANDLES = 8
-"""As many as the threads that hold a handle at once in the tests of the pool."""
+"""As many as the most threads that hold a handle at once in the tests of the pool."""
 WAIT_SECONDS = 10
-"""Longest a test waits for another thread, so that a fault fails the test rather than
+"""The longest a test waits for another thread. A fault then fails the test instead of
 hanging it."""
 NOT_RETURNED_SECONDS = 0.2
-"""How long a caller is given to return when it should be waiting. A caller that is
-slow to start passes too, as it has not returned either."""
+"""How long a caller that should be waiting is given to return. A caller that is slow to
+start also passes, as it has not returned either."""
 
 
 @pytest.fixture
@@ -151,8 +151,8 @@ class TestFileHandlePool:
     def test_reads_from_more_threads_than_max_handles_open_max_handles(
         self, path: Path
     ) -> None:
-        """Reads beyond the most handles wait for one instead of opening another,
-        and still read their own bytes."""
+        """When all handles are taken, a caller waits for one instead of opening
+        another. Each caller still reads its own bytes."""
         # Arrange
         capped_pool = FileHandlePool(str(path), 2)
         reader = LocalFileReader(capped_pool)
@@ -291,8 +291,8 @@ class TestLocalFileReader:
 
 
 class ShortReadingHandle(io.BytesIO):
-    """In-memory handle that, like an unbuffered handle on a network drive, returns
-    at most `max_read` bytes per read."""
+    """In-memory handle that returns at most `max_read` bytes per read, like an
+    unbuffered handle on a network drive."""
 
     def __init__(self, content: bytes, max_read: int) -> None:
         super().__init__(content)

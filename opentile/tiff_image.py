@@ -58,19 +58,19 @@ class TiffImage(metaclass=ABCMeta):
     @property
     @abstractmethod
     def frame_reader(self) -> FrameReader:
-        """Reader the frames of the image are read from its file with, ready to serve
-        (e.g. with the jpeg tables of the page added), for example to read tiles at
-        their `tile_byte_ranges`. Is thread safe."""
+        """Reader of the frames of the image, ready to serve (for example with the jpeg
+        tables of the page added). Use it to read tiles at their `tile_byte_ranges`. Is
+        thread safe."""
         raise NotImplementedError()
 
     @property
     def tile_byte_ranges(self) -> Optional[TileByteRanges]:
-        """Where the tiles are stored in the file, or None if `get_tile()` does more
-        than read a tile with the `frame_reader`, e.g. because tiles are assembled
-        from, or decoded and re-encoded from, what is stored.
+        """Where the tiles are stored in the file. None if `get_tile()` does more than
+        read a tile with the `frame_reader`, for example because tiles are assembled
+        from what is stored, or decoded and re-encoded.
 
-        The tiles are those `get_tile()` serves: when `overlap` is not None, they are
-        the stored tiles, which are to be composed into the regular tile grid."""
+        The tiles are those that `get_tile()` serves. When `overlap` is not None, they
+        are the stored tiles, which are to be composed into the regular tile grid."""
         return None
 
     @property

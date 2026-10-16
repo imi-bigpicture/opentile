@@ -24,19 +24,17 @@ from numpy.typing import NDArray
 
 @dataclass(frozen=True)
 class TileByteRanges:
-    """Where the tiles of an image are stored in its file, for a consumer to read a
-    tile as `get_tile()` serves it with a single read, without going through the
-    image.
+    """Where the tiles of an image are stored in its file.
 
-    The tile at position (x, y) is stored as the `lengths[i]` bytes at
-    `positions[i]` of the file, where `i = y * tiled_size.width + x`, and is read as
-    `get_tile()` serves it with the `frame_reader` of the image. A tile whose length
-    is `READ_THROUGH_IMAGE` is not served as it is stored (e.g. a sparse or corrupt
-    tile served as another), and is to be read with `get_tile()`.
+    A consumer can then read a tile, as `get_tile()` serves it, with a single read
+    instead of through the image. The tile at position (x, y) is the `lengths[i]` bytes
+    at `positions[i]` of the file, where `i = y * tiled_size.width + x`. Read it with
+    the `frame_reader` of the image to get it as `get_tile()` serves it. A tile with
+    length `READ_THROUGH_IMAGE` is not served as it is stored (for example a sparse or
+    corrupt tile served as another), and is to be read with `get_tile()`.
 
-    The arrays are made read-only, as consumers may hold views of them instead of
-    copies.
-    """
+    The arrays are made read-only, because consumers may hold views of them instead of
+    copies."""
 
     READ_THROUGH_IMAGE: ClassVar[int] = -1
     """Length of a tile that is not served as it is stored."""
@@ -62,9 +60,10 @@ class TileByteRanges:
         """Create tile byte ranges from the frame of each tile and where the frames are
         stored.
 
-        A tile is to be read through the image if its frame is not stored (its index
-        is past the stored frames), is shorter than `minimum_length` (which includes
-        a frame of length 0, which is not stored either), or is in `read_through`.
+        A tile is to be read through the image if its frame is not stored (its index is
+        past the stored frames), if the frame is shorter than `minimum_length`, or if
+        the tile is in `read_through`. A frame of length 0 is not stored either, and is
+        always shorter than `minimum_length`.
 
         Parameters
         ----------
@@ -75,8 +74,9 @@ class TileByteRanges:
         frame_bytecounts: Sequence[int]
             Number of bytes of each stored frame.
         minimum_length: int
-            Shortest frame that is read as it is stored, at least 1. A frame read
-            with a prefix in place of its first bytes must be longer than those.
+            Shortest frame that is read as it is stored, at least 1. A frame that is
+            read with a prefix in place of its first bytes must be longer than those
+            bytes.
         read_through: Iterable[int]
             Index (in row-major order) of each tile that `get_tile()` serves as
             something else than its stored frame.

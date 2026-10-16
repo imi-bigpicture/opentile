@@ -167,8 +167,8 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
 
     def _tiles_read_through_image(self) -> Iterator[Point]:
         """The corrupt tiles, which `get_tile()` serves scaled down from the parent
-        level. Picked with `_tile_is_corrupt()`, as `get_tile()` does, so that the two
-        cannot disagree on which tiles they are."""
+        level. They are picked with `_tile_is_corrupt()`, the same check that
+        `get_tile()` uses, so the two cannot disagree."""
         if not (self.right_edge_corrupt or self.bottom_edge_corrupt):
             return iter(())
         return (

@@ -47,8 +47,8 @@ MAX_TILES_CHECKED = 400
 def read_tile_from_byte_ranges(
     byte_ranges: TileByteRanges, tiff_image: TiffImage, x: int, y: int
 ) -> bytes | None:
-    """Read tile as a consumer of the byte ranges would, or None if it is to be read
-    with `get_tile()`."""
+    """Read a tile as a consumer of the byte ranges would. Returns None if it is to be
+    read with `get_tile()`."""
     index = y * tiff_image.tiled_size.width + x
     length = int(byte_ranges.lengths[index])
     if length == TileByteRanges.READ_THROUGH_IMAGE:
@@ -139,8 +139,8 @@ class TestTileByteRanges:
     def test_levels_with_overlap_have_tile_byte_ranges_of_stored_tiles(
         self, file_path: Path
     ):
-        """The tiles of a level with an overlap are served as stored, to be composed
-        by the consumer, and so have byte ranges like any other stored tile."""
+        """The tiles of a level with an overlap are served as stored, for the consumer
+        to compose. They have byte ranges like any other stored tile."""
         # Arrange
         if not file_path.exists():
             pytest.skip(f"{file_path} test file not found, skipping")
@@ -169,9 +169,9 @@ class TestTileByteRanges:
         ],
     )
     def test_frame_indices_of_tiles_are_frame_index_of_each_tile(self, file_path: Path):
-        """The array form of the frame index of each tile, which the byte ranges are
-        made from, is the frame index `get_tile()` reads, also where a format maps
-        tiles to frames its own way (e.g. the label of Leica scn)."""
+        """The array form of the frame index of each tile is the frame index that
+        `get_tile()` reads. The byte ranges are made from it. This also holds where a
+        format maps tiles to frames its own way (for example the label of Leica scn)."""
         # Arrange
         if not file_path.exists():
             pytest.skip(f"{file_path} test file not found, skipping")
@@ -230,8 +230,8 @@ class TestTileByteRanges:
         assert byte_ranges.lengths.tolist() == [3, 1, 2]
 
     def test_arrays_are_made_read_only(self):
-        """Consumers may hold views of the arrays rather than copies, so they are
-        not to be changed after."""
+        """Consumers may hold views of the arrays rather than copies, so the arrays must
+        not change afterwards."""
         # Arrange
         positions = np.arange(4, dtype=np.int64)
         lengths = np.full(4, 10, dtype=np.int64)
@@ -244,8 +244,8 @@ class TestTileByteRanges:
         assert not byte_ranges.lengths.flags.writeable
 
     def test_svs_tile_read_at_location_has_jpeg_tables_added(self):
-        """The svs level stores abbreviated jpeg tiles, read complete with the jpeg
-        tables of the page by the frame reader of the level."""
+        """The svs level stores abbreviated jpeg tiles. The frame reader of the level
+        reads them complete, with the jpeg tables of the page."""
         # Arrange
         if not svs_file_path.exists():
             pytest.skip(f"{svs_file_path} test file not found, skipping")
