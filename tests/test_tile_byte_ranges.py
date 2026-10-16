@@ -21,7 +21,7 @@ from opentile import OpenTile
 from opentile.geometry import Point
 from opentile.tiff_image import TiffImage
 from opentile.tiff_image_bases import NativeTiledTiffImage
-from opentile.tile_locations import TileLocations
+from opentile.tile_byte_ranges import TileByteRanges
 from tests.filepaths import (
     argos_file_path,
     histech_file_path,
@@ -44,16 +44,16 @@ MAX_TILES_CHECKED = 400
 """Tiles checked per image, spread over the image."""
 
 
-def read_tile_from_locations(
-    locations: TileLocations, tiff_image: TiffImage, x: int, y: int
+def read_tile_from_byte_ranges(
+    byte_ranges: TileByteRanges, tiff_image: TiffImage, x: int, y: int
 ) -> bytes | None:
-    """Read tile as a consumer of the locations would, or None if it is to be read
+    """Read tile as a consumer of the byte ranges would, or None if it is to be read
     with `get_tile()`."""
     index = y * tiff_image.tiled_size.width + x
-    length = int(locations.lengths[index])
-    if length == TileLocations.READ_THROUGH_IMAGE:
+    length = int(byte_ranges.lengths[index])
+    if length == TileByteRanges.READ_THROUGH_IMAGE:
         return None
-    return tiff_image.frame_reader.read(int(locations.positions[index]), length)
+    return tiff_image.frame_reader.read(int(byte_ranges.positions[index]), length)
 
 
 def images_of(tiler) -> list[TiffImage]:
@@ -66,7 +66,7 @@ def images_of(tiler) -> list[TiffImage]:
 
 
 @pytest.mark.unittest
-class TestTileLocations:
+class TestTileByteRanges:
     @pytest.mark.parametrize(
         "file_path",
         [
@@ -87,7 +87,7 @@ class TestTileLocations:
             argos_file_path,
         ],
     )
-    def test_tile_read_from_locations_is_tile_from_get_tile(self, file_path: Path):
+    def test_tile_read_from_byte_ranges_is_tile_from_get_tile(self, file_path: Path):
         # Arrange
         if not file_path.exists():
             pytest.skip(f"{file_path} test file not found, skipping")
@@ -97,14 +97,14 @@ class TestTileLocations:
 
             # Act
             for tiff_image in images_of(tiler):
-                locations = tiff_image.tile_locations
-                if locations is None:
+                byte_ranges = tiff_image.tile_byte_ranges
+                if byte_ranges is None:
                     continue
                 tiled_size = tiff_image.tiled_size
                 step = max(1, tiled_size.area // MAX_TILES_CHECKED)
                 for index in range(0, tiled_size.area, step):
                     x, y = index % tiled_size.width, index // tiled_size.width
-                    tile = read_tile_from_locations(locations, tiff_image, x, y)
+                    tile = read_tile_from_byte_ranges(byte_ranges, tiff_image, x, y)
                     if tile is None:
                         continue
                     checked += 1
@@ -114,18 +114,18 @@ class TestTileLocations:
         # Assert
         assert mismatches == []
         if checked == 0:
-            pytest.skip(f"No image of {file_path.name} has tile locations")
+            pytest.skip(f"No image of {file_path.name} has tile byte ranges")
 
-    def test_levels_that_are_assembled_have_no_tile_locations(self):
+    def test_levels_that_are_assembled_have_no_tile_byte_ranges(self):
         # Arrange
         if not ndpi_file_path.exists():
             pytest.skip(f"{ndpi_file_path} test file not found, skipping")
         with OpenTile.open(ndpi_file_path) as tiler:
             # Act
-            locations = [level.tile_locations for level in tiler.levels]
+            byte_ranges = [level.tile_byte_ranges for level in tiler.levels]
 
         # Assert
-        assert all(location is None for location in locations)
+        assert all(byte_range is None for byte_range in byte_ranges)
 
     @pytest.mark.parametrize(
         "file_path",
@@ -136,11 +136,11 @@ class TestTileLocations:
             ventana_1_file_path,
         ],
     )
-    def test_levels_with_overlap_have_tile_locations_of_stored_tiles(
+    def test_levels_with_overlap_have_tile_byte_ranges_of_stored_tiles(
         self, file_path: Path
     ):
         """The tiles of a level with an overlap are served as stored, to be composed
-        by the consumer, and so have locations like any other stored tile."""
+        by the consumer, and so have byte ranges like any other stored tile."""
         # Arrange
         if not file_path.exists():
             pytest.skip(f"{file_path} test file not found, skipping")
@@ -148,11 +148,11 @@ class TestTileLocations:
             levels = [level for level in tiler.levels if level.overlap is not None]
 
             # Act
-            locations = [level.tile_locations for level in levels]
+            byte_ranges = [level.tile_byte_ranges for level in levels]
 
         # Assert
         assert levels != []
-        assert all(location is not None for location in locations)
+        assert all(byte_range is not None for byte_range in byte_ranges)
 
     @pytest.mark.parametrize(
         "file_path",
@@ -169,7 +169,7 @@ class TestTileLocations:
         ],
     )
     def test_frame_indices_of_tiles_are_frame_index_of_each_tile(self, file_path: Path):
-        """The array form of the frame index of each tile, which the locations are
+        """The array form of the frame index of each tile, which the byte ranges are
         made from, is the frame index `get_tile()` reads, also where a format maps
         tiles to frames its own way (e.g. the label of Leica scn)."""
         # Arrange
@@ -207,27 +207,27 @@ class TestTileLocations:
         bytecounts = [10, 0, 3, 10]
 
         # Act
-        locations = TileLocations.from_frames(
+        byte_ranges = TileByteRanges.from_frames(
             frame_indices, offsets, bytecounts, minimum_length=4, read_through=[3]
         )
 
         # Assert
-        read_through = TileLocations.READ_THROUGH_IMAGE
-        assert locations.lengths.tolist() == [10] + [read_through] * 4
-        assert locations.positions[0] == 100
+        read_through = TileByteRanges.READ_THROUGH_IMAGE
+        assert byte_ranges.lengths.tolist() == [10] + [read_through] * 4
+        assert byte_ranges.positions[0] == 100
 
     def test_from_frames_takes_frame_of_each_tile(self):
         # Arrange - tiles in another order than their frames.
         frame_indices = np.array([2, 0, 1], dtype=np.int64)
 
         # Act
-        locations = TileLocations.from_frames(
+        byte_ranges = TileByteRanges.from_frames(
             frame_indices, [100, 200, 300], [1, 2, 3], minimum_length=1, read_through=[]
         )
 
         # Assert
-        assert locations.positions.tolist() == [300, 100, 200]
-        assert locations.lengths.tolist() == [3, 1, 2]
+        assert byte_ranges.positions.tolist() == [300, 100, 200]
+        assert byte_ranges.lengths.tolist() == [3, 1, 2]
 
     def test_arrays_are_made_read_only(self):
         """Consumers may hold views of the arrays rather than copies, so they are
@@ -237,11 +237,11 @@ class TestTileLocations:
         lengths = np.full(4, 10, dtype=np.int64)
 
         # Act
-        locations = TileLocations(positions, lengths)
+        byte_ranges = TileByteRanges(positions, lengths)
 
         # Assert
-        assert not locations.positions.flags.writeable
-        assert not locations.lengths.flags.writeable
+        assert not byte_ranges.positions.flags.writeable
+        assert not byte_ranges.lengths.flags.writeable
 
     def test_svs_tile_read_at_location_has_jpeg_tables_added(self):
         """The svs level stores abbreviated jpeg tiles, read complete with the jpeg
@@ -251,9 +251,12 @@ class TestTileLocations:
             pytest.skip(f"{svs_file_path} test file not found, skipping")
         with OpenTile.open(svs_file_path) as tiler:
             level = tiler.get_level(0)
-            locations = level.tile_locations
-            assert locations is not None
-            position, length = int(locations.positions[0]), int(locations.lengths[0])
+            byte_ranges = level.tile_byte_ranges
+            assert byte_ranges is not None
+            position, length = (
+                int(byte_ranges.positions[0]),
+                int(byte_ranges.lengths[0]),
+            )
 
             # Act
             tile = level.frame_reader.read(position, length)
