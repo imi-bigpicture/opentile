@@ -16,6 +16,8 @@
 
 from typing import Optional
 
+import numpy as np
+from numpy.typing import NDArray
 from tifffile import COMPRESSION, TiffPage
 
 from opentile.file import OpenTileFile
@@ -73,3 +75,8 @@ class LeicaScnLabelImage(NativeTiledTiffImage, AssociatedTiffImage):
         return (
             tile_point.y + self._tile_row_offset
         ) * self.tiled_size.width + tile_point.x
+
+    def _tile_frame_indices(self) -> NDArray[np.int64]:
+        return super()._tile_frame_indices() + (
+            self._tile_row_offset * self.tiled_size.width
+        )

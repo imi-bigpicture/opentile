@@ -23,8 +23,7 @@ from tifffile import PHOTOMETRIC, TiffPage
 from opentile.formats import PhilipsTiffTiler
 from opentile.geometry import SizeMm
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import philips_file_path
+from tests.filepaths import philips_file_path
 
 
 @pytest.fixture()

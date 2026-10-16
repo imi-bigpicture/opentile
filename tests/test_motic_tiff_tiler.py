@@ -18,8 +18,7 @@ from opentile.formats import MoticTiffTiler
 from opentile.geometry import Size, SizeMm
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import motic_file_path
+from tests.filepaths import motic_file_path
 
 
 @pytest.fixture()

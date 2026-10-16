@@ -12,13 +12,16 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from collections.abc import Iterator
+from pathlib import Path
+
 import numpy as np
 import pytest
-from decoy import Decoy
+from decoy import Decoy, matchers
 from imagecodecs import jpeg8_decode
 from tifffile import COMPRESSION, TiffPage
 
-from opentile.file import OpenTileFile
+from opentile.file import FileHandlePool, LocalFileReader, OpenTileFile
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.jpeg.jpeg import find_turbojpeg_path
@@ -56,9 +59,14 @@ def frame():
 
 
 @pytest.fixture()
-def level(decoy: Decoy, frame: bytes):
+def level(
+    decoy: Decoy, frame: bytes, tmp_path: Path
+) -> Iterator[SparseTiledLevelImage]:
     """A level of two tiles, where (0, 0) is stored and (1, 0) is sparse."""
     tables, abbreviated = _split_tables_and_frame(frame)
+    path = tmp_path.joinpath("frames.bin")
+    path.write_bytes(abbreviated)
+    reader = LocalFileReader(FileHandlePool(str(path), 1))
     page = decoy.mock(cls=TiffPage)
     decoy.when(page.compression).then_return(COMPRESSION.JPEG)
     decoy.when(page.imagewidth).then_return(4096)
@@ -69,10 +77,11 @@ def level(decoy: Decoy, frame: bytes):
     decoy.when(page.jpegtables).then_return(tables)
     decoy.when(page.dataoffsets).then_return((0, 0))
     decoy.when(page.databytecounts).then_return((len(abbreviated), 0))
+    # The file holds the stored tile.
     file = decoy.mock(cls=OpenTileFile)
-    decoy.when(file.read(0, len(abbreviated))).then_return(abbreviated)
-    decoy.when(file.read_multiple([(0, len(abbreviated))])).then_return([abbreviated])
-    decoy.when(file.read_multiple([])).then_return([])
+    decoy.when(file.frame_reader).then_return(reader)
+    decoy.when(file.read(matchers.Anything(), matchers.Anything())).then_do(reader.read)
+    decoy.when(file.read_multiple(matchers.Anything())).then_do(reader.read_multiple)
     yield SparseTiledLevelImage(
         page,
         file,
@@ -80,6 +89,7 @@ def level(decoy: Decoy, frame: bytes):
         SizeMm(0.25, 0.25),
         Jpeg(find_turbojpeg_path()),
     )
+    reader.close()
 
 
 @pytest.mark.unittest
