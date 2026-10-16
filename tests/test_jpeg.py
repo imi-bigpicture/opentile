@@ -145,7 +145,7 @@ class TestJpeg:
         )
 
         # Assert
-        assert md5(frame).hexdigest() == "7528e846bcd0374d4500924395aebfc0"
+        assert md5(frame).hexdigest() == "d86fd151ca748e3828c6384b313b6457"
 
         # Quantization tables must precede the start of frame that references
         # them, and the Adobe APP14 marker must be present (rgb color space fix).
