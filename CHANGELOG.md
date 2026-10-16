@@ -9,20 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `TiffImage.tile_locations`: the position and length in the file of each tile, to read a tile as `get_tile()` serves it with a single read. Tiles not served as stored (sparse tiles, corrupt svs edge tiles) are marked to be read with `get_tile()`. None where tiles are assembled (ndpi jpeg levels); for a level with an `overlap`, the locations of its stored tiles. Natively tiled images use them in `get_tile()` and `get_tiles()`.
-- `TiffImage.frame_reader`, which puts the jpeg tables of the page in place of the abbreviated header of each frame read, `OpenTileFile.frame_reader` and `FrameReader.with_prefix()`.
+- `TiffImage.tile_locations`, the position and length in the file of each tile, and `TiffImage.frame_reader`, to read a tile as `get_tile()` serves it with a single read. None where tiles are assembled (ndpi jpeg levels).
 - `Settings.max_file_handles_per_file` (default 8), the most handles open to a local file at once. A read beyond waits for a handle.
 
 ### Changed
 
-- `FileHandlePool` holds the handles of a file, shared by the readers of its pages, and takes the most handles to open; `open_handle()` is replaced by `open_or_wait()`. `LocalFileReader` takes a pool.
-- Local files are opened without `O_SEQUENTIAL`, which made reading the tiles of a view slower.
-- The jpeg tables header of a page is found once, from its first stored tile.
-- `tiled_size` is computed once rather than on every access.
+- Faster reading of tiles from local files.
 
 ### Fixed
 
-- `LocalFileReader` reads on after a short read (e.g. on a network drive), and reading from a closed `FileHandlePool` raises rather than opening a handle that is never closed.
+- Reading tiles from a network drive could return a truncated tile.
 
 ## [0.26.0] - 2026-09-28
 
