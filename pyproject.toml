@@ -84,6 +84,7 @@ ignore = ["S101"]
 ome = "ome"  # OME-TIFF format / ome-types package
 siz = "siz"  # JPEG 2000 SIZ marker
 subtile = "subtile"  # a (sub-)tile
+writeable = "writeable"  # numpy array flag
 
 [tool.typos.default.extend-identifiers]
 APPn = "APPn"  # JPEG application marker segments (APP0..APP15)
