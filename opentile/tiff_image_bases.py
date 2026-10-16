@@ -196,8 +196,8 @@ class BaseTiffImage(TiffImage):
 
     @cached_property
     def _tiled_size(self) -> Size:
-        """Computed once, as it is asked for on every tile read and the image and
-        tile sizes do not change."""
+        """Computed once, because it is used on every tile read and the image and tile
+        sizes do not change."""
         if self.tile_size == Size(0, 0):
             return Size(1, 1)
         return self.image_size.ceil_div(self.tile_size)
@@ -341,8 +341,8 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
         self._jpeg_tables = page.jpegtables
 
     def get_tile(self, tile_position: tuple[int, int]) -> bytes:
-        """Read a tile with a single read at its byte range when it has one, otherwise
-        as the frame of the page it is stored in."""
+        """Read a tile with a single read at its byte range if it has one. Otherwise
+        read it as the frame of the page it is stored in."""
         tile_point = self._validated_tile_point(tile_position)
         lookup = self._tile_lookup
         if lookup is not None:
@@ -354,8 +354,8 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
         return self._read_tile_frame(self._tile_point_to_frame_index(tile_point))
 
     def get_tiles(self, tile_positions: Sequence[tuple[int, int]]) -> Iterator[bytes]:
-        """Read tiles as `get_tile()`, reading those that have a byte range in one
-        batch, in which reads of tiles stored next to each other are joined."""
+        """Read tiles as `get_tile()` does. Tiles that have a byte range are read in one
+        batch, which joins the reads of tiles stored next to each other."""
         tile_points = [
             self._validated_tile_point(tile_position)
             for tile_position in tile_positions
@@ -400,10 +400,10 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
     def _tile_lookup(
         self,
     ) -> Optional[tuple[memoryview, memoryview]]:
-        """The positions and lengths of the tile byte ranges, for reading a tile.
-        Memoryviews of the arrays, as an item of a memoryview is a plain int got
-        several times faster than one of an array, and unlike a list it shares the
-        memory of the array."""
+        """The positions and lengths of the tile byte ranges, for reading a tile. They
+        are memoryviews of the arrays. An item of a memoryview is a plain int, and is
+        got several times faster than an item of an array. Unlike a list, a memoryview
+        shares the memory of the array."""
         byte_ranges = self.tile_byte_ranges
         if byte_ranges is None:
             return None
@@ -411,13 +411,13 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
 
     @property
     def frame_reader(self) -> FrameReader:
-        """The reader of the file, which for a page with jpeg tables prepends the
-        tables to every frame read, in place of the abbreviated header stored."""
+        """The reader of the file. For a page with jpeg tables, it puts the tables in
+        place of the abbreviated header of every frame read."""
         return self._tile_frame_reader
 
     @cached_property
     def _tile_frame_reader(self) -> FrameReader:
-        """Made when first asked for, as it may read a tile to find the prefix."""
+        """Made when first used, because it may read a tile to find the prefix."""
         reader = self._file.frame_reader
         prefix_and_scan_offset = self._jpeg_prefix_and_scan_offset
         if prefix_and_scan_offset is None:
@@ -427,12 +427,13 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
 
     @cached_property
     def _jpeg_prefix_and_scan_offset(self) -> Optional[tuple[bytes, int]]:
-        """The header with the jpeg tables of the page (and, for svs, the rgb color
-        space fix) that goes before the scan of every tile, and where the scan of a
-        stored tile starts, which is the same for every tile of the page. Found from
-        the first stored tile when first asked for, and the one place they are found
-        for the page. None if the page has no jpeg tables, or no stored tile to find
-        them from."""
+        """The header that goes before the scan of every tile, and where the scan of a
+        stored tile starts. The header holds the jpeg tables of the page (and, for svs,
+        the rgb color space fix). Both are the same for every tile of the page.
+
+        They are found from the first stored tile when first used. This is the only
+        place they are found for the page. None if the page has no jpeg tables or no
+        stored tile."""
         if not self._jpeg_tables:
             return None
         first_stored = next(
@@ -480,8 +481,8 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
             prefix_and_scan_offset = self._jpeg_prefix_and_scan_offset
             if prefix_and_scan_offset is None:
                 return None
-            # A frame too short to hold the header the frame reader skips is not an
-            # abbreviated jpeg to read so.
+            # A frame shorter than the header that the frame reader skips is not an
+            # abbreviated jpeg, and is not read that way.
             _, scan_offset = prefix_and_scan_offset
             minimum_length = scan_offset + 1
         width = self.tiled_size.width
@@ -497,22 +498,22 @@ class NativeTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
         )
 
     def _tile_frame_indices(self) -> NDArray[np.int64]:
-        """Index of the frame of each tile, in row-major order of the tiles; the
-        array form of `_tile_point_to_frame_index()`."""
+        """Index of the frame of each tile, in row-major order. This is the array form
+        of `_tile_point_to_frame_index()`."""
         return np.arange(self.tiled_size.area, dtype=np.int64)
 
     def _tiles_read_through_image(self) -> Iterator[Point]:
-        """Tiles that `get_tile()` serves as something else than their stored bytes,
-        apart from the ones that are not stored."""
+        """Tiles that `get_tile()` serves as something other than their stored bytes.
+        Tiles that are not stored are left out."""
         return iter(())
 
     def _add_jpeg_tables(self, tile: bytes, tables: bytes) -> bytes:
-        """Prepend the page's jpeg tables (and, for svs, the rgb color space fix) to an
-        abbreviated jpeg tile, with the prefix of the page (see
-        `_jpeg_prefix_and_scan_offset`). Only called when the page has jpeg tables."""
+        """Put the prefix of the page (see `_jpeg_prefix_and_scan_offset`) before an
+        abbreviated jpeg tile. The prefix holds the jpeg tables of the page (and, for
+        svs, the rgb color space fix). Only called when the page has jpeg tables."""
         prefix_and_scan_offset = self._jpeg_prefix_and_scan_offset
         if prefix_and_scan_offset is None:
-            # No stored tile of the page to have found it from, so from this one.
+            # The page has no stored tile to find it from, so find it from this one.
             prefix_and_scan_offset = Jpeg.calculate_prefix_and_scan_offset(
                 tile, tables, self._add_rgb_colorspace_fix
             )

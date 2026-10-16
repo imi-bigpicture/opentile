@@ -32,20 +32,20 @@ from upath import UPath
 
 from opentile.config import get_settings
 
-# Local files are opened without an access hint (such as O_SEQUENTIAL or O_RANDOM
-# on Windows), leaving read-ahead to the operating system, which detects the short
-# sequential runs of tiles read by a viewer as well as the full rows read by a
-# converter. Read cold, O_SEQUENTIAL read all tiles in order no faster and the
-# tiles of a view slower, and O_RANDOM was slower for both.
+# Local files are opened without an access hint (such as O_SEQUENTIAL or O_RANDOM on
+# Windows). Read-ahead is left to the operating system, which detects both the short
+# sequential runs of tiles read by a viewer and the full rows read by a converter. Read
+# cold, O_SEQUENTIAL did not make reading all tiles in order faster, and made reading
+# the tiles of a view slower. O_RANDOM was slower for both.
 _READ_FLAGS = os.O_RDONLY | getattr(os, "O_BINARY", 0)
 
 
 class FrameReader(ABC):
-    """Reads frames at absolute offsets of a file, ready to serve.
+    """Reads frames at absolute offsets of a file, ready to serve. Is thread safe.
 
-    A reader can prepend a prefix to every frame it reads, in place of the start of
-    the frame as stored (see `with_prefix()`), e.g. to make a complete jpeg of an
-    abbreviated one stored in a tiff page with jpeg tables. Is thread safe."""
+    A reader can replace the start of every frame it reads with a prefix (see
+    `with_prefix()`). This makes, for example, a complete jpeg of an abbreviated one
+    stored in a tiff page with jpeg tables."""
 
     @abstractmethod
     def read(self, offset: int, bytecount: int) -> bytes:
@@ -59,8 +59,8 @@ class FrameReader(ABC):
 
     @abstractmethod
     def with_prefix(self, prefix: bytes, skip: int) -> "FrameReader":
-        """Return a reader of the same file, sharing its resources, that reads a
-        frame without its first `skip` bytes and with `prefix` before it.
+        """Return a reader of the same file that shares its resources. The reader leaves
+        out the first `skip` bytes of every frame, and puts `prefix` before it.
 
         Parameters
         ----------
@@ -81,16 +81,17 @@ class FrameReader(ABC):
 
 
 class FileHandlePool:
-    """A pool of reusable raw file handles for a single path. `acquire()` hands
-    out a free handle, opening a new one only when none is free, so the number of
-    open handles tracks peak concurrency rather than total callers, up to
-    `max_handles`. With that many open, a caller waits for a handle to be returned,
-    so that many threads reading a slide of many files do not open a handle each
-    for every file.
+    """A pool of reusable raw file handles for a single path.
 
-    A reader reading many small frames takes and returns handles through
-    `available` and `open_or_wait()` itself, rather than through `acquire()`, as the
-    generator of a context manager costs a noticeable part of such a read."""
+    `acquire()` hands out a free handle, and opens a new one only when none is free. The
+    number of open handles then tracks peak concurrency rather than total callers, up to
+    `max_handles`. When that many are open, a caller waits for a handle to be returned.
+    This keeps many threads reading a slide of many files from opening one handle each
+    to every file.
+
+    A reader of many small frames takes and returns handles with `available` and
+    `open_or_wait()` directly instead of `acquire()`. The generator of a context manager
+    costs a noticeable part of such a read."""
 
     def __init__(self, path: str, max_handles: int) -> None:
         """
@@ -115,7 +116,7 @@ class FileHandlePool:
 
     @property
     def available(self) -> "queue.SimpleQueue[BinaryIO]":
-        """Handles free to take. A handle taken is to be put back when done with."""
+        """Handles free to take. Put a taken handle back when done."""
         return self._available
 
     @property
@@ -138,13 +139,13 @@ class FileHandlePool:
             self._available.put(handle)
 
     def open_or_wait(self) -> BinaryIO:
-        """Open a new handle, to be closed with the pool, or, if `max_handles` are
-        open, wait for one of them to be returned. For use when no handle is
-        available; the handle is to be put in `available` when done with.
+        """Open a new handle, which the pool closes when it is closed. If `max_handles`
+        are already open, wait for one of them to be returned instead.
 
-        Raises ValueError if the pool is closed, rather than opening a handle that
-        nothing would close. A caller waiting when the pool is closed gets a closed
-        handle, and so raises when reading with it."""
+        Use this when no handle is available, and put the handle in `available` when
+        done. Raises ValueError if the pool is closed, instead of opening a handle that
+        nothing would close. A caller that is waiting when the pool closes gets a closed
+        handle, and raises when reading with it."""
         with self._lock:
             if self._closed:
                 raise ValueError(f"{self} is closed.")
@@ -156,8 +157,8 @@ class FileHandlePool:
         return self._available.get()
 
     def close(self) -> None:
-        """Close the handles of the pool. A handle taken before is closed too, so a
-        read with it after raises."""
+        """Close the handles of the pool. Handles that are taken are closed too, so
+        reading with one afterwards raises."""
         with self._lock:
             self._closed = True
             handles, self._handles = self._handles, []
@@ -200,8 +201,8 @@ class LocalFileReader(FrameReader):
         data = handle.read(bytecount)
         if len(data) == bytecount:
             return data
-        # An unbuffered read returns what one system call gives, which may be less
-        # than asked for without the file having ended (e.g. on a network drive).
+        # An unbuffered read returns what one system call gives. That may be less than
+        # asked for even if the file has not ended (e.g. on a network drive).
         parts = [data]
         remaining = bytecount - len(data)
         while remaining > 0:
@@ -213,7 +214,7 @@ class LocalFileReader(FrameReader):
         return b"".join(parts)
 
     def read(self, offset: int, bytecount: int) -> bytes:
-        # Takes and returns the handle itself rather than with `acquire()`, see
+        # Takes and returns the handle directly instead of with `acquire()`. See
         # `FileHandlePool`.
         try:
             handle = self._available.get_nowait()
@@ -405,7 +406,7 @@ class OpenTileFile:
 
     @property
     def frame_reader(self) -> FrameReader:
-        """Return the reader frames are read from the file with. Is thread safe."""
+        """Return the reader of the frames of the file. Is thread safe."""
         return self._frame_reader
 
     def read(self, offset: int, bytecount: int) -> bytes:
