@@ -20,8 +20,7 @@ from tifffile import COMPRESSION, PHOTOMETRIC, TiffFile
 
 from opentile.formats import QptiffTiler
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import qptiff_file_path, qptiff_fluorescence_file_path
+from tests.filepaths import qptiff_file_path, qptiff_fluorescence_file_path
 
 
 @pytest.mark.unittest

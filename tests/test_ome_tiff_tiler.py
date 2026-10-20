@@ -26,8 +26,7 @@ from opentile.formats import OmeTiffTiler
 from opentile.formats.ome.ome_tiff_image import OmeTiffStripedImage
 from opentile.geometry import Size, SizeMm
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import ome_tiff_file_path
+from tests.filepaths import ome_tiff_file_path
 
 
 @pytest.fixture()

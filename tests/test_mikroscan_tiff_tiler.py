@@ -18,8 +18,7 @@ from opentile.formats import MikroscanTiffTiler
 from opentile.geometry import Size, SizeMm
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import mikroscan_file_path
+from tests.filepaths import mikroscan_file_path
 
 
 @pytest.fixture()
