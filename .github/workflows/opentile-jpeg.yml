@@ -111,5 +111,5 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.2
       - run: uv publish  # trusted publishing; no token needed in CI
