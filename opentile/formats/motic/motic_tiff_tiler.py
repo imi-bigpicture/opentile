@@ -23,7 +23,6 @@ from upath import UPath
 from opentile.file import OpenTileFile
 from opentile.formats.motic.motic_tiff_metadata import MoticTiffMetadata
 from opentile.geometry import SizeMm
-from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
@@ -40,7 +39,6 @@ class MoticTiffTiler(Tiler):
     def __init__(
         self,
         file: Union[str, Path, UPath, OpenTileFile],
-        turbo_path: Optional[Union[str, Path]] = None,
         file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for Motic tiff file.
@@ -49,13 +47,10 @@ class MoticTiffTiler(Tiler):
         ----------
         file: Union[str, Path, UPath, OpenTileFile]
             Filepath to a Motic TiffFile or an opened Motic OpenTileFile.
-        turbo_path: Optional[Union[str, Path]] = None
-            Path to turbojpeg (dll or so), used for the jpeg associated images.
         file_options: Optional[Dict[str, Any]] = None
             Options to pass to filesystem when opening file.
         """
         super().__init__(file, file_options)
-        self._jpeg = Jpeg(turbo_path)
         self._metadata = MoticTiffMetadata(self._base_page)
         self._base_mpp = SizeMm(self._metadata.mpp, self._metadata.mpp)
 
@@ -94,7 +89,6 @@ class MoticTiffTiler(Tiler):
         return StripedAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
-            self._jpeg,
         )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
@@ -104,7 +98,6 @@ class MoticTiffTiler(Tiler):
             self._file,
             self._base_size,
             self._base_mpp,
-            self._jpeg,
         )
 
     def _is_level_series(self, series: TiffPageSeries) -> bool:

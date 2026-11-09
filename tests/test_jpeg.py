@@ -14,27 +14,26 @@
 
 import os
 from hashlib import md5
+from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
+import opentile_jpeg
 import pytest
 from imagecodecs import JPEG8, jpeg8_decode, jpeg8_encode
+from PIL import Image
 from tifffile import TiffFile, TiffPage
 
 from opentile.geometry import Size
 from opentile.jpeg import Jpeg, JpegProcess
-from opentile.jpeg.jpeg import JpegTagNotFound, find_turbojpeg_path
+from opentile.jpeg.jpeg import JpegTagNotFound
 
 test_data_dir = os.environ.get("OPENTILE_TESTDIR", "tests/testdata")
 slide_folder = Path(test_data_dir).joinpath("slides")
 ndpi_file_path = slide_folder.joinpath("ndpi/CMU-1/CMU-1.ndpi")
 svs_file_path = slide_folder.joinpath("svs/CMU-1/CMU-1.svs")
-
-
-@pytest.fixture()
-def jpeg():
-    yield Jpeg(find_turbojpeg_path())
+frame_file_path = "tests/testdata/turbojpeg/frame_2048x512.jpg"
 
 
 @pytest.fixture()
@@ -104,25 +103,19 @@ class TestJpeg:
     def test_update_header(self, ndpi_header: bytes):
         # Arrange
         target_size = Size(512, 200)
-        jpeg = Jpeg()
 
         # Act
         updated_header = Jpeg.manipulate_header(ndpi_header, target_size)
 
         # Assert
-        stripe_width, stripe_height, _, _ = jpeg._turbo_jpeg.decode_header(
-            updated_header
-        )
-        assert target_size == Size(stripe_width, stripe_height)
+        header = opentile_jpeg.header(updated_header)
+        assert target_size == Size(header.width, header.height)
 
     def test_concatenate_fragments(
         self, ndpi_tiff: TiffFile, ndpi_level: TiffPage, ndpi_header: bytes
     ):
-        # Arrange
-        jpeg = Jpeg()
-
         # Act
-        frame = jpeg.concatenate_fragments(
+        frame = Jpeg.concatenate_fragments(
             (self.read_frame(ndpi_tiff, ndpi_level, index) for index in range(10)),
             ndpi_header,
         )
@@ -131,11 +124,8 @@ class TestJpeg:
         assert md5(frame).hexdigest() == "ea40e78b081c42a6aabf8da81f976f11"
 
     def test_concatenate_scans(self, svs_tiff: TiffFile, svs_overview: TiffPage):
-        # Arrange
-        jpeg = Jpeg()
-
         # Act
-        frame = jpeg.concatenate_scans(
+        frame = Jpeg.concatenate_scans(
             (
                 self.read_frame(svs_tiff, svs_overview, index)
                 for index in range(len(svs_overview.databytecounts))
@@ -173,7 +163,6 @@ class TestJpeg:
         interval being written when the scan width is not a multiple of the mcu
         size, corrupting e.g. odd-width svs thumbnails."""
         # Arrange
-        jpeg = Jpeg()
         strip_height = 16  # rows per strip, matching striped svs images
         strip_count = 3  # >= 2 so restart markers are inserted between strips
         # Fill each pixel from its coordinates (a ramp that wraps at 256).
@@ -195,19 +184,32 @@ class TestJpeg:
         expected = np.concatenate([jpeg8_decode(scan) for scan in scans], axis=0)
 
         # Act
-        frame = jpeg.concatenate_scans(iter(scans), None, False)
+        frame = Jpeg.concatenate_scans(iter(scans), None, False)
 
         # Assert
         assert np.array_equal(jpeg8_decode(frame), expected)
 
-    def test_code_short(self):
+    @pytest.mark.parametrize(
+        ["luminance", "expected_value"], [(0.0, 0), (0.5, 128), (1.0, 255)]
+    )
+    def test_fill_frame(self, luminance: float, expected_value: int):
         # Arrange
-        jpeg = Jpeg()
+        with open(frame_file_path, "rb") as file:
+            frame = file.read()
 
         # Act
+        filled = Jpeg.fill_frame(frame, luminance)
 
-        #
-        assert jpeg.code_short(6) == bytes([0x00, 0x06])
+        # Assert
+        pixels = np.asarray(Image.open(BytesIO(filled)).convert("L"))
+        assert (pixels == expected_value).all()
+
+    def test_code_short(self):
+        # Act
+        code = Jpeg.code_short(6)
+
+        # Assert
+        assert code == bytes([0x00, 0x06])
 
 
 def _jpeg_header(
@@ -410,7 +412,7 @@ class TestJpegMalformedInput:
         else:
             assert index == 4
 
-    def test_concatenate_fragments_rejects_stuffed_byte(self, jpeg: Jpeg):
+    def test_concatenate_fragments_rejects_stuffed_byte(self):
         # Arrange
         # A fragment ending in a stuffed 0xFF00 is scan data, not a restart
         # marker. The check compared an int to bytes and so never rejected it.
@@ -418,22 +420,22 @@ class TestJpegMalformedInput:
 
         # Act, Assert
         with pytest.raises(JpegTagNotFound):
-            jpeg.concatenate_fragments(fragments, bytes([0xFF, 0xD8]))
+            Jpeg.concatenate_fragments(fragments, bytes([0xFF, 0xD8]))
 
-    def test_concatenate_fragments_rejects_short_fragment(self, jpeg: Jpeg):
+    def test_concatenate_fragments_rejects_short_fragment(self):
         # Arrange
         fragments = iter([bytes([0xFF])])
 
         # Act, Assert
         with pytest.raises(JpegTagNotFound):
-            jpeg.concatenate_fragments(fragments, bytes([0xFF, 0xD8]))
+            Jpeg.concatenate_fragments(fragments, bytes([0xFF, 0xD8]))
 
-    def test_concatenate_fragments_accepts_restart_marker(self, jpeg: Jpeg):
+    def test_concatenate_fragments_accepts_restart_marker(self):
         # Arrange
         fragments = iter([bytes([0x01, 0x02, 0xFF, 0xD0])])
 
         # Act
-        frame = jpeg.concatenate_fragments(fragments, bytes([0xFF, 0xD8]))
+        frame = Jpeg.concatenate_fragments(fragments, bytes([0xFF, 0xD8]))
 
         # Assert
         assert frame.endswith(Jpeg.end_of_image())

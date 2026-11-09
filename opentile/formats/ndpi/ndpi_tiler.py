@@ -33,7 +33,6 @@ from opentile.formats.ndpi.ndpi_image import (
 )
 from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.geometry import Size, SizeMm
-from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
@@ -45,7 +44,6 @@ class NdpiTiler(Tiler):
         self,
         file: Union[str, Path, UPath, OpenTileFile],
         tile_size: int,
-        turbo_path: Optional[Union[str, Path]] = None,
         label_crop_position: float = 0.3,
         file_options: Optional[dict[str, Any]] = None,
     ):
@@ -60,8 +58,6 @@ class NdpiTiler(Tiler):
             Tile size to cache and produce. Must be multiple of 8 and will be
             adjusted to be an even multiplier or divider of the smallest strip
             width in the file.
-        turbo_path: Optional[Union[str, Path]] = None
-            Path to turbojpeg (dll or so).
         label_crop_position: float = 0.3
             The position (relative to the image width) to use for cropping out
             the label and overview image from the macro image.
@@ -76,7 +72,6 @@ class NdpiTiler(Tiler):
         )
         if self._tile_size.width % 8 != 0 or self._tile_size.height % 8 != 0:
             raise ValueError(f"Tile size {self._tile_size} not divisible by 8")
-        self._jpeg = Jpeg(turbo_path)
         self._metadata = NdpiMetadata(self._base_page)
         self._label_crop_position = label_crop_position
         # Label is cropped out from the overview image
@@ -199,26 +194,24 @@ class NdpiTiler(Tiler):
             return NdpiJpegXrImage(tiff_page, self._file, self._base_mpp, scale)
         if tiff_page.is_tiled:  # Striped ndpi page
             return NdpiStripedImage(
-                tiff_page, self._file, self._base_size, self._tile_size, self._jpeg
+                tiff_page, self._file, self._base_size, self._tile_size
             )
         # Single frame, force tiling
         return NdpiOneFrameImage(
-            tiff_page, self._file, self._base_size, self._tile_size, self._jpeg
+            tiff_page, self._file, self._base_size, self._tile_size
         )
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
         assert self._overview_series_index is not None
         tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
-        return NdpiLabelImage(
-            tiff_page, self._file, self._jpeg, (0.0, self._label_crop_position)
-        )
+        return NdpiLabelImage(tiff_page, self._file, (0.0, self._label_crop_position))
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
         assert self._overview_series_index is not None
         tiff_page = self._file.series[self._overview_series_index].pages.pages[page]
         assert isinstance(tiff_page, TiffPage)
-        return NdpiOverviewImage(tiff_page, self._file, self._jpeg)
+        return NdpiOverviewImage(tiff_page, self._file)
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
         raise NotImplementedError()

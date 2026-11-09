@@ -1,8 +1,16 @@
 {
-  "include": ["opentile", "tests"],
+  "include": ["opentile", "tests", "opentile-jpeg/src", "opentile-jpeg/tests"],
   "venvPath": ".",
   "venv": ".venv",
   "pythonVersion": "3.10",
   "reportMissingImports": "error",
-  "reportUnusedImport": "warning"
+  "reportUnusedImport": "warning",
+  "executionEnvironments": [
+    {
+      "root": "opentile-jpeg",
+      "pythonVersion": "3.11",
+      "extraPaths": ["opentile-jpeg/tests"],
+      "reportMissingModuleSource": "none"
+    }
+  ]
 }

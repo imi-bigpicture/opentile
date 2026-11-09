@@ -25,7 +25,6 @@ from opentile.file import OpenTileFile
 from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.formats.svs.svs_metadata import SvsMetadata
 from opentile.geometry import SizeMm
-from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
@@ -41,7 +40,6 @@ class SvsTiler(Tiler):
     def __init__(
         self,
         file: Union[str, Path, UPath, OpenTileFile],
-        turbo_path: Optional[Union[str, Path]] = None,
         file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for svs file.
@@ -50,13 +48,10 @@ class SvsTiler(Tiler):
         ----------
         file: Union[str, Path, UPath, OpenTileFile]
             Filepath to a svs TiffFile or an opened svs OpenTileFile.
-        turbo_path: Optional[Union[str, Path]] = None
-            Path to turbojpeg (dll or so).
         file_options: Optional[Dict[str, Any]] = None
             Options to pass to filesystem when opening file.
         """
         super().__init__(file, file_options)
-        self._jpeg = Jpeg(turbo_path)
         if "InterColorProfile" in self._file.pages.first.tags:
             icc_profile = self._file.pages.first.tags["InterColorProfile"].value
             assert isinstance(icc_profile, bytes) or icc_profile is None
@@ -117,7 +112,6 @@ class SvsTiler(Tiler):
         return StripedAssociatedImage(
             self._get_tiff_page(self._overview_series_index, 0, page),
             self._file,
-            self._jpeg,
         )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
@@ -128,5 +122,4 @@ class SvsTiler(Tiler):
             self._file,
             self._base_size,
             self._base_mpp,
-            self._jpeg,
         )

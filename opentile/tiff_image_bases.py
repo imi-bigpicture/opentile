@@ -652,7 +652,6 @@ class SparseTiledLevelImage(NativeTiledTiffImage, LevelTiffImage):
         file: OpenTileFile,
         base_size: Size,
         base_mpp: SizeMm,
-        jpeg: Jpeg,
     ):
         """
         Parameters
@@ -665,11 +664,8 @@ class SparseTiledLevelImage(NativeTiledTiffImage, LevelTiffImage):
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
-        jpeg: Jpeg
-            Jpeg instance to use.
         """
         super().__init__(page, file)
-        self._jpeg = jpeg
         self._base_size = base_size
         self._base_mpp = base_mpp
         self._scale = self._calculate_scale(base_size)
@@ -680,7 +676,7 @@ class SparseTiledLevelImage(NativeTiledTiffImage, LevelTiffImage):
     def __repr__(self) -> str:
         return (
             f"{type(self).__name__}({self._page}, {self._file}, "
-            f"{self._base_size}, {self._base_mpp}, {self._jpeg})"
+            f"{self._base_size}, {self._base_mpp})"
         )
 
     @property
@@ -740,7 +736,7 @@ class SparseTiledLevelImage(NativeTiledTiffImage, LevelTiffImage):
                 tile, self._page.jpegtables, False
             )
             tile = Jpeg.add_jpeg_prefix(prefix, scan_offset, tile)
-        tile = self._jpeg.fill_frame(tile, luminance)
+        tile = Jpeg.fill_frame(tile, luminance)
         return tile
 
     def _is_sparse(self, index: int) -> bool:
@@ -806,7 +802,7 @@ class StripedTiffImage(BaseTiffImage):
     single JPEG scan, other compressions (NONE, LZW) have their strip bytes joined.
     """
 
-    def __init__(self, page: TiffPage, file: OpenTileFile, jpeg: Jpeg):
+    def __init__(self, page: TiffPage, file: OpenTileFile):
         """
         Parameters
         ----------
@@ -814,17 +810,14 @@ class StripedTiffImage(BaseTiffImage):
             TiffPage defining the page.
         file: OpenTileFile
             File to read data from.
-        jpeg: Jpeg
-            Jpeg instance to use.
         """
         add_rgb_colorspace_fix = (
             page.compression == COMPRESSION.JPEG and page.photometric == PHOTOMETRIC.RGB
         )
         super().__init__(page, file, add_rgb_colorspace_fix)
-        self._jpeg = jpeg
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._page}, {self._file}, {self._jpeg}"
+        return f"{type(self).__name__}({self._page}, {self._file}"
 
     @property
     def supported_compressions(self) -> Optional[list[COMPRESSION]]:
@@ -839,7 +832,7 @@ class StripedTiffImage(BaseTiffImage):
         frames = self._read_frames(indices)
         if self.compression != COMPRESSION.JPEG:
             return b"".join(frames)
-        return self._jpeg.concatenate_scans(
+        return Jpeg.concatenate_scans(
             iter(frames), self._page.jpegtables, self._add_rgb_colorspace_fix
         )
 
@@ -858,7 +851,6 @@ class StripedThumbnailImage(StripedTiffImage, ThumbnailTiffImage):
         file: OpenTileFile,
         base_size: Size,
         base_mpp: SizeMm,
-        jpeg: Jpeg,
     ):
         """
         Parameters
@@ -871,10 +863,8 @@ class StripedThumbnailImage(StripedTiffImage, ThumbnailTiffImage):
             Size of the base level in the pyramid.
         base_mpp: SizeMm
             Pixel spacing (um/pixel) of the base level in the pyramid.
-        jpeg: Jpeg
-            Jpeg instance to use.
         """
-        super().__init__(page, file, jpeg)
+        super().__init__(page, file)
         self._base_size = base_size
         self._base_mpp = base_mpp
         self._scale = self._calculate_scale(base_size)

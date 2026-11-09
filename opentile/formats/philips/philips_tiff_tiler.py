@@ -24,7 +24,6 @@ from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.geometry import SizeMm
-from opentile.jpeg import Jpeg
 from opentile.metadata import Metadata
 from opentile.tiff_format import TiffFormat
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
@@ -40,7 +39,6 @@ class PhilipsTiffTiler(Tiler):
     def __init__(
         self,
         file: Union[str, Path, UPath, OpenTileFile],
-        turbo_path: Optional[Union[str, Path]] = None,
         file_options: Optional[dict[str, Any]] = None,
     ):
         """Tiler for Philips tiff file.
@@ -49,13 +47,10 @@ class PhilipsTiffTiler(Tiler):
         ----------
         file: Union[str, Path, UPath, OpenTileFile]
             Filepath to a Philips TiffFile or an opened Philips OpenTileFile.
-        turbo_path: Optional[Union[str, Path]] = None
-            Path to turbojpeg (dll or so).
         file_options: Optional[Dict[str, Any]] = None
             Options to pass to filesystem when opening file.
         """
         super().__init__(file, file_options)
-        self._jpeg = Jpeg(turbo_path)
         self._metadata = PhilipsTiffMetadata(self._file.tiff)
         assert self._metadata.pixel_spacing is not None
         self._base_mpp = SizeMm.from_tuple(self._metadata.pixel_spacing) * 1000.0
@@ -87,7 +82,6 @@ class PhilipsTiffTiler(Tiler):
             self._file,
             self._base_size,
             self._base_mpp,
-            self._jpeg,
         )
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:

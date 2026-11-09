@@ -21,7 +21,6 @@ from tifffile import COMPRESSION, TiffPage
 from opentile.file import OpenTileFile
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import Jpeg
-from opentile.jpeg.jpeg import find_turbojpeg_path
 from opentile.tiff_image_bases import SparseTiledLevelImage
 
 test_file_path = "tests/testdata/turbojpeg/frame_2048x512.jpg"
@@ -78,7 +77,6 @@ def level(decoy: Decoy, frame: bytes):
         file,
         Size(4096, 512),
         SizeMm(0.25, 0.25),
-        Jpeg(find_turbojpeg_path()),
     )
 
 

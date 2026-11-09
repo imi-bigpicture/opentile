@@ -25,7 +25,6 @@ from tifffile import COMPRESSION, TiffPage
 
 from opentile.file import OpenTileFile
 from opentile.geometry import Size, SizeMm
-from opentile.jpeg import Jpeg
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 from opentile.tiff_image_bases import NativeTiledTiffImage, StripedTiffImage
 
@@ -124,7 +123,6 @@ class QptiffStripedLevelImage(QptiffStripedImage, LevelTiffImage):
         file: OpenTileFile,
         base_size: Size,
         base_mpp: SizeMm,
-        jpeg: Jpeg,
         optical_path: str = "1",
     ):
         """
@@ -138,12 +136,10 @@ class QptiffStripedLevelImage(QptiffStripedImage, LevelTiffImage):
             Size of base level in pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) for base level in pyramid.
-        jpeg: Jpeg
-            Jpeg instance to use.
         optical_path: str = "1"
             Identifier of the band this level holds.
         """
-        super().__init__(page, file, jpeg)
+        super().__init__(page, file)
         self._base_size = base_size
         self._base_mpp = base_mpp
         self._scale = self._calculate_scale(base_size)
@@ -181,7 +177,6 @@ class QptiffThumbnailImage(QptiffStripedImage, ThumbnailTiffImage):
         file: OpenTileFile,
         base_size: Size,
         base_mpp: SizeMm,
-        jpeg: Jpeg,
     ):
         """
         Parameters
@@ -194,10 +189,8 @@ class QptiffThumbnailImage(QptiffStripedImage, ThumbnailTiffImage):
             Size of the base level in the pyramid.
         base_mpp: SizeMm
             Mpp (um/pixel) of the base level in the pyramid.
-        jpeg: Jpeg
-            Jpeg instance to use.
         """
-        super().__init__(page, file, jpeg)
+        super().__init__(page, file)
         self._base_size = base_size
         self._base_mpp = base_mpp
         self._scale = self._calculate_scale(base_size)

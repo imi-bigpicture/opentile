@@ -151,7 +151,7 @@ class TestSvsTiler:
         tile = level._get_scaled_tile(Point.from_tuple((0, 0)))
 
         # Assert -- an 8x8 MCU means no chroma subsampling (4:4:4).
-        assert Jpeg().get_mcu(tile) == Size(8, 8)
+        assert Jpeg.get_mcu(tile) == Size(8, 8)
 
     @pytest.mark.parametrize(
         ["tile", "right", "bottom"],

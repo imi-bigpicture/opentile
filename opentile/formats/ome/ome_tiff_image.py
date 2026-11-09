@@ -22,7 +22,6 @@ from tifffile import COMPRESSION, TiffPage
 from opentile.file import OpenTileFile
 from opentile.formats.ndpi.ndpi_tiler import NdpiOneFrameImage
 from opentile.geometry import Size, SizeMm
-from opentile.jpeg import Jpeg
 from opentile.tiff_image import AssociatedTiffImage, LevelTiffImage, ThumbnailTiffImage
 from opentile.tiff_image_bases import (
     BaseTiffImage,
@@ -119,14 +118,12 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage, LevelTiffImage):
         base_mpp: SizeMm,
         focal_plane: float,
         optical_path: str,
-        jpeg: Jpeg,
     ):
-        super().__init__(page, file, base_size, tile_size, jpeg)
+        super().__init__(page, file, base_size, tile_size)
         self._base_mpp = base_mpp
         self._scale = self._calculate_scale(base_size)
         self._pyramid_index = self._calculate_pyramidal_index(self._scale)
         self._mpp = self._calculate_mpp(base_mpp, self._scale)
-        self._jpeg = jpeg
         self._focal_plane = focal_plane
         self._optical_path = optical_path
 
@@ -134,7 +131,7 @@ class OmeTiffOneFrameImage(NdpiOneFrameImage, LevelTiffImage):
         return (
             f"{type(self).__name__}({self._page}, {self._file}, {self._base_size}, "
             f"{self._tile_size}, {self._base_mpp}, {self._focal_plane}, "
-            f"{self._optical_path}, {self._jpeg})"
+            f"{self._optical_path})"
         )
 
     @property
