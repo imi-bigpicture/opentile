@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Lossless JPEG cropping and blank tiles use the new `opentile-jpeg` package (in this repository) instead of PyTurboJPEG. libjpeg-turbo is included in its wheels, so it no longer has to be installed separately.
-- Faster reading of tiles from local files.
+- `get_tile()` and `get_tiles()` read a tile with a single read at its byte range, with the jpeg tables of the page put in place of the abbreviated header, instead of reading the frame and then adding the tables.
 
 ### Removed
 
