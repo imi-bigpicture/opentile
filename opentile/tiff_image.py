@@ -29,9 +29,11 @@ from tifffile import (
 )
 from upath import UPath
 
+from opentile.file import FrameReader
 from opentile.geometry import Size, SizeMm
 from opentile.jpeg import JpegInfo
 from opentile.jpeg2000 import Jpeg2000Info
+from opentile.tile_byte_ranges import TileByteRanges
 from opentile.tile_overlap import TileOverlap
 
 
@@ -51,6 +53,24 @@ class TiffImage(metaclass=ABCMeta):
         this returns a ``TileOverlap`` describing where each stored tile is placed, so a
         consumer can compose (de-overlap and/or stitch) them into the regular grid.
         """
+        return None
+
+    @property
+    @abstractmethod
+    def frame_reader(self) -> FrameReader:
+        """Reader of the frames of the image, ready to serve (for example with the jpeg
+        tables of the page added). Use it to read tiles at their `tile_byte_ranges`. Is
+        thread safe."""
+        raise NotImplementedError()
+
+    @property
+    def tile_byte_ranges(self) -> Optional[TileByteRanges]:
+        """Where the tiles are stored in the file. None if `get_tile()` does more than
+        read a tile with the `frame_reader`, for example because tiles are assembled
+        from what is stored, or decoded and re-encoded.
+
+        The tiles are those that `get_tile()` serves. When `overlap` is not None, they
+        are the stored tiles, which are to be composed into the regular tile grid."""
         return None
 
     @property

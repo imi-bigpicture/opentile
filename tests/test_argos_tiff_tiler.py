@@ -20,8 +20,7 @@ from tifffile import PHOTOMETRIC
 
 from opentile.formats import ArgosTiffTiler
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import argos_file_path, argos_z_file_path
+from tests.filepaths import argos_file_path, argos_z_file_path
 
 
 @pytest.mark.unittest

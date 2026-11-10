@@ -7,15 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `TiffImage.tile_byte_ranges`, the position and length in the file of each tile, and `TiffImage.frame_reader`, to read a tile directly from the file as `get_tile()` serves it. None where tiles are assembled (ndpi jpeg levels).
+- `Settings.max_file_handles_per_file` (default 8), the most handles open to a local file at once. A read beyond waits for a handle.
+
 ### Changed
 
 - Lossless JPEG cropping and blank tiles use the new `opentile-jpeg` package (in this repository) instead of PyTurboJPEG. libjpeg-turbo is included in its wheels, so it no longer has to be installed separately.
+- `get_tile()` and `get_tiles()` read a tile with a single read at its byte range, with the jpeg tables of the page put in place of the abbreviated header, instead of reading the frame and then adding the tables.
 
 ### Removed
 
 - The `turbo_path` parameter of `OpenTile.open()`, the tilers and `Jpeg`.
 - `opentile.jpeg.jpeg.find_turbojpeg_path()` and `Jpeg.subsample_to_mcu()`.
 - The `jpeg` parameter of the image classes. `Jpeg` holds no state, so its methods are now class methods.
+
+### Fixed
+
+- Reading tiles from a network drive could return a truncated tile.
 
 ## [0.26.0] - 2026-09-28
 

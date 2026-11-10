@@ -22,8 +22,7 @@ from tifffile import PHOTOMETRIC
 from opentile.formats import LeicaScnTiler
 from opentile.geometry import SizeMm
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import (
+from tests.filepaths import (
     leica_scn_file_path,
     leica_scn_multi_res_file_path,
     leica_scn_multi_roi_file_path,

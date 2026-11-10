@@ -22,8 +22,7 @@ from tifffile import PHOTOMETRIC
 from opentile.formats import HistechTiffTiler
 from opentile.geometry import SizeMm
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import histech_file_path
+from tests.filepaths import histech_file_path
 
 
 @pytest.fixture()

@@ -27,8 +27,7 @@ from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.geometry import Point, Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.tiff_image import LevelTiffImage
-
-from .filepaths import svs_file_path, svs_z_file_path
+from tests.filepaths import svs_file_path, svs_z_file_path
 
 
 @pytest.fixture()
