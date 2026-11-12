@@ -73,7 +73,7 @@ jobs:
           key: libjpeg-turbo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('opentile-jpeg/pyproject.toml', 'opentile-jpeg/tools/build_turbo.py') }}
           path: opentile-jpeg/.turbo
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.2
+        uses: astral-sh/setup-uv@v10.3.3
       - name: Install Application
         run: uv sync --all-extras
       - name: Test with pytest.
