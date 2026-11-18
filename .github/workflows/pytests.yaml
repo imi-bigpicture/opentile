@@ -88,8 +88,23 @@ jobs:
         with:
           key: libjpeg-turbo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('opentile-jpeg/pyproject.toml', 'opentile-jpeg/tools/build_turbo.py') }}
           path: opentile-jpeg/.turbo
+      # Persist uv's cache, which holds the opentile-jpeg wheel uv built, so a
+      # later run can reuse it instead of compiling the extension again. The
+      # key covers every input of that build: a change to any of them starts
+      # from an empty cache rather than risk reusing a stale extension.
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+            opentile-jpeg/pyproject.toml
+            opentile-jpeg/CMakeLists.txt
+            opentile-jpeg/src/**
+            opentile-jpeg/tools/**
+      # uv prints "Built opentile-jpeg" when it compiles the extension, and
+      # nothing about it when it reuses the cached wheel.
       - name: Install Application
         run: uv sync --all-extras
       - name: Test with pytest.
