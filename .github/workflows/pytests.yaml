@@ -97,12 +97,20 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: |
+            .github/workflows/pytests.yaml
             uv.lock
             pyproject.toml
             opentile-jpeg/pyproject.toml
             opentile-jpeg/CMakeLists.txt
             opentile-jpeg/src/**
             opentile-jpeg/tools/**
+      # uv rebuilds a local package when the modification time of its
+      # pyproject.toml changes, and a checkout gives every file a new one. Pin
+      # them, so uv reuses the wheels in the restored cache. The cache key above
+      # changes with every build input, so a hit can only be an identical build.
+      - name: Pin pyproject.toml timestamps
+        shell: bash
+        run: touch -t 200001010000 pyproject.toml opentile-jpeg/pyproject.toml
       # uv prints "Built opentile-jpeg" when it compiles the extension, and
       # nothing about it when it reuses the cached wheel.
       - name: Install Application
