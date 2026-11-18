@@ -26,6 +26,7 @@ from typing import Any, Optional, Union
 from tifffile import TiffFile, TiffPage, TiffPageSeries
 from upath import UPath
 
+from opentile.exceptions import MissingAssociatedImageError
 from opentile.file import OpenTileFile
 from opentile.formats.trestle.trestle_tiff_metadata import TrestleMetadata
 from opentile.geometry import Size
@@ -94,13 +95,19 @@ class TrestleTiffTiler(Tiler):
         )
 
     def _create_label(self, page: int = 0) -> AssociatedTiffImage:
-        raise NotImplementedError("Trestle stores associated images in separate files.")
+        raise MissingAssociatedImageError(
+            "Trestle stores associated images in separate files."
+        )
 
     def _create_overview(self, page: int = 0) -> AssociatedTiffImage:
-        raise NotImplementedError("Trestle stores associated images in separate files.")
+        raise MissingAssociatedImageError(
+            "Trestle stores associated images in separate files."
+        )
 
     def _create_thumbnail(self, page: int = 0) -> ThumbnailTiffImage:
-        raise NotImplementedError("Trestle stores associated images in separate files.")
+        raise MissingAssociatedImageError(
+            "Trestle stores associated images in separate files."
+        )
 
     def _is_level_series(self, series: TiffPageSeries) -> bool:
         page = series.pages[0]

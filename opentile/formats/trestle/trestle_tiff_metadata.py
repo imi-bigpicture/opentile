@@ -19,6 +19,7 @@ from typing import Any, Optional
 
 from tifffile import TiffPage
 
+from opentile.exceptions import InvalidMetadataError, MissingMetadataError
 from opentile.geometry import SizeMm
 from opentile.metadata import Metadata
 
@@ -61,11 +62,31 @@ class TrestleMetadata(Metadata):
     def _overlaps(self) -> list[int]:
         """The raw OverlapsXY values (x0, y0, x1, y1, ...)."""
         overlaps_string = self._properties.get("OverlapsXY", "")
-        return [int(value) for value in overlaps_string.split()]
+        try:
+            overlaps = [int(value) for value in overlaps_string.split()]
+        except ValueError:
+            raise InvalidMetadataError(
+                f"Trestle OverlapsXY {overlaps_string!r} is not a list of integers."
+            ) from None
+        if any(overlap < 0 for overlap in overlaps):
+            raise InvalidMetadataError(
+                f"Trestle OverlapsXY {overlaps_string!r} has a negative overlap."
+            )
+        return overlaps
 
     @staticmethod
     def _rational(page: TiffPage, tag_name: str) -> float:
-        numerator, denominator = page.tags[tag_name].value
+        """The pixel size (um/pixel) in a resolution tag."""
+        tag = page.tags.get(tag_name)
+        if tag is None:
+            raise MissingMetadataError(
+                f"Trestle base page has no {tag_name}, which holds the pixel size."
+            )
+        numerator, denominator = tag.value
+        if numerator <= 0 or denominator <= 0:
+            raise InvalidMetadataError(
+                f"Trestle {tag_name} {numerator}/{denominator} is not a pixel size."
+            )
         return numerator / denominator
 
     @staticmethod

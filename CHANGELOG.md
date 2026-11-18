@@ -12,12 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TiffImage.tile_byte_ranges`, the position and length in the file of each tile, and `TiffImage.frame_reader`, to read a tile directly from the file as `get_tile()` serves it. None where tiles are assembled (ndpi jpeg levels).
 - `Settings.max_file_handles_per_file` (default 8), the most handles open to a local file at once. A read beyond waits for a handle.
 - `MissingMetadataError`, an `OpenTileError` and a `ValueError`, raised when a file lacks metadata opentile needs to read it: the pixel size of an OME-TIFF, Philips, QPTIFF or SVS file, and the scan resolution, scanned areas or iScan element of a Ventana file. These were plain `ValueError`s.
+- `InvalidMetadataError`, an `OpenTileError` and a `ValueError`, raised when a file has metadata opentile needs to read it, but with values that are unlikely to be valid for the format.
 
 ### Changed
 
 - Lossless JPEG cropping and blank tiles use the new `opentile-jpeg` package (in this repository) instead of PyTurboJPEG. libjpeg-turbo is included in its wheels, so it no longer has to be installed separately.
 - `get_tile()` and `get_tiles()` read a tile with a single read at its byte range, with the jpeg tables of the page put in place of the abbreviated header, instead of reading the frame and then adding the tables.
 - `OpenTile.open()` raises `UnsupportedFileError` when no tiler supports the file, and for an OME-TIFF whose physical size is not in micrometers. These were plain `NotImplementedError`s; `UnsupportedFileError` is one, so code catching `NotImplementedError` is unaffected. A file opentile does not read now raises an `OpenTileError`, so a caller trying several readers can tell it from other errors.
+- A Trestle file without its pixel size raises `MissingMetadataError` instead of `KeyError`, and one with a pixel size or `OverlapsXY` that is not valid raises `InvalidMetadataError` instead of `ZeroDivisionError` or `ValueError`. Requesting a Trestle label, overview or thumbnail, which Trestle stores in separate files, raises `MissingAssociatedImageError` instead of `NotImplementedError`.
 
 ### Removed
 

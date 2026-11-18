@@ -15,13 +15,15 @@
 """Exceptions raised by opentile.
 
 All inherit `OpenTileError`, so a caller can catch everything opentile raises with a
-single ``except OpenTileError``. The "not supported / not implemented" errors also
-inherit the built-in `NotImplementedError`, and `MissingMetadataError` the built-in
-`ValueError`, so code that catches those keeps working.
+single ``except OpenTileError``. `UnsupportedFileError`,
+`NonSupportedCompressionError` and `NonDyadicPyramidLevelError` also inherit the
+built-in `NotImplementedError`, and the metadata errors (`MissingMetadataError`,
+`InvalidMetadataError`) the built-in `ValueError`, so code that catches those
+keeps working.
 
-A file opentile does not read raises `UnsupportedFileError` or
-`MissingMetadataError`, so a caller that tries several readers can move on to the
-next on an `OpenTileError` and still see other errors, such as a failing read.
+A file opentile does not read raises `UnsupportedFileError`, `MissingMetadataError`
+or `InvalidMetadataError`, so a caller that tries several readers can move on to
+the next on an `OpenTileError` and still see other errors, such as a failing read.
 """
 
 
@@ -47,6 +49,12 @@ class NonDyadicPyramidLevelError(OpenTileError, NotImplementedError):
 class MissingMetadataError(OpenTileError, ValueError):
     """Raised when a file lacks metadata opentile needs to read it, such as the
     pixel size."""
+
+
+class InvalidMetadataError(OpenTileError, ValueError):
+    """Raised when a file has metadata opentile needs to read it, but with values
+    that are unlikely to be valid for the format, such as a malformed number or a
+    negative size."""
 
 
 class MissingAssociatedImageError(OpenTileError):

@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 from tifffile import PHOTOMETRIC
 
+from opentile.exceptions import MissingAssociatedImageError
 from opentile.formats import TrestleTiffTiler
 from opentile.geometry import Point, PointF, Size, SizeMm
 from opentile.tiff_image_bases import OverlappingLevelTiffImage
@@ -162,3 +163,18 @@ class TestTrestleTiffTiler:
 
         # Assert
         assert overlap_difference < 1.0
+
+    @pytest.mark.parametrize("get", ["get_label", "get_overview", "get_thumbnail"])
+    def test_associated_image_raises_missing(self, tiler: TrestleTiffTiler, get: str):
+        # Arrange - Trestle stores associated images in separate files
+
+        # Act, Assert
+        with pytest.raises(MissingAssociatedImageError):
+            getattr(tiler, get)()
+
+    def test_has_no_associated_images(self, tiler: TrestleTiffTiler):
+        # Act
+        associated = [tiler.labels, tiler.overviews, tiler.thumbnails]
+
+        # Assert
+        assert associated == [[], [], []]
