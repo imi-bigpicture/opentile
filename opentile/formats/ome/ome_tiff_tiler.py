@@ -24,7 +24,11 @@ from ome_types.model.simple_types import UnitsLength
 from tifffile import COMPRESSION, TiffFile, TiffPageSeries
 from upath import UPath
 
-from opentile.exceptions import MissingAssociatedImageError
+from opentile.exceptions import (
+    MissingAssociatedImageError,
+    MissingMetadataError,
+    UnsupportedFileError,
+)
 from opentile.file import OpenTileFile
 from opentile.formats.ome.ome_tiff_image import (
     OmeTiffAssociatedImage,
@@ -99,7 +103,7 @@ class OmeTiffTiler(Tiler):
     def _get_mpp(self, series_index: int) -> SizeMm:
         mpp = self._get_optional_mpp(series_index)
         if mpp is None:
-            raise ValueError("Could not find physical size of x and y.")
+            raise MissingMetadataError("Could not find physical size of x and y.")
         return mpp
 
     @cached_property
@@ -114,7 +118,7 @@ class OmeTiffTiler(Tiler):
             pixels.physical_size_x_unit != UnitsLength.MICROMETER
             or pixels.physical_size_y_unit != UnitsLength.MICROMETER
         ):
-            raise NotImplementedError("Only um physical size implemented.")
+            raise UnsupportedFileError("Only um physical size implemented.")
         mpp_x, mpp_y = pixels.physical_size_x, pixels.physical_size_y
         if mpp_x is None or mpp_y is None:
             return None

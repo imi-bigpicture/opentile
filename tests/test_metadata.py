@@ -20,6 +20,7 @@ import pytest
 from decoy import Decoy
 from tifffile import TiffPage, TiffTags
 
+from opentile.exceptions import InvalidMetadataError, MissingMetadataError
 from opentile.formats.histech.histech_tiff_metadata import HistechTiffMetadata
 from opentile.formats.huron.huron_tiff_metadata import HuronTiffMetadata
 from opentile.formats.mikroscan.mikroscan_tiff_metadata import MikroscanTiffMetadata
@@ -28,7 +29,9 @@ from opentile.formats.ndpi.ndpi_metadata import NdpiMetadata
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.formats.svs.svs_image import SvsTiledImage
 from opentile.formats.svs.svs_metadata import SvsMetadata
+from opentile.formats.trestle.trestle_tiff_metadata import TrestleMetadata
 from opentile.formats.ventana.ventana_tiff_metadata import VentanaMetadata
+from opentile.geometry import SizeMm
 from opentile.metadata import SvsLikeMetadata
 
 
@@ -173,7 +176,7 @@ class TestSvsMetadata:
         metadata = SvsMetadata(page)
 
         # Act, Assert
-        with pytest.raises(ValueError):
+        with pytest.raises(MissingMetadataError):
             _ = metadata.mpp
 
     @pytest.mark.parametrize(
@@ -270,6 +273,64 @@ class TestVentanaMetadata:
 
         # Assert
         assert metadata.barcode == expected
+
+
+class TestTrestleMetadata:
+    @staticmethod
+    def _page(
+        description: str = "OverlapsXY= 64 64 32 32",
+        resolution: Optional[tuple[int, int]] = (1, 4),
+    ) -> Mock:
+        page = Mock()
+        page.description = description
+        page.tags = (
+            {}
+            if resolution is None
+            else {
+                "XResolution": Mock(value=resolution),
+                "YResolution": Mock(value=resolution),
+            }
+        )
+        return page
+
+    def test_mpp_and_overlap(self) -> None:
+        # Arrange
+        page = self._page()
+
+        # Act
+        metadata = TrestleMetadata(page)
+
+        # Assert
+        assert metadata.mpp == SizeMm(0.25, 0.25)
+        assert metadata.level_overlap(1) == (32, 32)
+
+    def test_missing_resolution_raises(self) -> None:
+        # Arrange
+        page = self._page(resolution=None)
+
+        # Act, Assert
+        with pytest.raises(MissingMetadataError):
+            TrestleMetadata(page)
+
+    @pytest.mark.parametrize("resolution", [(1, 0), (0, 4)])
+    def test_unusable_resolution_raises(self, resolution: tuple[int, int]) -> None:
+        # Arrange
+        page = self._page(resolution=resolution)
+
+        # Act, Assert
+        with pytest.raises(InvalidMetadataError):
+            TrestleMetadata(page)
+
+    @pytest.mark.parametrize(
+        "description", ["OverlapsXY= 64 a 32 32", "OverlapsXY= 64 -64"]
+    )
+    def test_unusable_overlaps_raise(self, description: str) -> None:
+        # Arrange
+        metadata = TrestleMetadata(self._page(description))
+
+        # Act, Assert
+        with pytest.raises(InvalidMetadataError):
+            metadata.level_overlap(0)
 
 
 class TestNdpiMetadata:

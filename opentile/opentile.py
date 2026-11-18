@@ -23,6 +23,7 @@ from typing import (
 
 from upath import UPath
 
+from opentile.exceptions import UnsupportedFileError
 from opentile.file import OpenTileFile
 from opentile.formats import (
     ArgosTiffTiler,
@@ -108,7 +109,7 @@ class OpenTile:
                 return LeicaScnTiler(file)
             if supported_tiler is QptiffTiler:
                 return QptiffTiler(file)
-            raise NotImplementedError(
+            raise UnsupportedFileError(
                 f"Support for tiff file {filepath} not implemented."
             )
         except Exception:

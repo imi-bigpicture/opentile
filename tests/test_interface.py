@@ -14,9 +14,12 @@
 
 from pathlib import Path
 
+import numpy as np
 import pytest
+import tifffile
 
 from opentile import OpenTile
+from opentile.exceptions import UnsupportedFileError
 from tests.filepaths import (
     histech_file_path,
     ndpi_file_path,
@@ -50,3 +53,14 @@ class TestInterface:
         # Act & Assert
         with OpenTile.open(file_path):
             pass
+
+    def test_open_of_unsupported_tiff_raises_unsupported_file_error(
+        self, tmp_path: Path
+    ):
+        # Arrange - a plain tiff that no tiler supports
+        file_path = tmp_path / "plain.tiff"
+        tifffile.imwrite(file_path, np.zeros((16, 16, 3), dtype=np.uint8))
+
+        # Act & Assert
+        with pytest.raises(UnsupportedFileError):
+            OpenTile.open(file_path)

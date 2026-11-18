@@ -20,7 +20,7 @@ from typing import Any, Optional, Union
 from tifffile import COMPRESSION, TiffFile, TiffFrame, TiffPage, TiffPageSeries
 from upath import UPath
 
-from opentile.exceptions import MissingAssociatedImageError
+from opentile.exceptions import MissingAssociatedImageError, MissingMetadataError
 from opentile.file import OpenTileFile
 from opentile.formats.philips.philips_tiff_metadata import PhilipsTiffMetadata
 from opentile.geometry import SizeMm
@@ -140,7 +140,7 @@ class PhilipsTiffTiler(Tiler):
         pixel_size_start = page.description.find(pixel_size_start_string)
         pixel_size_end = page.description.find(")", pixel_size_start)
         if pixel_size_start == -1 or pixel_size_end == -1:
-            raise ValueError("No pixel size found in image description")
+            raise MissingMetadataError("No pixel size found in image description")
         pixel_size_string = page.description[
             pixel_size_start + len(pixel_size_start_string) : pixel_size_end
         ]
