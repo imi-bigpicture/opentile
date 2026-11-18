@@ -14,9 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MissingMetadataError`, an `OpenTileError` and a `ValueError`, raised when a file lacks metadata opentile needs to read it: the pixel size of an OME-TIFF, Philips, QPTIFF or SVS file, and the scan resolution, scanned areas or iScan element of a Ventana file. These were plain `ValueError`s.
 - `InvalidMetadataError`, an `OpenTileError` and a `ValueError`, raised when a file has metadata opentile needs to read it, but with values that are unlikely to be valid for the format.
 - `UnsupportedMetadataError`, an `OpenTileError` and a `ValueError`, raised when a file has metadata with values that may be valid for the format but that opentile does not handle.
+- `LevelTiffImage.origin_offset`: the position of a level's first pixel on the base level, in base-level pixels. Zero for levels covering the whole base level. Trestle levels cropped by the base level's overlap report it. A shortfall that is only size rounding (an odd base size) gives no offset.
 
 ### Changed
 
+- Trestle levels are served re-gridded into non-overlapping `tile_size` tiles when that is lossless (baseline 8-bit JPEG, with the tile step and `tile_size` multiples of the JPEG MCU), by copying JPEG blocks. Their `image_size` is then the de-overlapped size and `overlap` is None. Levels without overlap at the stored tile size are served as stored, also without `overlap`. Other levels are served as stored with an `overlap` placement, as before.
 - Lossless JPEG cropping and blank tiles use the new `opentile-jpeg` package (in this repository) instead of PyTurboJPEG. libjpeg-turbo is included in its wheels, so it no longer has to be installed separately.
 - `get_tile()` and `get_tiles()` read a tile with a single read at its byte range, with the jpeg tables of the page put in place of the abbreviated header, instead of reading the frame and then adding the tables.
 - `OpenTile.open()` raises `UnsupportedFileError` when no tiler supports the file, and for an OME-TIFF whose physical size is not in micrometers. These were plain `NotImplementedError`s; `UnsupportedFileError` is one, so code catching `NotImplementedError` is unaffected. A file opentile does not read now raises an `OpenTileError`, so a caller trying several readers can tell it from other errors.

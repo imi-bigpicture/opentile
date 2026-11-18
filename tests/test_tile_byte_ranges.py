@@ -71,12 +71,10 @@ class TestTileByteRanges:
         "file_path",
         [
             svs_file_path,
-            ndpi_file_path,
             ndpi_jpegxr_file_path,
             philips_file_path,
             histech_file_path,
             ome_tiff_file_path,
-            trestle_file_path,
             ventana_file_path,
             ventana_1_file_path,
             huron_file_path,
@@ -112,9 +110,8 @@ class TestTileByteRanges:
                         mismatches.append((tiff_image, x, y))
 
         # Assert
+        assert checked > 0
         assert mismatches == []
-        if checked == 0:
-            pytest.skip(f"No image of {file_path.name} has tile byte ranges")
 
     def test_levels_that_are_assembled_have_no_tile_byte_ranges(self):
         # Arrange
@@ -127,11 +124,23 @@ class TestTileByteRanges:
         # Assert
         assert all(byte_range is None for byte_range in byte_ranges)
 
+    def test_regridded_levels_have_no_tile_byte_ranges(self):
+        """Trestle levels are re-gridded by default. Their tiles are assembled from
+        JPEG blocks of the stored tiles, so they have no byte ranges."""
+        # Arrange
+        if not trestle_file_path.exists():
+            pytest.skip(f"{trestle_file_path} test file not found, skipping")
+        with OpenTile.open(trestle_file_path) as tiler:
+            # Act
+            byte_ranges = [level.tile_byte_ranges for level in tiler.levels]
+
+        # Assert
+        assert all(byte_range is None for byte_range in byte_ranges)
+
     @pytest.mark.parametrize(
         "file_path",
         [
             ndpi_jpegxr_file_path,
-            trestle_file_path,
             ventana_file_path,
             ventana_1_file_path,
         ],
@@ -195,8 +204,7 @@ class TestTileByteRanges:
             ]
 
         # Assert
-        if not native_images:
-            pytest.skip(f"No natively tiled image in {file_path.name}")
+        assert native_images != []
         assert mismatches == []
 
     def test_from_frames_marks_tiles_not_stored_as_stored_to_read_through(self):

@@ -24,7 +24,7 @@ from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 from opentile.file import OpenTileFile
 from opentile.formats import SvsTiler
 from opentile.formats.svs.svs_image import SvsTiledImage
-from opentile.geometry import Point, Size, SizeMm
+from opentile.geometry import Point, PointF, Size, SizeMm
 from opentile.jpeg import Jpeg
 from opentile.tiff_image import LevelTiffImage
 from tests.filepaths import svs_file_path, svs_z_file_path
@@ -90,6 +90,15 @@ class TestSvsTiler:
 
         # Assert
         assert md5(tile.tobytes()).hexdigest() == hash
+
+    def test_origin_offset_is_zero(self, tiler: SvsTiler):
+        # Arrange
+
+        # Act
+        offsets = [level.origin_offset for level in tiler.levels]
+
+        # Assert - every level covers the base level from its origin
+        assert offsets == [PointF(0, 0)] * len(offsets)
 
     @pytest.mark.parametrize(
         ["tile_points", "hashes"],
