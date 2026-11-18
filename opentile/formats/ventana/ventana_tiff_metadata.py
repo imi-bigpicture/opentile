@@ -21,6 +21,7 @@ from xml.etree.ElementTree import Element
 from defusedxml import ElementTree
 from tifffile import TiffPage
 
+from opentile.exceptions import MissingMetadataError
 from opentile.geometry import SizeMm
 from opentile.metadata import Metadata
 
@@ -68,7 +69,7 @@ class VentanaMetadata(Metadata):
     def mpp(self) -> SizeMm:
         """Base level mpp (um/pixel), isotropic, from the iScan ScanRes."""
         if self.scan_resolution is None:
-            raise ValueError("No ScanRes in Ventana iScan metadata.")
+            raise MissingMetadataError("No ScanRes in Ventana iScan metadata.")
         return SizeMm(self.scan_resolution, self.scan_resolution)
 
     @property
@@ -114,7 +115,7 @@ class VentanaMetadata(Metadata):
             origin_x, origin_y = origins.get(index, (0.0, 0.0))
             areas.append(self._area_overlaps(image_info, origin_x, origin_y))
         if not areas:
-            raise ValueError("No scanned areas found in Ventana metadata.")
+            raise MissingMetadataError("No scanned areas found in Ventana metadata.")
         return areas
 
     def _area_overlaps(
@@ -217,5 +218,5 @@ class VentanaMetadata(Metadata):
             return root
         iscan = root.find(".//iScan")
         if iscan is None:
-            raise ValueError("No iScan element found in Ventana XMP.")
+            raise MissingMetadataError("No iScan element found in Ventana XMP.")
         return iscan

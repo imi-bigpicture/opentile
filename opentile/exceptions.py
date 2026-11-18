@@ -16,7 +16,12 @@
 
 All inherit `OpenTileError`, so a caller can catch everything opentile raises with a
 single ``except OpenTileError``. The "not supported / not implemented" errors also
-inherit the built-in `NotImplementedError`, so code that catches that keeps working.
+inherit the built-in `NotImplementedError`, and `MissingMetadataError` the built-in
+`ValueError`, so code that catches those keeps working.
+
+A file opentile does not read raises `UnsupportedFileError` or
+`MissingMetadataError`, so a caller that tries several readers can move on to the
+next on an `OpenTileError` and still see other errors, such as a failing read.
 """
 
 
@@ -25,7 +30,8 @@ class OpenTileError(Exception):
 
 
 class UnsupportedFileError(OpenTileError, NotImplementedError):
-    """Raised when no tiler supports the opened file."""
+    """Raised when no tiler supports the opened file, or the file is of a supported
+    format in a variant opentile does not read."""
 
 
 class NonSupportedCompressionError(OpenTileError, NotImplementedError):
@@ -36,6 +42,11 @@ class NonSupportedCompressionError(OpenTileError, NotImplementedError):
 class NonDyadicPyramidLevelError(OpenTileError, NotImplementedError):
     """Raised when a level's downsample is not a clean power of two, so it cannot be
     placed in the pyramid."""
+
+
+class MissingMetadataError(OpenTileError, ValueError):
+    """Raised when a file lacks metadata opentile needs to read it, such as the
+    pixel size."""
 
 
 class MissingAssociatedImageError(OpenTileError):

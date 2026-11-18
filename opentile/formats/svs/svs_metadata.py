@@ -21,6 +21,7 @@ from typing import Any, Optional
 from tifffile import TiffPage
 from tifffile.tifffile import svs_description_metadata
 
+from opentile.exceptions import MissingMetadataError
 from opentile.metadata import Metadata
 
 
@@ -104,7 +105,9 @@ class SvsMetadata(Metadata):
         match = re.search(r"Scan resolution\s+([0-9.,]+)", self._header)
         if match is not None:
             return float(match.group(1).replace(",", "."))
-        raise ValueError("No MPP or scan resolution found in SVS image description")
+        raise MissingMetadataError(
+            "No MPP or scan resolution found in SVS image description"
+        )
 
     @property
     def properties(self) -> dict[str, Any]:

@@ -31,7 +31,7 @@ from typing import Any, Optional, Union
 from tifffile import TiffFile, TiffFrame, TiffPage, TiffPageSeries
 from upath import UPath
 
-from opentile.exceptions import MissingAssociatedImageError
+from opentile.exceptions import MissingAssociatedImageError, MissingMetadataError
 from opentile.file import OpenTileFile
 from opentile.formats.qptiff.qptiff_image import (
     QptiffAssociatedImage,
@@ -69,7 +69,7 @@ class QptiffTiler(Tiler):
         self._metadata = QptiffMetadata(self._base_page)
         base_mpp = self._metadata.mpp
         if base_mpp is None:
-            raise ValueError("Could not find pixel size of image.")
+            raise MissingMetadataError("Could not find pixel size of image.")
         self._base_mpp = base_mpp
 
     @property

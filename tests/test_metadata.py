@@ -20,6 +20,7 @@ import pytest
 from decoy import Decoy
 from tifffile import TiffPage, TiffTags
 
+from opentile.exceptions import MissingMetadataError
 from opentile.formats.histech.histech_tiff_metadata import HistechTiffMetadata
 from opentile.formats.huron.huron_tiff_metadata import HuronTiffMetadata
 from opentile.formats.mikroscan.mikroscan_tiff_metadata import MikroscanTiffMetadata
@@ -173,7 +174,7 @@ class TestSvsMetadata:
         metadata = SvsMetadata(page)
 
         # Act, Assert
-        with pytest.raises(ValueError):
+        with pytest.raises(MissingMetadataError):
             _ = metadata.mpp
 
     @pytest.mark.parametrize(

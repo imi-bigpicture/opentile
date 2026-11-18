@@ -20,6 +20,7 @@ import pytest
 from decoy import Decoy
 from tifffile import PHOTOMETRIC, TiffPage
 
+from opentile.exceptions import MissingMetadataError
 from opentile.formats import PhilipsTiffTiler
 from opentile.geometry import SizeMm
 from opentile.tiff_image import LevelTiffImage
@@ -182,7 +183,7 @@ class TestPhilipsTiffTiler:
 
 @pytest.mark.unittest
 class TestPhilipsAssociatedMpp:
-    def test_missing_pixel_size_raises_value_error(self, decoy: Decoy):
+    def test_missing_pixel_size_raises_missing_metadata_error(self, decoy: Decoy):
         # Arrange
         # Without the field `find` returns -1 and the slice used to read from
         # offset 10 of the description instead of failing.
@@ -190,7 +191,7 @@ class TestPhilipsAssociatedMpp:
         decoy.when(page.description).then_return("Philips label image, no size here")
 
         # Act, Assert
-        with pytest.raises(ValueError, match="No pixel size"):
+        with pytest.raises(MissingMetadataError, match="No pixel size"):
             PhilipsTiffTiler._get_associated_mpp_from_page(page)
 
     def test_reads_pixel_size(self, decoy: Decoy):
