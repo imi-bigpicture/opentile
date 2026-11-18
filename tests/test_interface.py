@@ -20,7 +20,6 @@ import tifffile
 
 from opentile import OpenTile
 from opentile.exceptions import UnsupportedFileError
-
 from tests.filepaths import (
     histech_file_path,
     ndpi_file_path,
