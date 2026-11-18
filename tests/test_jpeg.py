@@ -315,6 +315,34 @@ class TestJpegInfo:
         assert info.subsampling is None
 
     @pytest.mark.parametrize(
+        ["colorspace", "subsampling", "expected"],
+        [
+            (JPEG8.CS.YCbCr, (1, 1), Size(8, 8)),
+            (JPEG8.CS.YCbCr, (2, 1), Size(16, 8)),
+            (JPEG8.CS.YCbCr, (2, 2), Size(16, 16)),
+            (JPEG8.CS.GRAYSCALE, None, Size(8, 8)),
+        ],
+    )
+    def test_info_mcu_size(
+        self,
+        colorspace: int,
+        subsampling: Optional[tuple[int, int]],
+        expected: Size,
+    ):
+        # Arrange
+        shape = (64, 64) if colorspace == JPEG8.CS.GRAYSCALE else (64, 64, 3)
+        image = (np.random.rand(*shape) * 255).astype(np.uint8)
+        frame = bytes(
+            jpeg8_encode(image, colorspace=colorspace, subsampling=subsampling)
+        )
+
+        # Act
+        info = Jpeg.info(frame)
+
+        # Assert
+        assert info.mcu_size == expected
+
+    @pytest.mark.parametrize(
         ["component_ids", "app14_transform", "expected"],
         [
             ([0x52, 0x47, 0x42], None, True),  # R/G/B component ids
