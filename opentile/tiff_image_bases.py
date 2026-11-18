@@ -22,7 +22,7 @@ import math
 from abc import ABCMeta
 from collections.abc import Iterator, Sequence
 from functools import cached_property
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -39,7 +39,7 @@ from opentile.exceptions import (
     NonSupportedCompressionError,
 )
 from opentile.file import FrameReader, OpenTileFile
-from opentile.geometry import Point, Region, Size, SizeMm
+from opentile.geometry import Point, PointF, Region, Size, SizeMm
 from opentile.jpeg import Jpeg, JpegInfo
 from opentile.jpeg2000 import Jpeg2000, Jpeg2000Info
 from opentile.tiff_image import (
@@ -598,6 +598,70 @@ class NativeTiledLevelImage(NativeTiledTiffImage, LevelTiffImage):
         return self._pyramid_index
 
 
+class ExplicitScaleLevelTiffImage(BaseTiffImage, LevelTiffImage, metaclass=ABCMeta):
+    """Base class for a pyramid level given its scale and origin offset by the tiler,
+    instead of deriving them from the level and base sizes. A level cropped from the
+    base level has a size ratio that is not its downsample, and a non-zero origin
+    offset.
+
+    A subclass combining this with another `BaseTiffImage` subclass lists this class
+    first, so that its `__init__` runs first and passes the remaining arguments on."""
+
+    def __init__(
+        self,
+        page: TiffPage,
+        file: OpenTileFile,
+        base_mpp: SizeMm,
+        scale: float,
+        origin_offset: Optional[PointF] = None,
+        **kwargs: Any,
+    ):
+        """
+        Parameters
+        ----------
+        page: TiffPage
+            TiffPage defining the level.
+        file: OpenTileFile
+            File to read data from.
+        base_mpp: SizeMm
+            Mpp (um/pixel) for the base level in the pyramid.
+        scale: float
+            Downsample of this level relative to the base level.
+        origin_offset: Optional[PointF] = None
+            Position of the level's first pixel on the base level, in base-level
+            pixels (see `LevelTiffImage.origin_offset`). Defaults to zero.
+        **kwargs: Any
+            Passed on to the next class's `__init__` (e.g. `tile_size` of
+            `BaseTiffImage`).
+        """
+        super().__init__(page, file, **kwargs)
+        self._base_mpp = base_mpp
+        self._scale = scale
+        self._pyramid_index = self._calculate_pyramidal_index(scale)
+        self._mpp = self._calculate_mpp(base_mpp, scale)
+        self._origin_offset = origin_offset or PointF(0, 0)
+
+    @property
+    def mpp(self) -> SizeMm:
+        return self._mpp
+
+    @property
+    def pixel_spacing(self) -> SizeMm:
+        return self._mpp / 1000
+
+    @property
+    def scale(self) -> float:
+        return self._scale
+
+    @property
+    def pyramid_index(self) -> int:
+        return self._pyramid_index
+
+    @property
+    def origin_offset(self) -> PointF:
+        return self._origin_offset
+
+
 class NativeTiledAssociatedImage(NativeTiledTiffImage, AssociatedTiffImage):
     """Natively tiled associated image (label or macro) with no defined pixel spacing,
     served as-is."""
@@ -714,7 +778,7 @@ class DecodedTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
         return self.get_decoded_tile(tile_position).tobytes()
 
 
-class OverlappingLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
+class OverlappingLevelTiffImage(ExplicitScaleLevelTiffImage, NativeTiledTiffImage):
     """Level image whose stored tiles do not form opentile's regular tile grid and so
     must be composed by the consumer (see `TiffImage.overlap`).
 
@@ -733,6 +797,7 @@ class OverlappingLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
         base_mpp: SizeMm,
         scale: float,
         overlap: TileOverlap,
+        origin_offset: Optional[PointF] = None,
     ):
         """
         Parameters
@@ -749,13 +814,12 @@ class OverlappingLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
             size for Trestle, the raw mosaic for Ventana).
         overlap: TileOverlap
             Placement of this level's overlapping source tiles.
+        origin_offset: Optional[PointF] = None
+            Position of the level's first pixel on the base level, in base-level
+            pixels (see `LevelTiffImage.origin_offset`). Defaults to zero.
         """
-        super().__init__(page, file)
-        self._base_mpp = base_mpp
+        super().__init__(page, file, base_mpp, scale, origin_offset)
         self._overlap = overlap
-        self._scale = scale
-        self._pyramid_index = self._calculate_pyramidal_index(scale)
-        self._mpp = self._calculate_mpp(base_mpp, scale)
 
     @property
     def overlap(self) -> TileOverlap:
@@ -764,22 +828,6 @@ class OverlappingLevelTiffImage(NativeTiledTiffImage, LevelTiffImage):
     @property
     def supported_compressions(self) -> Optional[list[COMPRESSION]]:
         return None
-
-    @property
-    def pixel_spacing(self) -> SizeMm:
-        return self._mpp / 1000
-
-    @property
-    def mpp(self) -> SizeMm:
-        return self._mpp
-
-    @property
-    def scale(self) -> float:
-        return self._scale
-
-    @property
-    def pyramid_index(self) -> int:
-        return self._pyramid_index
 
 
 class SparseTiledLevelImage(NativeTiledTiffImage, LevelTiffImage):

@@ -30,7 +30,7 @@ from tifffile import (
 from upath import UPath
 
 from opentile.file import FrameReader
-from opentile.geometry import Size, SizeMm
+from opentile.geometry import PointF, Size, SizeMm
 from opentile.jpeg import JpegInfo
 from opentile.jpeg2000 import Jpeg2000Info
 from opentile.tile_byte_ranges import TileByteRanges
@@ -339,3 +339,15 @@ class LevelTiffImage(TiffImage):
     def pyramid_index(self) -> int:
         """The pyramidal index in relation to the base layer."""
         raise NotImplementedError()
+
+    @property
+    def origin_offset(self) -> PointF:
+        """Position of this level's first (top-left) pixel on the base level, in
+        base-level pixels.
+
+        Zero when the level covers the base level from its origin, the common case.
+        A level built from a cropped region of the base image starts further in; to
+        place the level on the base level, add this offset to level coordinates
+        scaled by `scale`.
+        """
+        return PointF(0, 0)

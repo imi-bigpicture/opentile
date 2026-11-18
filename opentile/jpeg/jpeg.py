@@ -57,6 +57,13 @@ class JpegInfo:
     header; None otherwise. Selection value 1 corresponds to JPEG Lossless,
     First-Order Prediction."""
 
+    @property
+    def mcu_size(self) -> Size:
+        """Size in pixels of the minimum coded unit: 8 pixels per maximum sampling
+        factor."""
+        horizontal, vertical = self.subsampling or (1, 1)
+        return Size(8 * horizontal, 8 * vertical)
+
 
 class JpegTagNotFound(Exception):
     """Raised when expected Jpeg tag was not found."""
