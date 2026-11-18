@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `get_tile()` and `get_tiles()` read a tile with a single read at its byte range, with the jpeg tables of the page put in place of the abbreviated header, instead of reading the frame and then adding the tables.
 - `OpenTile.open()` raises `UnsupportedFileError` when no tiler supports the file, and for an OME-TIFF whose physical size is not in micrometers. These were plain `NotImplementedError`s; `UnsupportedFileError` is one, so code catching `NotImplementedError` is unaffected. A file opentile does not read now raises an `OpenTileError`, so a caller trying several readers can tell it from other errors.
 - A Trestle file without its pixel size raises `MissingMetadataError` instead of `KeyError`, and one with a pixel size or `OverlapsXY` that is not valid raises `InvalidMetadataError` instead of `ZeroDivisionError` or `ValueError`. Requesting a Trestle label, overview or thumbnail, which Trestle stores in separate files, raises `MissingAssociatedImageError` instead of `NotImplementedError`.
+- Ventana base-level tiles are placed from each measured joint between neighbours, including the shift across it, instead of from mean overlaps per row and column, so tiles line up more accurately. Tile positions are whole pixels, and the composed level sizes change slightly.
+- Opening a Ventana bif file whose stitching metadata is incomplete or inconsistent raises `ValueError` instead of guessing the tile layout.
+- Reduced Ventana levels cut each downsampled tile share at its exact (possibly fractional) boundaries, and round the composed size up instead of to nearest, so the last share is never cut off.
 
 ### Removed
 
