@@ -21,6 +21,11 @@ import pytest
 from defusedxml.ElementTree import fromstring
 from tifffile import PHOTOMETRIC
 
+from opentile.exceptions import (
+    InvalidMetadataError,
+    MissingMetadataError,
+    UnsupportedMetadataError,
+)
 from opentile.formats import VentanaTiffTiler
 from opentile.formats.ventana.ventana_tiff_metadata import (
     VentanaArea,
@@ -150,15 +155,57 @@ class TestVentanaMetadataAreas:
             ),
         ],
     )
-    def test_invalid_area_metadata_is_an_error(
+    def test_missing_area_metadata_is_an_error(
         self, aoi_origin: str, image_info: str, match: str
     ):
         # Arrange
         metadata = metadata_from_stitch_info(aoi_origin, [image_info])
 
         # Act / Assert
-        with pytest.raises(ValueError, match=match):
+        with pytest.raises(MissingMetadataError, match=match):
             _ = metadata.areas
+
+    @pytest.mark.parametrize(
+        ["aoi_origin", "match"],
+        [
+            pytest.param(
+                '<AoiOrigin><AOIx OriginX="0" OriginY="0"/></AoiOrigin>',
+                "AOIx is not numbered",
+                id="unnumbered AOI",
+            ),
+            pytest.param(
+                '<AoiOrigin><AOI0 OriginX="a" OriginY="0"/></AoiOrigin>',
+                "OriginX 'a' is not a finite number",
+                id="malformed origin",
+            ),
+            pytest.param(
+                '<AoiOrigin><AOI0 OriginX="nan" OriginY="0"/></AoiOrigin>',
+                "OriginX 'nan' is not a finite number",
+                id="non-finite origin",
+            ),
+        ],
+    )
+    def test_invalid_area_metadata_is_an_error(self, aoi_origin: str, match: str):
+        # Arrange
+        metadata = metadata_from_stitch_info(
+            aoi_origin,
+            [
+                '<ImageInfo AOIScanned="1" Width="1024" Height="1360" NumCols="2"'
+                ' NumRows="1"/>'
+            ],
+        )
+
+        # Act / Assert
+        with pytest.raises(InvalidMetadataError, match=match):
+            _ = metadata.areas
+
+    def test_malformed_xmp_is_an_error(self):
+        # Arrange
+        page = SimpleNamespace(tags={"XMP": SimpleNamespace(value="<EncodeInfo>")})
+
+        # Act / Assert
+        with pytest.raises(InvalidMetadataError, match="not well-formed"):
+            VentanaMetadata(page)  # type: ignore[arg-type]
 
 
 def metadata_from_stitch_info(
@@ -204,14 +251,28 @@ class TestVentanaArea:
 
     @pytest.mark.parametrize("attribute", ["Width", "Height", "NumCols", "NumRows"])
     @pytest.mark.parametrize(
-        ["value", "match"],
+        ["value", "error", "match"],
         [
-            pytest.param(None, "has no {attribute}", id="missing"),
-            pytest.param("0", "{attribute} must be positive", id="zero"),
+            pytest.param(
+                None, MissingMetadataError, "has no {attribute}", id="missing"
+            ),
+            pytest.param(
+                "0", InvalidMetadataError, "{attribute} must be positive", id="zero"
+            ),
+            pytest.param(
+                "2.5",
+                InvalidMetadataError,
+                "{attribute} '2.5' is not an integer",
+                id="not an integer",
+            ),
         ],
     )
     def test_invalid_area_size_is_an_error(
-        self, attribute: str, value: Optional[str], match: str
+        self,
+        attribute: str,
+        value: Optional[str],
+        error: type[Exception],
+        match: str,
     ):
         # Arrange - a valid area with one attribute removed or set
         attributes = {"Width": "1024", "Height": "1360", "NumCols": "2", "NumRows": "1"}
@@ -222,7 +283,7 @@ class TestVentanaArea:
         image_info = Element("ImageInfo", attributes)
 
         # Act / Assert
-        with pytest.raises(ValueError, match=match.format(attribute=attribute)):
+        with pytest.raises(error, match=match.format(attribute=attribute)):
             VentanaArea.from_image_info(VentanaElement(image_info), PointF(0, 0))
 
     @pytest.mark.parametrize(
@@ -233,7 +294,7 @@ class TestVentanaArea:
             pytest.param(PointF(1024.5, 0), id="fraction"),
         ],
     )
-    def test_origin_off_tile_grid_is_an_error(self, origin: PointF):
+    def test_origin_off_tile_grid_is_unsupported(self, origin: PointF):
         # Arrange
         image_info = Element(
             "ImageInfo",
@@ -241,7 +302,9 @@ class TestVentanaArea:
         )
 
         # Act / Assert
-        with pytest.raises(ValueError, match="is not on the grid of its 1024x1360"):
+        with pytest.raises(
+            UnsupportedMetadataError, match="is not on the grid of its 1024x1360"
+        ):
             VentanaArea.from_image_info(VentanaElement(image_info), origin)
 
     @pytest.mark.parametrize(
@@ -270,7 +333,9 @@ class TestVentanaArea:
         image_info.append(Element("TileJointInfo", joint_attributes))
 
         # Act / Assert
-        with pytest.raises(ValueError, match=f"TileJointInfo has no {attribute}"):
+        with pytest.raises(
+            MissingMetadataError, match=f"TileJointInfo has no {attribute}"
+        ):
             VentanaArea.from_image_info(VentanaElement(image_info), PointF(0, 0))
 
     def test_missing_joint_confidence_is_an_error(self):
@@ -294,7 +359,45 @@ class TestVentanaArea:
         )
 
         # Act / Assert
-        with pytest.raises(ValueError, match="TileJointInfo has no Confidence"):
+        with pytest.raises(
+            MissingMetadataError, match="TileJointInfo has no Confidence"
+        ):
+            VentanaArea.from_image_info(VentanaElement(image_info), PointF(0, 0))
+
+    @pytest.mark.parametrize(
+        ["attribute", "value", "match"],
+        [
+            pytest.param(
+                "Tile2", "3", "tile 3 is outside its area of 2 tiles", id="tile"
+            ),
+            pytest.param(
+                "Confidence", "-1", "Confidence -1.0 is negative", id="confidence"
+            ),
+            pytest.param(
+                "OverlapX", "inf", "OverlapX 'inf' is not a finite number", id="overlap"
+            ),
+        ],
+    )
+    def test_invalid_joint_is_an_error(self, attribute: str, value: str, match: str):
+        # Arrange - a valid joint with one attribute set to a value that is not
+        image_info = Element(
+            "ImageInfo",
+            {"Width": "1024", "Height": "1360", "NumCols": "2", "NumRows": "1"},
+        )
+        joint_attributes = {
+            "Tile1": "1",
+            "Tile2": "2",
+            "Direction": "RIGHT",
+            "OverlapX": "100",
+            "OverlapY": "2",
+            "FlagJoined": "1",
+            "Confidence": "99",
+        }
+        joint_attributes[attribute] = value
+        image_info.append(Element("TileJointInfo", joint_attributes))
+
+        # Act / Assert
+        with pytest.raises(InvalidMetadataError, match=match):
             VentanaArea.from_image_info(VentanaElement(image_info), PointF(0, 0))
 
 
@@ -411,7 +514,7 @@ class TestVentanaBaseOverlap:
             Point(2, 1): [PointF(2048, 0)],
         }
 
-    def test_overlapping_areas_are_an_error(self):
+    def test_overlapping_areas_are_unsupported(self):
         # Arrange - the second area starts on the first area's second tile
         metadata = metadata_from_stitch_info(
             "<AoiOrigin>"
@@ -427,7 +530,9 @@ class TestVentanaBaseOverlap:
         )
 
         # Act & Assert
-        with pytest.raises(ValueError, match="overlap at 1 grid positions"):
+        with pytest.raises(
+            UnsupportedMetadataError, match="overlap at 1 grid positions"
+        ):
             VentanaBaseOverlap.create(metadata, Size(1024, 1360))
 
 

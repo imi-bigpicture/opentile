@@ -32,7 +32,10 @@ from typing import Any, Optional, Union
 from tifffile import TiffFile, TiffPage, TiffPageSeries
 from upath import UPath
 
-from opentile.exceptions import MissingAssociatedImageError
+from opentile.exceptions import (
+    MissingAssociatedImageError,
+    UnsupportedMetadataError,
+)
 from opentile.file import OpenTileFile
 from opentile.formats.ventana.ventana_tiff_metadata import VentanaArea, VentanaMetadata
 from opentile.geometry import Point, PointF, Region, Size
@@ -95,9 +98,10 @@ class VentanaBaseOverlap:
 
         Raises
         ------
-        ValueError
-            If two scanned areas cover the same stored grid position, or as
-            `VentanaMetadata.areas`.
+        UnsupportedMetadataError
+            If two scanned areas cover the same stored grid position.
+        MissingMetadataError, InvalidMetadataError, UnsupportedMetadataError
+            As `VentanaMetadata.areas`.
         """
         positions: dict[Point, Point] = {}
         for area in metadata.areas:
@@ -105,7 +109,7 @@ class VentanaBaseOverlap:
             shared = positions.keys() & area_positions.keys()
             if shared:
                 first = min(shared, key=lambda grid: (grid.y, grid.x))
-                raise ValueError(
+                raise UnsupportedMetadataError(
                     f"Ventana metadata has scanned areas that overlap at {len(shared)}"
                     f" grid positions, first at {first}."
                 )

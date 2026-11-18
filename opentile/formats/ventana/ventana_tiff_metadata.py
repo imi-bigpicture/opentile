@@ -14,15 +14,20 @@
 
 """Metadata parser for Ventana bif files."""
 
+import math
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, Optional
-from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import Element, ParseError
 
 from defusedxml import ElementTree
 from tifffile import TiffPage
 
-from opentile.exceptions import MissingMetadataError
+from opentile.exceptions import (
+    InvalidMetadataError,
+    MissingMetadataError,
+    UnsupportedMetadataError,
+)
 from opentile.geometry import Point, PointF, Size, SizeMm
 from opentile.metadata import Metadata
 
@@ -30,8 +35,8 @@ from opentile.metadata import Metadata
 class VentanaElement:
     """An XMP element of Ventana metadata, for reading the attributes it must have.
 
-    A missing or invalid attribute raises `ValueError` naming the element and the
-    attribute."""
+    A missing attribute raises `MissingMetadataError`, and one with a value that can
+    not be used `InvalidMetadataError`, naming the element and the attribute."""
 
     def __init__(self, element: Element):
         self._element = element
@@ -52,22 +57,39 @@ class VentanaElement:
         """The value of a required attribute."""
         value = self._element.get(name)
         if value is None:
-            raise ValueError(f"Ventana metadata {self.tag} has no {name} attribute.")
+            raise MissingMetadataError(
+                f"Ventana metadata {self.tag} has no {name} attribute."
+            )
         return value
 
     def required_int(self, name: str) -> int:
         """The value of a required integer attribute."""
-        return int(self.required_str(name))
+        value = self.required_str(name)
+        try:
+            return int(value)
+        except ValueError:
+            raise InvalidMetadataError(
+                f"Ventana metadata {self.tag} {name} {value!r} is not an integer."
+            ) from None
 
     def required_float(self, name: str) -> float:
-        """The value of a required number attribute."""
-        return float(self.required_str(name))
+        """The value of a required finite number attribute."""
+        value = self.required_str(name)
+        try:
+            number = float(value)
+        except ValueError:
+            number = math.nan
+        if not math.isfinite(number):
+            raise InvalidMetadataError(
+                f"Ventana metadata {self.tag} {name} {value!r} is not a finite number."
+            )
+        return number
 
     def required_positive_int(self, name: str) -> int:
         """The value of a required attribute that must be a positive integer."""
         number = self.required_int(name)
         if number < 1:
-            raise ValueError(
+            raise InvalidMetadataError(
                 f"Ventana metadata {self.tag} {name} must be positive, not {number}."
             )
         return number
@@ -135,12 +157,17 @@ class VentanaArea:
 
         Raises
         ------
-        ValueError
-            If ``NumCols``, ``NumRows``, ``Width`` or ``Height`` is missing or not
-            positive; if `origin` is not a multiple of the tile size; if a
+        MissingMetadataError
+            If ``NumCols``, ``NumRows``, ``Width`` or ``Height`` is missing; if a
             ``TileJointInfo`` has no ``FlagJoined``; or if a joined one has no
             ``Tile1``, ``Tile2``, ``Direction``, ``OverlapX``, ``OverlapY`` or
-            ``Confidence``, or a ``Tile1`` or ``Tile2`` that is not positive.
+            ``Confidence``.
+        InvalidMetadataError
+            If one of those is malformed, or ``NumCols``, ``NumRows``, ``Width`` or
+            ``Height`` is not positive; or if a joined ``TileJointInfo`` has a
+            ``Tile1`` or ``Tile2`` outside the area, or a negative ``Confidence``.
+        UnsupportedMetadataError
+            If `origin` is not a multiple of the tile size.
         """
         tiled_size = Size(
             image_info.required_positive_int("NumCols"),
@@ -151,7 +178,7 @@ class VentanaArea:
             image_info.required_positive_int("Height"),
         )
         if origin.x % tile_size.width != 0 or origin.y % tile_size.height != 0:
-            raise ValueError(
+            raise UnsupportedMetadataError(
                 f"Ventana metadata area origin {origin} is not on the grid of its"
                 f" {tile_size} tiles."
             )
@@ -286,6 +313,10 @@ class VentanaArea:
         overlap_x = info.required_float("OverlapX")
         overlap_y = info.required_float("OverlapY")
         confidence = info.required_float("Confidence")
+        if confidence < 0:
+            raise InvalidMetadataError(
+                f"Ventana metadata {info.tag} Confidence {confidence} is negative."
+            )
         if first.y == second.y and second.x - first.x == 1:
             offset = PointF(tile_size.width - overlap_x, -overlap_y)
         elif first.x == second.x and second.y - first.y == 1:
@@ -298,6 +329,11 @@ class VentanaArea:
     def _serpentine_cell(tile_one_based: int, tiled_size: Size) -> Point:
         """Area cell of a 1-based serpentine tile index. The snake starts at the
         lower-left, so the area row is the mirror of the snake row."""
+        if tile_one_based > tiled_size.area:
+            raise InvalidMetadataError(
+                f"Ventana metadata tile {tile_one_based} is outside its area of "
+                f"{tiled_size.area} tiles."
+            )
         index = tile_one_based - 1
         snake_row = index // tiled_size.width
         snake_col = index % tiled_size.width
@@ -370,13 +406,18 @@ class VentanaMetadata(Metadata):
 
         Raises
         ------
-        ValueError
+        MissingMetadataError
             If an ``ImageInfo`` has no ``AOIScanned``, if there is no ``AoiOrigin``
             block, if a scanned area has no ``AOI<n>`` origin, if an origin has no
             ``OriginX`` or ``OriginY``, if no area is scanned, or as
             `VentanaArea.from_image_info`.
+        InvalidMetadataError
+            If the XMP is not well-formed, if one of those values or an ``AOI<n>``
+            number is malformed, or as `VentanaArea.from_image_info`.
+        UnsupportedMetadataError
+            As `VentanaArea.from_image_info`.
         """
-        root = ElementTree.fromstring(self._xmp.rstrip("\x00"))
+        root = self._parse_xmp(self._xmp)
         origins = self._aoi_origins(root)
         areas: list[VentanaArea] = []
         for index, image_info in enumerate(VentanaElement(root).iter("ImageInfo")):
@@ -384,7 +425,7 @@ class VentanaMetadata(Metadata):
                 continue
             origin = origins.get(index)
             if origin is None:
-                raise ValueError(
+                raise MissingMetadataError(
                     f"Ventana metadata has no AoiOrigin AOI{index} for scanned "
                     f"ImageInfo {index}."
                 )
@@ -399,9 +440,9 @@ class VentanaMetadata(Metadata):
         ``AoiOrigin``."""
         aoi_origin = root.find(".//AoiOrigin")
         if aoi_origin is None:
-            raise ValueError("Ventana metadata has no AoiOrigin block.")
+            raise MissingMetadataError("Ventana metadata has no AoiOrigin block.")
         return {
-            int(child.tag[len("AOI") :]): PointF(
+            VentanaMetadata._aoi_index(child.tag): PointF(
                 child.required_float("OriginX"),
                 child.required_float("OriginY"),
             )
@@ -410,13 +451,33 @@ class VentanaMetadata(Metadata):
         }
 
     @staticmethod
+    def _aoi_index(tag: str) -> int:
+        """The area index of an ``AOI<n>`` tag."""
+        number = tag[len("AOI") :]
+        if not number.isdigit():
+            raise InvalidMetadataError(
+                f"Ventana metadata AoiOrigin child {tag} is not numbered."
+            )
+        return int(number)
+
+    @staticmethod
     def _find_iscan(xmp: str) -> Element:
         """The ``iScan`` element of a Ventana XMP document: its root, or nested in an
         ``EncodeInfo`` or ``Metadata`` root."""
-        root = ElementTree.fromstring(xmp.rstrip("\x00"))
+        root = VentanaMetadata._parse_xmp(xmp)
         if root.tag == "iScan":
             return root
         iscan = root.find(".//iScan")
         if iscan is None:
             raise MissingMetadataError("No iScan element found in Ventana XMP.")
         return iscan
+
+    @staticmethod
+    def _parse_xmp(xmp: str) -> Element:
+        """The root element of a Ventana XMP document."""
+        try:
+            return ElementTree.fromstring(xmp.rstrip("\x00"))
+        except ParseError as exception:
+            raise InvalidMetadataError(
+                f"Ventana XMP is not well-formed: {exception}"
+            ) from None
