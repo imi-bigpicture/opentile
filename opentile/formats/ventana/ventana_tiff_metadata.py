@@ -14,39 +14,336 @@
 
 """Metadata parser for Ventana bif files."""
 
+import math
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, Optional
-from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import Element, ParseError
 
 from defusedxml import ElementTree
 from tifffile import TiffPage
 
-from opentile.exceptions import MissingMetadataError
-from opentile.geometry import SizeMm
+from opentile.exceptions import (
+    InvalidMetadataError,
+    MissingMetadataError,
+    UnsupportedMetadataError,
+)
+from opentile.geometry import Point, PointF, Size, SizeMm
 from opentile.metadata import Metadata
+
+
+class VentanaElement:
+    """An XMP element of Ventana metadata, for reading the attributes it must have.
+
+    A missing attribute raises `MissingMetadataError`, and one with a value that can
+    not be used `InvalidMetadataError`, naming the element and the attribute."""
+
+    def __init__(self, element: Element):
+        self._element = element
+
+    @property
+    def tag(self) -> str:
+        return self._element.tag
+
+    def iter(self, tag: str) -> Iterator["VentanaElement"]:
+        """The elements with `tag` within this element, in document order."""
+        return (VentanaElement(element) for element in self._element.iter(tag))
+
+    def children(self) -> Iterator["VentanaElement"]:
+        """The direct children of this element, in document order."""
+        return (VentanaElement(element) for element in self._element)
+
+    def required_str(self, name: str) -> str:
+        """The value of a required attribute."""
+        value = self._element.get(name)
+        if value is None:
+            raise MissingMetadataError(
+                f"Ventana metadata {self.tag} has no {name} attribute."
+            )
+        return value
+
+    def required_int(self, name: str) -> int:
+        """The value of a required integer attribute."""
+        value = self.required_str(name)
+        try:
+            return int(value)
+        except ValueError:
+            raise InvalidMetadataError(
+                f"Ventana metadata {self.tag} {name} {value!r} is not an integer."
+            ) from None
+
+    def required_float(self, name: str) -> float:
+        """The value of a required finite number attribute."""
+        value = self.required_str(name)
+        try:
+            number = float(value)
+        except ValueError:
+            number = math.nan
+        if not math.isfinite(number):
+            raise InvalidMetadataError(
+                f"Ventana metadata {self.tag} {name} {value!r} is not a finite number."
+            )
+        return number
+
+    def required_positive_int(self, name: str) -> int:
+        """The value of a required attribute that must be a positive integer."""
+        number = self.required_int(name)
+        if number < 1:
+            raise InvalidMetadataError(
+                f"Ventana metadata {self.tag} {name} must be positive, not {number}."
+            )
+        return number
+
+
+@dataclass(frozen=True)
+class VentanaJoint:
+    """A measured offset between two neighbouring tiles of an area."""
+
+    first: Point
+    """Area cell of the left or upper tile."""
+    second: Point
+    """Area cell of the right or lower tile."""
+    offset: PointF
+    """Position of `second` minus position of `first`, in pixels."""
+    confidence: float
+    """The scanner's confidence in the joint, from 0 to 100."""
 
 
 @dataclass(frozen=True)
 class VentanaArea:
     """Stitch geometry of one scanned area (``ImageInfo``) of a Ventana slide.
 
-    A slide has one area per scanned region of interest. Each is a serpentine tile
-    grid placed at its own origin on the shared de-overlapped canvas.
+    A slide has one area per scanned region of interest. Each is a tile grid, scanned
+    in serpentine order, stored at its own origin in the slide's tile grid.
     """
 
-    num_cols: int
-    num_rows: int
+    tiled_size: Size
+    """Number of tile columns and rows of the area."""
     origin_col: int
-    """Grid column of the area's top-left tile on the shared canvas."""
+    """Column of the area's top-left tile in the slide's tile grid."""
     origin_row: int
-    """Grid row of the area's top-left tile on the shared canvas."""
+    """Row of the area's top-left tile in the slide's tile grid."""
     col_overlaps: list[float]
-    """Mean measured overlap (px) per column boundary; one fewer than ``num_cols``."""
+    """Mean measured overlap per column boundary, in pixels; one fewer than the
+    columns."""
     row_overlaps: list[float]
-    """Mean measured overlap (px) per row boundary; one fewer than ``num_rows``."""
+    """Mean measured overlap per row boundary, in pixels; one fewer than the rows."""
+    joints: list[VentanaJoint]
+    """Measured offsets between neighbouring tiles of the area."""
+
+    MIN_OVERLAP_CONFIDENCE = 95
+    """Least confidence of a joint whose overlap counts towards the mean overlap of
+    its boundary."""
+
+    @classmethod
+    def from_image_info(
+        cls, image_info: VentanaElement, origin: PointF
+    ) -> "VentanaArea":
+        """Parse an area from its ``ImageInfo`` element.
+
+        Parameters
+        ----------
+        image_info: VentanaElement
+            The area's ``ImageInfo`` element.
+        origin: PointF
+            The area's origin in the slide, in pixels (from ``AoiOrigin``). The
+            area's tiles are stored at whole grid positions, so it must be a multiple
+            of the tile size.
+
+        Returns
+        -------
+        VentanaArea
+            The area's tile grid, origin, mean overlaps and joints.
+
+        Raises
+        ------
+        MissingMetadataError
+            If ``NumCols``, ``NumRows``, ``Width`` or ``Height`` is missing; if a
+            ``TileJointInfo`` has no ``FlagJoined``; or if a joined one has no
+            ``Tile1``, ``Tile2``, ``Direction``, ``OverlapX``, ``OverlapY`` or
+            ``Confidence``.
+        InvalidMetadataError
+            If one of those is malformed, or ``NumCols``, ``NumRows``, ``Width`` or
+            ``Height`` is not positive; or if a joined ``TileJointInfo`` has a
+            ``Tile1`` or ``Tile2`` outside the area, or a negative ``Confidence``.
+        UnsupportedMetadataError
+            If `origin` is not a multiple of the tile size.
+        """
+        tiled_size = Size(
+            image_info.required_positive_int("NumCols"),
+            image_info.required_positive_int("NumRows"),
+        )
+        tile_size = Size(
+            image_info.required_positive_int("Width"),
+            image_info.required_positive_int("Height"),
+        )
+        if origin.x % tile_size.width != 0 or origin.y % tile_size.height != 0:
+            raise UnsupportedMetadataError(
+                f"Ventana metadata area origin {origin} is not on the grid of its"
+                f" {tile_size} tiles."
+            )
+        # The joints the scanner joined, each as its TileJointInfo element and the
+        # area cells of its Tile1 and Tile2 (in either spatial order).
+        joined = [
+            (joint_info, *cls._joint_cells(joint_info, tiled_size))
+            for joint_info in image_info.iter("TileJointInfo")
+            if joint_info.required_int("FlagJoined") != 0
+        ]
+        col_overlaps, row_overlaps = cls._mean_overlaps(joined, tiled_size)
+        return cls(
+            tiled_size,
+            int(origin.x // tile_size.width),
+            int(origin.y // tile_size.height),
+            col_overlaps,
+            row_overlaps,
+            cls._joints(joined, tile_size),
+        )
+
+    @classmethod
+    def _joint_cells(
+        cls, joint_info: VentanaElement, tiled_size: Size
+    ) -> tuple[Point, Point]:
+        """The area cells of a joint's ``Tile1`` and ``Tile2``."""
+        return (
+            cls._serpentine_cell(joint_info.required_positive_int("Tile1"), tiled_size),
+            cls._serpentine_cell(joint_info.required_positive_int("Tile2"), tiled_size),
+        )
+
+    @classmethod
+    def _joints(
+        cls, joined: list[tuple[VentanaElement, Point, Point]], tile_size: Size
+    ) -> list[VentanaJoint]:
+        """The joined joints between grid neighbours, with their measured offsets.
+
+        Joints below `MIN_OVERLAP_CONFIDENCE` are kept, as registering raw tiles
+        shows they are as accurate (about 1 pixel). Joints of confidence 0 are left
+        out, as they carry no weight.
+        """
+        joints: list[VentanaJoint] = []
+        for info, tile1_cell, tile2_cell in joined:
+            joint = cls._neighbour_joint(info, tile1_cell, tile2_cell, tile_size)
+            if joint is not None and joint.confidence > 0:
+                joints.append(joint)
+        return joints
+
+    @classmethod
+    def _mean_overlaps(
+        cls, joined: list[tuple[VentanaElement, Point, Point]], tiled_size: Size
+    ) -> tuple[list[float], list[float]]:
+        """Mean measured overlap per column and per row boundary, from the joined
+        joints of confidence at least `MIN_OVERLAP_CONFIDENCE`.
+
+        Direction names the axis the overlap was measured along, not the spatial
+        relation of the tiles, so LEFT is equivalent to RIGHT and DOWN to UP (newer
+        Roche/Ventana scanners emit LEFT/DOWN). The boundary is taken from the lower
+        of the two tile cells, which is already direction agnostic.
+        """
+        col_samples: list[tuple[int, float]] = []
+        row_samples: list[tuple[int, float]] = []
+        for info, tile1_cell, tile2_cell in joined:
+            # Read before the confidence filter, so that every joined joint must
+            # have a Direction.
+            direction = info.required_str("Direction")
+            if info.required_float("Confidence") < cls.MIN_OVERLAP_CONFIDENCE:
+                continue
+            if direction in ("LEFT", "RIGHT"):
+                col_samples.append(
+                    (
+                        min(tile1_cell.x, tile2_cell.x),
+                        info.required_float("OverlapX"),
+                    )
+                )
+            elif direction in ("UP", "DOWN"):
+                row_samples.append(
+                    (
+                        min(tile1_cell.y, tile2_cell.y),
+                        info.required_float("OverlapY"),
+                    )
+                )
+        return (
+            cls._boundary_means(col_samples, tiled_size.width - 1),
+            cls._boundary_means(row_samples, tiled_size.height - 1),
+        )
+
+    @staticmethod
+    def _boundary_means(
+        samples: list[tuple[int, float]], boundary_count: int
+    ) -> list[float]:
+        """Mean overlap per boundary from (boundary, overlap) samples.
+
+        A boundary without samples takes the mean of all samples, or 0 if there are
+        none. Samples for a boundary outside the grid only count towards that mean.
+        """
+        count = max(boundary_count, 0)
+        sums = [0.0] * count
+        counts = [0] * count
+        for boundary, overlap in samples:
+            if 0 <= boundary < count:
+                sums[boundary] += overlap
+                counts[boundary] += 1
+        fallback = (
+            sum(overlap for _, overlap in samples) / len(samples) if samples else 0.0
+        )
+        return [
+            sums[boundary] / counts[boundary] if counts[boundary] else fallback
+            for boundary in range(count)
+        ]
+
+    @staticmethod
+    def _neighbour_joint(
+        info: VentanaElement, tile1_cell: Point, tile2_cell: Point, tile_size: Size
+    ) -> Optional[VentanaJoint]:
+        """The joint between two grid neighbours, with its measured offset, or None
+        if the joint's tiles are not grid neighbours.
+
+        `info` is the joint's ``TileJointInfo`` element, and `tile1_cell` and
+        `tile2_cell` are the area cells of its ``Tile1`` and ``Tile2``, in either
+        spatial order.
+
+        A joint measures both axes: the overlap along the joint (OverlapX for a
+        horizontal neighbour, OverlapY for a vertical one) and the shift across it.
+        Registering the raw tiles of real slides shows the shift across the joint is
+        the negated value: the right tile sits at (width - OverlapX, -OverlapY) from
+        the left tile, the lower tile at (-OverlapX, height - OverlapY) from the
+        upper tile, whatever the Direction and tile order.
+        """
+        first, second = sorted(
+            (tile1_cell, tile2_cell), key=lambda cell: (cell.y, cell.x)
+        )
+        overlap_x = info.required_float("OverlapX")
+        overlap_y = info.required_float("OverlapY")
+        confidence = info.required_float("Confidence")
+        if confidence < 0:
+            raise InvalidMetadataError(
+                f"Ventana metadata {info.tag} Confidence {confidence} is negative."
+            )
+        if first.y == second.y and second.x - first.x == 1:
+            offset = PointF(tile_size.width - overlap_x, -overlap_y)
+        elif first.x == second.x and second.y - first.y == 1:
+            offset = PointF(-overlap_x, tile_size.height - overlap_y)
+        else:
+            return None
+        return VentanaJoint(first, second, offset, confidence)
+
+    @staticmethod
+    def _serpentine_cell(tile_one_based: int, tiled_size: Size) -> Point:
+        """Area cell of a 1-based serpentine tile index. The snake starts at the
+        lower-left, so the area row is the mirror of the snake row."""
+        if tile_one_based > tiled_size.area:
+            raise InvalidMetadataError(
+                f"Ventana metadata tile {tile_one_based} is outside its area of "
+                f"{tiled_size.area} tiles."
+            )
+        index = tile_one_based - 1
+        snake_row = index // tiled_size.width
+        snake_col = index % tiled_size.width
+        col = snake_col if snake_row % 2 == 0 else tiled_size.width - 1 - snake_col
+        return Point(col, tiled_size.height - 1 - snake_row)
 
 
 class VentanaMetadata(Metadata):
+    """Metadata of a Ventana bif file, from the ``iScan`` and ``EncodeInfo`` XMP."""
+
     def __init__(self, page: TiffPage):
         xmp = page.tags["XMP"].value
         if isinstance(xmp, bytes):
@@ -100,123 +397,87 @@ class VentanaMetadata(Metadata):
 
     @property
     def areas(self) -> list[VentanaArea]:
-        """The scanned areas (``ImageInfo``) of the slide, each a serpentine tile grid
-        with its measured per-boundary overlaps and its origin on the shared canvas.
+        """The scanned areas (``ImageInfo``) of the slide.
 
-        Areas flagged ``AOIScanned="0"`` are skipped: their tiles are not present on
-        disk.
+        Areas flagged ``AOIScanned="0"`` are skipped, as their tiles are not stored.
+        The ``ImageInfo`` elements are numbered in document order, counting skipped
+        ones, and area ``n`` takes its origin from the ``AOI<n>`` child of
+        ``AoiOrigin``.
+
+        Raises
+        ------
+        MissingMetadataError
+            If an ``ImageInfo`` has no ``AOIScanned``, if there is no ``AoiOrigin``
+            block, if a scanned area has no ``AOI<n>`` origin, if an origin has no
+            ``OriginX`` or ``OriginY``, if no area is scanned, or as
+            `VentanaArea.from_image_info`.
+        InvalidMetadataError
+            If the XMP is not well-formed, if one of those values or an ``AOI<n>``
+            number is malformed, or as `VentanaArea.from_image_info`.
+        UnsupportedMetadataError
+            As `VentanaArea.from_image_info`.
         """
-        root = ElementTree.fromstring(self._xmp.rstrip("\x00"))
+        root = self._parse_xmp(self._xmp)
         origins = self._aoi_origins(root)
         areas: list[VentanaArea] = []
-        for index, image_info in enumerate(root.iter("ImageInfo")):
-            if int(image_info.get("AOIScanned", 1)) == 0:
+        for index, image_info in enumerate(VentanaElement(root).iter("ImageInfo")):
+            if image_info.required_int("AOIScanned") == 0:
                 continue
-            origin_x, origin_y = origins.get(index, (0.0, 0.0))
-            areas.append(self._area_overlaps(image_info, origin_x, origin_y))
+            origin = origins.get(index)
+            if origin is None:
+                raise MissingMetadataError(
+                    f"Ventana metadata has no AoiOrigin AOI{index} for scanned "
+                    f"ImageInfo {index}."
+                )
+            areas.append(VentanaArea.from_image_info(image_info, origin))
         if not areas:
             raise MissingMetadataError("No scanned areas found in Ventana metadata.")
         return areas
 
-    def _area_overlaps(
-        self, image_info: Element, origin_x: float, origin_y: float
-    ) -> VentanaArea:
-        MIN_JOINT_CONFIDENCE = 95
-        cols = int(image_info.get("NumCols", 0))
-        rows = int(image_info.get("NumRows", 0))
-        tile_width = float(image_info.get("Width", 1))
-        tile_height = float(image_info.get("Height", 1))
-
-        # Mean measured overlap per grid boundary, plus the area-wide mean as fallback.
-        col_sum = [0.0] * max(cols - 1, 0)
-        col_count = [0] * max(cols - 1, 0)
-        row_sum = [0.0] * max(rows - 1, 0)
-        row_count = [0] * max(rows - 1, 0)
-        global_col_sum = global_col_count = global_row_sum = global_row_count = 0.0
-        for joint in image_info.iter("TileJointInfo"):
-            if int(joint.get("FlagJoined", 0)) == 0:
-                continue
-            if float(joint.get("Confidence", 0)) < MIN_JOINT_CONFIDENCE:
-                continue
-            # Direction names the axis the overlap was measured along, not the spatial
-            # relation of the tiles, so LEFT is equivalent to RIGHT and DOWN to UP
-            # (newer Roche/Ventana scanners emit LEFT/DOWN). The boundary is taken from
-            # the lower of the two tile indices, which is already direction agnostic.
-            direction = joint.get("Direction")
-            col_a, row_a = self._serpentine_cell(int(joint.get("Tile1", 1)), cols, rows)
-            col_b, row_b = self._serpentine_cell(int(joint.get("Tile2", 1)), cols, rows)
-            if direction in ("LEFT", "RIGHT"):
-                boundary = min(col_a, col_b)
-                overlap = float(joint.get("OverlapX", 0))
-                if 0 <= boundary < len(col_sum):
-                    col_sum[boundary] += overlap
-                    col_count[boundary] += 1
-                global_col_sum += overlap
-                global_col_count += 1
-            elif direction in ("UP", "DOWN"):
-                boundary = min(row_a, row_b)
-                overlap = float(joint.get("OverlapY", 0))
-                if 0 <= boundary < len(row_sum):
-                    row_sum[boundary] += overlap
-                    row_count[boundary] += 1
-                global_row_sum += overlap
-                global_row_count += 1
-
-        mean_col = global_col_sum / global_col_count if global_col_count else 0.0
-        mean_row = global_row_sum / global_row_count if global_row_count else 0.0
-        col_overlaps = [
-            col_sum[b] / col_count[b] if col_count[b] else mean_col
-            for b in range(len(col_sum))
-        ]
-        row_overlaps = [
-            row_sum[b] / row_count[b] if row_count[b] else mean_row
-            for b in range(len(row_sum))
-        ]
-        return VentanaArea(
-            cols,
-            rows,
-            round(origin_x / tile_width),
-            round(origin_y / tile_height),
-            col_overlaps,
-            row_overlaps,
-        )
-
     @staticmethod
-    def _aoi_origins(root: Element) -> dict[int, tuple[float, float]]:
-        """Image-space origins keyed by area index, from the ``AoiOrigin`` block's
-        ``AOI<n>`` children (empty when the block is absent)."""
-        origins: dict[int, tuple[float, float]] = {}
+    def _aoi_origins(root: Element) -> dict[int, PointF]:
+        """Area origins in pixels, by area index, from the ``AOI<n>`` children of
+        ``AoiOrigin``."""
         aoi_origin = root.find(".//AoiOrigin")
         if aoi_origin is None:
-            return origins
-        for child in aoi_origin:
-            if not child.tag.startswith("AOI"):
-                continue
-            index = int(child.tag[len("AOI") :])
-            origins[index] = (
-                float(child.get("OriginX", 0)),
-                float(child.get("OriginY", 0)),
+            raise MissingMetadataError("Ventana metadata has no AoiOrigin block.")
+        return {
+            VentanaMetadata._aoi_index(child.tag): PointF(
+                child.required_float("OriginX"),
+                child.required_float("OriginY"),
             )
-        return origins
+            for child in VentanaElement(aoi_origin).children()
+            if child.tag.startswith("AOI")
+        }
 
     @staticmethod
-    def _serpentine_cell(tile_one_based: int, cols: int, rows: int) -> tuple[int, int]:
-        """Image cell (col, row) of a 1-based serpentine tile index. The snake starts at
-        the lower-left, so the image row is the mirror of the snake row."""
-        index = tile_one_based - 1
-        snake_row = index // cols
-        snake_col = index % cols
-        col = snake_col if snake_row % 2 == 0 else cols - 1 - snake_col
-        return col, rows - 1 - snake_row
+    def _aoi_index(tag: str) -> int:
+        """The area index of an ``AOI<n>`` tag."""
+        number = tag[len("AOI") :]
+        if not number.isdigit():
+            raise InvalidMetadataError(
+                f"Ventana metadata AoiOrigin child {tag} is not numbered."
+            )
+        return int(number)
 
     @staticmethod
     def _find_iscan(xmp: str) -> Element:
-        """Return the iScan element from a Ventana XMP document (its root, or nested in
-        an EncodeInfo/Metadata root)."""
-        root = ElementTree.fromstring(xmp.rstrip("\x00"))
+        """The ``iScan`` element of a Ventana XMP document: its root, or nested in an
+        ``EncodeInfo`` or ``Metadata`` root."""
+        root = VentanaMetadata._parse_xmp(xmp)
         if root.tag == "iScan":
             return root
         iscan = root.find(".//iScan")
         if iscan is None:
             raise MissingMetadataError("No iScan element found in Ventana XMP.")
         return iscan
+
+    @staticmethod
+    def _parse_xmp(xmp: str) -> Element:
+        """The root element of a Ventana XMP document."""
+        try:
+            return ElementTree.fromstring(xmp.rstrip("\x00"))
+        except ParseError as exception:
+            raise InvalidMetadataError(
+                f"Ventana XMP is not well-formed: {exception}"
+            ) from None

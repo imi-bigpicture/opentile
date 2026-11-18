@@ -34,6 +34,7 @@ ome_tiff_file_path = slide_folder.joinpath("ome_tiff/CMU-1/CMU-1.ome.tiff")
 trestle_file_path = slide_folder.joinpath("trestle_tiff/CMU-1/CMU-1.tif")
 ventana_file_path = slide_folder.joinpath("ventana_bif/OS-1/OS-1.bif")
 ventana_1_file_path = slide_folder.joinpath("ventana_bif/Ventana-1/Ventana-1.bif")
+ventana_2_file_path = slide_folder.joinpath("ventana_bif/OS-2/OS-2.bif")
 leica_scn_file_path = slide_folder.joinpath("scn/scn1/Leica-1.scn")
 # Multiple ROIs: scn2 at identical resolutions, scn3 at different resolutions.
 leica_scn_multi_roi_file_path = slide_folder.joinpath("scn/scn2/Leica-2.scn")

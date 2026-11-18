@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Settings.max_file_handles_per_file` (default 8), the most handles open to a local file at once. A read beyond waits for a handle.
 - `MissingMetadataError`, an `OpenTileError` and a `ValueError`, raised when a file lacks metadata opentile needs to read it: the pixel size of an OME-TIFF, Philips, QPTIFF or SVS file, and the scan resolution, scanned areas or iScan element of a Ventana file. These were plain `ValueError`s.
 - `InvalidMetadataError`, an `OpenTileError` and a `ValueError`, raised when a file has metadata opentile needs to read it, but with values that are unlikely to be valid for the format.
+- `UnsupportedMetadataError`, an `OpenTileError` and a `ValueError`, raised when a file has metadata with values that may be valid for the format but that opentile does not handle.
 
 ### Changed
 
@@ -20,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `get_tile()` and `get_tiles()` read a tile with a single read at its byte range, with the jpeg tables of the page put in place of the abbreviated header, instead of reading the frame and then adding the tables.
 - `OpenTile.open()` raises `UnsupportedFileError` when no tiler supports the file, and for an OME-TIFF whose physical size is not in micrometers. These were plain `NotImplementedError`s; `UnsupportedFileError` is one, so code catching `NotImplementedError` is unaffected. A file opentile does not read now raises an `OpenTileError`, so a caller trying several readers can tell it from other errors.
 - A Trestle file without its pixel size raises `MissingMetadataError` instead of `KeyError`, and one with a pixel size or `OverlapsXY` that is not valid raises `InvalidMetadataError` instead of `ZeroDivisionError` or `ValueError`. Requesting a Trestle label, overview or thumbnail, which Trestle stores in separate files, raises `MissingAssociatedImageError` instead of `NotImplementedError`.
+- Ventana base-level tiles are placed from each measured joint between neighbours, including the shift across it, instead of from mean overlaps per row and column, so tiles line up more accurately. Tile positions are whole pixels, and the composed level sizes change slightly.
+- Opening a Ventana bif file whose stitching metadata is incomplete raises `MissingMetadataError`, one whose stitching metadata is not valid `InvalidMetadataError`, and one with a layout opentile does not place (an area origin off the tile grid, or scanned areas that overlap) `UnsupportedMetadataError`, instead of guessing the tile layout. A Ventana XMP that is not well-formed raises `InvalidMetadataError`.
+- Reduced Ventana levels cut each downsampled tile share at its exact (possibly fractional) boundaries, and round the composed size up instead of to nearest, so the last share is never cut off.
 
 ### Removed
 
