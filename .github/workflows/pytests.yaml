@@ -34,6 +34,8 @@ jobs:
             test-images-cache-
           path: tests/testdata/slides
           enableCrossOsArchive: true
+          # Only check that the entry exists; the test jobs download it.
+          lookup-only: true
       - name: Download test images
         if: ${{ steps.cache-test-images.outputs.cache-hit != 'true' }}
         run: |
@@ -66,6 +68,9 @@ jobs:
           path: opentile-jpeg/.turbo
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.3
+        with:
+          # Pull requests restore main's cache; saving their own only crowds it out.
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
       - name: Build wheel
         run: uv build --package opentile-jpeg --wheel --python 3.12 --out-dir dist
       - uses: actions/upload-artifact@v7
@@ -79,6 +84,7 @@ jobs:
     needs: [cache_test_images, build_opentile_jpeg]
     name: pytest ${{ matrix.os }}::py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       max-parallel: 8
       fail-fast: false
@@ -122,6 +128,9 @@ jobs:
           path: dist
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.3
+        with:
+          # Pull requests restore main's cache; saving their own only crowds it out.
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
       # Everything but opentile-jpeg from the lockfile, then the wheel built
       # above in its place. Bash, so the wheel's glob expands on Windows too.
       - name: Install Application
