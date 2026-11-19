@@ -41,8 +41,42 @@ jobs:
           python -m pip install requests
           python -u tests/download_test_images.py
 
+  # Build the opentile-jpeg extension (a workspace member) once per OS, instead
+  # of in every test job. Built on Python 3.12 it is one abi3 wheel, which every
+  # Python the tests run on can install.
+  build_opentile_jpeg:
+    name: build opentile-jpeg ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # Cache the pinned libjpeg-turbo build so it is compiled once per pin and OS.
+      - name: Cache libjpeg-turbo build
+        uses: actions/cache@v6
+        with:
+          key: libjpeg-turbo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('opentile-jpeg/pyproject.toml', 'opentile-jpeg/tools/build_turbo.py') }}
+          path: opentile-jpeg/.turbo
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.3
+      - name: Build wheel
+        run: uv build --package opentile-jpeg --wheel --python 3.12 --out-dir dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: opentile-jpeg-${{ runner.os }}
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 1
+
   tests:
-    needs: [cache_test_images]
+    needs: [cache_test_images, build_opentile_jpeg]
     name: pytest ${{ matrix.os }}::py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -81,16 +115,20 @@ jobs:
           path: tests/testdata/slides
           enableCrossOsArchive: true
           fail-on-cache-miss: true
-      # opentile-jpeg (a workspace member) is built from source by uv sync; cache
-      # its pinned libjpeg-turbo build so it is compiled once per pin and OS.
-      - name: Cache libjpeg-turbo build
-        uses: actions/cache@v6
+      - name: Download opentile-jpeg wheel
+        uses: actions/download-artifact@v8
         with:
-          key: libjpeg-turbo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('opentile-jpeg/pyproject.toml', 'opentile-jpeg/tools/build_turbo.py') }}
-          path: opentile-jpeg/.turbo
+          name: opentile-jpeg-${{ runner.os }}
+          path: dist
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.3
+      # Everything but opentile-jpeg from the lockfile, then the wheel built
+      # above in its place. Bash, so the wheel's glob expands on Windows too.
       - name: Install Application
-        run: uv sync --all-extras
+        shell: bash
+        run: |
+          uv sync --all-extras --no-install-package opentile-jpeg
+          uv pip install dist/*.whl
+      # --no-sync, as a sync would build opentile-jpeg from source again.
       - name: Test with pytest.
-        run: uv run pytest
+        run: uv run --no-sync pytest
