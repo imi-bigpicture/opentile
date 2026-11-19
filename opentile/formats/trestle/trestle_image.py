@@ -19,7 +19,7 @@ from typing import Optional, Union
 
 import numpy as np
 import opentile_jpeg
-from imagecodecs import jpeg8_decode
+from imagecodecs import jpeg_decode
 from tifffile import COMPRESSION, TiffPage
 
 from opentile.file import OpenTileFile
@@ -243,7 +243,7 @@ class TrestleRegriddedImage(ExplicitScaleLevelTiffImage):
         )
 
     def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
-        return jpeg8_decode(self.get_tile(tile_position))
+        return jpeg_decode(self.get_tile(tile_position))
 
     def _compose(self, tile_points: Sequence[Point]) -> Iterator[bytes]:
         """Compose served tiles from the stored tiles covering them, reading each

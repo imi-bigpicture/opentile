@@ -21,7 +21,7 @@ from typing import Optional
 import numpy as np
 import opentile_jpeg
 import pytest
-from imagecodecs import JPEG8, jpeg8_decode, jpeg8_encode
+from imagecodecs import JPEG, jpeg_decode, jpeg_encode
 from PIL import Image
 from tifffile import TiffFile, TiffPage
 
@@ -173,7 +173,7 @@ class TestJpeg:
         # Encode each strip as no subsampling jpeg
         scans = [
             bytes(
-                jpeg8_encode(
+                jpeg_encode(
                     image[index * strip_height : (index + 1) * strip_height],
                     subsampling="444",
                     optimize=False,
@@ -181,13 +181,13 @@ class TestJpeg:
             )
             for index in range(strip_count)
         ]
-        expected = np.concatenate([jpeg8_decode(scan) for scan in scans], axis=0)
+        expected = np.concatenate([jpeg_decode(scan) for scan in scans], axis=0)
 
         # Act
         frame = Jpeg.concatenate_scans(iter(scans), None, False)
 
         # Assert
-        assert np.array_equal(jpeg8_decode(frame), expected)
+        assert np.array_equal(jpeg_decode(frame), expected)
 
     @pytest.mark.parametrize(
         ["luminance", "expected_value"], [(0.0, 0), (0.5, 128), (1.0, 255)]
@@ -251,7 +251,7 @@ class TestJpegInfo:
         # Arrange
         image = (np.random.rand(64, 64, 3) * 255).astype(np.uint8)
         frame = bytes(
-            jpeg8_encode(image, colorspace=JPEG8.CS.YCbCr, subsampling=subsampling)
+            jpeg_encode(image, colorspace=JPEG.CS.YCbCr, subsampling=subsampling)
         )
 
         # Act
@@ -263,7 +263,7 @@ class TestJpegInfo:
     def test_info_baseline_8bit(self):
         # Arrange
         image = (np.random.rand(64, 64, 3) * 255).astype(np.uint8)
-        frame = bytes(jpeg8_encode(image, colorspace=JPEG8.CS.YCbCr))
+        frame = bytes(jpeg_encode(image, colorspace=JPEG.CS.YCbCr))
 
         # Act
         info = Jpeg.info(frame)
@@ -276,7 +276,7 @@ class TestJpegInfo:
     def test_info_extended_12bit(self):
         # Arrange — 12-bit encodes as extended sequential (SOF1)
         image = (np.random.rand(64, 64, 3) * 4095).astype(np.uint16)
-        frame = bytes(jpeg8_encode(image, bitspersample=12))
+        frame = bytes(jpeg_encode(image, bitspersample=12))
 
         # Act
         info = Jpeg.info(frame)
@@ -305,7 +305,7 @@ class TestJpegInfo:
     def test_info_grayscale_has_no_subsampling(self):
         # Arrange
         image = (np.random.rand(64, 64) * 255).astype(np.uint8)
-        frame = bytes(jpeg8_encode(image, colorspace=JPEG8.CS.GRAYSCALE))
+        frame = bytes(jpeg_encode(image, colorspace=JPEG.CS.GRAYSCALE))
 
         # Act
         info = Jpeg.info(frame)
@@ -317,10 +317,10 @@ class TestJpegInfo:
     @pytest.mark.parametrize(
         ["colorspace", "subsampling", "expected"],
         [
-            (JPEG8.CS.YCbCr, (1, 1), Size(8, 8)),
-            (JPEG8.CS.YCbCr, (2, 1), Size(16, 8)),
-            (JPEG8.CS.YCbCr, (2, 2), Size(16, 16)),
-            (JPEG8.CS.GRAYSCALE, None, Size(8, 8)),
+            (JPEG.CS.YCbCr, (1, 1), Size(8, 8)),
+            (JPEG.CS.YCbCr, (2, 1), Size(16, 8)),
+            (JPEG.CS.YCbCr, (2, 2), Size(16, 16)),
+            (JPEG.CS.GRAYSCALE, None, Size(8, 8)),
         ],
     )
     def test_info_mcu_size(
@@ -330,10 +330,10 @@ class TestJpegInfo:
         expected: Size,
     ):
         # Arrange
-        shape = (64, 64) if colorspace == JPEG8.CS.GRAYSCALE else (64, 64, 3)
+        shape = (64, 64) if colorspace == JPEG.CS.GRAYSCALE else (64, 64, 3)
         image = (np.random.rand(*shape) * 255).astype(np.uint8)
         frame = bytes(
-            jpeg8_encode(image, colorspace=colorspace, subsampling=subsampling)
+            jpeg_encode(image, colorspace=colorspace, subsampling=subsampling)
         )
 
         # Act

@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from decoy import Decoy, matchers
-from imagecodecs import jpeg8_decode
+from imagecodecs import jpeg_decode
 from tifffile import COMPRESSION, TiffPage
 
 from opentile.file import FileHandlePool, LocalFileReader, OpenTileFile
@@ -99,7 +99,7 @@ class TestSparseTiledLevelImage:
         tile = level.get_tile((1, 0))
 
         # Assert
-        assert jpeg8_decode(tile).mean() == 255.0
+        assert jpeg_decode(tile).mean() == 255.0
 
     def test_get_populated_tile(self, level: SparseTiledLevelImage, frame: bytes):
         # Arrange
@@ -108,7 +108,7 @@ class TestSparseTiledLevelImage:
         tile = level.get_tile((0, 0))
 
         # Assert
-        assert np.array_equal(jpeg8_decode(tile), jpeg8_decode(frame))
+        assert np.array_equal(jpeg_decode(tile), jpeg_decode(frame))
 
     def test_sparse_tile_is_blank_after_populated_tile(
         self, level: SparseTiledLevelImage
@@ -122,7 +122,7 @@ class TestSparseTiledLevelImage:
         tile = level.get_tile((1, 0))
 
         # Assert
-        assert jpeg8_decode(tile).mean() == 255.0
+        assert jpeg_decode(tile).mean() == 255.0
 
     def test_get_populated_tile_after_sparse_tile(
         self, level: SparseTiledLevelImage, frame: bytes
@@ -134,7 +134,7 @@ class TestSparseTiledLevelImage:
         tile = level.get_tile((0, 0))
 
         # Assert
-        assert np.array_equal(jpeg8_decode(tile), jpeg8_decode(frame))
+        assert np.array_equal(jpeg_decode(tile), jpeg_decode(frame))
 
     def test_get_tiles_serves_sparse_and_populated_tiles(
         self, level: SparseTiledLevelImage, frame: bytes
@@ -145,8 +145,8 @@ class TestSparseTiledLevelImage:
         tiles = list(level.get_tiles([(0, 0), (1, 0)]))
 
         # Assert
-        assert np.array_equal(jpeg8_decode(tiles[0]), jpeg8_decode(frame))
-        assert jpeg8_decode(tiles[1]).mean() == 255.0
+        assert np.array_equal(jpeg_decode(tiles[0]), jpeg_decode(frame))
+        assert jpeg_decode(tiles[1]).mean() == 255.0
 
     def test_get_tiles_serves_sparse_tile_past_stored_frames(
         self, level: SparseTiledLevelImage
@@ -158,4 +158,4 @@ class TestSparseTiledLevelImage:
         tiles = list(level.get_tiles([(1, 0)]))
 
         # Assert
-        assert jpeg8_decode(tiles[0]).mean() == 255.0
+        assert jpeg_decode(tiles[0]).mean() == 255.0
