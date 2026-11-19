@@ -4,7 +4,7 @@
 
 - Allow compressed tiles to be losslessly read from WSI TIFFS using 2D coordinates (tile position x, y),
 - Provide a unified interface for relevant metadata,
-- Support file formats supported by `tifffile` that have a non-overlapping tile structure, as well as formats whose tiles overlap their neighbours (Trestle, Ventana), for which the de-overlapped tile placement is also exposed.
+- Support file formats supported by `tifffile` that have a non-overlapping tile structure, as well as formats whose tiles overlap their neighbours (Trestle, Ventana). These are re-gridded losslessly where possible, and otherwise the de-overlapped tile placement is exposed.
 
 *opentile* does _not_ provide methods for reading regions from images (e.g. `get_region()`). See [openslide-python](https://github.com/openslide/openslide-python), [tiffslide](https://github.com/bayer-science-for-a-better-life/tiffslide), or [wsidicomizer](https://github.com/imi-bigpicture/wsidicomizer) for such use.
 
@@ -46,7 +46,7 @@ Files with z-stacks are currently not fully supported for all formats.
 
 The following description of the workings of the implemented file formats does not include the additional specifics for each format that is handled by tifffile. Additional formats supported by tifffile are likely to be added in future releases.
 
-*opentile* presents each level as a regular, non-overlapping grid of `tile_size` tiles. When `TiffImage.overlap` is `None` (the common case) the stored tiles already form that regular grid and are served directly. When it instead returns a `TileOverlap` — because the stored tiles overlap their neighbors (Trestle, Ventana) or use a different native tiling (JPEG XR Ndpi) — the raw stored tiles are still served by grid position, and the `TileOverlap` gives the composed level size and the placement of each stored tile, so a consumer can compose (de-overlap and/or stitch) them into the regular grid.
+*opentile* presents each level as a regular, non-overlapping grid of `tile_size` tiles. When `TiffImage.overlap` is `None` (the common case) the stored tiles already form that regular grid and are served directly. When it instead returns a `TileOverlap` — because the stored tiles overlap their neighbors (Ventana, and Trestle levels that can not be re-gridded) or use a different native tiling (JPEG XR Ndpi) — the raw stored tiles are still served by grid position, and the `TileOverlap` gives the composed level size and the placement of each stored tile, so a consumer can compose (de-overlap and/or stitch) them into the regular grid.
 
 ***Hamamatsu Ndpi***
 The Ndpi-format uses non-rectangular tile size typically 8 pixels high, i.e. stripes. To form tiles, first multiple stripes are concatenated to form a frame covering the tile region. Second, if the stripes are longer than the tile width, the tile is cropped out of the frame. The concatenation and crop transformations are performed losslessly.
@@ -79,10 +79,10 @@ Motic tiff-files use the Aperio pipe-separated description format but with a `Mo
 Both tiled and strip-stored (e.g. uncompressed) levels are supported. Each level's focal plane and optical path are read from the OME metadata, so multi-plane z-stacks are exposed as separate focal planes. General (`metadata`-property) parsing is not yet implemented.
 
 ***Trestle tiff***
-Trestle tiff-files (identified by a `Software` tag starting with `MedScan`) store tiles that overlap their neighbors by a fixed per-level amount. The recorded overlap is used to place each tile on the de-overlapped level (see the note on overlapping formats above).
+Trestle tiff-files are identified by a `Software` tag starting with `MedScan`. Their tiles overlap their neighbors by a fixed amount per level, given in the `OverlapsXY` description field. When the jpeg is baseline 8-bit, and the tile step and `tile_size` are multiples of the jpeg MCU, a level is re-gridded losslessly into non-overlapping tiles by copying jpeg blocks. A re-gridded level has no `overlap`. Other levels are served as stored, with an `overlap` placement. Levels cropped by the base level's overlap give their position on the base level as `origin_offset`. Associated images are stored in separate files and are not read.
 
 ***Ventana bif***
-Ventana bif-files store a single-file pyramidal tiled BigTIFF whose tiles overlap. The per-boundary overlaps and each scanned area's origin are parsed from the `EncodeInfo` XMP (serpentine-indexed), and multi-area slides are supported. Already-stitched (non-overlapping) Ventana tiff files are also read, as a plain tiled pyramid.
+Ventana bif-files store a single-file pyramidal tiled BigTIFF whose tiles overlap. The tile joints and the origin of each scanned area are read from the `EncodeInfo` XMP, and multi-area slides are supported. Base-level tiles are placed at whole-pixel positions solved from the measured joints to their neighbours. Reduced levels use the base positions scaled by the downsample. Stitching metadata that is missing or not valid, or a layout opentile does not place, raises an error instead of giving a guessed layout. Already-stitched (non-overlapping) Ventana tiff files are read as a plain tiled pyramid.
 
 ***PerkinElmer/Akoya qptiff***
 Qptiff-files are identified by a `Software` tag starting with `PerkinElmer-QPI`, and their directories are classified by the `ImageType` element of the `PerkinElmer-QPI-ImageDescription` XML, exposing the thumbnail, macro (overview) and label images. Levels of 2K x 2K pixels or smaller are stored as strips rather than tiles and are served as a single tile, as are the associated images; LZW-compressed strips cannot be concatenated and are served decoded (reported as `COMPRESSION.NONE`). Brightfield (RGB) and fluorescence files are both supported; fluorescence files store one grayscale image per band and expose each band as its own level image, with the band name (e.g. `DAPI`) as `optical_path`. Unmixed multispectral component files (float pixels) are not tested.
