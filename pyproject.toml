@@ -21,7 +21,7 @@ dependencies = [
     "numpy>=1.22.0",
     "opentile-jpeg>=0.1.0,<0.2.0",
     "Pillow>=10.1.0",
-    "imagecodecs>=2022.12.24",
+    "imagecodecs>=2026.11.11",
     "defusedxml>=0.7.1",
     "ome-types>=0.5.0",
     "lxml>=4.9.0",
@@ -49,6 +49,8 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 exclude-newer = "14 days"
+# Temporary: imagecodecs 2026.11.11 is inside the 14-day window. Remove after 2026-11-26.
+exclude-newer-package = { imagecodecs = false }
 
 # opentile-jpeg (lossless JPEG operations, C/libjpeg-turbo) is its own
 # distribution, built from opentile-jpeg/ and released on opentile-jpeg-v* tags.

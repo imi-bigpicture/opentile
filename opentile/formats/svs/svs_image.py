@@ -18,7 +18,7 @@ from collections.abc import Iterator, Sequence
 from typing import Optional, cast
 
 import numpy as np
-from imagecodecs import JPEG2K, JPEG8, jpeg2k_encode, jpeg8_encode
+from imagecodecs import JPEG, JPEG2K, jpeg2k_encode, jpeg_encode
 from PIL import Image
 from tifffile import COMPRESSION, PHOTOMETRIC, TiffPage
 from tifffile.tifffile import svs_description_metadata
@@ -232,9 +232,9 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
         # Return compressed image
         if self.compression == COMPRESSION.JPEG:
             if self._page.photometric == PHOTOMETRIC.RGB:
-                colorspace = JPEG8.CS.RGB
+                colorspace = JPEG.CS.RGB
             elif self._page.photometric == PHOTOMETRIC.YCBCR:
-                colorspace = JPEG8.CS.YCbCr
+                colorspace = JPEG.CS.YCbCr
             else:
                 raise NotImplementedError("Non-supported color space")
             # `subsampling` reports full sampling (1, 1) for RGB, so the bogus
@@ -244,7 +244,7 @@ class SvsTiledImage(NativeTiledTiffImage, LevelTiffImage):
             # return bytes at runtime; cast avoids an extra copy of the encoded tile.
             return cast(
                 bytes,
-                jpeg8_encode(
+                jpeg_encode(
                     np.array(image),
                     level=95,
                     colorspace=colorspace,

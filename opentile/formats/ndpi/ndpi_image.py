@@ -20,7 +20,7 @@ from functools import cached_property
 from typing import Optional
 
 import numpy as np
-from imagecodecs import jpeg8_decode
+from imagecodecs import jpeg_decode
 from tifffile import COMPRESSION, RESUNIT, TiffPage
 
 from opentile.cache import lru_cached_method
@@ -135,7 +135,7 @@ class NdpiAssociatedImage(NdpiImage, AssociatedTiffImage):
 
     def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
         if self._is_jpeg:
-            return jpeg8_decode(self.get_tile(tile_position))
+            return jpeg_decode(self.get_tile(tile_position))
         return self._decode_frame()
 
     def _decode_frame(self) -> np.ndarray:
@@ -199,7 +199,7 @@ class NdpiLabelImage(NdpiAssociatedImage):
 
     def get_decoded_tile(self, tile_position: tuple[int, int]) -> np.ndarray:
         if self._is_jpeg:
-            return jpeg8_decode(self.get_tile(tile_position))
+            return jpeg_decode(self.get_tile(tile_position))
         left, top, width, height = self._crop_parameters
         return self._decode_frame()[top : top + height, left : left + width]
 
@@ -319,7 +319,7 @@ class NdpiTiledImage(NdpiImage, LevelTiffImage):
     ) -> Iterator[np.ndarray]:
         frame_jobs = self._sort_into_frame_jobs(tile_positions)
         return (
-            jpeg8_decode(tile)
+            jpeg_decode(tile)
             for frame_job, frame in self._read_job_frames(frame_jobs)
             for tile in self._crop_to_tiles(frame_job, frame).values()
         )

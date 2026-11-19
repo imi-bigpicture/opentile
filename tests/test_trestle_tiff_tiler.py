@@ -18,7 +18,7 @@ from types import SimpleNamespace
 import numpy as np
 import opentile_jpeg
 import pytest
-from imagecodecs import jpeg8_decode
+from imagecodecs import jpeg_decode
 from tifffile import PHOTOMETRIC
 
 from opentile.exceptions import MissingAssociatedImageError
@@ -377,7 +377,7 @@ class TestTrestleTiffTiler:
         level = tiler.get_level(2)
 
         # Act
-        shapes = {jpeg8_decode(tile).shape for tile in level.get_all_tiles()}
+        shapes = {jpeg_decode(tile).shape for tile in level.get_all_tiles()}
 
         # Assert
         assert shapes == {(512, 512, 3)}
@@ -390,7 +390,7 @@ class TestTrestleTiffTiler:
         inside_height = level.image_size.height - last.y * 512
 
         # Act
-        tile = jpeg8_decode(level.get_tile(last.to_tuple()))
+        tile = jpeg_decode(level.get_tile(last.to_tuple()))
 
         # Assert
         assert tile.shape == (512, 512, 3)
