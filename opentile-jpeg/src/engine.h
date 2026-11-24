@@ -58,13 +58,15 @@ typedef struct {
 
 /* Metadata an output can strip, as a bitmask in the `strip` arguments. By
    default every APPn and COM marker of the source is copied, except JFIF and
-   Adobe markers, which libjpeg writes itself to match the output. */
+   Adobe markers, which libjpeg writes itself to match the output. Restart
+   intervals are removed unless JC_PRESERVE_RESTART is set. */
 enum {
     JC_STRIP_ICC = 1 << 0,      /* APP2 ICC_PROFILE */
     JC_STRIP_EXIF = 1 << 1,     /* APP1 Exif */
     JC_STRIP_XMP = 1 << 2,      /* APP1 XMP, standard and extended */
     JC_STRIP_COMMENTS = 1 << 3, /* COM */
-    JC_STRIP_OTHER = 1 << 4     /* any other APPn, e.g. IPTC in APP13 */
+    JC_STRIP_OTHER = 1 << 4,    /* any other APPn, e.g. IPTC in APP13 */
+    JC_PRESERVE_RESTART = 1 << 5 /* retain the source's restart interval */
 };
 
 typedef struct {

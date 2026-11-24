@@ -72,6 +72,18 @@ opentile_jpeg.crop(jpeg, 0, 0, 512, 512, strip=opentile_jpeg.Metadata.EXIF)
 EXIF is copied as is, so after a crop or compose its dimensions and thumbnail
 still describe the source.
 
+Restart intervals (DRI/RST markers) are removed by default. To retain the source's
+restart interval and regenerate restart markers during encoding, opt in with
+`Metadata.PRESERVE_RESTART`:
+
+```python
+optimized = opentile_jpeg.optimize(jpeg, strip=opentile_jpeg.Metadata.PRESERVE_RESTART)
+```
+
+This flag also works with the other operations and can be combined with stripping
+flags, for example `Metadata.ALL | Metadata.PRESERVE_RESTART` to remove metadata
+while retaining restart intervals. `Metadata.ALL` alone still removes both.
+
 ## Errors and warnings
 
 - Invalid arguments, such as a region off the MCU grid, raise `ValueError`.

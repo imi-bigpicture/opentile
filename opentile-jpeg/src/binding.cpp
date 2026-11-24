@@ -312,6 +312,7 @@ NB_MODULE(_binding, m) {
     m.attr("STRIP_XMP") = int(JC_STRIP_XMP);
     m.attr("STRIP_COMMENTS") = int(JC_STRIP_COMMENTS);
     m.attr("STRIP_OTHER") = int(JC_STRIP_OTHER);
+    m.attr("PRESERVE_RESTART") = int(JC_PRESERVE_RESTART);
 
     m.def(
         "read_layout",

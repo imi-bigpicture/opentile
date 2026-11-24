@@ -17,6 +17,8 @@ STRIP_COMMENTS: int = 8
 
 STRIP_OTHER: int = 16
 
+PRESERVE_RESTART: int = 32
+
 def read_layout(jpeg: bytes) -> tuple:
     """
     ``((width, height), [((h_samp, v_samp), (height_in_blocks, width_in_blocks)), ...])`` from the frame header.
