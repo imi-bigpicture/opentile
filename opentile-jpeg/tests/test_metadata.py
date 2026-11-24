@@ -14,13 +14,18 @@
 
 """Tests of metadata handling: kept by default, removed with ``strip``."""
 
+import io
+import re
+
+import numpy as np
 import pytest
+from PIL import Image
 
 import opentile_jpeg
-from conftest import MakeJpeg
+from conftest import Decode, MakeJpeg
 
 ICC = (0xE2, b"ICC_PROFILE\0\x01\x01" + bytes(64))
-EXIF = (0xE1, b"Exif\0\0MM\0*" + bytes(16))
+EXIF = (0xE1, b"Exif\0\0MM\0*\0\0\0\x08\0\0\0\0\0\0")
 XMP = (0xE1, b"http://ns.adobe.com/xap/1.0/\0<x:xmpmeta/>")
 COMMENT = (0xFE, b"scanned slide")
 IPTC = (0xED, b"Photoshop 3.0\0" + bytes(8))
@@ -58,6 +63,77 @@ def tagged(make_jpeg: MakeJpeg) -> bytes:
 
 
 class TestMetadata:
+    @pytest.mark.parametrize("subsample", ["4:4:4", "4:2:0", "gray"])
+    @pytest.mark.parametrize("progressive", [False, True])
+    @pytest.mark.parametrize(
+        ("strip", "preserve", "kept"),
+        [
+            (None, False, ALL_METADATA),
+            (opentile_jpeg.Metadata.NONE, False, ALL_METADATA),
+            (opentile_jpeg.Metadata.ALL, False, []),
+            (opentile_jpeg.Metadata.PRESERVE_RESTART, True, ALL_METADATA),
+            (
+                opentile_jpeg.Metadata.PRESERVE_RESTART | opentile_jpeg.Metadata.EXIF,
+                True,
+                [ICC, XMP, COMMENT, IPTC],
+            ),
+            (
+                opentile_jpeg.Metadata.PRESERVE_RESTART | opentile_jpeg.Metadata.ALL,
+                True,
+                [],
+            ),
+        ],
+    )
+    def test_optimize_restart_markers(
+        self,
+        make_jpeg: MakeJpeg,
+        decode: Decode,
+        subsample: str,
+        progressive: bool,
+        strip: opentile_jpeg.Metadata | None,
+        preserve: bool,
+        kept: list,
+    ) -> None:
+        # Arrange
+        image = Image.open(io.BytesIO(make_jpeg(64, 64, subsample=subsample)))
+        encoded = io.BytesIO()
+        image.save(
+            encoded,
+            "JPEG",
+            subsampling=subsample if subsample != "gray" else "4:4:4",
+            restart_marker_blocks=5,
+        )
+        jpeg = _with_metadata(encoded.getvalue(), ALL_METADATA)
+        dri = b"\xff\xdd\x00\x04\x00\x05"
+        if dri not in jpeg:
+            pytest.skip("this Pillow writes no restart markers")
+        source_restarts = re.findall(rb"\xff([\xd0-\xd7])", jpeg)
+        assert source_restarts
+
+        # Act
+        if strip is None:
+            out = opentile_jpeg.optimize(jpeg, progressive=progressive)
+        else:
+            out = opentile_jpeg.optimize(jpeg, progressive=progressive, strip=strip)
+
+        # Assert
+        restarts = re.findall(rb"\xff([\xd0-\xd7])", out)
+        assert (dri in out) == preserve
+        assert bool(restarts) == preserve
+        if preserve and not progressive:
+            assert restarts == source_restarts
+        assert _metadata(out) == kept
+        assert np.array_equal(decode(out), decode(jpeg))
+
+    def test_preserve_restart_does_not_add_an_interval(self, tagged: bytes) -> None:
+        out = opentile_jpeg.optimize(
+            tagged, strip=opentile_jpeg.Metadata.PRESERVE_RESTART
+        )
+
+        assert b"\xff\xdd" not in out
+        assert not re.findall(rb"\xff([\xd0-\xd7])", out)
+        assert _metadata(out) == ALL_METADATA
+
     @pytest.mark.parametrize(
         "operation",
         [

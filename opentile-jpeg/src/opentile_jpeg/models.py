@@ -30,6 +30,11 @@ class Metadata(enum.Flag):
     copied verbatim, so after a crop or compose the EXIF dimensions and thumbnail
     still describe the source; strip ``EXIF`` where that matters. JFIF and Adobe
     markers are always written by libjpeg-turbo to match the output.
+
+    Restart intervals (DRI/RST markers) are removed by default. Set
+    ``PRESERVE_RESTART`` to retain the source's restart interval and regenerate
+    restart markers during encoding. This opt-in flag is not included in ``ALL``
+    and can be combined with any stripping flags.
     """
 
     NONE = 0
@@ -39,6 +44,7 @@ class Metadata(enum.Flag):
     COMMENTS = lib.STRIP_COMMENTS  # COM segments
     OTHER = lib.STRIP_OTHER  # every other APPn segment, e.g. IPTC (APP13)
     ALL = ICC | EXIF | XMP | COMMENTS | OTHER
+    PRESERVE_RESTART = lib.PRESERVE_RESTART  # retain DRI/RST, rather than strip
 
 
 @dataclass(frozen=True)

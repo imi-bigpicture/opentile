@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in `strip=Metadata.PRESERVE_RESTART` to retain the source's restart interval
+  and regenerate DRI/RST markers; the default still removes them.
+
 ## [0.1.0] - 2026-11-09
 
 ### Added

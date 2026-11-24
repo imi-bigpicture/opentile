@@ -60,6 +60,8 @@ def optimize(
         the source is progressive.
     strip: Metadata = Metadata.NONE
         Metadata to leave out of the output; by default all of it is kept.
+        Restart intervals are removed unless ``Metadata.PRESERVE_RESTART`` is
+        set; this flag can be combined with metadata stripping flags.
     max_pixels: int | None = DEFAULT_MAX_PIXELS
         Refuse a source of more pixels than this before allocating for it; None
         for no limit.

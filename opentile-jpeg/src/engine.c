@@ -153,6 +153,7 @@ static int marker_kind(jpeg_saved_marker_ptr marker) {
 static void write_jpeg(j_compress_ptr dst, jvirt_barray_ptr* coefficients,
                        j_decompress_ptr src, int strip,
                        unsigned char** out, unsigned long* out_size) {
+    dst->restart_interval = (strip & JC_PRESERVE_RESTART) ? src->restart_interval : 0;
     jpeg_mem_dest(dst, out, out_size);
     jpeg_write_coefficients(dst, coefficients);
     for (jpeg_saved_marker_ptr marker = src->marker_list; marker; marker = marker->next) {
