@@ -216,6 +216,23 @@ class TestOmeTiffStripedImage:
         with pytest.raises(ValueError):
             striped.get_decoded_tile((2, 0))  # tiled_size is (2, 2)
 
+    @pytest.mark.parametrize(
+        "page_compression",
+        [COMPRESSION.NONE, COMPRESSION.LZW, COMPRESSION.ADOBE_DEFLATE],
+    )
+    def test_compression_is_none_for_raw_tiles(
+        self, decoy: Decoy, page_compression: COMPRESSION
+    ) -> None:
+        # Arrange
+        page = decoy.mock(cls=TiffPage)
+        decoy.when(page.compression).then_return(page_compression)
+        striped = OmeTiffStripedImage.__new__(OmeTiffStripedImage)
+        striped._page = page
+
+        # Act, Assert
+        assert striped.compression == COMPRESSION.NONE
+        assert striped.encoded_info is None
+
 
 @pytest.mark.unittest
 class TestOmeTiffStripedTiler:
@@ -278,3 +295,36 @@ class TestOmeTiffStripedTiler:
 
         # Act, Assert
         assert level.get_tile((0, 0)) == level.get_decoded_tile((0, 0)).tobytes()
+
+    @pytest.mark.parametrize("compression", ["lzw", "zlib"])
+    def test_compressed_striped_level_reports_uncompressed(
+        self, tmp_path: Path, compression: str
+    ) -> None:
+        # Arrange
+        path = tmp_path / f"striped_{compression}.ome.tiff"
+        data = np.arange(32 * 32 * 3, dtype=np.uint8).reshape(32, 32, 3)
+        tifffile.imwrite(
+            path,
+            data,
+            photometric="rgb",
+            compression=compression,
+            rowsperstrip=16,
+            metadata={
+                "axes": "YXS",
+                "PhysicalSizeX": 0.5,
+                "PhysicalSizeXUnit": "µm",
+                "PhysicalSizeY": 0.5,
+                "PhysicalSizeYUnit": "µm",
+            },
+        )
+
+        # Act
+        with OmeTiffTiler(path, tile_size=16) as tiler:
+            level = tiler.get_level(0)
+            tile = level.get_tile((0, 0))
+            decoded = level.get_decoded_tile((0, 0))
+
+            # Assert
+            assert isinstance(level, OmeTiffStripedImage)
+            assert level.compression == COMPRESSION.NONE
+            assert tile == decoded.tobytes()
