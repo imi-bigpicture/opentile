@@ -727,6 +727,11 @@ class DecodedTiledTiffImage(BaseTiffImage, metaclass=ABCMeta):
     Subclasses must set `self._tile_size` (the requested grid tile size) and recompute
     `self._tiled_region` after calling `super().__init__`."""
 
+    @property
+    def compression(self) -> COMPRESSION:
+        """Tiles are decoded and served as raw pixels, so compression is NONE."""
+        return COMPRESSION.NONE
+
     @cached_property
     def _decoded_image(self) -> np.ndarray:
         """The whole page decoded once (tifffile reassembles the strips/tiles)."""
